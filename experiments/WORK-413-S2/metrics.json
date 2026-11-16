@@ -1,0 +1,76 @@
+{
+  "experiment": "WORK-413-S2",
+  "generated_at": "2026-11-16T14:36:44.341204+08:00",
+  "claims": {
+    "D1": {
+      "claim": "中证1000 区间跌幅 25.4%",
+      "measured_closed_to_closed": -0.261481,
+      "gap_pp": -0.748,
+      "start_variants": {
+        "产品1成立日 2026-05-19": {
+          "start_used": "2026-05-19",
+          "ret": -0.261481,
+          "gap_pp": -0.748
+        },
+        "产品2成立日 2026-05-26": {
+          "start_used": "2026-05-26",
+          "ret": -0.251161,
+          "gap_pp": 0.284
+        },
+        "成立月首 2026-05-04": {
+          "start_used": null,
+          "ret": null,
+          "gap_pp": null,
+          "note": "窗口内无 ≤ 该日的交易日（区间起点早于快照起点）"
+        },
+        "月初 2026-05-01": {
+          "start_used": null,
+          "ret": null,
+          "gap_pp": null,
+          "note": "窗口内无 ≤ 该日的交易日（区间起点早于快照起点）"
+        }
+      },
+      "verdict": "口径未定：收盘到收盘 −26.15%（差 0.75pp）；成立日开盘口径 −25.15%（差 0.25pp）；原文未给端点口径"
+    },
+    "D2": {
+      "claim": "中证1000 期间最大跌幅 31.39%",
+      "measured_close_mdd_since_inception": -0.305904,
+      "measured_close_mdd_ytd": -0.312013,
+      "measured_intraday_high_to_low": -0.313904,
+      "verdict": "成立：原文用日内最高→最低口径，实测 −31.39%（差 0.001pp）"
+    },
+    "D3": {
+      "claim": "中证A500 区间跌幅 20.22%",
+      "measured_closed_to_closed": -0.203532,
+      "gap_pp": -0.133,
+      "verdict": "成立：收盘到收盘 −20.35%，差 0.13pp"
+    },
+    "D4": {
+      "claim": "两只产品成立以来亏损 33.76%/32.47%（净值 0.6624/0.6753）",
+      "verdict": "不可复现（产品级净值无公开源）"
+    },
+    "D5": {
+      "claim": "44 只量化指增产品净值 0.7–0.8，其中 40 只成立不满一年（90.91%）",
+      "verdict": "不可复现（产品清单与净值无公开源）"
+    },
+    "D6": {
+      "claim": "蒙玺 354 只备案（38.42%）、弈倍 133 只（38.35%）",
+      "verdict": "不可复现（中基协口径需逐只核对）"
+    }
+  },
+  "cross_check": [
+    {
+      "source_A": "A_tencent",
+      "source_B": "S_sina_akshare",
+      "index": "中证1000",
+      "common_days": 131,
+      "max_abs_diff": 0.005,
+      "mean_abs_diff": 0.002481,
+      "verdict": "一致（2 位小数舍入半格内）"
+    }
+  ],
+  "notes": [
+    "中证A500 腾讯代码 sh000510 可用；中证2000（sh932000）仍不可用——两者不是同一个坑。",
+    "腾讯 param 日期必须 YYYY-MM-DD；用 YYYYMMDD 返回 40 字节 {\"code\":0,\"msg\":\"param error\"}。"
+  ]
+}

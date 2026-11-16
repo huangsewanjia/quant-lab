@@ -1,0 +1,62 @@
+{
+  "experiment": "WORK-413-S2",
+  "generated_at": "2026-11-16T14:36:44.341204+08:00",
+  "window": {
+    "start": "2026-05-01",
+    "end": "2026-11-13"
+  },
+  "paths_are": "repo-relative (relative to repository root)",
+  "sources": {
+    "A_tencent": "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get (param=code,day,YYYY-MM-DD,YYYY-MM-DD,640,qfq)",
+    "S_sina_akshare": "akshare.stock_zh_index_daily(symbol=<code>) —— 新浪后端，独立出口 IP，用于交叉校验"
+  },
+  "items": [
+    {
+      "source": "A_tencent",
+      "name": "中证1000",
+      "code": "sh000852",
+      "style_tag": "小盘",
+      "ok": true,
+      "rows": 131,
+      "date_min": "2026-05-06",
+      "date_max": "2026-11-13",
+      "path": "data/WORK-413-S2/A_tencent_sh000852.csv",
+      "sha256": "28e8966f5c095b58937e101b1a47b373acbd1f4ec97955184a9ef17ab9a3b16c"
+    },
+    {
+      "source": "A_tencent",
+      "name": "中证500",
+      "code": "sh000905",
+      "style_tag": "中盘",
+      "ok": true,
+      "rows": 131,
+      "date_min": "2026-05-06",
+      "date_max": "2026-11-13",
+      "path": "data/WORK-413-S2/A_tencent_sh000905.csv",
+      "sha256": "1206764fd32ef051179852cc46f1edbc14c04f4813e2cc0e4d97235efb5f62be"
+    },
+    {
+      "source": "A_tencent",
+      "name": "中证A500",
+      "code": "sh000510",
+      "style_tag": "中盘",
+      "ok": true,
+      "rows": 131,
+      "date_min": "2026-05-06",
+      "date_max": "2026-11-13",
+      "path": "data/WORK-413-S2/A_tencent_sh000510.csv",
+      "sha256": "4b81736c68f8be26a281991c7976161929ce4fe92b24767ecee11ae5da1068b4"
+    }
+  ],
+  "cross_check": [
+    {
+      "source_A": "A_tencent",
+      "source_B": "S_sina_akshare",
+      "index": "中证1000",
+      "common_days": 131,
+      "max_abs_diff": 0.005,
+      "mean_abs_diff": 0.002481,
+      "verdict": "一致（2 位小数舍入半格内）"
+    }
+  ]
+}
