@@ -1,0 +1,445 @@
+{
+  "verdict": "PASS",
+  "experiment": "WORK-404",
+  "blocking": 0,
+  "suggestion": 14,
+  "pass": 30,
+  "findings": [
+    {
+      "severity": "PASS",
+      "item": "中证1000 2026-10 区间收益",
+      "measured": "-0.155859",
+      "expected": "-0.155900",
+      "gap": "+0.000041",
+      "location": "experiments/<EXP>/metrics.json",
+      "how_to_verify": "重跑 scripts/build_analysis.py 与本脚本比对 中证1000 2026-10 区间收益"
+    },
+    {
+      "severity": "PASS",
+      "item": "沪深300 2026-10 区间收益",
+      "measured": "-0.085395",
+      "expected": "-0.085400",
+      "gap": "+0.000005",
+      "location": "experiments/<EXP>/metrics.json",
+      "how_to_verify": "重跑 scripts/build_analysis.py 与本脚本比对 沪深300 2026-10 区间收益"
+    },
+    {
+      "severity": "PASS",
+      "item": "中证1000 09-30→11-13",
+      "measured": "-0.129002",
+      "expected": "-0.129000",
+      "gap": "-0.000002",
+      "location": "experiments/<EXP>/metrics.json",
+      "how_to_verify": "重跑 scripts/build_analysis.py 与本脚本比对 中证1000 09-30→11-13"
+    },
+    {
+      "severity": "PASS",
+      "item": "沪深300 09-30→11-13（正文引用）",
+      "measured": "-0.078329",
+      "expected": "-0.078300",
+      "gap": "-0.000029",
+      "location": "experiments/<EXP>/metrics.json",
+      "how_to_verify": "重跑 scripts/build_analysis.py 与本脚本比对 沪深300 09-30→11-13（正文引用）"
+    },
+    {
+      "severity": "PASS",
+      "item": "10月以来 中证1000−沪深300（pp）",
+      "measured": "-5.067222pp",
+      "expected": "-5.070000pp",
+      "gap": "+0.002778pp",
+      "location": "experiments/<EXP>/metrics.json",
+      "how_to_verify": "重跑 scripts/build_analysis.py 与本脚本比对 10月以来 中证1000−沪深300（pp）"
+    },
+    {
+      "severity": "PASS",
+      "item": "中证1000 11-01→11-13",
+      "measured": "0.031817",
+      "expected": "0.031800",
+      "gap": "+0.000017",
+      "location": "experiments/<EXP>/metrics.json",
+      "how_to_verify": "重跑 scripts/build_analysis.py 与本脚本比对 中证1000 11-01→11-13"
+    },
+    {
+      "severity": "PASS",
+      "item": "中证红利 2026-07",
+      "measured": "0.108901",
+      "expected": "0.108900",
+      "gap": "+0.000001",
+      "location": "experiments/<EXP>/metrics.json",
+      "how_to_verify": "重跑 scripts/build_analysis.py 与本脚本比对 中证红利 2026-07"
+    },
+    {
+      "severity": "PASS",
+      "item": "科创50 2026-07",
+      "measured": "-0.259029",
+      "expected": "-0.259000",
+      "gap": "-0.000029",
+      "location": "experiments/<EXP>/metrics.json",
+      "how_to_verify": "重跑 scripts/build_analysis.py 与本脚本比对 科创50 2026-07"
+    },
+    {
+      "severity": "PASS",
+      "item": "国证2000 2026-07",
+      "measured": "-0.194559",
+      "expected": "-0.194600",
+      "gap": "+0.000041",
+      "location": "experiments/<EXP>/metrics.json",
+      "how_to_verify": "重跑 scripts/build_analysis.py 与本脚本比对 国证2000 2026-07"
+    },
+    {
+      "severity": "PASS",
+      "item": "7月 中证1000−中证红利（pp）",
+      "measured": "-30.575909pp",
+      "expected": "-30.580000pp",
+      "gap": "+0.004091pp",
+      "location": "experiments/<EXP>/metrics.json",
+      "how_to_verify": "重跑 scripts/build_analysis.py 与本脚本比对 7月 中证1000−中证红利（pp）"
+    },
+    {
+      "severity": "PASS",
+      "item": "10月 中证1000−沪深300（pp）",
+      "measured": "-7.046420pp",
+      "expected": "-7.050000pp",
+      "gap": "+0.003580pp",
+      "location": "experiments/<EXP>/metrics.json",
+      "how_to_verify": "重跑 scripts/build_analysis.py 与本脚本比对 10月 中证1000−沪深300（pp）"
+    },
+    {
+      "severity": "PASS",
+      "item": "C1 隐含超额下界（10月/中证1000）",
+      "measured": "-1.414056pp",
+      "expected": "-1.410000pp",
+      "gap": "-0.004056pp",
+      "location": "experiments/<EXP>/metrics.json",
+      "how_to_verify": "重跑 scripts/build_analysis.py 与本脚本比对 C1 隐含超额下界（10月/中证1000）"
+    },
+    {
+      "severity": "PASS",
+      "item": "C1 隐含超额下界（10月/国证2000）",
+      "measured": "-1.696792pp",
+      "expected": "-1.700000pp",
+      "gap": "+0.003208pp",
+      "location": "experiments/<EXP>/metrics.json",
+      "how_to_verify": "重跑 scripts/build_analysis.py 与本脚本比对 C1 隐含超额下界（10月/国证2000）"
+    },
+    {
+      "severity": "PASS",
+      "item": "成交额代理 H1 月均（万亿元）",
+      "measured": "8.895454万亿",
+      "expected": "8.900000万亿",
+      "gap": "-0.004546万亿",
+      "location": "experiments/<EXP>/metrics.json",
+      "how_to_verify": "重跑 scripts/build_analysis.py 与本脚本比对 成交额代理 H1 月均（万亿元）"
+    },
+    {
+      "severity": "PASS",
+      "item": "成交额代理 2026-10 月均（万亿元）",
+      "measured": "5.108510万亿",
+      "expected": "5.110000万亿",
+      "gap": "-0.001490万亿",
+      "location": "experiments/<EXP>/metrics.json",
+      "how_to_verify": "重跑 scripts/build_analysis.py 与本脚本比对 成交额代理 2026-10 月均（万亿元）"
+    },
+    {
+      "severity": "PASS",
+      "item": "成交额代理 10月相对H1 变化",
+      "measured": "-42.571677%",
+      "expected": "-42.600000%",
+      "gap": "+0.028323%",
+      "location": "experiments/<EXP>/metrics.json",
+      "how_to_verify": "重跑 scripts/build_analysis.py 与本脚本比对 成交额代理 10月相对H1 变化"
+    },
+    {
+      "severity": "PASS",
+      "item": "跨源点值 sh000852 2026-09-30",
+      "measured": 7298.82,
+      "expected": 7298.8208,
+      "gap": "绝对差 0.0008（相对差 1.10e-07）",
+      "location": "data_contracts/data_source_registry.md §4",
+      "how_to_verify": "重跑 MCP tushare index_daily 同参数比对"
+    },
+    {
+      "severity": "PASS",
+      "item": "跨源点值 sh000852 2026-10-30",
+      "measured": 6161.23,
+      "expected": 6161.2275,
+      "gap": "绝对差 0.0025（相对差 4.06e-07）",
+      "location": "data_contracts/data_source_registry.md §4",
+      "how_to_verify": "重跑 MCP tushare index_daily 同参数比对"
+    },
+    {
+      "severity": "PASS",
+      "item": "跨源点值 sh000300 2026-09-30",
+      "measured": 4357.62,
+      "expected": 4357.6155,
+      "gap": "绝对差 0.0045（相对差 1.03e-06）",
+      "location": "data_contracts/data_source_registry.md §4",
+      "how_to_verify": "重跑 MCP tushare index_daily 同参数比对"
+    },
+    {
+      "severity": "PASS",
+      "item": "跨源点值 sh000300 2026-10-30",
+      "measured": 3985.5,
+      "expected": 3985.501,
+      "gap": "绝对差 0.0010（相对差 2.51e-07）",
+      "location": "data_contracts/data_source_registry.md §4",
+      "how_to_verify": "重跑 MCP tushare index_daily 同参数比对"
+    },
+    {
+      "severity": "PASS",
+      "item": "跨源点值 sz399303 2026-09-30",
+      "measured": 9648.5,
+      "expected": 9648.5035,
+      "gap": "绝对差 0.0035（相对差 3.63e-07）",
+      "location": "data_contracts/data_source_registry.md §4",
+      "how_to_verify": "重跑 MCP tushare index_daily 同参数比对"
+    },
+    {
+      "severity": "PASS",
+      "item": "跨源点值 sz399303 2026-10-30",
+      "measured": 8171.97,
+      "expected": 8171.9678,
+      "gap": "绝对差 0.0022（相对差 2.69e-07）",
+      "location": "data_contracts/data_source_registry.md §4",
+      "how_to_verify": "重跑 MCP tushare index_daily 同参数比对"
+    },
+    {
+      "severity": "SUGGESTION",
+      "item": "数据源未取到：中证2000",
+      "measured": "ValueError: empty kline for sh932000: keys=['day', 'qt', 'mx_price', 'prec', 'version']",
+      "expected": "—",
+      "gap": "—",
+      "location": "data_contracts/data_source_registry.md §3",
+      "how_to_verify": "见数据源登记表坑位清单"
+    },
+    {
+      "severity": "SUGGESTION",
+      "item": "数据源未取到：上证指数",
+      "measured": "skipped: eastmoney push2 对本机 IP 限流（preflight 失败），成交额改用代理口径",
+      "expected": "—",
+      "gap": "—",
+      "location": "data_contracts/data_source_registry.md §3",
+      "how_to_verify": "见数据源登记表坑位清单"
+    },
+    {
+      "severity": "SUGGESTION",
+      "item": "数据源未取到：深证成指",
+      "measured": "skipped: eastmoney push2 对本机 IP 限流（preflight 失败），成交额改用代理口径",
+      "expected": "—",
+      "gap": "—",
+      "location": "data_contracts/data_source_registry.md §3",
+      "how_to_verify": "见数据源登记表坑位清单"
+    },
+    {
+      "severity": "SUGGESTION",
+      "item": "数据源未取到：上证50",
+      "measured": "skipped: eastmoney push2 对本机 IP 限流（preflight 失败），成交额改用代理口径",
+      "expected": "—",
+      "gap": "—",
+      "location": "data_contracts/data_source_registry.md §3",
+      "how_to_verify": "见数据源登记表坑位清单"
+    },
+    {
+      "severity": "SUGGESTION",
+      "item": "数据源未取到：沪深300",
+      "measured": "skipped: eastmoney push2 对本机 IP 限流（preflight 失败），成交额改用代理口径",
+      "expected": "—",
+      "gap": "—",
+      "location": "data_contracts/data_source_registry.md §3",
+      "how_to_verify": "见数据源登记表坑位清单"
+    },
+    {
+      "severity": "SUGGESTION",
+      "item": "数据源未取到：中证500",
+      "measured": "skipped: eastmoney push2 对本机 IP 限流（preflight 失败），成交额改用代理口径",
+      "expected": "—",
+      "gap": "—",
+      "location": "data_contracts/data_source_registry.md §3",
+      "how_to_verify": "见数据源登记表坑位清单"
+    },
+    {
+      "severity": "SUGGESTION",
+      "item": "数据源未取到：中证1000",
+      "measured": "skipped: eastmoney push2 对本机 IP 限流（preflight 失败），成交额改用代理口径",
+      "expected": "—",
+      "gap": "—",
+      "location": "data_contracts/data_source_registry.md §3",
+      "how_to_verify": "见数据源登记表坑位清单"
+    },
+    {
+      "severity": "SUGGESTION",
+      "item": "数据源未取到：中证2000",
+      "measured": "skipped: eastmoney push2 对本机 IP 限流（preflight 失败），成交额改用代理口径",
+      "expected": "—",
+      "gap": "—",
+      "location": "data_contracts/data_source_registry.md §3",
+      "how_to_verify": "见数据源登记表坑位清单"
+    },
+    {
+      "severity": "SUGGESTION",
+      "item": "数据源未取到：国证2000",
+      "measured": "skipped: eastmoney push2 对本机 IP 限流（preflight 失败），成交额改用代理口径",
+      "expected": "—",
+      "gap": "—",
+      "location": "data_contracts/data_source_registry.md §3",
+      "how_to_verify": "见数据源登记表坑位清单"
+    },
+    {
+      "severity": "SUGGESTION",
+      "item": "数据源未取到：创业板指",
+      "measured": "skipped: eastmoney push2 对本机 IP 限流（preflight 失败），成交额改用代理口径",
+      "expected": "—",
+      "gap": "—",
+      "location": "data_contracts/data_source_registry.md §3",
+      "how_to_verify": "见数据源登记表坑位清单"
+    },
+    {
+      "severity": "SUGGESTION",
+      "item": "数据源未取到：科创50",
+      "measured": "skipped: eastmoney push2 对本机 IP 限流（preflight 失败），成交额改用代理口径",
+      "expected": "—",
+      "gap": "—",
+      "location": "data_contracts/data_source_registry.md §3",
+      "how_to_verify": "见数据源登记表坑位清单"
+    },
+    {
+      "severity": "SUGGESTION",
+      "item": "数据源未取到：中证全指",
+      "measured": "skipped: eastmoney push2 对本机 IP 限流（preflight 失败），成交额改用代理口径",
+      "expected": "—",
+      "gap": "—",
+      "location": "data_contracts/data_source_registry.md §3",
+      "how_to_verify": "见数据源登记表坑位清单"
+    },
+    {
+      "severity": "SUGGESTION",
+      "item": "数据源未取到：中证红利",
+      "measured": "skipped: eastmoney push2 对本机 IP 限流（preflight 失败），成交额改用代理口径",
+      "expected": "—",
+      "gap": "—",
+      "location": "data_contracts/data_source_registry.md §3",
+      "how_to_verify": "见数据源登记表坑位清单"
+    },
+    {
+      "severity": "PASS",
+      "item": "fig1_schematic 面板对齐",
+      "measured": "NOT APPLICABLE",
+      "expected": "PASS / NOT APPLICABLE",
+      "gap": {
+        "fail": 0,
+        "warn": 0,
+        "comparisons": 0,
+        "exemptions": 0
+      },
+      "location": "figures/WORK-404/",
+      "how_to_verify": "重跑 audit_panel_alignment"
+    },
+    {
+      "severity": "PASS",
+      "item": "fig1_schematic 碰撞审计",
+      "measured": "PASS",
+      "expected": "PASS",
+      "gap": {
+        "fail": 0,
+        "warn": 0,
+        "contained_fill_overlays": 22,
+        "contained_image_overlays": 0
+      },
+      "location": "figures/WORK-404/",
+      "how_to_verify": "重跑 audit_figure_collisions.py"
+    },
+    {
+      "severity": "PASS",
+      "item": "fig2_nav 面板对齐",
+      "measured": "NOT APPLICABLE",
+      "expected": "PASS / NOT APPLICABLE",
+      "gap": {
+        "fail": 0,
+        "warn": 0,
+        "comparisons": 0,
+        "exemptions": 0
+      },
+      "location": "figures/WORK-404/",
+      "how_to_verify": "重跑 audit_panel_alignment"
+    },
+    {
+      "severity": "PASS",
+      "item": "fig2_nav 碰撞审计",
+      "measured": "PASS",
+      "expected": "PASS",
+      "gap": {
+        "fail": 0,
+        "warn": 0,
+        "contained_fill_overlays": 2,
+        "contained_image_overlays": 0
+      },
+      "location": "figures/WORK-404/",
+      "how_to_verify": "重跑 audit_figure_collisions.py"
+    },
+    {
+      "severity": "PASS",
+      "item": "fig3_reproduce 面板对齐",
+      "measured": "PASS",
+      "expected": "PASS / NOT APPLICABLE",
+      "gap": {
+        "fail": 0,
+        "warn": 0,
+        "comparisons": 1,
+        "exemptions": 0
+      },
+      "location": "figures/WORK-404/",
+      "how_to_verify": "重跑 audit_panel_alignment"
+    },
+    {
+      "severity": "SUGGESTION",
+      "item": "fig3_reproduce 碰撞审计",
+      "measured": "REVIEW REQUIRED",
+      "expected": "PASS",
+      "gap": {
+        "fail": 0,
+        "warn": 1,
+        "contained_fill_overlays": 0,
+        "contained_image_overlays": 0
+      },
+      "location": "figures/WORK-404/",
+      "how_to_verify": "重跑 audit_figure_collisions.py"
+    },
+    {
+      "severity": "PASS",
+      "item": "fig4_matrix_radar 面板对齐",
+      "measured": "PASS",
+      "expected": "PASS / NOT APPLICABLE",
+      "gap": {
+        "fail": 0,
+        "warn": 0,
+        "comparisons": 1,
+        "exemptions": 0
+      },
+      "location": "figures/WORK-404/",
+      "how_to_verify": "重跑 audit_panel_alignment"
+    },
+    {
+      "severity": "PASS",
+      "item": "fig4_matrix_radar 碰撞审计",
+      "measured": "PASS",
+      "expected": "PASS",
+      "gap": {
+        "fail": 0,
+        "warn": 0,
+        "contained_fill_overlays": 0,
+        "contained_image_overlays": 0
+      },
+      "location": "figures/WORK-404/",
+      "how_to_verify": "重跑 audit_figure_collisions.py"
+    },
+    {
+      "severity": "PASS",
+      "item": "首页三行免责",
+      "measured": "齐全",
+      "expected": "齐全",
+      "gap": "",
+      "location": "experiments/WORK-404/report.html",
+      "how_to_verify": "检查首页免责三行"
+    }
+  ]
+}

@@ -1,0 +1,251 @@
+{
+  "experiment": "WORK-404",
+  "generated_at": "2026-11-15T22:46:41.901573+08:00",
+  "window": {
+    "start": "20250101",
+    "end": "20261114"
+  },
+  "paths_are": "repo-relative (relative to repository root)",
+  "sources": {
+    "A_tencent": "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get (param=code,day,YYYY-MM-DD,YYYY-MM-DD,640,qfq)",
+    "B_eastmoney": "https://push2his.eastmoney.com/api/qt/stock/kline/get (secid,klt=101,fqt=1) —— 限流时整段跳过",
+    "C_tushare_mcp": "mcp__tushare__index_daily（服务端，独立交叉校验，数值见 notes/tushare_crosscheck.md）"
+  },
+  "items": [
+    {
+      "source": "A_tencent",
+      "name": "上证指数",
+      "code": "sh000001",
+      "style_tag": "全市场",
+      "ok": true,
+      "rows": 451,
+      "date_min": "2025-01-02",
+      "date_max": "2026-11-13",
+      "path": "data/WORK-404/A_tencent_sh000001.csv",
+      "sha256": "7e1af260c85f31539b560466436acc461c67e9830c89be91399078931e7a7bed"
+    },
+    {
+      "source": "A_tencent",
+      "name": "深证成指",
+      "code": "sz399001",
+      "style_tag": "全市场",
+      "ok": true,
+      "rows": 451,
+      "date_min": "2025-01-02",
+      "date_max": "2026-11-13",
+      "path": "data/WORK-404/A_tencent_sz399001.csv",
+      "sha256": "d37dd1b89903308ef9a999981e48d9af493c8dcc7aea903919b76c098ace2b81"
+    },
+    {
+      "source": "A_tencent",
+      "name": "上证50",
+      "code": "sh000016",
+      "style_tag": "大盘价值",
+      "ok": true,
+      "rows": 451,
+      "date_min": "2025-01-02",
+      "date_max": "2026-11-13",
+      "path": "data/WORK-404/A_tencent_sh000016.csv",
+      "sha256": "3c8e8da56053c744820069944ae2407f9f2cd58316d9685740f6e6594c40e9ab"
+    },
+    {
+      "source": "A_tencent",
+      "name": "沪深300",
+      "code": "sh000300",
+      "style_tag": "大盘",
+      "ok": true,
+      "rows": 451,
+      "date_min": "2025-01-02",
+      "date_max": "2026-11-13",
+      "path": "data/WORK-404/A_tencent_sh000300.csv",
+      "sha256": "2f0dc93aeedf1841703b9a19f6c9dbecad398ca3ec56723fc08877db4a526d98"
+    },
+    {
+      "source": "A_tencent",
+      "name": "中证500",
+      "code": "sh000905",
+      "style_tag": "中盘",
+      "ok": true,
+      "rows": 451,
+      "date_min": "2025-01-02",
+      "date_max": "2026-11-13",
+      "path": "data/WORK-404/A_tencent_sh000905.csv",
+      "sha256": "70eb878da64cdbea7fa030ed3c724921cf35306cdd543ef6187fd759bd70c810"
+    },
+    {
+      "source": "A_tencent",
+      "name": "中证1000",
+      "code": "sh000852",
+      "style_tag": "小盘",
+      "ok": true,
+      "rows": 451,
+      "date_min": "2025-01-02",
+      "date_max": "2026-11-13",
+      "path": "data/WORK-404/A_tencent_sh000852.csv",
+      "sha256": "1cb1dad624214a6a233fe72c320b931394faaf4a161bf1808717077f3fa72515"
+    },
+    {
+      "source": "A_tencent",
+      "name": "中证2000",
+      "code": "sh932000",
+      "ok": false,
+      "error": "ValueError: empty kline for sh932000: keys=['day', 'qt', 'mx_price', 'prec', 'version']"
+    },
+    {
+      "source": "A_tencent",
+      "name": "国证2000",
+      "code": "sz399303",
+      "style_tag": "超小盘",
+      "ok": true,
+      "rows": 451,
+      "date_min": "2025-01-02",
+      "date_max": "2026-11-13",
+      "path": "data/WORK-404/A_tencent_sz399303.csv",
+      "sha256": "55010ccf4be1c71b19f55d0bab1330e4a676f13bcf51cc05e9a8137e683d0c23"
+    },
+    {
+      "source": "A_tencent",
+      "name": "创业板指",
+      "code": "sz399006",
+      "style_tag": "科技成长",
+      "ok": true,
+      "rows": 451,
+      "date_min": "2025-01-02",
+      "date_max": "2026-11-13",
+      "path": "data/WORK-404/A_tencent_sz399006.csv",
+      "sha256": "c40700c850255e8c77ec2a1953218a8fee096d75f89da237098f5e61024d61af"
+    },
+    {
+      "source": "A_tencent",
+      "name": "科创50",
+      "code": "sh000688",
+      "style_tag": "科技成长",
+      "ok": true,
+      "rows": 451,
+      "date_min": "2025-01-02",
+      "date_max": "2026-11-13",
+      "path": "data/WORK-404/A_tencent_sh000688.csv",
+      "sha256": "c0143198defcf34dec3e5014f8154f7edd0caefc02c05384cfbc2ba33dc83b85"
+    },
+    {
+      "source": "A_tencent",
+      "name": "中证全指",
+      "code": "sh000985",
+      "style_tag": "全市场",
+      "ok": true,
+      "rows": 451,
+      "date_min": "2025-01-02",
+      "date_max": "2026-11-13",
+      "path": "data/WORK-404/A_tencent_sh000985.csv",
+      "sha256": "63996dbd7612dcb296fbc1ea6fe3d864156508827203ee0b871a81e6040a7456"
+    },
+    {
+      "source": "A_tencent",
+      "name": "中证红利",
+      "code": "sh000922",
+      "style_tag": "防御",
+      "ok": true,
+      "rows": 451,
+      "date_min": "2025-01-02",
+      "date_max": "2026-11-13",
+      "path": "data/WORK-404/A_tencent_sh000922.csv",
+      "sha256": "260b82d3b7c662271151b4998383925fa1123185aa32e08306bf68509233790f"
+    },
+    {
+      "source": "B_eastmoney",
+      "name": "上证指数",
+      "code": "sh000001",
+      "style_tag": "全市场",
+      "ok": false,
+      "error": "skipped: eastmoney push2 对本机 IP 限流（preflight 失败），成交额改用代理口径"
+    },
+    {
+      "source": "B_eastmoney",
+      "name": "深证成指",
+      "code": "sz399001",
+      "style_tag": "全市场",
+      "ok": false,
+      "error": "skipped: eastmoney push2 对本机 IP 限流（preflight 失败），成交额改用代理口径"
+    },
+    {
+      "source": "B_eastmoney",
+      "name": "上证50",
+      "code": "sh000016",
+      "style_tag": "大盘价值",
+      "ok": false,
+      "error": "skipped: eastmoney push2 对本机 IP 限流（preflight 失败），成交额改用代理口径"
+    },
+    {
+      "source": "B_eastmoney",
+      "name": "沪深300",
+      "code": "sh000300",
+      "style_tag": "大盘",
+      "ok": false,
+      "error": "skipped: eastmoney push2 对本机 IP 限流（preflight 失败），成交额改用代理口径"
+    },
+    {
+      "source": "B_eastmoney",
+      "name": "中证500",
+      "code": "sh000905",
+      "style_tag": "中盘",
+      "ok": false,
+      "error": "skipped: eastmoney push2 对本机 IP 限流（preflight 失败），成交额改用代理口径"
+    },
+    {
+      "source": "B_eastmoney",
+      "name": "中证1000",
+      "code": "sh000852",
+      "style_tag": "小盘",
+      "ok": false,
+      "error": "skipped: eastmoney push2 对本机 IP 限流（preflight 失败），成交额改用代理口径"
+    },
+    {
+      "source": "B_eastmoney",
+      "name": "中证2000",
+      "code": "sh932000",
+      "style_tag": "超小盘",
+      "ok": false,
+      "error": "skipped: eastmoney push2 对本机 IP 限流（preflight 失败），成交额改用代理口径"
+    },
+    {
+      "source": "B_eastmoney",
+      "name": "国证2000",
+      "code": "sz399303",
+      "style_tag": "超小盘",
+      "ok": false,
+      "error": "skipped: eastmoney push2 对本机 IP 限流（preflight 失败），成交额改用代理口径"
+    },
+    {
+      "source": "B_eastmoney",
+      "name": "创业板指",
+      "code": "sz399006",
+      "style_tag": "科技成长",
+      "ok": false,
+      "error": "skipped: eastmoney push2 对本机 IP 限流（preflight 失败），成交额改用代理口径"
+    },
+    {
+      "source": "B_eastmoney",
+      "name": "科创50",
+      "code": "sh000688",
+      "style_tag": "科技成长",
+      "ok": false,
+      "error": "skipped: eastmoney push2 对本机 IP 限流（preflight 失败），成交额改用代理口径"
+    },
+    {
+      "source": "B_eastmoney",
+      "name": "中证全指",
+      "code": "sh000985",
+      "style_tag": "全市场",
+      "ok": false,
+      "error": "skipped: eastmoney push2 对本机 IP 限流（preflight 失败），成交额改用代理口径"
+    },
+    {
+      "source": "B_eastmoney",
+      "name": "中证红利",
+      "code": "sh000922",
+      "style_tag": "防御",
+      "ok": false,
+      "error": "skipped: eastmoney push2 对本机 IP 限流（preflight 失败），成交额改用代理口径"
+    }
+  ]
+}

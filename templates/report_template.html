@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>验证公众号文章中的量化策略，并判断量化试验信息要不要单独立项 | WORK-404</title>
+<style>
+:root{
+  --ink:#141414; --ink2:#3a3a3a; --muted:#6b6b6b; --rule:#d9d9d9; --rule2:#efefef;
+  --blue:#0B5FA5; --orange:#D98200; --red:#B03030; --bg:#ffffff; --panel:#f7f8fa;
+  --sans:"Segoe UI","Helvetica Neue",Arial,"Microsoft YaHei","PingFang SC",sans-serif;
+  --serif:Georgia,"Times New Roman","Songti SC","Noto Serif SC","SimSun",serif;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--serif);
+  font-size:16.5px;line-height:1.75;text-rendering:optimizeLegibility}
+.page{max-width:1080px;margin:0 auto;padding:46px 52px 72px}
+header.masthead{border-bottom:2px solid var(--ink);padding-bottom:18px;margin-bottom:26px}
+.kicker{font-family:var(--sans);font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:12px}
+h1{font-size:31px;line-height:1.28;margin:0 0 12px;font-weight:700;letter-spacing:-.01em}
+.subtitle{font-family:var(--sans);font-size:15.5px;color:var(--ink2);margin:0 0 16px;line-height:1.6}
+.byline{font-family:var(--sans);font-size:13px;color:var(--muted);border-top:1px solid var(--rule);
+  padding-top:12px;display:flex;flex-wrap:wrap;gap:6px 20px}
+.byline b{color:var(--ink2);font-weight:600}
+.disclaimer{background:var(--panel);border:1px solid var(--rule);border-left:3px solid var(--ink);
+  padding:14px 18px;margin:26px 0 34px;font-family:var(--sans);font-size:13.5px;color:var(--ink2);line-height:1.85}
+.disclaimer div{margin:0}
+h2{font-family:var(--sans);font-size:20px;font-weight:650;margin:44px 0 14px;padding-bottom:7px;
+  border-bottom:1px solid var(--rule);letter-spacing:-.005em}
+h2 .num{color:var(--blue);font-weight:700;margin-right:10px}
+h3{font-family:var(--sans);font-size:15.5px;font-weight:650;margin:26px 0 9px;color:var(--ink)}
+p{margin:0 0 14px;text-align:justify}
+ul,ol{margin:0 0 16px;padding-left:24px}
+li{margin-bottom:7px}
+.lead{font-size:17.5px;line-height:1.78}
+.keybox{border:1px solid var(--rule);border-left:4px solid var(--blue);background:#fbfcfe;
+  padding:16px 20px;margin:0 0 26px;font-size:16px}
+.keybox p:last-child{margin-bottom:0}
+.keybox h3{margin-top:0}
+.warnbox{border-left-color:var(--orange);background:#fffdf8}
+.badbox{border-left-color:var(--red);background:#fdf9f9}
+figure{margin:26px 0 30px;page-break-inside:avoid}
+figure img{width:100%;height:auto;display:block;border:1px solid var(--rule2)}
+figcaption{font-family:var(--sans);font-size:12.8px;color:var(--ink2);line-height:1.65;margin-top:9px;
+  padding-left:12px;border-left:2px solid var(--rule)}
+figcaption b{color:var(--ink)}
+table{border-collapse:collapse;width:100%;margin:18px 0 22px;font-family:var(--sans);font-size:13.2px}
+caption{caption-side:top;text-align:left;font-family:var(--sans);font-size:13px;color:var(--ink2);
+  padding-bottom:8px}
+th,td{border-bottom:1px solid var(--rule2);padding:7px 9px;text-align:left;vertical-align:top}
+thead th{border-bottom:1.5px solid var(--ink);font-weight:650;color:var(--ink);white-space:nowrap}
+tbody tr:nth-child(even){background:#fbfbfc}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.tag{font-family:var(--sans);font-size:11.5px;padding:1px 7px;border-radius:9px;white-space:nowrap;
+  display:inline-block;border:1px solid transparent}
+.tag.ok{background:#e6f0f8;color:#0B5FA5;border-color:#bcd6ea}
+.tag.mid{background:#fdf1df;color:#8A5200;border-color:#f0d9b5}
+.tag.no{background:#f9e9e9;color:#8C2020;border-color:#eec6c6}
+.tag.na{background:#f0f0f0;color:#5a5a5a;border-color:#dcdcdc}
+.meta{font-family:var(--sans);font-size:12.5px;color:var(--muted);line-height:1.8}
+code,.mono{font-family:"Cascadia Mono",Consolas,"Courier New",monospace;font-size:13px;
+  background:#f5f5f5;padding:1px 4px;border-radius:3px}
+pre{font-family:"Cascadia Mono",Consolas,"Courier New",monospace;font-size:12.6px;line-height:1.65;
+  background:#f7f8fa;border:1px solid var(--rule2);padding:13px 15px;overflow-x:auto;color:#222}
+pre code{background:none;padding:0;font-size:inherit}
+.refs{font-family:var(--sans);font-size:13px;color:var(--ink2);line-height:1.8}
+.refs li{margin-bottom:7px}
+a{color:var(--blue);text-decoration:none;border-bottom:1px solid rgba(11,95,165,.32)}
+a:hover{border-bottom-color:var(--blue)}
+.foot{margin-top:46px;padding-top:16px;border-top:1px solid var(--rule);
+  font-family:var(--sans);font-size:12.5px;color:var(--muted);line-height:1.8}
+@media print{
+  body{font-size:10.5pt;line-height:1.6}
+  .page{max-width:none;padding:0 4mm 8mm}
+  h1{font-size:19pt} h2{font-size:13pt;margin-top:20pt;break-after:avoid}
+  h3{break-after:avoid} table{break-inside:auto;font-size:8.6pt}
+  tr{break-inside:avoid} figure{break-inside:avoid;margin:10pt 0}
+  .disclaimer{break-inside:avoid}
+  @page{size:A4;margin:12mm 12mm 14mm}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="masthead">
+  <div class="kicker">内部研究备忘录 · 单体研究流水线 · WORK-404</div>
+  <h1>这篇公众号文章里没有策略：一份对《超额收益大缩水！3万亿量化私募求解阿尔法困局》的可复现性核验，与量化试验是否单独立项的判断</h1>
+  <p class="subtitle">原文是行业调查稿，不含可编码的量化策略；可复现的是它对市场的六个数字主张，其中三个被独立复算证实、两个口径站不住、一个无法复现。立项建议：平台不新建 project，仓库单独建。</p>
+  <div class="byline">
+    <span><b>撰写</b> 金融研究（单体臂：投研负责人 → 数据工程师 → 宏观/量化研究员 → 风控审计 → 汇总）</span>
+    <span><b>数据截止</b> 2026-11-13</span>
+    <span><b>原文</b> 中国证券报 2026-11-15 11:27</span>
+    <span><b>审计判决</b> PASS（30 项通过 / 0 blocking / 14 项建议）</span>
+  </div>
+</header>
+
+<div class="disclaimer">
+  <div>本报告为内部研究模拟、撰写方非持牌机构、不构成投资建议与收益承诺。</div>
+  <div>文中不含个股评级、目标价、仓位建议或交易指令；所有结论只针对「原文主张是否可被独立复现」与「流程是否需要单独立项」。</div>
+</div>
+
+<div class="keybox">
+<h3>结论先行</h3>
+<p><b>一、原文没有策略可复现。</b>经浏览器实抓，全文 41 段 2863 字，是中国证券报对中国量化私募的行业调查稿，没有任何信号定义、参数取值、调仓频率、持仓与权重规则、止损规则、成本假设、回测区间或策略绩效表；原派单 A 段的 12 个拆解项里，11 项标注为「原文未提」。因此本单的复现对象从「策略」改为「原文对市场的数字主张」。</p>
+<p><b>二、六条主张中，三条被独立数据证实、一条口径站不住、一条部分证伪、一条无法复现。</b>以两个独立来源的收盘价（腾讯行情本机取数 + Tushare 服务端取数，9 个两侧都有值的同日观测逐点一致；其中与数据契约 §5 交叉校验表重合的 7 个亦为 7/7 一致）复算：<b>7 月风格极致反转成立</b>（中证1000 −19.69%、国证2000 −19.46%、科创50 −25.90%，而中证红利 +10.89%，小盘与红利单月差 −30.58 个百分点）；<b>10 月「指数涨、个股跌」不成立</b>——当月全部主流宽基均下跌（沪深300 −8.54%、中证全指 −12.32%、中证1000 −15.59%、创业板指 −23.02%、科创50 −24.13%），只有中证红利 +1.80%；<b>成交缩量成立</b>（10 月成交额代理月均较上半年均值低 42.6%）；<b>「向微盘板块切换」不成立</b>（超小盘与科技同步重挫，防御端只有红利）；<b>新财富1000指增私募指数跌超 17% 无法独立核验</b>，但若成立，则 10 月超额亏损至少 1.41 个百分点。</p>
+<p><b>三、立项建议分两个口径给，且答案相反。</b>平台层面<b>不新建 project</b>（现有「中国金融市场研究」52 个 issue 中已有 18 个属量化研究/复跑类，流量足够、边界无法说清，新开容器的分流收益小于重复造边界）；仓库层面<b>建议立项</b>（真实成本在口径返工与数据可达性反复探测，本单约三分之一工具调用花在取数探测上，已有 WORK-102「数据通道修复与可复现最小快照」、WORK-123「中证全指 TR 拼接口径修正」两笔返工账单）。推荐组合：<b>平台挂靠现有项目 + 仓库独立建 <code>quant-lab</code></b>，两者不互斥。</p>
+</div>
+
+<h2><span class="num">一</span>原文身份与「取不到原文」这件事是怎么解决的</h2>
+
+<p>派单时原文只给了一条链接，没有标题，正文取不到。本单按性价比试了 4 条路线，如实留痕：</p>
+
+<table>
+<caption>表 1｜取原文路线实测</caption>
+<thead><tr><th>路线</th><th>结果</th><th>原始报错 / 证据</th></tr></thead>
+<tbody>
+<tr><td>harness <code>web_fetch</code></td><td><span class="tag no">失败</span></td><td class="mono">落到 mp.weixin.qq.com/mp/wappoc_appmsgcaptcha?poc_token=…，页面仅「环境异常／完成验证后即可继续访问」，正文 0 字</td></tr>
+<tr><td>MCP <code>fetch</code></td><td><span class="tag no">失败</span></td><td class="mono">robots.txt 明确 Disallow: /，非微信客户端 UA 一律被拒</td></tr>
+<tr><td>知藏 / WeKnora 检索</td><td><span class="tag mid">无命中</span></td><td>知藏「金融量化」库 37 篇笔记全为其他文章；WeKnora 检索需指定 kb_id</td></tr>
+<tr><td><b>bsk 驱动本机真实 Chrome</b></td><td><span class="tag ok">成功</span></td><td>真实登录态浏览器渲染通过，取到全文；正文经脚本抽取落盘为 <code>source_article.md</code>（41 段 / 2863 字），未人工转录</td></tr>
+<tr><td>原文配图 CDN</td><td><span class="tag mid">未取到</span></td><td>6 种 UA（含 MicroMessenger iOS/Android）均返回同一张 48864 字节占位图，sha256 前缀 <code>96d03490381006e3</code>；故原文 5 张图表的数据未被读取</td></tr>
+</tbody>
+</table>
+
+<p>取到后第一件事是给原文定性：<b>这是行业调查稿，不是研究文章</b>。它的价值不在于给出可编码的策略，而在于对 A 股量化私募 2026 年下半年的超额收益环境做了一份「记者采访 + 机构观点」的描述。把这份描述当策略去复现，必然编造；把它的数字主张当事实去核验，才有可交付物。</p>
+
+<h2><span class="num">二</span>策略拆解表：逐项标注原文说了什么、没说什么</h2>
+
+<p>下表按派单要求逐项标注（<span class="tag ok">原文明确</span> / <span class="tag mid">原文含糊</span> / <span class="tag na">原文未提</span>）。绝大多数格位是「未提」，这不是缺件，而是本单最重要的发现。</p>
+
+<table>
+<caption>表 2｜原文 12 项策略要素拆解</caption>
+<thead><tr><th style="width:13%">要素</th><th style="width:26%">原文明确</th><th style="width:26%">原文含糊</th><th>原文未提 / 本单说明</th></tr></thead>
+<tbody>
+<tr><td><b>标的与市场</b></td><td>A 股；量化私募「指增」产品；参照物出现中证1000指数</td><td>「新财富1000指增私募指数」是产品集合指数，非可交易标的</td><td>股票池范围、剔除 ST/次新/停牌的时点规则</td></tr>
+<tr><td><b>信号定义</b></td><td>无</td><td>只有因子名（动量、贝塔、量价、T0、情绪、拥挤度），非可判定规则</td><td>任何把本文改写成「双均线/动量策略」的推断都是编造</td></tr>
+<tr><td><b>参数与取值</b></td><td>无</td><td>—</td><td>窗口长度、阈值、标准化方式、缺失值处理</td></tr>
+<tr><td><b>调仓频率</b></td><td>定性：大家「在相似的因子框架和调仓节奏上交易」</td><td>「相似」无量化</td><td>月/周/日周期</td></tr>
+<tr><td><b>持仓数量与权重</b></td><td>「量化组合高度分散、动辄上千只持仓」</td><td>「动辄」无区间</td><td>等权/市值加权/风险平价、个股权重上限</td></tr>
+<tr><td><b>止损与风控</b></td><td>方向：行业与市值偏离度硬约束、风格与行业集中度动态上限、压力测试与回撤预案、多频率信号融合、用更贴合 A 股微观结构的动态风控指标替代 Barra 的拥挤度刻画</td><td>「动态上限」无阈值；「事前约束」无规则</td><td>止损线、持仓期、约束阈值</td></tr>
+<tr><td><b>成本与滑点假设</b></td><td>机制：成交活跃度回落 → 买卖价差扩大、订单簿变薄 → 同等换手付更高冲击成本；日内价差捕获空间被压缩</td><td>无数值</td><td>费率、冲击成本函数、换手假设</td></tr>
+<tr><td><b>回测区间</b></td><td>无</td><td>—</td><td>任何回测区间</td></tr>
+<tr><td><b>绩效口径</b></td><td>10 月跌超 17%；新发量化多头逾七成收益为负；部分产品距年内高点回撤超 30%；量化多头约 1.83 万亿；私募量化全行业超 3 万亿；一年半逾万亿元资金涌入</td><td>未给区间、样本量、净值口径、统计截止日</td><td>年化、夏普、最大回撤、胜率、换手；且这些数字全在产品/行业层面，没有策略绩效表</td></tr>
+<tr><td><b>数据源</b></td><td>新财富 1000 指增私募指数、格上基金（焦冰）、私募备案口径、中证1000 指数</td><td>无下载入口与编制方法</td><td>行情数据源、因子数据源</td></tr>
+<tr><td><b>作者自述失效条件</b></td><td>「回撤不等于模型有缺陷」「无法预知下一次拥挤会在何时、以何种形式出现」「赚钱效应吸引资金—资金扎堆—拥挤出清—重新均衡的循环」</td><td>叙事框架，非可检验判据</td><td>可证伪的失效判据</td></tr>
+<tr><td><b>整体可复现性</b></td><td colspan="2">—</td><td><b>策略层不可复现</b>（无策略）；市场事实层可复现；产品层因果与数字不可复现</td></tr>
+</tbody>
+</table>
+
+<figure>
+<img src="{{FIG1}}" alt="原文因果链示意图与本单验证状态">
+<figcaption><b>图 1｜原文因果链，以及本单对每一环的验证状态。</b>蓝=本单已实测复现（价格与成交层面）；橙=机构观点，无外生冲击与反事实，不可独立识别；红=原文主张但无公开可核数据（产品层超额、规模、盈亏比例）。来源：原文正文（2026-11-15）与本单实测；示意由本单绘制。</figcaption>
+</figure>
+
+<h2><span class="num">三</span>可验证性判定：六条主张 × 七项检查</h2>
+
+<p>原文可证伪的部分集中在六条量化主张。判定分三档：<span class="tag ok">可复现</span>（公开数据能独立算出）、<span class="tag mid">需假设补全</span>（补哪个假设、往哪个方向推）、<span class="tag no">不可复现</span>（说清为什么）。</p>
+
+<table>
+<caption>表 3｜原文六条量化主张与本单实测对照</caption>
+<thead><tr><th style="width:6%">ID</th><th style="width:30%">原文主张</th><th style="width:34%">本单实测（数据截止 2026-11-13）</th><th>判定</th></tr></thead>
+<tbody>
+<tr><td>C1</td><td>新财富1000指增私募指数 10 月跌超 17%，跑输中证1000指数</td><td>中证1000 10 月实测 <b>−15.59%</b>（Tushare 独立校验一致）。若原文成立，10 月超额亏损 <b>≥ 1.41pp</b>（口径敏感：基准换中证2000 则 ≥1.21pp、换国证2000 则 ≥1.70pp）</td><td><span class="tag mid">需假设补全</span> 指数侧可复现；私募指数本身无公开行情</td></tr>
+<tr><td>C2</td><td>10 月以来量化跑不赢指数，多家头部产品超额连续多周告负</td><td>基准侧：中证1000 09-30→11-13 <b>−12.90%</b>，沪深300 <b>−7.83%</b>，小盘相对落后 5.07pp（方向与原文一致）；但 11-01→11-13 中证1000 <b>+3.18%</b></td><td><span class="tag no">不可复现</span> 需产品净值与周度超额序列</td></tr>
+<tr><td>C3</td><td>今年新发量化多头基金逾七成收益为负</td><td>无公开样本：产品清单、净值、建仓期起算均无</td><td><span class="tag no">不可复现</span> 样本定义、区间、口径、样本量全缺</td></tr>
+<tr><td>C4</td><td>部分产品距年内高点回撤超 30%</td><td>指数级最大回撤：科创50 −47.9%、创业板指 −45.3%、中证1000 −31.2%、国证2000 −30.8%、沪深300 −21.2%、中证红利 −16.0%</td><td><span class="tag no">不可复现</span>（产品级）；指数级不能替代产品级</td></tr>
+<tr><td>C5</td><td>量化多头约 1.83 万亿；私募量化全行业超 3 万亿；一年半逾万亿元资金涌入</td><td>未取到可核口径：备案月报只到私募全行业，不拆「量化」细分</td><td><span class="tag no">不可复现</span> + <span class="tag mid">口径含糊</span></td></tr>
+<tr><td>C6</td><td>7 月、10 月两轮调整冲击超额；7 月拥挤方向抛售并向防御型/微盘切换；10 月「指数涨、个股跌」；成交缩量抬高冲击成本</td><td>7 月风格分化成立、红利独涨；<b>「向微盘切换」不成立</b>；<b>10 月「指数涨」不成立</b>；缩量成立（−42.6%）</td><td><span class="tag mid">部分可复现</span> 价格/成交层可复现；拥挤→抛售的因果不可识别</td></tr>
+</tbody>
+</table>
+
+<table>
+<caption>表 4｜七项检查逐条判定（矩阵见图 2a）</caption>
+<thead><tr><th>检查项</th><th class="num">C1</th><th class="num">C2</th><th class="num">C3</th><th class="num">C4</th><th class="num">C5</th><th class="num">C6</th></tr></thead>
+<tbody>
+<tr><td>前视偏差</td><td><span class="tag ok">可复现</span></td><td><span class="tag no">不可</span></td><td><span class="tag no">不可</span></td><td><span class="tag no">不可</span></td><td><span class="tag ok">可复现</span></td><td><span class="tag ok">可复现</span></td></tr>
+<tr><td>幸存者偏差</td><td><span class="tag no">不可</span></td><td><span class="tag no">不可</span></td><td><span class="tag no">不可</span></td><td><span class="tag no">不可</span></td><td><span class="tag mid">需假设</span></td><td><span class="tag mid">需假设</span></td></tr>
+<tr><td>退市/停牌处理</td><td><span class="tag ok">可复现</span></td><td><span class="tag mid">需假设</span></td><td><span class="tag no">不可</span></td><td><span class="tag no">不可</span></td><td><span class="tag ok">可复现</span></td><td><span class="tag mid">需假设</span></td></tr>
+<tr><td>复权与时间对齐</td><td><span class="tag ok">可复现</span></td><td><span class="tag mid">需假设</span></td><td><span class="tag mid">需假设</span></td><td><span class="tag mid">需假设</span></td><td><span class="tag ok">可复现</span></td><td><span class="tag ok">可复现</span></td></tr>
+<tr><td>样本内/外切分</td><td><span class="tag no">不可</span></td><td><span class="tag no">不可</span></td><td><span class="tag no">不可</span></td><td><span class="tag no">不可</span></td><td><span class="tag no">不可</span></td><td><span class="tag no">不可</span></td></tr>
+<tr><td>多重检验</td><td><span class="tag mid">需假设</span></td><td><span class="tag no">不可</span></td><td><span class="tag no">不可</span></td><td><span class="tag no">不可</span></td><td><span class="tag mid">需假设</span></td><td><span class="tag no">不可</span></td></tr>
+<tr><td>容量与成本敏感性</td><td><span class="tag no">不可</span></td><td><span class="tag no">不可</span></td><td><span class="tag no">不可</span></td><td><span class="tag no">不可</span></td><td><span class="tag mid">需假设</span></td><td><span class="tag mid">需假设</span></td></tr>
+</tbody>
+</table>
+
+<figure>
+<img src="{{FIG2}}" alt="可验证性判定矩阵与立项三档方案对比">
+<figcaption><b>图 2｜可验证性判定矩阵与立项三档方案对比。</b>a，6 条主张 × 7 项检查的判定矩阵，颜色为三档判定（蓝=可复现，米=需假设补全，红=不可复现）；b，立项三档方案在五个维度上的主观评分（量表 1–5，越外越优），评分依据见正文第五节与第 6 节的量化事实，属研究判断而非测量值。来源：本单绘制，判定依据为原文（2026-11-15）与公开数据复算结果。</figcaption>
+</figure>
+
+<h2><span class="num">四</span>最小复现实验：把「不可复现」的部分和「可复现」的部分分开算</h2>
+
+<p><b>策略层不足以复现</b>：原文没有策略。要让它具备可复现性，至少要补齐九项（股票池与过滤规则、信号定义、参数与取值、调仓频率与成交时点、组合构建、风控阈值、成本与滑点模型、回测区间与切分、绩效口径），缺一不可；其中产品层面数据（C2/C3/C4/C5）还需另行授权，属付费或受限数据。本单不代拟这些参数。</p>
+
+<p><b>市场事实层可复现</b>：实验对象为 11 条宽基/风格指数，区间 2026-01-01~2026-11-13，子窗口 7 月、10 月、11 月 1–13 日、10 月以来；基准为沪深300；指标为区间收益、年化收益、年化波动、夏普（无风险利率 1.5%）、最大回撤、风格相对收益差、成交额代理月均值；口径在跑数前写死，不事后调整；全部数字来自真实行情快照，未使用任何合成或随机数据。</p>
+
+<figure>
+<img src="{{FIG3}}" alt="2026 年初至今风格指数净值曲线">
+<figcaption><b>图 3｜2026 年初至今风格指数净值（2025-12-31 = 1.00）。</b>科创50 上半年冲高至 1.64 后回落，创业板指与中证1000 全年跑输，中证红利与上证50 相对抗跌；橙/红阴影为原文点名的 7 月与 10 月两轮调整。数据来源：腾讯行情源（451 个交易日，2025-01-02~2026-11-13），关键点经 Tushare 服务端独立校验 9/9 一致（两侧都有值的同日观测；中证2000 的 2 个月末点仅源C 单侧，不参与一致率计算）。</figcaption>
+</figure>
+
+<figure>
+<img src="{{FIG4}}" alt="7月与10月分风格月度收益与全市场成交额代理">
+<figcaption><b>图 4｜复现实验的两个面板。</b>a，2026 年 7 月与 10 月各风格指数的区间涨跌幅——7 月科技与小盘重挫、红利独涨（10.89%），10 月全线下跌、无一宽基上涨；b，中证全指成交额代理月均值，10 月为上半年均值的 57.4%（−42.6%）。数据来源：腾讯行情源日线；成交额为 <code>volume × close</code> 代理口径，绝对水平高于 Tushare 真实成交额 3.3–3.6 倍，仅用于趋势比较；b 图仅标注 7 月与 10 月两个关键月。</figcaption>
+</figure>
+
+<table>
+<caption>表 5｜复现实验指标表（收盘到收盘；数据截止 2026-11-13）</caption>
+<thead><tr><th>指数</th><th>风格</th><th class="num">2026 年初至今</th><th class="num">2026 年 7 月</th><th class="num">2026 年 10 月</th><th class="num">年内最大回撤</th><th class="num">夏普 (rf=1.5%)</th></tr></thead>
+<tbody>
+<tr><td>上证50</td><td>大盘价值</td><td class="num">−8.45%</td><td class="num">−2.22%</td><td class="num">−2.88%</td><td class="num">−13.74%</td><td class="num">−0.70</td></tr>
+<tr><td>沪深300（基准）</td><td>大盘</td><td class="num">−13.25%</td><td class="num">−7.86%</td><td class="num">−8.54%</td><td class="num">−21.23%</td><td class="num">−0.90</td></tr>
+<tr><td>上证指数</td><td>全市场</td><td class="num">−8.43%</td><td class="num">−6.40%</td><td class="num">−6.33%</td><td class="num">−15.17%</td><td class="num">−0.73</td></tr>
+<tr><td>中证红利</td><td>防御</td><td class="num">+0.13%</td><td class="num">+10.89%</td><td class="num">+1.80%</td><td class="num">−15.96%</td><td class="num">−0.09</td></tr>
+<tr><td>中证全指</td><td>全市场</td><td class="num">−14.54%</td><td class="num">−13.28%</td><td class="num">−12.32%</td><td class="num">−25.94%</td><td class="num">−0.79</td></tr>
+<tr><td>中证500</td><td>中盘</td><td class="num">−13.40%</td><td class="num">−17.02%</td><td class="num">−15.72%</td><td class="num">−30.62%</td><td class="num">−0.58</td></tr>
+<tr><td>国证2000</td><td>超小盘</td><td class="num">−15.01%</td><td class="num">−19.46%</td><td class="num">−15.30%</td><td class="num">−30.77%</td><td class="num">−0.62</td></tr>
+<tr><td>中证1000</td><td>小盘</td><td class="num">−16.30%</td><td class="num">−19.69%</td><td class="num">−15.59%</td><td class="num">−31.20%</td><td class="num">−0.68</td></tr>
+<tr><td>深证成指</td><td>全市场</td><td class="num">−18.90%</td><td class="num">−16.21%</td><td class="num">−15.94%</td><td class="num">−33.83%</td><td class="num">−0.83</td></tr>
+<tr><td>创业板指</td><td>科技成长</td><td class="num">−24.26%</td><td class="num">−23.00%</td><td class="num">−23.02%</td><td class="num">−45.30%</td><td class="num">−0.77</td></tr>
+<tr><td>科创50</td><td>科技成长</td><td class="num">−4.80%</td><td class="num">−25.90%</td><td class="num">−24.13%</td><td class="num">−47.86%</td><td class="num">−0.15</td></tr>
+</tbody>
+</table>
+
+<table>
+<caption>表 6｜风格相对收益差与 C1 隐含超额的口径敏感性（百分点）</caption>
+<thead><tr><th>口径</th><th class="num">基准 10 月收益</th><th class="num">原文私募指数 10 月跌幅</th><th class="num">隐含超额（≤）</th></tr></thead>
+<tbody>
+<tr><td>A：单月 / 中证1000</td><td class="num">−15.59%</td><td class="num">&gt; 17.0%</td><td class="num">≤ −1.41pp</td></tr>
+<tr><td>B：单月 / 中证2000</td><td class="num">−15.79%</td><td class="num">&gt; 17.0%</td><td class="num">≤ −1.21pp</td></tr>
+<tr><td>C：单月 / 国证2000</td><td class="num">−15.30%</td><td class="num">&gt; 17.0%</td><td class="num">≤ −1.70pp</td></tr>
+<tr><td>D：09-30→11-13 / 中证1000</td><td class="num">−12.90%</td><td class="num">若累计仍 &gt; 17%</td><td class="num">≤ −4.10pp</td></tr>
+</tbody>
+</table>
+
+<p class="meta">交易成本敏感性在本单<b>不适用</b>（无策略、无换手假设、无成本模型）；可做的是上表的<b>口径敏感性</b>与<b>代理口径敏感性</b>（成交额代理与真实成交额比值 3.26–3.57，两口径下缩量方向一致）。</p>
+
+<h2><span class="num">五</span>必须点名：哪些原文数字补齐检查后站不住</h2>
+
+<div class="keybox warnbox">
+<ol>
+<li><b>「10 月全月呈现『指数涨、个股跌』」——不成立（实测证伪）。</b>2026 年 10 月全部主流宽基均下跌：上证指数 −6.33%、上证50 −2.88%、沪深300 −8.54%、中证全指 −12.32%、中证1000 −15.59%、国证2000 −15.30%、创业板指 −23.02%、科创50 −24.13%；唯一上涨的是中证红利 +1.80%。这句话只在「红利/大盘价值」口径下成立；按沪深300、上证指数或全市场口径理解，「指数涨」这一半被数据否掉。</li>
+<li><b>「7 月拥挤方向抛售并向防御型和微盘板块切换」——半条不成立。</b>前半成立：7 月科创50 −25.90%、创业板指 −23.00%、中证1000 −19.69%、国证2000 −19.46%，而中证红利 +10.89%、上证50 −2.22%、沪深300 −7.86%，小盘与红利单月差 −30.58pp。后半不成立：超小盘与科技同步重挫，防御端只有红利，没有微盘。</li>
+<li><b>「逾七成新发量化多头基金收益为负」——大概率站不住（不可复核）。</b>无样本量、无「新发」起算日、无「量化多头」界定、无净值口径与统计截止日；新发产品天然处于建仓期，任何区间都能被选择成支持或否证该结论。</li>
+<li><b>「3 万亿 / 1.83 万亿 / 逾万亿元涌入」——口径混用。</b>「私募量化全行业规模」与「股票量化多头规模」并列叙述，但分母、范围、时间点都不同；公开口径无法复核，「量化」细分亦无权威统计。</li>
+<li><b>「量化反而跑不赢指数」——方向可支持，幅度不可复核。</b>基准侧确实弱（10 月小盘落后沪深300 7.05pp，10 月以来落后 5.07pp），但「量化跑输」需要产品超额数据，实测只能用基准贝塔替代，不能把 5–7pp 的基准差当成超额亏损。</li>
+<li><b>「新财富1000指增私募指数 10 月跌超 17%」——指数侧不矛盾，但仍是不可复现断言。</b>与中证1000 的 −15.59% 不冲突（隐含超额亏 ≥1.41pp，量级合理），但该指数编制方法、成分权重、再平衡规则均未公开，无法独立核。</li>
+</ol>
+</div>
+
+<h2><span class="num">六</span>立项判断：量化试验信息要不要单独立项（两种口径分开答）</h2>
+
+<p><b>现状盘点（本单实测，非转述）。</b>工作区 7 个 project 中<b>没有量化专项</b>；本单暂挂「中国金融市场研究」（id <code>bdbf6baf-9e5f-4fd7-a1f1-edfcc1253681</code>）。该项目下 52 个 issue（done 47 / cancelled 4 / todo 1），按标题关键词筛出 <b>18 个（34.6%）属量化研究、复跑或数据契约类</b>（筛选口径：标题包含下列 7 个关键词之一——量化 / 回测 / 策略 / 因子 / 模型 / 数据 / 指标；用该关键词集在 52 条 issue 标题上复算得 18 条），且已存在与本单几乎同构的工作流：WORK-178「数据契约裁定与本轮快照锁定」、WORK-177/179/180「独立复跑 + 模型风控独立审计 + 复现性判决表」、WORK-103「策略最小基线与样本外检验」、WORK-102「数据通道修复与可复现最小快照」、WORK-123「处置 D-1（中证全指 TR 拼接口径修正）」。平台侧还已有 AKQuant MCP（取数/回测/静态检查）、Tushare MCP 与知藏「金融量化」库（37 篇）。</p>
+
+<h3>口径一：平台层面的 project 容器 —— 不立项（挂靠现有项目）</h3>
+<p>依据：① <b>复用频次已足够高</b>——18/52 属量化类，新开容器的分流收益小于与现有项目边界重复的代价（现有项目说明本身就是「承载中国金融市场相关的量化研究工作」）；② <b>新容器解决不了真问题</b>——project 只是 issue 分组，而真实成本是口径返工，证据就是 WORK-102 与 WORK-123 两笔发生在同一 project 内部的返工账单；③ <b>不立项的代价可接受</b>——已有 52 个 issue 的上下文沉淀与 Stage 1/2/3/4 模板。若要立项，需先满足：量化类 issue 连续两季占比 &gt;50% 或数量 &gt;120、能说清与卖方/行业研究口径的边界、出现独立的权限或保密需求（当前均不满足）。</p>
+
+<h3>口径二：独立代码仓库 + 数据管道 —— 立项</h3>
+<p>依据：① <b>框架不用自造</b>——AKQuant 已提供回测能力，缺的是把每次实验的口径与结果固化下来；② <b>边际成本在口径与探测，不在写代码</b>——本单约三分之一工具调用花在数据可达性探测（东财限流、乐咕只有当日截面、网易 502、腾讯缺中证2000），这些坑写进仓库后下一次可直接跳过；③ <b>沉淀可被下一次直接复用</b>——仓库存四类资产：数据源可用性登记表、字段字典与时点规则、指标口径与已知缺陷、参数-结果登记；④ <b>不立项的代价</b>——每个新量化 issue 重做一遍探测与口径裁定，一次性脚本随 issue 关闭而消失。规模：1 个仓库 + 1 套数据目录约定 + 1 张实验登记表；不需要新机器、新编制或付费数据授权。最小验证：把本单四个脚本与数据契约搬进仓库后，用第二篇同类文章验证「第二次实验是否省下取数探测时间」。回滚：纯新增，删仓库即回滚，平台侧零影响。</p>
+
+<table>
+<caption>表 7｜立项三档方案对比</caption>
+<thead><tr><th>档</th><th>平台容器</th><th>代码仓库</th><th>规模</th><th>需要什么</th><th>先能做的最小验证</th><th>回滚</th></tr></thead>
+<tbody>
+<tr><td><b>不立项</b></td><td>继续挂现有项目，issue 内自带脚本</td><td>无仓库</td><td>0</td><td>无</td><td>本单这类一次性核验</td><td>无需回滚</td></tr>
+<tr><td><b>挂靠现有项目</b>（平台层推荐）</td><td>沿用 <code>bdbf6baf…</code> + 统一命名与口径约定</td><td>配合口径二建独立仓库</td><td>小：1 条命名约定 + 1 份模板 + 1 个仓库</td><td>命名约定；仓库维护纪律</td><td>在现有项目里按新约定跑第二篇</td><td>删约定与仓库即可</td></tr>
+<tr><td><b>立专项</b></td><td>新建 platform project（需与现有项目划界）</td><td>独立仓库 + 数据管道 + 实验台账</td><td>中</td><td>项目边界定义、维护人、登记纪律；当前边界说不清 → 返工风险</td><td>建仓库后用第二篇文章验证复用</td><td>仓库可删；project 可归档</td></tr>
+</tbody>
+</table>
+
+<div class="keybox">
+<h3>默认推荐（一个）</h3>
+<p><b>平台层不新建 project，仓库层单独建 <code>quant-lab</code>，两者绑定：</b>仓库作为「中国金融市场研究」项目下量化类 issue 的共用基础设施。理由是二者解决的不是同一个问题——project 只解决 issue 分组，解决不了口径返工；而口径返工正是当前有据可查的真实成本所在。</p>
+<p><b>决策请求：无。</b>本单不涉及范围变更、预算、不可逆动作或付费数据接入，两层建议可并行执行；真正需要价值取向选择的是「是否新建 platform project」，而该门槛当前未满足，不构成本单的决策点。</p>
+</div>
+
+<h2><span class="num">七</span>失败项、限制与未确认项</h2>
+<p>本节按「已确认 / 未确认 / 需要补充」三段分列。<b>已确认</b>项可由第八节的「快照 + 脚本」复现；<b>未确认</b>项无公开可核数据，不得写成结论；<b>需要补充</b>项是把本单升级为策略级复现所需的外部输入。</p>
+
+<h3>7.1 已确认（可由「快照 + 脚本」复现）</h3>
+<ul>
+<li><b>本单全部对外数字</b>：16 个对外数字由独立复算脚本 <code>audit_recompute.py</code> 在同一份快照上重算，全部一致（最大偏差 0.03pp，来自四舍五入）；审计判决 PASS（30 项通过 / 0 blocking / 14 项建议）。</li>
+<li><b>数据快照</b>：11 条指数 × 451 个交易日（2025-01-02~2026-11-13），11 个文件的 sha256 与 <code>snapshot_manifest.json</code> 逐条一致，无漂移；交付物清单见表 8。</li>
+<li><b>跨源交叉校验</b>：源A 与源C 的 9 个两侧都有值的同日观测逐点一致（其中与数据契约 §5 交叉校验表重合的 7 个亦为 7/7 一致）；成交量单位换算（源A 的股 ↔ 源C 的手）已验证。</li>
+</ul>
+
+<h3>7.2 未确认（含本轮取数失败项与口径限制）</h3>
+<ul>
+<li><b>源B（东方财富）全程不可用</b>：本机 IP 被 push2 限流（<code>Push2RateLimitError</code> / <code>RemoteDisconnected</code>），成交额只能用 <code>volume × close</code> 代理，绝对水平偏高 3.3–3.6 倍，仅可做趋势比较。</li>
+<li><b>中证2000（932000）源A 无该代码</b>：该指数只有两个月末点（源C 单侧），未进入图 3 的日频曲线，也不参与跨源一致率计算。</li>
+<li><b>全市场涨跌家数历史缺失</b>：乐咕接口只给当日截面，「指数涨、个股跌」只能用指数横截面近似，给不出「多少比例个股下跌」。</li>
+<li><b>原文 5 张配图真身不可得</b>：CDN 对所有 UA 返回占位图；本文所有原文数字只取自正文文字，未从图片二次提取。</li>
+<li><b>因果不可识别</b>：「拥挤导致抛售」与风格反转、流动性冲击无法分离，本单只验证了价格与成交层面。</li>
+<li><b>图 4 存在 1 条碰撞审计 WARN</b>（H1 参考线标签与 2026-01 柱体边缘相交），最终尺寸目视无遮挡，保留并在此披露。</li>
+<li><b>未确认项</b>：新财富1000指增私募指数的实际跌幅与编制方法；私募产品净值与超额序列；新发产品清单与盈亏比例；1.83 万亿/3 万亿/逾万亿元的官方口径。</li>
+</ul>
+
+<h3>7.3 需要补充（要把本单升级为策略级复现）</h3>
+<ul>
+<li><b>策略层九项参数</b>：见第四节「策略层不足以复现」——股票池与过滤规则、信号定义、参数与取值、调仓频率与成交时点、组合构建、风控阈值、成本与滑点模型、回测区间与切分、绩效口径，缺一不可；本单不代拟这些参数。</li>
+<li><b>产品层面数据授权</b>：私募产品净值与超额序列、新发产品清单与盈亏比例、备案与规模口径（属付费或受限数据，需另行授权）。</li>
+</ul>
+
+<h2><span class="num">八</span>复现方式与证据指针</h2>
+<p>全部结论可由「快照 + 脚本」复现；数据快照不可重建时以 <code>snapshot_manifest.json</code> 中的 sha256 校验。</p>
+<pre><code>$w = "F:\001_install\103_multica\multica-upstream-20261105\data\workspaces\workspace-c8faa36a018a\work-404-ebcfee048b30\workdir"
+python "$w\quant_work\fetch_market_data.py"   # 取数 → data/*.csv + snapshot_manifest.json
+python "$w\quant_work\build_analysis.py"      # 指标 → metrics.json + metrics_table.csv
+python "$w\quant_work\build_figures.py"       # 配图 → figures/*.png|pdf|svg + 对齐审计 JSON
+python "$w\quant_work\audit_recompute.py"     # 独立复算 → audit_findings.json（PASS / 0 blocking）
+python "$w\quant_work\build_report.py"        # 本报告（单文件 HTML）</code></pre>
+
+<table>
+<caption>表 8｜交付物清单</caption>
+<thead><tr><th>类别</th><th>路径（相对工作目录）</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>原文</td><td><code>raw_snapshot.txt</code> / <code>quant_work/source_article.md</code></td><td>浏览器快照与脚本抽取的正文（未人工转录）</td></tr>
+<tr><td>阶段 1</td><td><code>quant_work/01-hypothesis.md</code></td><td>假设与六要素</td></tr>
+<tr><td>阶段 2</td><td><code>quant_work/02-data-contract.md</code></td><td>数据契约、字段字典、快照校验、缺口</td></tr>
+<tr><td>阶段 3</td><td><code>quant_work/03-analysis.md</code></td><td>A/B/C/D 四段完整分析</td></tr>
+<tr><td>阶段 4</td><td><code>quant_work/04-audit.md</code></td><td>独立复算审计报告与 blocking 清单</td></tr>
+<tr><td>阶段 5</td><td><code>quant_work/05-memo.md</code></td><td>研究备忘录摘要（本 HTML 为正式交付物）</td></tr>
+<tr><td>数据</td><td><code>quant_work/data/A_tencent_*.csv</code>（11 个）</td><td>各 451 行日线快照，sha256 见 manifest</td></tr>
+<tr><td>代码</td><td><code>fetch_market_data.py</code> / <code>build_analysis.py</code> / <code>build_figures.py</code> / <code>audit_recompute.py</code> / <code>build_report.py</code></td><td>可复跑；固定参数、无随机种子依赖</td></tr>
+<tr><td>图</td><td><code>quant_work/figures/fig1..fig4</code></td><td>PNG 300dpi / PDF / SVG + 对齐与碰撞审计 JSON</td></tr>
+</tbody>
+</table>
+
+<h2><span class="num">参考</span></h2>
+<ol class="refs">
+<li>《超额收益大缩水！3万亿量化私募求解阿尔法困局》，中国证券报（公众号），作者 王宇露，2026-11-15 11:27（北京）。原文链接：<a href="https://mp.weixin.qq.com/s/c_N2gd4xZg6LSQWYmli7RQ">mp.weixin.qq.com/s/c_N2gd4xZg6LSQWYmli7RQ</a>（本单经真实浏览器会话抓取全文，抓取过程留痕于 <code>raw_snapshot.txt</code>）。</li>
+<li>腾讯行情日线接口（源A）：<a href="https://web.ifzq.gtimg.cn/appstock/app/fqkline/get">web.ifzq.gtimg.cn/appstock/app/fqkline/get</a>，取数窗口 2025-01-02~2026-11-13。</li>
+<li>Tushare 指数日线接口（源C，服务端）：<a href="https://tushare.pro/document/2?doc_id=109">index_daily</a>，用于独立交叉校验（9 个同日观测逐点一致）。</li>
+<li>本单工作目录与产物：<code>F:\001_install\103_multica\multica-upstream-20261105\data\workspaces\workspace-c8faa36a018a\work-404-ebcfee048b30\workdir</code>。</li>
+</ol>
+
+<div class="foot">
+本报告为内部研究模拟、撰写方非持牌机构、不构成投资建议与收益承诺。<br>
+数据截止 2026-11-13；结论可由「代码 + 数据快照」复现；审计独立于建模阶段，未发现 blocking 项；未确认项已在第七节逐条列明。<br>
+报告生成：WORK-404 单体研究流水线（投研负责人 → 数据工程师 → 宏观/量化研究员 → 风控审计 → 汇总），2026-11-15。
+</div>
+
+</div>
+</body>
+</html>
