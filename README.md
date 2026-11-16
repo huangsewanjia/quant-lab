@@ -35,11 +35,21 @@ quant-lab/
 │
 ├── experiments/                 # 实验台账（每次实验一行 + 该次产出）
 │   ├── registry.md              # 参数-结果登记表（模板 + 已完成实验）
-│   └── WORK-404/                # 首次实验：文章数字主张的可复现性核验
-│       ├── snapshot_manifest.json  # 快照清单（sha256、行数、区间）—— 路径为仓库相对
-│       ├── metrics.json            # 全部计算结果与出处
-│       ├── metrics_table.csv       # 人读指标表
-│       └── audit_findings.json     # 独立复算结论
+│   ├── WORK-404/                # 首次实验：文章数字主张的可复现性核验
+│   │   ├── snapshot_manifest.json  # 快照清单（sha256、行数、区间）—— 路径为仓库相对
+│   │   ├── metrics.json            # 全部计算结果与出处
+│   │   ├── metrics_table.csv       # 人读指标表
+│   │   └── audit_findings.json     # 独立复算结论
+│   └── WORK-413-S2/             # 第二次实验：第二篇同类文章的复用验证（省了多少）
+│       ├── README.md            #   证据目录说明 + 复跑命令
+│       ├── source_article.md     #   原文正文（逐字照抄）
+│       ├── snapshot_manifest.json  # 快照清单（3 条指数 × 131 行）
+│       ├── metrics.json            # 6 条数字主张的判定表 D1–D6 + 跨源校验
+│       ├── probe_armA_no_registry.py  # ARM A（前）：无登记表的取数探测路线
+│       ├── armA_result.json          #   其实测输出（6 次 / 2.50 s）
+│       ├── probe_armB_registry_guided.py  # ARM B（后）：有登记表的取数 + 口径裁定
+│       └── armB_result.json              #   其实测输出（5 次 / 1.18 s）
+│                                    #   （复跑输出写到 rerun/，.gitignore 排除）
 │
 ├── audit/                       # 独立复算闸门
 │   ├── README.md                # 审计规则与调用契约
@@ -88,6 +98,8 @@ python scripts/build_report.py --exp WORK-404
 
 `--exp` 省略时默认取环境变量 `QUANTLAB_EXP`，再默认 `WORK-404`。
 
+**以上五条命令不需要任何环境变量。** 五个脚本都在 `main()` 入口把 `sys.stdout` / `sys.stderr` 显式切到 UTF-8（`_force_utf8_stdio()`），Windows 默认的 GBK(cp936) 控制台、Git Bash、以及「输出重定向到文件或管道」三种情形都能直接跑完并返回真实退出码。审计侧的契约与调用方式见 `audit/README.md`。
+
 **取数窗口**：`scripts/fetch_market_data.py` 顶部的 `START` / `END` 是硬编码的实验窗口。换实验时改这两个常量，并用新的 `--exp` 目录，避免污染既有快照。
 
 **配图的对齐审计**依赖 `nature-figure` 技能的脚本。路径可用环境变量 `NATURE_FIGURE_SCRIPTS` 指定；找不到时 `build_figures.py` 会打印一条提示并跳过对齐门（图仍然生成），不会中断流水线。
@@ -99,7 +111,7 @@ python scripts/build_report.py --exp WORK-404
 - **`WORK-404`**（2026-11-15）：核验一篇中国证券报刊的量化私募行业调查稿，看它的数字主张能否被公开数据独立复现。
   结论摘要：原文是行业调查稿、**不含可编码策略**；可复现的是它的市场事实层主张——六条数字主张中三条成立、两条被实测证伪、一条因缺产品级数据不可复现。两条被证伪的结论同样登记在册。
 - **`WORK-413-S2`**（2026-11-16）：**quant-lab 建仓后的首篇复用验证**。核验界面新闻同类型调查稿（2026-11-12）的 6 条数字主张，并**量化「仓库化到底省了多少」**。
-  结论摘要：索引层可核 / 产品层不可核的分界线与 WORK-404 **同构，未重新推导**；取数探测 HTTP 请求 **≈51 → 5 次**、口径裁定组合试算 **42 → 7 次**（实测对照，详见 `docs/second_article_trial.md`）。本行同时带一个**已知缺口**：S2 的判定表未过 `audit/audit_recompute.py` 独立复算。
+  结论摘要：索引层可核 / 产品层不可核的分界线与 WORK-404 **同构，未重新推导**；口径裁定组合试算 **42 → 7 次**、取数探测 HTTP 请求 **6 → 5 次**（均为本轮 A/B **实测**，ARM A 的 6 次里有 4 次注定失败）；另附 WORK-404 的 **重建基线 ≈51 次**（**重建值，非实测**，仅作跨任务参照）。三个数字各自的出处、窗口与证据强度见 `docs/second_article_trial.md` §九。本行同时带一个**已知缺口**：S2 的判定表未过 `audit/audit_recompute.py` 独立复算。
 
 ## 五、加一个新实验
 

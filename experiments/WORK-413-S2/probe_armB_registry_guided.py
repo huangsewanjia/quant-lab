@@ -4,12 +4,50 @@ ARM B 修正与补测：
  1. 腾讯 sh000510 用 YYYY-MM-DD 复验（Arm A 用 YYYYMMDD 触发了登记表记录的日期格式坑）
  2. 全口径网格：数清「盲试」需要试几套口径才能对上原文数字
  3. 跨源校验修正：新浪 sh000852 vs 腾讯 sh000852（同指数）
+
+命令行：
+  python probe_armB_registry_guided.py                       # 结果写到 experiments/WORK-413-S2/rerun/armB_result.json
+  python probe_armB_registry_guided.py --out D:\\tmp\\b.json  # 自定输出路径
+  python probe_armB_registry_guided.py --no-write            # 只打印，不写文件
+
+> 输出路径**已参数化**，脚本内不含任何仓库外的绝对路径，可开箱即跑。
+> 默认写到 `rerun/` 子目录，**不覆盖**已入库的实测证据 `armB_result.json`。
 """
+import argparse
 import json
+import os
 import time
+from datetime import datetime
 
 import pandas as pd
 import requests
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.dirname(os.path.dirname(HERE))          # <repo>/experiments/WORK-413-S2 → <repo>
+DEFAULT_OUT = os.path.join(REPO, "experiments", "WORK-413-S2", "rerun", "armB_result.json")
+
+_AP = argparse.ArgumentParser(description="ARM B（有登记表）：修正与补测")
+_AP.add_argument("--out", default=DEFAULT_OUT,
+                 help="结果 JSON 输出路径（默认：experiments/WORK-413-S2/rerun/armB_result.json，不覆盖已入库证据）")
+_AP.add_argument("--no-write", action="store_true", help="只打印结果，不写文件")
+ARGS = _AP.parse_args()
+
+# 本文件的出处说明：写清楚「这个 JSON 是谁、哪一次跑批、哪个窗口产出的」
+PROVENANCE = {
+    "script": "experiments/WORK-413-S2/probe_armB_registry_guided.py",
+    "arm": "B —— 补测/复验段（**不是**主跑批）",
+    "run_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+    "fetch_window": "请求参数 2026-05-01~2026-11-06；实际交易日 2026-05-06~2026-11-06",
+    "elapsed_sec_scope": "本次跑批的墙钟耗时：5 次 HTTP 请求 + 盲试网格（本地计算）+ 跨源校验（本地计算）",
+    "note_main_batch": "另有一次 ARM B **主跑批**，走的是一次性脚本 _armB.py（未入库）：7 次请求 / 2.05 s"
+                        "（B1 取数 4 次 1.56 s + B2 口径段 3 次 0.49 s）。两次跑批不是同一件事，数字不可混用。",
+    "note_cross_source": "cross_source.common_days = 126，对应上面的取数窗口；"
+                          "S2 快照的 131 天窗口（2026-05-06~2026-11-13）的跨源校验结果在 "
+                          "experiments/WORK-413-S2/metrics.json → cross_check。",
+    "note_within_0_005": "within_0.005 用的是严格浮点比较（<= 0.005）；max_abs_diff 实际为 "
+                         "0.005000000001018634，即 0.005 的浮点表示误差。按登记表的四舍五入半格判据"
+                         "（<= 0.005 + 1e-9）应判一致。两个字段都按实测原样保留，未改判据。",
+}
 
 REQS = {"n": 0}
 _orig = requests.Session.request
@@ -197,8 +235,16 @@ xc = {"common_days": int(len(common)), "max_abs_diff": float(d.max()), "mean_abs
 print(json.dumps(xc, ensure_ascii=False))
 
 OUT = {"http_requests": REQS["n"], "elapsed_sec": round(time.time() - T0, 2),
-       "blind_grid_rows": grid_rows, "blind_hits": blind_hits, "registry_path": reg, "cross_source": xc}
+       "blind_grid_rows": grid_rows, "blind_hits": blind_hits, "registry_path": reg, "cross_source": xc,
+       "provenance": PROVENANCE}
 print("\n=== 汇总 ===")
-print(json.dumps({k: v for k, v in OUT.items() if k not in ("blind_hits", "registry_path")}, ensure_ascii=False, indent=1))
-with open(r"F:\001_install\103_multica\multica-upstream-20261105\data\workspaces\workspace-c8faa36a018a\work-413-e5dbb7589ffa\workdir\_armB2.json", "w", encoding="utf-8") as f:
-    json.dump(OUT, f, ensure_ascii=False, indent=1)
+print(json.dumps({k: v for k, v in OUT.items() if k not in ("blind_hits", "registry_path")},
+                 ensure_ascii=False, indent=1))
+if ARGS.no_write:
+    print("\n[no-write] 未写文件（--no-write）")
+else:
+    out_path = os.path.abspath(ARGS.out)
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(OUT, f, ensure_ascii=False, indent=1)
+    print(f"\n[written] {out_path}")

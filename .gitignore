@@ -17,6 +17,9 @@
 report.html
 **/report.html
 
+# ---- 复跑产物（probe 脚本默认输出目录）：不入库，避免覆盖已入库的实测证据 ----
+experiments/*/rerun/
+
 # ---- Python ----
 __pycache__/
 *.py[cod]
