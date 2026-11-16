@@ -1,0 +1,204 @@
+{
+ "http_requests": 5,
+ "elapsed_sec": 1.18,
+ "blind_grid_rows": 42,
+ "blind_hits": {
+  "D1": {
+   "claim": "中证1000 区间跌幅 25.4%",
+   "claimed": -0.254,
+   "hits_within_1pp": [
+    {
+     "variant": "E1 成立日收盘→11-06收盘",
+     "measured": -0.261481,
+     "gap_pp": -0.748
+    },
+    {
+     "variant": "E2 成立日次日收盘→11-06收盘",
+     "measured": -0.261503,
+     "gap_pp": -0.75
+    },
+    {
+     "variant": "E3 成立日开盘→11-06收盘",
+     "measured": -0.251517,
+     "gap_pp": 0.248
+    },
+    {
+     "variant": "E5 成立日收盘→11-05收盘",
+     "measured": -0.245044,
+     "gap_pp": 0.896
+    },
+    {
+     "variant": "E6 成立日收盘→11-06收盘(新浪源)",
+     "measured": -0.261482,
+     "gap_pp": -0.748
+    }
+   ]
+  },
+  "D2": {
+   "claim": "中证1000 期间最大跌幅 31.39%",
+   "claimed": -0.3139,
+   "hits_within_1pp": [
+    {
+     "variant": "E1 成立日收盘→11-06收盘 × M1 区间内收盘 cummax",
+     "measured": -0.305904,
+     "gap_pp": 0.8
+    },
+    {
+     "variant": "E1 成立日收盘→11-06收盘 × M3 区间内 最高→最低",
+     "measured": -0.31391,
+     "gap_pp": -0.001
+    },
+    {
+     "variant": "E1 成立日收盘→11-06收盘 × M4 YTD起点收盘 cummax",
+     "measured": -0.312013,
+     "gap_pp": 0.189
+    },
+    {
+     "variant": "E2 成立日次日收盘→11-06收盘 × M1 区间内收盘 cummax",
+     "measured": -0.305904,
+     "gap_pp": 0.8
+    },
+    {
+     "variant": "E2 成立日次日收盘→11-06收盘 × M3 区间内 最高→最低",
+     "measured": -0.31391,
+     "gap_pp": -0.001
+    },
+    {
+     "variant": "E2 成立日次日收盘→11-06收盘 × M4 YTD起点收盘 cummax",
+     "measured": -0.312013,
+     "gap_pp": 0.189
+    },
+    {
+     "variant": "E3 成立日开盘→11-06收盘 × M1 区间内收盘 cummax",
+     "measured": -0.305904,
+     "gap_pp": 0.8
+    },
+    {
+     "variant": "E3 成立日开盘→11-06收盘 × M3 区间内 最高→最低",
+     "measured": -0.31391,
+     "gap_pp": -0.001
+    },
+    {
+     "variant": "E3 成立日开盘→11-06收盘 × M4 YTD起点收盘 cummax",
+     "measured": -0.312013,
+     "gap_pp": 0.189
+    },
+    {
+     "variant": "E4 成立日收盘→11-06开盘 × M1 区间内收盘 cummax",
+     "measured": -0.305904,
+     "gap_pp": 0.8
+    },
+    {
+     "variant": "E4 成立日收盘→11-06开盘 × M3 区间内 最高→最低",
+     "measured": -0.31391,
+     "gap_pp": -0.001
+    },
+    {
+     "variant": "E4 成立日收盘→11-06开盘 × M4 YTD起点收盘 cummax",
+     "measured": -0.312013,
+     "gap_pp": 0.189
+    },
+    {
+     "variant": "E5 成立日收盘→11-05收盘 × M1 区间内收盘 cummax",
+     "measured": -0.305904,
+     "gap_pp": 0.8
+    },
+    {
+     "variant": "E5 成立日收盘→11-05收盘 × M3 区间内 最高→最低",
+     "measured": -0.31391,
+     "gap_pp": -0.001
+    },
+    {
+     "variant": "E5 成立日收盘→11-05收盘 × M4 YTD起点收盘 cummax",
+     "measured": -0.312013,
+     "gap_pp": 0.189
+    },
+    {
+     "variant": "E6 成立日收盘→11-06收盘(新浪源) × M1 区间内收盘 cummax",
+     "measured": -0.305904,
+     "gap_pp": 0.8
+    },
+    {
+     "variant": "E6 成立日收盘→11-06收盘(新浪源) × M3 区间内 最高→最低",
+     "measured": -0.31391,
+     "gap_pp": -0.001
+    },
+    {
+     "variant": "E6 成立日收盘→11-06收盘(新浪源) × M4 YTD起点收盘 cummax",
+     "measured": -0.312013,
+     "gap_pp": 0.189
+    }
+   ]
+  },
+  "D3": {
+   "claim": "中证A500 区间跌幅 20.22%",
+   "claimed": -0.2022,
+   "hits_within_1pp": [
+    {
+     "variant": "E1 成立日收盘→11-06收盘",
+     "measured": -0.203532,
+     "gap_pp": -0.133
+    },
+    {
+     "variant": "E2 成立日次日收盘→11-06收盘",
+     "measured": -0.194432,
+     "gap_pp": 0.777
+    },
+    {
+     "variant": "E3 成立日开盘→11-06收盘",
+     "measured": -0.199053,
+     "gap_pp": 0.315
+    },
+    {
+     "variant": "E4 成立日收盘→11-06开盘",
+     "measured": -0.211171,
+     "gap_pp": -0.897
+    }
+   ]
+  }
+ },
+ "registry_path": {
+  "D1": {
+   "text": "中证1000 区间跌幅 25.4%",
+   "claimed": -0.254,
+   "measured": -0.261481,
+   "gap_pp": -0.748,
+   "endpoints": [
+    "2026-05-19",
+    "2026-11-06"
+   ],
+   "rounds_needed": 1
+  },
+  "D2": {
+   "text": "中证1000 期间最大跌幅 31.39%",
+   "claimed": -0.3139,
+   "成立以来区间MDD": -0.305904,
+   "gap_since_pp": 0.8,
+   "YTD起点MDD": -0.312013,
+   "gap_ytd_pp": 0.189,
+   "endpoints": [
+    "2026-05-19",
+    "2026-11-06"
+   ],
+   "rounds_needed": 1,
+   "口径分叉": "原文「期间最大跌幅」= 成立以来区间；metric_definitions §4 默认 YTD 起点 → 两套都报"
+  },
+  "D3": {
+   "text": "中证A500 区间跌幅 20.22%",
+   "claimed": -0.2022,
+   "measured": -0.203532,
+   "gap_pp": -0.133,
+   "endpoints": [
+    "2026-05-28",
+    "2026-11-06"
+   ],
+   "rounds_needed": 1
+  }
+ },
+ "cross_source": {
+  "common_days": 126,
+  "max_abs_diff": 0.005000000001018634,
+  "mean_abs_diff": 0.0024920634921020085,
+  "within_0.005": false
+ }
+}
