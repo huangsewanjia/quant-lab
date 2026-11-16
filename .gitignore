@@ -1,0 +1,32 @@
+# ---- 行情快照与产品净值：一律不入库（仓库为 public） ----
+/data/*
+!/data/README.md
+*.csv
+!data_contracts/*.csv
+!experiments/*/metrics_table.csv
+
+# ---- 图件产物（大图 + 对齐/碰撞审计 JSON），只保留生成脚本 ----
+/figures/*
+!/figures/README.md
+*.png
+*.pdf
+*.svg
+!docs/**/*.png
+
+# ---- 报告成品（内嵌 base64 图件，体积大且可由模板重建） ----
+report.html
+**/report.html
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# ---- 本机与编辑器 ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
