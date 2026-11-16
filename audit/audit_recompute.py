@@ -24,7 +24,8 @@
 输出：experiments/<EXP>/audit_findings.json + 终端判决
 退出码：0 = 无 blocking；1 = 存在 blocking
 
-运行：
+运行（**不需要任何环境变量**；脚本内已把 stdout/stderr 强制切到 UTF-8，
+Windows 默认 GBK 控制台与「重定向到文件」两种情形都能直接跑）：
   python audit/audit_recompute.py --exp WORK-404
 """
 import argparse
@@ -86,7 +87,25 @@ def check(name, measured, claimed, tol=0.0005, unit=""):
     return ok
 
 
+def _force_utf8_stdio():
+    """把 stdout/stderr 显式切到 UTF-8。
+
+    Windows 默认控制台编码是 GBK(cp936)。输出被重定向到文件或管道时，
+    sys.stdout 会用 GBK 编码，脚本里任何非 GBK 字符（如 U+2212 数学减号）
+    都会直接抛 UnicodeEncodeError，进程以 exit 1 收场——审计结论根本产不出来。
+
+    在脚本内强制重设编码，使 `python audit/audit_recompute.py --exp <EXP>`
+    **不需要任何环境变量**即可跑完，并返回真实退出码（0 = 无 blocking）。
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
 def main():
+    _force_utf8_stdio()
     ap = argparse.ArgumentParser(description="独立复算（不复用建模阶段函数）")
     ap.add_argument("--exp", default=EXP, help="实验 ID")
     args = ap.parse_args()
@@ -110,17 +129,17 @@ def main():
     r, *_ = ret(c300, "2026-09-30", "2026-11-13"); check("沪深300 09-30→11-13（正文引用）", r, -0.0783)
     r1, *_ = ret(c1000, "2026-09-30", "2026-11-13")
     r2, *_ = ret(c300, "2026-09-30", "2026-11-13")
-    check("10月以来 中证1000−沪深300（pp）", (r1 - r2) * 100, -5.07, tol=0.01, unit="pp")
+    check("10月以来 中证1000-沪深300（pp）", (r1 - r2) * 100, -5.07, tol=0.01, unit="pp")
     r, *_ = ret(c1000, "2026-10-30", "2026-11-13"); check("中证1000 11-01→11-13", r, 0.0318)
     r, *_ = ret(cred, "2026-06-30", "2026-07-31"); check("中证红利 2026-07", r, 0.1089)
     r, *_ = ret(ck50, "2026-06-30", "2026-07-31"); check("科创50 2026-07", r, -0.2590)
     r, *_ = ret(c2000, "2026-06-30", "2026-07-31"); check("国证2000 2026-07", r, -0.1946)
     r1, *_ = ret(c1000, "2026-06-30", "2026-07-31")
     r2, *_ = ret(cred, "2026-06-30", "2026-07-31")
-    check("7月 中证1000−中证红利（pp）", (r1 - r2) * 100, -30.58, tol=0.01, unit="pp")
+    check("7月 中证1000-中证红利（pp）", (r1 - r2) * 100, -30.58, tol=0.01, unit="pp")
     r1, *_ = ret(c1000, "2026-09-30", "2026-10-30")
     r2, *_ = ret(c300, "2026-09-30", "2026-10-30")
-    check("10月 中证1000−沪深300（pp）", (r1 - r2) * 100, -7.05, tol=0.01, unit="pp")
+    check("10月 中证1000-沪深300（pp）", (r1 - r2) * 100, -7.05, tol=0.01, unit="pp")
     # 隐含超额下界：私募指数 ≤ -17% 与基准收益之差
     check("C1 隐含超额下界（10月/中证1000）", (-0.17 - r1) * 100, -1.41, tol=0.01, unit="pp")
     check("C1 隐含超额下界（10月/国证2000）", (-0.17 - ret(c2000, "2026-09-30", "2026-10-30")[0]) * 100,

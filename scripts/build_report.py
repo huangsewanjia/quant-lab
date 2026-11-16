@@ -12,6 +12,7 @@
 import argparse
 import base64
 import os
+import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
@@ -29,7 +30,22 @@ SLOTS = (("FIG1", "fig1_schematic"), ("FIG2", "fig4_matrix_radar"),
          ("FIG3", "fig2_nav"), ("FIG4", "fig3_reproduce"))
 
 
+def _force_utf8_stdio():
+    """把 stdout/stderr 显式切到 UTF-8（Windows 默认控制台编码是 GBK/cp936）。
+
+    脚本输出里只要出现非 GBK 字符（如 U+2212 数学减号），在「输出被重定向到文件
+    或管道」时就会抛 UnicodeEncodeError、进程 exit 1——结果文件根本产不出来。
+    强制重设编码后，README 里的命令不需要任何环境变量即可跑完并返回真实退出码。
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
 def main():
+    _force_utf8_stdio()
     ap = argparse.ArgumentParser(description="模板 + 配图 → 单文件 HTML 报告")
     ap.add_argument("--exp", default=EXP, help="实验 ID")
     ap.add_argument("--template", default=os.path.join(TEMPLATES, "report_template.html"),

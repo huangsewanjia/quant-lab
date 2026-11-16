@@ -93,6 +93,8 @@ python scripts/build_figures.py --exp <EXP>
 python audit/audit_recompute.py --exp <EXP>
 ```
 
+> **不需要任何环境变量**：脚本在 `main()` 入口把 `sys.stdout` / `sys.stderr` 强制切到 UTF-8，Windows 默认的 GBK(cp936) 控制台、Git Bash、以及「输出重定向到文件或管道」三种情形都能直接跑完并返回真实退出码。审计契约（任何对外数字必须过这里、不复用建模阶段的函数）见 `audit/README.md`。
+
 | 验收项 | 判据 |
 |---|---|
 | 不复用建模函数 | 审计脚本用 `csv` 直读 + 纯 Python 重算，**不 import** `build_analysis.py` |

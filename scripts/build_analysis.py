@@ -19,6 +19,7 @@
 import argparse
 import json
 import os
+import sys
 
 import numpy as np
 import pandas as pd
@@ -120,7 +121,22 @@ def ann_stats(df, start="2026-01-01", rf=0.015):
             "base_close": base, "end_close": float(s.iloc[-1])}
 
 
+def _force_utf8_stdio():
+    """把 stdout/stderr 显式切到 UTF-8（Windows 默认控制台编码是 GBK/cp936）。
+
+    脚本输出里只要出现非 GBK 字符（如 U+2212 数学减号），在「输出被重定向到文件
+    或管道」时就会抛 UnicodeEncodeError、进程 exit 1——结果文件根本产不出来。
+    强制重设编码后，README 里的命令不需要任何环境变量即可跑完并返回真实退出码。
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
 def main():
+    _force_utf8_stdio()
     ap = argparse.ArgumentParser(description="快照 → 指标")
     ap.add_argument("--exp", default=EXP, help="实验 ID")
     args = ap.parse_args()

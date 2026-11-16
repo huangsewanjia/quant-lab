@@ -43,12 +43,12 @@
     },
     {
       "severity": "PASS",
-      "item": "10月以来 中证1000−沪深300（pp）",
+      "item": "10月以来 中证1000-沪深300（pp）",
       "measured": "-5.067222pp",
       "expected": "-5.070000pp",
       "gap": "+0.002778pp",
       "location": "experiments/<EXP>/metrics.json",
-      "how_to_verify": "重跑 scripts/build_analysis.py 与本脚本比对 10月以来 中证1000−沪深300（pp）"
+      "how_to_verify": "重跑 scripts/build_analysis.py 与本脚本比对 10月以来 中证1000-沪深300（pp）"
     },
     {
       "severity": "PASS",
@@ -88,21 +88,21 @@
     },
     {
       "severity": "PASS",
-      "item": "7月 中证1000−中证红利（pp）",
+      "item": "7月 中证1000-中证红利（pp）",
       "measured": "-30.575909pp",
       "expected": "-30.580000pp",
       "gap": "+0.004091pp",
       "location": "experiments/<EXP>/metrics.json",
-      "how_to_verify": "重跑 scripts/build_analysis.py 与本脚本比对 7月 中证1000−中证红利（pp）"
+      "how_to_verify": "重跑 scripts/build_analysis.py 与本脚本比对 7月 中证1000-中证红利（pp）"
     },
     {
       "severity": "PASS",
-      "item": "10月 中证1000−沪深300（pp）",
+      "item": "10月 中证1000-沪深300（pp）",
       "measured": "-7.046420pp",
       "expected": "-7.050000pp",
       "gap": "+0.003580pp",
       "location": "experiments/<EXP>/metrics.json",
-      "how_to_verify": "重跑 scripts/build_analysis.py 与本脚本比对 10月 中证1000−沪深300（pp）"
+      "how_to_verify": "重跑 scripts/build_analysis.py 与本脚本比对 10月 中证1000-沪深300（pp）"
     },
     {
       "severity": "PASS",
