@@ -16,7 +16,7 @@
 | `volume` | 成交量 | **股**（S-A） | 同上 | 日 | 无 | — |
 | `vol`（Tushare） | 成交量 | **手**（1 手 = 100 股） | 同上 | 日 | 无 | 与 S-A 的 `volume` 相差 100 倍，换算已验证 |
 | `amount`（Tushare） | 成交额 | **千元** | 同上 | 日 | 无 | 换算为元需 × 1000 |
-| `turnover_proxy` | **成交额代理**（本仓库计算列，**非源字段**） | 元 | 同上 | 日 | 无 | = `volume(股) × close(元)`；**只用于趋势/相对比较，绝对水平不可用**，偏差倍数见 `metric_definitions.md` §5 |
+| `turnover_proxy` | **成交额代理**（本仓库计算列，**非源字段**） | 元 | 同上 | 日 | 无 | = `volume(股) × close(元)`；**只用于趋势/相对比较，绝对水平不可用**，偏差倍数见 `metric_definitions.md` §6 成交额代理口径 |
 | `pct_chg`（Tushare） | 收盘涨跌幅 | % | 同上 | 日 | 无 | **S-A 未提供**，本仓库一律自算：`close / close_prev − 1`（见 §4 对齐规则） |
 | `index_name` | 指数显示名 | 文本 | — | — | 不为空 | — |
 | `source` | 来源标记 | 文本 | — | — | 取值 `A_tencent` / `B_eastmoney` | — |

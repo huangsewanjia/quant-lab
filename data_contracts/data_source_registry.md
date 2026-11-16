@@ -9,7 +9,7 @@
 
 ---
 
-## 1. 接口级：8 个候选源
+## 1. 接口级：9 个候选源（S-A…S-I）
 
 | 源 ID | 来源 | URL / 接口 | 抓取方式 | 可用性 | 限制 | 采样日期 | 证据 |
 |---|---|---|---|---|---|---|---|
@@ -17,11 +17,11 @@
 | **S-B** | 东方财富 push2 | `https://push2his.eastmoney.com/api/qt/stock/kline/get`（`secid,klt=101,fqt=1`） | 本机 Python `requests` | **未取到**（本机 IP 被限流） | 本机出口 IP 被 push2 限流，12 条指数记录**全部**记为 `skipped`，不是部分失败；原计划用它取成交额 `amount`，因此成交额被迫改用代理口径 | 2026-11-15 | manifest 中 12 条 `B_eastmoney` 记录 `ok:false`，`error: "skipped: eastmoney push2 对本机 IP 限流（preflight 失败），成交额改用代理口径"` |
 | **S-C** | Tushare（交叉校验源） | MCP `mcp__tushare__index_daily` | MCP 服务端拉取（**与本机出口 IP 不同**，构成独立校验） | **可用**（仅作校验） | 需 MCP 凭证；本轮只取到 3 个指数 × 2~3 个日期的点值，未取全历史；`vol` 单位为手（1 手 = 100 股） | 2026-11-15 | 成交量换算已验证：S-A 中证1000 2026-11-09 = 19,233,413,800 股 vs S-C `vol` = 192,334,138 手 × 100 |
 | **S-D** | 知藏知识库 | MCP `search_knowledge` / `read_note` / `list_notes` | MCP | **可用但无命中** | 只读；本轮检索该篇原文未入库（库内 37 篇量化笔记均为其他文章） | 2026-11-15 | `02-data-contract.md §1` S-D 行 |
-| **S-E** | 乐咕乐股赚钱效应 | `akshare.stock_market_activity_legu` | Python | **部分可用** | **只有当日截面**（12 行 item/value），无历史序列 → 不满足历史检验；「指数涨、个股跌」因此改用指数层面横截面近似 | 2026-11-15 | `data/breadth_legu_market_activity.csv`，12 行 |
+| **S-E** | 乐咕乐股赚钱效应 | `akshare.stock_market_activity_legu` | Python | **部分可用** | **只有当日截面**（12 行 item/value），无历史序列 → 不满足历史检验；「指数涨、个股跌」因此改用指数层面横截面近似 | 2026-11-15 | WORK-404 工作目录下的 `data/breadth_legu_market_activity.csv`（12 行；**未入库**——`data/` 属 gitignore 范围） |
 | **S-F** | 网易财经 CSV | `https://quotes.money.163.com/service/chddata.html` | Python | **未取到** | 稳定返回 `HTTP 502 Bad Gateway`，无法作为成交额备选源 | 2026-11-15 | `02-data-contract.md §1` S-F 行原文记录 |
-| **S-G** | 微信公众号原文 | `https://mp.weixin.qq.com/s/c_N2gd4xZg6LSQWYmli7RQ` | harness `web_fetch` / MCP `fetch` / 真实 Chrome | **可用（需真实浏览器）** | 前两条路线被拦：落到 `wappoc_appmsgcaptcha` 验证页 / robots.txt；**只有真实 Chrome 渲染能取到全文**（41 段 2863 字） | 2026-11-15 | `raw_snapshot.txt`（22608 字节，真实 Chrome 渲染快照）；标题/署名/时间与评论一致 |
+| **S-G** | 微信公众号原文 | `https://mp.weixin.qq.com/s/c_N2gd4xZg6LSQWYmli7RQ` | harness `web_fetch` / MCP `fetch` / 真实 Chrome | **可用（需真实浏览器）** | 前两条路线被拦：落到 `wappoc_appmsgcaptcha` 验证页 / robots.txt；**只有真实 Chrome 渲染能取到全文**（41 段 2863 字） | 2026-11-15 | WORK-404 工作目录下的 `raw_snapshot.txt`（22608 字节，真实 Chrome 渲染快照；**未入库**）；标题/署名/时间与评论一致 |
 | **S-H** | 原文配图 CDN | `https://mmbiz.qpic.cn/...` | Python 多 UA 探测 | **未取到真身** | 所有 UA（含 MicroMessenger）均返回同一张 48864 字节占位图（sha256 前缀 `96d03490381006e3`）；原文图表数据不可读 | 2026-11-15 | `02-data-contract.md §1` S-H 行；`article_images/*.png` 实为占位图 |
-| **S-I** | 新浪行情（akshare 后端） | `akshare.stock_zh_index_daily(symbol="sh000852")` | Python（akshare 1.20.40） | **可用**（独立交叉校验源） | ① 只能按**代码**取，接口内部再转新浪；② 返回**全历史**（sh000852 约 2936 行、sh000510 约 5309 行），需要自截窗口；③ 字段为 `date/open/high/low/close/volume`，**无成交额**；④ `volume` 单位未在文档中写明，跨源比较前需先验 | 2026-11-16 | 与 S-A 同日同口径交叉校验：**131 / 131 一致**，最大绝对差 **0.005**、平均 **0.0025**（源A 落盘 2 位小数 vs 新浪原始精度，在四舍五入半格内）。实测见 `docs/second_article_trial.md` §三 |
+| **S-I** | 新浪行情（akshare 后端） | `akshare.stock_zh_index_daily(symbol="sh000852")` | Python（akshare 1.20.40） | **可用**（独立交叉校验源） | ① 只能按**代码**取，接口内部再转新浪；② 返回**全历史**（sh000852 约 2936 行、sh000510 约 5309 行），需要自截窗口；③ 字段为 `date/open/high/low/close/volume`，**无成交额**；④ `volume` 单位未在文档中写明，跨源比较前需先验 | 2026-11-16 | 与 S-A 同日同口径交叉校验：**131 / 131 一致**（窗口 **2026-05-06~2026-11-13**，即 S2 快照窗口），最大绝对差 **0.005**、平均 **0.0025**（源A 落盘 2 位小数 vs 新浪原始精度，在四舍五入半格内）。ARM B 复验段另在 **126 天**窗口（2026-05-06~2026-11-06）上做过一次同口径比对，数值见 `experiments/WORK-413-S2/armB_result.json`，口径对照见 `docs/second_article_trial.md` §九 |
 
 ---
 
@@ -47,13 +47,13 @@
 
 ---
 
-## 3. 踩过的四个坑（省下的是别人的时间）
+## 3. 踩过的六个坑（省下的是别人的时间，3.1–3.6）
 
 ### 3.1 东财 push2 对本机 IP 限流
 - **现象**：S-B 的 12 次调用全部失败，报 `Push2RateLimitError` / `RemoteDisconnected`。
 - **根因**：按指数批量调用触发 push2 的同 IP 频控。
 - **已验证的处置**：`scripts/fetch_market_data.py` 对东财做 **1 次 preflight** 探活，失败则整段跳过（12 条记录写成 `skipped`），**不再空跑 12×45 秒重试**——这一步把一轮空跑压到约 1 次请求。
-- **对本仓库的影响**：成交额 `amount` 取不到 → 全市场成交额改用**代理口径** `volume × close`，其绝对水平系统性高于真实值 **3.3–3.6 倍**，只能用于趋势比较（详见 `metric_definitions.md` §5）。
+- **对本仓库的影响**：成交额 `amount` 取不到 → 全市场成交额改用**代理口径** `volume × close`，其绝对水平系统性高于真实值 **3.3–3.6 倍**，只能用于趋势比较（详见 `metric_definitions.md` §6 成交额代理口径）。
 - **下一次实验怎么做**：**不要重试东财**。要么换出口 IP，要么继续用代理口径并写明倍数。
 
 ### 3.2 乐咕只有当日截面
