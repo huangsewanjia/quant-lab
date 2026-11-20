@@ -1,0 +1,11 @@
+{
+ "arm": "full_mask",
+ "epoch": 59,
+ "epochs": 60,
+ "sec_train": 3.954,
+ "sec_val": 0.403,
+ "val_rankic": 0.005650299810993937,
+ "best_epoch": 53,
+ "best_rankic": 0.03782344421844802,
+ "updated_at": "2026-11-20T12:49:15.388411+08:00"
+}

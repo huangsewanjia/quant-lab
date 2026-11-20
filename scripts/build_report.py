@@ -12,6 +12,7 @@
 import argparse
 import base64
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -28,6 +29,8 @@ OUT = os.path.join(REPO, "experiments", EXP)
 # 与图件文件名解耦：fig4_matrix_radar 对应正文图 2，fig2_nav 对应正文图 3。
 SLOTS = (("FIG1", "fig1_schematic"), ("FIG2", "fig4_matrix_radar"),
          ("FIG3", "fig2_nav"), ("FIG4", "fig3_reproduce"))
+# 新约定：优先用 fig<N>.png（正文图号 = 文件名序号），找不到再回落到旧 stem。
+NEW_FIG_RE = re.compile(r"^fig(\d+)\.png$")
 
 
 def _force_utf8_stdio():
@@ -44,31 +47,71 @@ def _force_utf8_stdio():
             pass
 
 
+def _resolve_template(args, exp):
+    """优先用 templates/report_template_<EXP>.html（单实验专用模板）。"""
+    if args.template:
+        return args.template
+    specific = os.path.join(TEMPLATES, f"report_template_{exp}.html")
+    if os.path.exists(specific):
+        return specific
+    return os.path.join(TEMPLATES, "report_template.html")
+
+
+def _resolve_fig(fig_dir, slot_no, legacy_stem):
+    """正文图号优先对应 fig<N>.png；否则回落到历史 stem。"""
+    candidate = os.path.join(fig_dir, f"fig{slot_no}.png")
+    if os.path.exists(candidate):
+        return candidate
+    return os.path.join(fig_dir, f"{legacy_stem}.png")
+
+
+def _substitute_data(tpl, exp_dir):
+    """用 experiments/<exp>/report_data.json 替换 {{TOKEN}}（缺失即报错）。"""
+    data_path = os.path.join(exp_dir, "report_data.json")
+    if not os.path.exists(data_path):
+        return tpl, []
+    import json
+    data = json.load(open(data_path, encoding="utf-8"))
+    missing = []
+    for key, value in data.items():
+        token = "{{" + key + "}}"
+        if token in tpl:
+            tpl = tpl.replace(token, str(value))
+    for token in set(re.findall(r"\{\{([A-Za-z0-9_]+)\}\}", tpl)):
+        missing.append(token)
+    return tpl, sorted(missing)
+
+
 def main():
     _force_utf8_stdio()
     ap = argparse.ArgumentParser(description="模板 + 配图 → 单文件 HTML 报告")
     ap.add_argument("--exp", default=EXP, help="实验 ID")
-    ap.add_argument("--template", default=os.path.join(TEMPLATES, "report_template.html"),
-                    help="HTML 模板路径（默认 templates/report_template.html）")
+    ap.add_argument("--template", default=None,
+                    help="HTML 模板路径（默认按实验 ID 选模板）")
     args = ap.parse_args()
     exp = args.exp
     fig_dir = os.path.join(REPO, "figures", exp)
     out_dir = os.path.join(REPO, "experiments", exp)
     os.makedirs(out_dir, exist_ok=True)
 
-    if not os.path.exists(args.template):
-        raise SystemExit(f"模板不存在：{args.template}")
-    tpl = open(args.template, encoding="utf-8").read()
+    template = _resolve_template(args, exp)
+    if not os.path.exists(template):
+        raise SystemExit(f"模板不存在：{template}")
+    tpl = open(template, encoding="utf-8").read()
 
-    for key, stem in SLOTS:
-        p = os.path.join(fig_dir, f"{stem}.png")
+    for i, (key, stem) in enumerate(SLOTS, start=1):
+        p = _resolve_fig(fig_dir, i, stem)
         if not os.path.exists(p):
-            raise SystemExit(f"缺少配图：{p}；先跑 scripts/build_figures.py --exp {exp}")
+            raise SystemExit(f"缺少配图：{p}；先跑出图脚本 --exp {exp}")
         b64 = base64.b64encode(open(p, "rb").read()).decode("ascii")
         token = "{{" + key + "}}"
         if token not in tpl:
             raise SystemExit(f"模板缺少占位符 {token}")
         tpl = tpl.replace(token, f"data:image/png;base64,{b64}")
+
+    tpl, missing = _substitute_data(tpl, out_dir)
+    if missing:
+        raise SystemExit("模板占位符无对应数据：" + ", ".join(missing))
 
     out = os.path.join(out_dir, "report.html")
     with open(out, "w", encoding="utf-8") as f:

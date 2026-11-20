@@ -1,0 +1,11 @@
+{
+ "arm": "halt_only",
+ "epoch": 59,
+ "epochs": 60,
+ "sec_train": 2.127,
+ "sec_val": 0.185,
+ "val_rankic": -0.0023269604194935374,
+ "best_epoch": 22,
+ "best_rankic": 0.03960366368393362,
+ "updated_at": "2026-11-20T11:56:28.681488+08:00"
+}

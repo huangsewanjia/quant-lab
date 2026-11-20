@@ -1,0 +1,212 @@
+{
+ "no_mask": {
+  "factor_count": 12,
+  "assertion_fired_cells": 5517361,
+  "assertion_valid_cells": 19219451,
+  "per_factor": {
+   "mom_5": {
+    "cells": 311148,
+    "valid_cells": 1616215
+   },
+   "mom_20": {
+    "cells": 473016,
+    "valid_cells": 1606015
+   },
+   "mom_60": {
+    "cells": 725065,
+    "valid_cells": 1578815
+   },
+   "ts_mean_ret_5": {
+    "cells": 297525,
+    "valid_cells": 1616979
+   },
+   "ts_mean_ret_20": {
+    "cells": 467987,
+    "valid_cells": 1607082
+   },
+   "ts_std_ret_20": {
+    "cells": 467809,
+    "valid_cells": 1607062
+   },
+   "ts_corr_close_vol_20": {
+    "cells": 467809,
+    "valid_cells": 1607062
+   },
+   "ts_rank_close_60": {
+    "cells": 720354,
+    "valid_cells": 1580175
+   },
+   "ts_max_ret_20": {
+    "cells": 467987,
+    "valid_cells": 1607082
+   },
+   "ts_min_ret_20": {
+    "cells": 467987,
+    "valid_cells": 1607082
+   },
+   "range_1": {
+    "cells": 182687,
+    "valid_cells": 1574680
+   },
+   "amt_proxy_20": {
+    "cells": 467987,
+    "valid_cells": 1611202
+   }
+  },
+  "factor_cell_counts": {
+   "mom_5": 1616215,
+   "mom_20": 1606015,
+   "mom_60": 1578815,
+   "ts_mean_ret_5": 1616979,
+   "ts_mean_ret_20": 1607082,
+   "ts_std_ret_20": 1607062,
+   "ts_corr_close_vol_20": 1607062,
+   "ts_rank_close_60": 1580175,
+   "ts_max_ret_20": 1607082,
+   "ts_min_ret_20": 1607082,
+   "range_1": 1574680,
+   "amt_proxy_20": 1611202
+  },
+  "all_factors_valid_cells": 1534074
+ },
+ "halt_only": {
+  "factor_count": 12,
+  "assertion_fired_cells": 4816155,
+  "assertion_valid_cells": 18677069,
+  "per_factor": {
+   "mom_5": {
+    "cells": 257572,
+    "valid_cells": 1563852
+   },
+   "mom_20": {
+    "cells": 403136,
+    "valid_cells": 1544421
+   },
+   "mom_60": {
+    "cells": 630673,
+    "valid_cells": 1505293
+   },
+   "ts_mean_ret_5": {
+    "cells": 252044,
+    "valid_cells": 1578589
+   },
+   "ts_mean_ret_20": {
+    "cells": 419692,
+    "valid_cells": 1579172
+   },
+   "ts_std_ret_20": {
+    "cells": 418930,
+    "valid_cells": 1578095
+   },
+   "ts_corr_close_vol_20": {
+    "cells": 418930,
+    "valid_cells": 1578095
+   },
+   "ts_rank_close_60": {
+    "cells": 573415,
+    "valid_cells": 1433236
+   },
+   "ts_max_ret_20": {
+    "cells": 419692,
+    "valid_cells": 1579172
+   },
+   "ts_min_ret_20": {
+    "cells": 419692,
+    "valid_cells": 1579172
+   },
+   "range_1": {
+    "cells": 182687,
+    "valid_cells": 1574680
+   },
+   "amt_proxy_20": {
+    "cells": 419692,
+    "valid_cells": 1583292
+   }
+  },
+  "factor_cell_counts": {
+   "mom_5": 1563852,
+   "mom_20": 1544421,
+   "mom_60": 1505293,
+   "ts_mean_ret_5": 1578589,
+   "ts_mean_ret_20": 1579172,
+   "ts_std_ret_20": 1578095,
+   "ts_corr_close_vol_20": 1578095,
+   "ts_rank_close_60": 1433236,
+   "ts_max_ret_20": 1579172,
+   "ts_min_ret_20": 1579172,
+   "range_1": 1574680,
+   "amt_proxy_20": 1583292
+  },
+  "all_factors_valid_cells": 1429909
+ },
+ "full_mask": {
+  "factor_count": 12,
+  "assertion_fired_cells": 0,
+  "assertion_valid_cells": 16263413,
+  "per_factor": {
+   "mom_5": {
+    "cells": 0,
+    "valid_cells": 1363250
+   },
+   "mom_20": {
+    "cells": 0,
+    "valid_cells": 1345617
+   },
+   "mom_60": {
+    "cells": 0,
+    "valid_cells": 1311220
+   },
+   "ts_mean_ret_5": {
+    "cells": 0,
+    "valid_cells": 1419664
+   },
+   "ts_mean_ret_20": {
+    "cells": 0,
+    "valid_cells": 1429191
+   },
+   "ts_std_ret_20": {
+    "cells": 0,
+    "valid_cells": 1427542
+   },
+   "ts_corr_close_vol_20": {
+    "cells": 0,
+    "valid_cells": 1427542
+   },
+   "ts_rank_close_60": {
+    "cells": 0,
+    "valid_cells": 859821
+   },
+   "ts_max_ret_20": {
+    "cells": 0,
+    "valid_cells": 1429191
+   },
+   "ts_min_ret_20": {
+    "cells": 0,
+    "valid_cells": 1429191
+   },
+   "range_1": {
+    "cells": 0,
+    "valid_cells": 1391993
+   },
+   "amt_proxy_20": {
+    "cells": 0,
+    "valid_cells": 1429191
+   }
+  },
+  "factor_cell_counts": {
+   "mom_5": 1363250,
+   "mom_20": 1345617,
+   "mom_60": 1311220,
+   "ts_mean_ret_5": 1419664,
+   "ts_mean_ret_20": 1429191,
+   "ts_std_ret_20": 1427542,
+   "ts_corr_close_vol_20": 1427542,
+   "ts_rank_close_60": 859821,
+   "ts_max_ret_20": 1429191,
+   "ts_min_ret_20": 1429191,
+   "range_1": 1391993,
+   "amt_proxy_20": 1429191
+  },
+  "all_factors_valid_cells": 854427
+ }
+}

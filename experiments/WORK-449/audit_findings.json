@@ -1,0 +1,546 @@
+{
+ "experiment": "WORK-449",
+ "generated_at": "2026-11-20T13:09:42.919930+08:00",
+ "script": "audit/recompute_work449.py",
+ "independence": "re-reads data/<exp>/*.csv and recomputes returns, masks, factor values and all metrics with its own code; imports no modelling-stage function",
+ "tolerance_rel_diff": 1e-06,
+ "blocking": 0,
+ "suggestion": 0,
+ "comparisons": [
+  {
+   "level": "blocking",
+   "item": "r_eff panel cross-check (4000 random cells)",
+   "measured": 0.0,
+   "expected": 0.0,
+   "rel_diff": 0.0,
+   "note": "max relative difference between recomputed and stored returns [exact equality required]"
+  },
+  {
+   "level": "blocking",
+   "item": "M_exec mask equality",
+   "measured": 0.0,
+   "expected": 0.0,
+   "rel_diff": 0.0,
+   "note": "fraction of cells that differ [exact equality required]"
+  },
+  {
+   "level": "blocking",
+   "item": "M_factor[no_mask] mask equality",
+   "measured": 0.0,
+   "expected": 0.0,
+   "rel_diff": 0.0,
+   "note": "fraction of cells that differ [exact equality required]"
+  },
+  {
+   "level": "blocking",
+   "item": "M_factor[halt_only] mask equality",
+   "measured": 0.0,
+   "expected": 0.0,
+   "rel_diff": 0.0,
+   "note": "fraction of cells that differ [exact equality required]"
+  },
+  {
+   "level": "blocking",
+   "item": "M_factor[full_mask] mask equality",
+   "measured": 0.0,
+   "expected": 0.0,
+   "rel_diff": 0.0,
+   "note": "fraction of cells that differ [exact equality required]"
+  },
+  {
+   "level": "blocking",
+   "item": "panel row grid equality",
+   "measured": 0.0,
+   "expected": 0.0,
+   "rel_diff": 0.0,
+   "note": "fraction of cells that differ [exact equality required]"
+  },
+  {
+   "level": "blocking",
+   "item": "[no_mask/main] sharpe",
+   "measured": -0.5801224117768111,
+   "expected": -0.5801224117768111,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[no_mask/main] ann_return",
+   "measured": -0.0439777534600283,
+   "expected": -0.0439777534600283,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[no_mask/main] ann_vol",
+   "measured": 0.10166432508509712,
+   "expected": 0.10166432508509712,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[no_mask/main] max_drawdown",
+   "measured": -0.25097742548780533,
+   "expected": -0.25097742548780533,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[no_mask/main] turnover_two_sided",
+   "measured": 186.05290807826532,
+   "expected": 186.05290807826532,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[no_mask/main] apparent_ic",
+   "measured": 0.007674124158894169,
+   "expected": 0.007674124158894169,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[no_mask/main] total_return",
+   "measured": -0.1258126271775627,
+   "expected": -0.1258126271775627,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[no_mask/main] avg_active_stocks",
+   "measured": 51.91460055096419,
+   "expected": 51.91460055096419,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[no_mask/sensitivity_5bps] sharpe",
+   "measured": -0.40287938301570975,
+   "expected": -0.40287938301570975,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[no_mask/sensitivity_5bps] ann_return",
+   "measured": -0.025958946940943473,
+   "expected": -0.025958946940943473,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[no_mask/sensitivity_5bps] ann_vol",
+   "measured": 0.10166553233464005,
+   "expected": 0.10166553233464005,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[no_mask/sensitivity_5bps] max_drawdown",
+   "measured": -0.2128351180310346,
+   "expected": -0.2128351180310346,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[no_mask/sensitivity_5bps] turnover_two_sided",
+   "measured": 186.05290807826532,
+   "expected": 186.05290807826532,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[no_mask/sensitivity_5bps] apparent_ic",
+   "measured": 0.007674124158894169,
+   "expected": 0.007674124158894169,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[no_mask/sensitivity_5bps] total_return",
+   "measured": -0.0756231485471427,
+   "expected": -0.0756231485471427,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[no_mask/sensitivity_5bps] avg_active_stocks",
+   "measured": 51.91460055096419,
+   "expected": 51.91460055096419,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[no_mask] factor value spot-check ts_mean_ret_20",
+   "measured": 2.1268217320624672e-07,
+   "expected": 0.0,
+   "rel_diff": 2.1268217320624672e-07,
+   "note": "max ABSOLUTE difference on 12 sampled test days (independent re-implementation of the primitive + neutralisation); max relative difference = 5.870e-08",
+   "max_relative_difference": 5.8704809956906366e-08
+  },
+  {
+   "level": "suggestion",
+   "item": "[no_mask] factor mask spot-check ts_mean_ret_20",
+   "measured": 0.0,
+   "expected": 0.0,
+   "rel_diff": 0.0,
+   "note": "number of cells whose stored validity mask differs [exact equality required]"
+  },
+  {
+   "level": "blocking",
+   "item": "[no_mask] factor value spot-check ts_rank_close_60",
+   "measured": 1.1379805231470641e-07,
+   "expected": 0.0,
+   "rel_diff": 1.1379805231470641e-07,
+   "note": "max ABSOLUTE difference on 12 sampled test days (independent re-implementation of the primitive + neutralisation); max relative difference = 5.859e-08",
+   "max_relative_difference": 5.858718204174353e-08
+  },
+  {
+   "level": "suggestion",
+   "item": "[no_mask] factor mask spot-check ts_rank_close_60",
+   "measured": 0.0,
+   "expected": 0.0,
+   "rel_diff": 0.0,
+   "note": "number of cells whose stored validity mask differs [exact equality required]"
+  },
+  {
+   "level": "blocking",
+   "item": "[halt_only/main] sharpe",
+   "measured": -0.16984300422947674,
+   "expected": -0.16984300422947674,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[halt_only/main] ann_return",
+   "measured": -0.0019657286315624134,
+   "expected": -0.0019657286315624134,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[halt_only/main] ann_vol",
+   "measured": 0.09989065318604369,
+   "expected": 0.09989065318604369,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[halt_only/main] max_drawdown",
+   "measured": -0.16623141338343395,
+   "expected": -0.16623141338343395,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[halt_only/main] turnover_two_sided",
+   "measured": 95.38598741415954,
+   "expected": 95.38598741415954,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[halt_only/main] apparent_ic",
+   "measured": 0.010639461991170373,
+   "expected": 0.010639461991170373,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[halt_only/main] total_return",
+   "measured": -0.005865518039612105,
+   "expected": -0.005865518039612105,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[halt_only/main] avg_active_stocks",
+   "measured": 56.05922865013774,
+   "expected": 56.05922865013774,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[halt_only/sensitivity_5bps] sharpe",
+   "measured": -0.07375649725630772,
+   "expected": -0.07375649725630772,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[halt_only/sensitivity_5bps] ann_return",
+   "measured": 0.007631116532760496,
+   "expected": 0.007631116532760496,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[halt_only/sensitivity_5bps] ann_vol",
+   "measured": 0.09990826220546029,
+   "expected": 0.09990826220546029,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[halt_only/sensitivity_5bps] max_drawdown",
+   "measured": -0.15080267715976625,
+   "expected": -0.15080267715976625,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[halt_only/sensitivity_5bps] turnover_two_sided",
+   "measured": 95.38598741415954,
+   "expected": 95.38598741415954,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[halt_only/sensitivity_5bps] apparent_ic",
+   "measured": 0.010639461991170373,
+   "expected": 0.010639461991170373,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[halt_only/sensitivity_5bps] total_return",
+   "measured": 0.022988647619700764,
+   "expected": 0.022988647619700764,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[halt_only/sensitivity_5bps] avg_active_stocks",
+   "measured": 56.05922865013774,
+   "expected": 56.05922865013774,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[halt_only] factor value spot-check ts_mean_ret_20",
+   "measured": 1.1886907014257986e-07,
+   "expected": 0.0,
+   "rel_diff": 1.1886907014257986e-07,
+   "note": "max ABSOLUTE difference on 12 sampled test days (independent re-implementation of the primitive + neutralisation); max relative difference = 5.872e-08",
+   "max_relative_difference": 5.871647378706258e-08
+  },
+  {
+   "level": "suggestion",
+   "item": "[halt_only] factor mask spot-check ts_mean_ret_20",
+   "measured": 0.0,
+   "expected": 0.0,
+   "rel_diff": 0.0,
+   "note": "number of cells whose stored validity mask differs [exact equality required]"
+  },
+  {
+   "level": "blocking",
+   "item": "[halt_only] factor value spot-check ts_rank_close_60",
+   "measured": 1.1918697850887838e-07,
+   "expected": 0.0,
+   "rel_diff": 1.1918697850887838e-07,
+   "note": "max ABSOLUTE difference on 12 sampled test days (independent re-implementation of the primitive + neutralisation); max relative difference = 5.849e-08",
+   "max_relative_difference": 5.848754265361354e-08
+  },
+  {
+   "level": "suggestion",
+   "item": "[halt_only] factor mask spot-check ts_rank_close_60",
+   "measured": 0.0,
+   "expected": 0.0,
+   "rel_diff": 0.0,
+   "note": "number of cells whose stored validity mask differs [exact equality required]"
+  },
+  {
+   "level": "blocking",
+   "item": "[full_mask/main] sharpe",
+   "measured": -1.1317663101717768,
+   "expected": -1.1317663101717768,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[full_mask/main] ann_return",
+   "measured": -0.11499750422074873,
+   "expected": -0.11499750422074873,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[full_mask/main] ann_vol",
+   "measured": 0.11486249683560384,
+   "expected": 0.11486249683560384,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[full_mask/main] max_drawdown",
+   "measured": -0.3958173763712277,
+   "expected": -0.3958173763712277,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[full_mask/main] turnover_two_sided",
+   "measured": 407.86243490988517,
+   "expected": 407.86243490988517,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[full_mask/main] apparent_ic",
+   "measured": 0.012091916235806481,
+   "expected": 0.012091916235806481,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[full_mask/main] total_return",
+   "measured": -0.30597006319316045,
+   "expected": -0.30597006319316045,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[full_mask/main] avg_active_stocks",
+   "measured": 38.71625344352617,
+   "expected": 38.71625344352617,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[full_mask/sensitivity_5bps] sharpe",
+   "measured": -0.8098497921354002,
+   "expected": -0.8098497921354002,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[full_mask/sensitivity_5bps] ann_return",
+   "measured": -0.0780074776001124,
+   "expected": -0.0780074776001124,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[full_mask/sensitivity_5bps] ann_vol",
+   "measured": 0.11484534354805677,
+   "expected": 0.11484534354805677,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[full_mask/sensitivity_5bps] max_drawdown",
+   "measured": -0.3241129440136328,
+   "expected": -0.3241129440136328,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[full_mask/sensitivity_5bps] turnover_two_sided",
+   "measured": 407.86243490988517,
+   "expected": 407.86243490988517,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[full_mask/sensitivity_5bps] apparent_ic",
+   "measured": 0.012091916235806481,
+   "expected": 0.012091916235806481,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[full_mask/sensitivity_5bps] total_return",
+   "measured": -0.21558780266638655,
+   "expected": -0.21558780266638655,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[full_mask/sensitivity_5bps] avg_active_stocks",
+   "measured": 38.71625344352617,
+   "expected": 38.71625344352617,
+   "rel_diff": 0.0,
+   "note": ""
+  },
+  {
+   "level": "blocking",
+   "item": "[full_mask] factor value spot-check ts_mean_ret_20",
+   "measured": 1.1832011059809133e-07,
+   "expected": 0.0,
+   "rel_diff": 1.1832011059809133e-07,
+   "note": "max ABSOLUTE difference on 12 sampled test days (independent re-implementation of the primitive + neutralisation); max relative difference = 5.940e-08",
+   "max_relative_difference": 5.940454538134309e-08
+  },
+  {
+   "level": "suggestion",
+   "item": "[full_mask] factor mask spot-check ts_mean_ret_20",
+   "measured": 0.0,
+   "expected": 0.0,
+   "rel_diff": 0.0,
+   "note": "number of cells whose stored validity mask differs [exact equality required]"
+  },
+  {
+   "level": "blocking",
+   "item": "[full_mask] factor value spot-check ts_rank_close_60",
+   "measured": 1.176474784259085e-07,
+   "expected": 0.0,
+   "rel_diff": 1.176474784259085e-07,
+   "note": "max ABSOLUTE difference on 12 sampled test days (independent re-implementation of the primitive + neutralisation); max relative difference = 5.562e-08",
+   "max_relative_difference": 5.5617509015068294e-08
+  },
+  {
+   "level": "suggestion",
+   "item": "[full_mask] factor mask spot-check ts_rank_close_60",
+   "measured": 0.0,
+   "expected": 0.0,
+   "rel_diff": 0.0,
+   "note": "number of cells whose stored validity mask differs [exact equality required]"
+  }
+ ],
+ "findings": []
+}

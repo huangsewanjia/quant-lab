@@ -1,0 +1,22 @@
+{
+  "_source": "Tushare namechange (mcp__tushare__namechange), 2014-01-01..2024-12-31, one call per code; only the 7 pool codes whose current name carries an ST marker were queried",
+  "_scope_note": "ST bands are only applied to these codes; pool codes whose current name carries no ST marker were not queried, so historical ST spells for names that have since been normalised are NOT covered (bounded in the report by the ST-band diagnostic count)",
+  "intervals": {
+    "sh.600074": [["2017-12-29", "2020-04-09"]],
+    "sh.600518": [["2019-05-21", "2024-07-03"]],
+    "sh.600654": [["2017-05-03", "2024-06-25"]],
+    "sh.600816": [["2020-05-06", "2023-11-06"]],
+    "sh.600871": [["2014-03-31", "2015-03-30"], ["2018-03-29", "2019-04-01"]],
+    "sz.002450": [["2019-01-23", "2021-04-13"]],
+    "sz.002570": [["2018-04-27", "2019-04-17"]]
+  },
+  "evidence": {
+    "sh.600074": "ST保千里 20171229-20180502; *ST保千 20180503-20200409; 退市整理期 20200410-",
+    "sh.600518": "ST康美 20190521-20210428; *ST康美 20210429-20220519; ST康美 20220520-20240703",
+    "sh.600654": "*ST中安 20170503-20180509; ST中安 20180510-20190505; *ST中安 20190506-20200510; ST中安 20200511-20220505; *ST中安 20220506-20230608; ST中安 20230609-20240625",
+    "sh.600816": "*ST安信 20200506-20210517; ST安信 20210518-20230703; ST建元 20230704-20231106",
+    "sh.600871": "*ST仪化 20140331-20150330; *ST油服 20180329-20190401",
+    "sz.002450": "ST康得新 20190123-20190505; *ST康得 20190506-20210413",
+    "sz.002570": "*ST因美 20180427-20190417"
+  }
+}

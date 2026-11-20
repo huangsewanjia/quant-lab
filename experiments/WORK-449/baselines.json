@@ -1,0 +1,141 @@
+{
+ "experiment": "WORK-449",
+ "generated_at": "2026-11-20T12:48:50.493614+08:00",
+ "script": "scripts/work449_baselines.py",
+ "sample_set": "12 factors all valid AND M_factor bidirectional",
+ "normalisation": "z-score with TRAIN-segment mean/std only",
+ "segments": {
+  "train": [
+   "2015-01-01",
+   "2020-12-31"
+  ],
+  "test": [
+   "2022-01-01",
+   "2024-12-31"
+  ]
+ },
+ "per_factor_test_rankic": [
+  {
+   "factor_index": 0,
+   "test_rankic_mean": -0.010057834303403753,
+   "test_rankic_t": -1.3288031472328898,
+   "days": 725
+  },
+  {
+   "factor_index": 1,
+   "test_rankic_mean": -0.008840632667543464,
+   "test_rankic_t": -1.0940887439763094,
+   "days": 725
+  },
+  {
+   "factor_index": 2,
+   "test_rankic_mean": -0.00040641164993899143,
+   "test_rankic_t": -0.04652539331172574,
+   "days": 725
+  },
+  {
+   "factor_index": 3,
+   "test_rankic_mean": -0.010797278810887037,
+   "test_rankic_t": -1.4322505553738534,
+   "days": 725
+  },
+  {
+   "factor_index": 4,
+   "test_rankic_mean": -0.0104724827141867,
+   "test_rankic_t": -1.3056348101010293,
+   "days": 725
+  },
+  {
+   "factor_index": 5,
+   "test_rankic_mean": -0.0574316448444326,
+   "test_rankic_t": -6.654371514474717,
+   "days": 725
+  },
+  {
+   "factor_index": 6,
+   "test_rankic_mean": -0.016105493126568723,
+   "test_rankic_t": -3.0660394385906997,
+   "days": 725
+  },
+  {
+   "factor_index": 7,
+   "test_rankic_mean": -0.0057393689085333275,
+   "test_rankic_t": -0.7475250364970828,
+   "days": 725
+  },
+  {
+   "factor_index": 8,
+   "test_rankic_mean": -0.05049524602672279,
+   "test_rankic_t": -6.863839387432416,
+   "days": 725
+  },
+  {
+   "factor_index": 9,
+   "test_rankic_mean": 0.04199730913228258,
+   "test_rankic_t": 5.2272609307774855,
+   "days": 725
+  },
+  {
+   "factor_index": 10,
+   "test_rankic_mean": -0.057897674229212805,
+   "test_rankic_t": -7.867414846361366,
+   "days": 725
+  },
+  {
+   "factor_index": 11,
+   "test_rankic_mean": -0.03819172225988774,
+   "test_rankic_t": -6.335177478192941,
+   "days": 725
+  }
+ ],
+ "per_factor_abs_rankic_summary": {
+  "min": 0.00040641164993899143,
+  "max": 0.057897674229212805,
+  "median": 0.013451385968727879,
+  "n_ge_0.03": 5,
+  "n_ge_0.02": 5,
+  "n_le_0.0161": 6,
+  "values": [
+   0.010057834303403753,
+   0.008840632667543464,
+   0.00040641164993899143,
+   0.010797278810887037,
+   0.0104724827141867,
+   0.0574316448444326,
+   0.016105493126568723,
+   0.0057393689085333275,
+   0.05049524602672279,
+   0.04199730913228258,
+   0.057897674229212805,
+   0.03819172225988774
+  ]
+ },
+ "ols_baseline": {
+  "test_rankic_mean": 0.014627661124408721,
+  "test_rankic_t": 3.3459350390718323,
+  "test_pearson_ic_mean": 0.019399995994497505,
+  "test_pearson_ic_t": 4.432492880068142,
+  "days": 725,
+  "note": "RankIC = daily Spearman; Pearson IC = daily Pearson on raw values; both reported so the口径 is explicit"
+ },
+ "best_constant_baseline": {
+  "c": 2.5000000000000716e-05,
+  "train_adjmse": 0.00043197767844458724,
+  "train_adjmse_zero_constant": 0.0007915670915346973,
+  "test_rankic_mean": NaN,
+  "test_rankic_t": NaN,
+  "grid": "[-0.02, 0.02] step 2.5e-5"
+ },
+ "frozen_mlp_train_adjmse": {
+  "final_epoch": 0.0004931452109083308,
+  "best_epoch": 14,
+  "best_epoch_train_loss": 0.000506511975533677,
+  "note": "train-mode loss (dropout active) on the train segment"
+ },
+ "mlp_prediction_dispersion": {
+  "pred_xsec_std_median_all_test_days": 0.00011174441169714555,
+  "label_xsec_std_median_all_test_days": 0.019152241400033895,
+  "ratio": 0.0058345344214880135,
+  "note": "all test days (the first-200-day subset used earlier gives a slightly smaller ratio; both are reported here only in the all-test-days form)"
+ }
+}

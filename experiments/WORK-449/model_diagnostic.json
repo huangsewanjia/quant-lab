@@ -1,0 +1,205 @@
+{
+ "experiment": "WORK-449",
+ "generated_at": "2026-11-20T12:43:48.670251+08:00",
+ "script": "scripts/work449_model_diagnostic.py",
+ "purpose": "量化「掩码背离未复现」判词的适用边界：本单冻结的 MLP+AdjMSE 在 12 因子 / CSI300 上的绝对水平被模型能力压低；本脚本在完全相同的数据、样本集、归一化与优化设置下对比模型类与损失。验证段（2021）为选择用数据，测试段（2022-2024）仅作观察。",
+ "protocol": {
+  "model_frozen": "MLP 12->128->128->1 (GELU, dropout 0.1) + AdjMSE gamma=0.1",
+  "optimizer": "AdamW lr 5e-4 wd 1e-5 clip 1.0 batch 8192 epochs 60",
+  "seeds": [
+   42,
+   43
+  ],
+  "selection_segment": "2021-01-01..2021-12-31",
+  "observation_segment": "2022-01-01..2024-12-31"
+ },
+ "runs": [
+  {
+   "model": "mlp",
+   "loss": "adj",
+   "seed": 42,
+   "val_rankic_mean": 0.015517903225579003,
+   "val_rankic_t": 1.907663913625379,
+   "val_days": 243,
+   "test_rankic_mean": 0.009182691039627012,
+   "test_rankic_t": 2.146116234296813,
+   "test_days": 725,
+   "pred_xsec_std_median": 1.8023365505364087e-05,
+   "label_xsec_std_median": 0.02119855578006232,
+   "train_seconds": 173.5
+  },
+  {
+   "model": "mlp",
+   "loss": "adj",
+   "seed": 43,
+   "val_rankic_mean": 0.017763908165249784,
+   "val_rankic_t": 2.1127295236551387,
+   "val_days": 243,
+   "test_rankic_mean": 0.023962099520315874,
+   "test_rankic_t": 4.557069985727922,
+   "test_days": 725,
+   "pred_xsec_std_median": 2.7650283383846677e-05,
+   "label_xsec_std_median": 0.02119855578006232,
+   "train_seconds": 165.2
+  },
+  {
+   "model": "mlp",
+   "loss": "mse",
+   "seed": 42,
+   "val_rankic_mean": 0.0011420429453440177,
+   "val_rankic_t": 0.22200548032473627,
+   "val_days": 243,
+   "test_rankic_mean": -0.008520245497761607,
+   "test_rankic_t": -1.7583712737494526,
+   "test_days": 725,
+   "pred_xsec_std_median": 0.0015114054456661689,
+   "label_xsec_std_median": 0.02119855578006232,
+   "train_seconds": 188.1
+  },
+  {
+   "model": "mlp",
+   "loss": "mse",
+   "seed": 43,
+   "val_rankic_mean": 0.008799962328330952,
+   "val_rankic_t": 1.2540618165522732,
+   "val_days": 243,
+   "test_rankic_mean": 0.005134631913282751,
+   "test_rankic_t": 1.1921236983791654,
+   "test_days": 725,
+   "pred_xsec_std_median": 0.0012593941124109252,
+   "label_xsec_std_median": 0.02119855578006232,
+   "train_seconds": 178.3
+  },
+  {
+   "model": "linear",
+   "loss": "adj",
+   "seed": 42,
+   "val_rankic_mean": 0.0019422527841158363,
+   "val_rankic_t": 0.40395932527804496,
+   "val_days": 243,
+   "test_rankic_mean": -0.004245179269666563,
+   "test_rankic_t": -1.164445464942568,
+   "test_days": 725,
+   "pred_xsec_std_median": 0.0031964241330196238,
+   "label_xsec_std_median": 0.02119855578006232,
+   "train_seconds": 7.0
+  },
+  {
+   "model": "linear",
+   "loss": "adj",
+   "seed": 43,
+   "val_rankic_mean": -0.03563059900203944,
+   "val_rankic_t": -2.711026464356569,
+   "val_days": 243,
+   "test_rankic_mean": -0.044279823076360074,
+   "test_rankic_t": -6.433981044539309,
+   "test_days": 725,
+   "pred_xsec_std_median": 0.00035194482398793743,
+   "label_xsec_std_median": 0.02119855578006232,
+   "train_seconds": 6.6
+  },
+  {
+   "model": "linear",
+   "loss": "mse",
+   "seed": 42,
+   "val_rankic_mean": 0.006896394845962197,
+   "val_rankic_t": 1.3343359851111807,
+   "val_days": 243,
+   "test_rankic_mean": 0.0021934705162518693,
+   "test_rankic_t": 0.6028662923515334,
+   "test_days": 725,
+   "pred_xsec_std_median": 0.004939144023473553,
+   "label_xsec_std_median": 0.02119855578006232,
+   "train_seconds": 6.3
+  },
+  {
+   "model": "linear",
+   "loss": "mse",
+   "seed": 43,
+   "val_rankic_mean": -0.013886233580249322,
+   "val_rankic_t": -2.1492843186133337,
+   "val_days": 243,
+   "test_rankic_mean": -0.021362518253170346,
+   "test_rankic_t": -4.674530994655617,
+   "test_days": 725,
+   "pred_xsec_std_median": 0.0012406856240959293,
+   "label_xsec_std_median": 0.02119855578006232,
+   "train_seconds": 6.1
+  }
+ ],
+ "summary": {
+  "mlp+adj": {
+   "val_rankic_mean": 0.016640905695414394,
+   "val_rankic_mean_by_seed": {
+    "42": 0.015517903225579003,
+    "43": 0.017763908165249784
+   },
+   "val_rankic_t_by_seed": {
+    "42": 1.907663913625379,
+    "43": 2.1127295236551387
+   },
+   "test_rankic_mean": 0.016572395279971442,
+   "test_rankic_mean_by_seed": {
+    "42": 0.009182691039627012,
+    "43": 0.023962099520315874
+   },
+   "pred_xsec_std_median": 2.2836824444605382e-05,
+   "dispersion_ratio_vs_label": 0.0010772820885318936
+  },
+  "mlp+mse": {
+   "val_rankic_mean": 0.004971002636837485,
+   "val_rankic_mean_by_seed": {
+    "42": 0.0011420429453440177,
+    "43": 0.008799962328330952
+   },
+   "val_rankic_t_by_seed": {
+    "42": 0.22200548032473627,
+    "43": 1.2540618165522732
+   },
+   "test_rankic_mean": -0.001692806792239428,
+   "test_rankic_mean_by_seed": {
+    "42": -0.008520245497761607,
+    "43": 0.005134631913282751
+   },
+   "pred_xsec_std_median": 0.001385399779038547,
+   "dispersion_ratio_vs_label": 0.06535349829546143
+  },
+  "linear+adj": {
+   "val_rankic_mean": -0.016844173108961802,
+   "val_rankic_mean_by_seed": {
+    "42": 0.0019422527841158363,
+    "43": -0.03563059900203944
+   },
+   "val_rankic_t_by_seed": {
+    "42": 0.40395932527804496,
+    "43": -2.711026464356569
+   },
+   "test_rankic_mean": -0.024262501173013318,
+   "test_rankic_mean_by_seed": {
+    "42": -0.004245179269666563,
+    "43": -0.044279823076360074
+   },
+   "pred_xsec_std_median": 0.0017741844785037807,
+   "dispersion_ratio_vs_label": 0.08369364861036607
+  },
+  "linear+mse": {
+   "val_rankic_mean": -0.0034949193671435625,
+   "val_rankic_mean_by_seed": {
+    "42": 0.006896394845962197,
+    "43": -0.013886233580249322
+   },
+   "val_rankic_t_by_seed": {
+    "42": 1.3343359851111807,
+    "43": -2.1492843186133337
+   },
+   "test_rankic_mean": -0.009584523868459238,
+   "test_rankic_mean_by_seed": {
+    "42": 0.0021934705162518693,
+    "43": -0.021362518253170346
+   },
+   "pred_xsec_std_median": 0.0030899148237847414,
+   "dispersion_ratio_vs_label": 0.14576062897128444
+  }
+ },
+ "label_xsec_std_median": 0.02119855578006232
+}

@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{T_TITLE}}</title>
+<style>
+:root{
+  --ink:#1a1a1a; --ink2:#3d3d3d; --muted:#6f6f6f;
+  --rule:#d9d9d6; --rule2:#ececeb; --panel:#f7f7f5; --bg:#ffffff;
+  --blue:#0F4D92; --teal:#42949E; --red:#B64342;
+  --sans:"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif;
+  --serif:"Songti SC","Noto Serif CJK SC","Source Han Serif SC",Georgia,"Times New Roman",serif;
+  --mono:"Cascadia Mono",Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:var(--serif);font-size:16px;line-height:1.72;text-rendering:optimizeLegibility}
+.page{max-width:1020px;margin:0 auto;padding:48px 56px 80px}
+header.masthead{border-bottom:2px solid var(--ink);padding-bottom:16px;margin-bottom:22px}
+.kicker{font-family:var(--sans);font-size:12px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:10px}
+h1{font-size:30px;line-height:1.3;margin:0 0 10px;font-weight:700;letter-spacing:-.01em}
+.subtitle{font-family:var(--sans);font-size:15px;color:var(--ink2);margin:0 0 14px;line-height:1.6}
+.byline{font-family:var(--sans);font-size:12.5px;color:var(--muted);border-top:1px solid var(--rule);
+  padding-top:11px;display:flex;flex-wrap:wrap;gap:4px 22px}
+.byline b{color:var(--ink2);font-weight:600}
+.disclaimer{border:1px solid var(--rule);border-left:3px solid var(--red);background:var(--panel);
+  padding:13px 18px;margin:22px 0 30px;font-family:var(--sans);font-size:13px;color:var(--ink2);
+  line-height:1.8}
+.disclaimer div{margin:0}
+h2{font-family:var(--sans);font-size:19px;font-weight:650;margin:42px 0 13px;padding-bottom:6px;
+  border-bottom:1px solid var(--rule);letter-spacing:-.005em}
+h2 .num{color:var(--blue);font-weight:700;margin-right:9px}
+h3{font-family:var(--sans);font-size:15px;font-weight:650;margin:24px 0 8px;color:var(--ink)}
+p{margin:0 0 13px;text-align:justify}
+ul,ol{margin:0 0 15px;padding-left:23px}
+li{margin-bottom:6px}
+.lead{font-size:17px;line-height:1.78}
+.keybox{border:1px solid var(--rule);border-left:4px solid var(--blue);background:var(--panel);
+  padding:15px 19px;margin:0 0 24px;font-size:15.5px}
+.keybox p:last-child{margin-bottom:0}
+.keybox h3{margin-top:0}
+.verdict{border:1px solid var(--rule);border-left:4px solid var(--teal);background:var(--panel);
+  padding:16px 20px;margin:0 0 26px}
+.verdict.negative{border-left-color:var(--red)}
+.verdict h3{margin:0 0 8px;font-family:var(--sans);font-size:16px}
+.verdict .word{font-size:22px;font-weight:700;color:var(--teal);letter-spacing:.02em}
+.verdict.negative .word{color:var(--red)}
+.verdict .caveat{margin-top:10px;padding-top:10px;border-top:1px solid var(--rule2);
+  font-size:13.5px;line-height:1.55;color:var(--ink2)}
+figure{margin:26px 0 28px;page-break-inside:avoid}
+figure img{width:100%;height:auto;display:block;border:1px solid var(--rule2)}
+figcaption{font-family:var(--sans);font-size:12.5px;color:var(--ink2);line-height:1.65;margin-top:8px;
+  padding-left:11px;border-left:2px solid var(--rule)}
+figcaption b{color:var(--ink)}
+table{border-collapse:collapse;width:100%;margin:16px 0 22px;font-family:var(--sans);font-size:13px}
+caption{caption-side:top;text-align:left;font-family:var(--sans);font-size:12.8px;color:var(--ink2);
+  padding-bottom:7px}
+th,td{border-bottom:1px solid var(--rule2);padding:6px 9px;text-align:left;vertical-align:top}
+thead th{border-bottom:1.5px solid var(--ink);font-weight:650;color:var(--ink);white-space:nowrap}
+tbody tr:nth-child(even){background:#fbfbfa}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+td.c,th.c{text-align:center}
+.tag{font-family:var(--sans);font-size:11.5px;padding:1px 7px;white-space:nowrap;
+  display:inline-block;border:1px solid transparent}
+.tag.ok{background:#eaf1f8;color:var(--blue);border-color:#c3d6e8}
+.tag.mid{background:#eaf3f4;color:#2f6d76;border-color:#bcd8db}
+.tag.no{background:#f8ecec;color:#8e3232;border-color:#e6c3c3}
+.meta{font-family:var(--sans);font-size:12.3px;color:var(--muted);line-height:1.8}
+code,.mono{font-family:var(--mono);font-size:12.6px;background:var(--panel);
+  padding:1px 4px;border:1px solid var(--rule2)}
+pre{font-family:var(--mono);font-size:12.2px;line-height:1.65;background:var(--panel);
+  border:1px solid var(--rule2);padding:13px 15px;overflow-x:auto;color:var(--ink)}
+pre code{background:none;padding:0;font-size:inherit;border:0}
+.refs{font-family:var(--sans);font-size:12.8px;color:var(--ink2);line-height:1.8}
+.refs li{margin-bottom:7px}
+a{color:var(--blue);text-decoration:none;border-bottom:1px solid rgba(15,77,146,.3)}
+a:hover{border-bottom-color:var(--blue)}
+.foot{margin-top:42px;padding-top:14px;border-top:1px solid var(--rule);
+  font-family:var(--sans);font-size:12.3px;color:var(--muted);line-height:1.8}
+@media print{
+  @page{size:A4 portrait;margin:14mm 12mm 12mm}
+  body{font-size:10.5pt;line-height:1.6}
+  .page{max-width:none;padding:0}
+  h1{font-size:18pt} h2{font-size:12.6pt;margin-top:16pt;break-after:avoid}
+  h3{break-after:avoid;font-size:10.6pt}
+  table{break-inside:auto;font-size:8.4pt}
+  tr{break-inside:avoid}
+  figure{break-inside:avoid;margin:9pt 0}
+  .disclaimer,.keybox,.verdict{break-inside:avoid}
+  a{color:var(--ink);border-bottom:0}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="masthead">
+  <div class="kicker">内部研究模拟 · WORK-449 · 掩码背离复现</div>
+  <h1>{{T_TITLE}}</h1>
+  <p class="subtitle">{{T_SUBTITLE}}</p>
+  <div class="byline">
+    <span><b>单号</b> WORK-449（子单：WORK-447 第 1 周闭环）</span>
+    <span><b>撰写</b> 金融研究 agent（署名义承担本单结论）</span>
+    <span><b>生成时间</b> {{T_GEN_AT}}</span>
+    <span><b>代码提交</b> <span class="mono">{{T_COMMIT}}</span></span>
+    <span><b>数据快照</b> <span class="mono">{{T_SNAPSHOT}}</span></span>
+  </div>
+</header>
+
+<div class="disclaimer">
+  <div>本报告为内部研究模拟，用于流程验证与方法学复现，不对外发布。</div>
+  <div>撰写方为研究自动化 agent，非持牌金融机构，不构成投资建议。</div>
+  <div>本文不含交易指令、仓位建议或收益承诺；所有数字均为模拟结果，实际交易结果可能显著不同。</div>
+</div>
+
+<h2><span class="num">摘要</span>一句话结论</h2>
+
+<p class="lead">{{T_LEAD}}</p>
+
+<div class="verdict {{T_VERDICT_CLASS}}">
+  <h3>判词：<span class="word">{{T_VERDICT}}</span></h3>
+  <p style="margin-bottom:6px"><b>主检验量</b> ΔSharpe ≡ Sharpe(no_mask) − Sharpe(full_mask) = <b>{{T_DELTA_SHARPE}}</b>，
+     1000 次配对 block bootstrap（block=20，seed=42）的 95% 百分位区间
+     <b>[{{T_CI_LO}}, {{T_CI_HI}}]</b>，区间{{T_CI_VERDICT}}0。</p>
+  <p style="margin-bottom:0"><b>辅证</b> ΔIC ≡ IC(no_mask) − IC(full_mask) = {{T_DELTA_IC}}，
+     {{T_IC_VERDICT}}。{{T_VERDICT_NOTE}}</p>
+  <p class="caveat" style="margin-bottom:0">{{T_VERDICT_SEED_CAVEAT}}</p>
+</div>
+
+<figure>
+  <img src="{{FIG1}}" alt="三档掩码的可读格阶梯示意">
+  <figcaption><b>图 1｜三档掩码的可读格阶梯。</b>同一截面交易日上，<b>no_mask</b> 读全部格（含停牌与涨跌停），
+    <b>halt_only</b> 只剔除停牌格，<b>full_mask</b> 再剔除涨跌停格并叠加上市满 1 年，等于执行掩码 M_exec。
+    三臂共用同一个 M_exec 作为引擎硬约束，唯一变量是模型能读到哪些格。来源：本单自绘（依据预注册 §5.1–§5.3）。</figcaption>
+</figure>
+
+<h2><span class="num">1</span>研究问题与预注册</h2>
+
+<p>本单只做一件事：在公开 A 股日频数据上，复现 ML-Quant 论文报告的<strong>掩码背离</strong>——
+   <strong>表观 IC 上升、可实现 Sharpe 下降</strong>。它不追论文的绝对 Sharpe 水平（1.63），
+   只追<strong>背离量本身</strong>：把「不掩码」的臂与「全掩码」的臂放在一起，看方向是否一致。</p>
+
+<p>研究对象与时间窗在取数前已写死并提交（预注册 v1.0，commit <span class="mono">{{T_PREREG_COMMIT}}</span>，
+   早于任何回测产物 commit）：</p>
+
+<ul>
+  <li><b>研究对象</b>：{{T_UNIVERSE}}</li>
+  <li><b>样本窗</b>：训练 2015-01-01~2020-12-31，验证 2021-01-01~2021-12-31，
+      测试 2022-01-01~2024-12-31（时间隔离，测试段不参与任何选择）</li>
+  <li><b>数据截止点</b>：{{T_DATA_CUTOFF}}</li>
+  <li><b>评价指标</b>：逐日表观 IC（Pearson，截面均值）、可实现 Sharpe、年化收益、年化波动、
+      最大回撤、单边/双边换手、平均有效股票数、掩码率、窗口断言触发次数</li>
+  <li><b>成本假设</b>：主口径 8 bps（双边），敏感性 5 bps；rf = 1.5%/年；年化按自然日 365.25、波动按 √252</li>
+  <li><b>停止条件</b>：预注册 commit 晚于回测产物 / 快照覆盖不了测试期 / 数据端点 40203 或 403 /
+      连续 2 轮无新增交付物 / 需要付费或 Level-2 数据</li>
+</ul>
+
+<p class="meta">预注册版本链：v1.0 冻结协议 → v2.0 澄清表（ST 5%、科创板 20%、创业板 2020-08-24 起 20%、
+   涨跌停代理阈值按板块 0.098/0.198、窗口断言语义）→ v1.1 数据源 baostock→AKShare（Tushare stock_st 返回 40203，
+   ST 区间改用 namechange）→ v1.2 复权序列 qfq→hfq。**两处修订都发生在任何回测产物生成之前**，
+   判定规则、阈值、样本窗、成本、组合约束自 v1.0 起未改。</p>
+
+<h2><span class="num">2</span>股票池与功效检查</h2>
+
+<p>股票池<strong>写死为中证 300 指数（000300.SH）成分股，按生效日名单</strong>，共 {{T_CODES}} 只、{{T_POOL_LISTS}} 份生效名单。
+   与论文的全 A 池存在明确偏离，须在解读时保留：</p>
+
+<ul>
+  <li>论文在全 A 约 5,000 只上运行；本单只用 CSI300 成分的历史并集，<strong>股票少、个股权重集中度更高</strong>，
+      组合层面的换手与冲击成本会与论文不可直接比较。</li>
+  <li>本单<b>不复刻</b>论文 213 个因子，只用 12 个（预注册 §6 冻结），也不做 LLM 因子挖掘。</li>
+  <li>预注册 §2.2 规定：测试窗 full_mask 掩码率低于 0.50% 则扩池到 CSI300∪CSI500。
+      实测掩码率 <b>{{T_MASK_RATE}}</b> ≥ 0.50%，<b>功效检查通过，池锁定 CSI300</b>。
+      该判定只看数据覆盖、不看任何模型结果，且发生在建模之前。</li>
+</ul>
+
+<h2><span class="num">3</span>数据、快照与质量</h2>
+
+<p>主源为 AKShare 的 <span class="mono">stock_zh_a_hist_em</span>（东方财富·行情），每只股票取两次：
+   一次不复权（拿真实涨跌幅与成交额）、一次 <span class="mono">hfq</span> 后复权（拿因子输入价）。
+   跨源校验用 Tushare <span class="mono">daily</span> 抽样比对，{{T_TUSHARE_CHECK}}。</p>
+
+<table>
+  <caption><b>表 1｜快照与面板质量门。</b></caption>
+  <thead><tr><th>项目</th><th class="num">实测值</th><th>说明</th></tr></thead>
+  <tbody>{{T_DATA_ROWS}}</tbody>
+</table>
+
+<h3>3.1 两个绕不开的数据坑</h3>
+
+<p><b>坑一：baostock 账号级封禁。</b>取到第 253 只股票后返回
+   <span class="mono">login failed: 10001011 黑名单用户，请与管理员联系</span>，属账号/IP 级封禁、不可恢复，
+   遂整体切到 AKShare，无回退需求。此事发生在预注册 v1.0 之后，故以 v1.1 修订留痕，未改任何判定规则。</p>
+
+<p><b>坑二：EM 前复权（qfq）在早年精度崩塌。</b>hfq 与 qfq 的差别不是精度偏好问题：
+   qfq 把早年复权价压到 1 元以下，2 位小数精度随之失真。实测 601699 在 2014-01-17 的真实涨跌幅为
+   <b>−4.80%</b>（原始收盘 9.12），EM 的 qfq 序列在该日算出 <b>−64.29%</b>（收盘 0.20），hfq 同日为 <b>−3.78%</b>（收盘 42.26）。
+   换到 hfq 后，§4.3「复权伪跳变」命中从 qfq 的 19,711 格降到 <b>{{T_CORRUPT}}</b> 格。</p>
+
+<h2><span class="num">4</span>三档掩码与窗口断言</h2>
+
+<p>掩码分两个，职责分开（预注册 §5.1）：</p>
+
+<ul>
+  <li><b>M_exec（执行掩码）</b>：该股当日未停牌 ∧ 未涨跌停 ∧ 已上市满 1 年。<strong>三臂共用</strong>，
+      是「当日能否成交」的市场事实，在引擎里是硬约束：M_exec=0 的股票当日下单量为 0、权重冻结。</li>
+  <li><b>M_factor（因子/标签掩码）</b>：随臂变化，是<strong>唯一变量</strong>。</li>
+</ul>
+
+<table>
+  <caption><b>表 2｜三档 M_factor 定义与窗口断言实测。</b>断言 = 某有效输出格的依赖窗口内含 M_exec=0 的格。
+  </caption>
+  <thead><tr><th>臂</th><th>M_factor 定义</th><th class="num">窗口断言触发格</th><th class="num">测试窗掩码率</th><th>期望</th></tr></thead>
+  <tbody>{{T_ARM_ROWS}}</tbody>
+</table>
+
+<p>断言实测与预注册 §10 门槛 3 完全一致：<b>no_mask &gt; 0、halt_only &gt; 0、full_mask == 0</b>。
+   停牌日的价格前向填充到上一收盘、成交量置零（data_contracts/field_dictionary.md §5），
+   这是<strong>数据事实而非掩码</strong>，所以 no_mask 臂照读不误——若不这样建，三档会退化成同一档。</p>
+
+<h2><span class="num">5</span>因子与模型</h2>
+
+<p>12 个因子为论文子集，预注册 §6 冻结、不做前向选择（避免多重检验）。逐日做 MAD 去极值（5 倍）+ z-score 截面标准化，
+   <strong>在被掩码格内做</strong>。滚动算子的输出掩码逐字照搬官方实现
+   （initial-d/ml-quant-trading，MIT，<span class="mono">src/mlquant/features/tensor_factors.py</span>）：
+   ts_mean 输出掩码 = 窗口内有效格数 &gt; 0；ts_std / ts_corr = ≥ 2；ts_rank = 窗口内<strong>全部</strong>有效；
+   ts_min / ts_max = <strong>至少一个</strong>有效；被掩码格不进分子也不进分母。</p>
+
+<table>
+  <caption><b>表 3｜因子集与掩码敏感性。</b></caption>
+  <thead><tr><th>#</th><th>因子</th><th>定义</th><th class="num">窗口</th><th>家族</th><th>掩码敏感</th></tr></thead>
+  <tbody>{{T_FACTOR_ROWS}}</tbody>
+</table>
+
+<p>模型为 MLP（2 隐层 × 128 单元，GELU，dropout 0.1，线性输出到标量），损失 AdjMSE（γ=0.1，
+   错向惩罚 11:1），<strong>AdamW（lr=5e-4，weight_decay=1e-5，梯度裁剪 1.0，batch 8192）</strong>，
+   最多 60 epoch，按 2021 验证段逐日 RankIC 选最优 checkpoint，seed = 42。三臂<strong>同一套超参数、同一随机种子</strong>，
+   唯一差异是 M_factor。标准化参数只由训练段估计并存盘。</p>
+
+<p class="note">上述训练协议逐项取自论文 §3.5.2「Training protocol」（"AdamW, lr 5×10⁻⁴, weight decay 10⁻⁵,
+   gradient clipping 1.0, batch size 8192, up to 60 epochs"），并与官方仓库 <span class="mono">configs/paper.yaml</span>、
+   <span class="mono">src/mlquant/training/trainer.py</span> 交叉核对一致。预注册 v1.0 首版误填了一组通用默认值
+   （Adam / lr 1e-3 / wd 1e-4 / batch 4096 / 无梯度裁剪），已由<strong>预注册修订 v1.3</strong> 改回论文值；
+   v1.0 超参下的全部模型与预测已作废并隔离（<span class="mono">void_run_2026-11-20/</span>，不入库）。
+   架构 hidden=128 亦取自论文 §3.5.3（「128 units … Total parameters: ~44K」，按 213 维输入核对 44,033 ≈ 44K）；
+   官方 <span class="mono">configs/paper.yaml</span> 写的 <span class="mono">hidden: 256</span> 与论文正文矛盾，本单以论文正文为准。</p>
+
+<p class="note"><b>模型能力是本单最大的已知限制（见 §11）。</b>按 v1.3 冻结的 MLP+AdjMSE 训练后，
+   模型预测的截面离散度只有标签标准差的约 0.5%，测试段表观 IC 明显低于它自己的输入因子
+   （同组 12 个因子的单因子 RankIC 达 |IC| 0.038~0.058）。因此本单能支持的是
+   <strong>三臂之间的相对比较</strong>，<strong>不能</strong>用绝对水平反推论文结论。</p>
+
+<h2><span class="num">6</span>组合构建与成本</h2>
+
+<p>逐日重解凸 QP：<span class="mono">max μ̂ᵀw − α·wᵀΣ̂w</span>，α=10，只做多、单票上限 3%、权重和 = 1；
+   协方差为 Ledoit–Wolf（120 个交易日回看，PSD 下限 1e-10）。求解器为自写投影梯度法
+   （等式–箱约束的欧氏投影用二分水位法精确求），在 {{T_SOLVER_DAYS}} 个随机交易日与
+   <span class="mono">scipy.optimize.minimize(method='SLSQP')</span> 交叉校验。</p>
+
+<p class="note"><b>求解器交叉校验：两个口径都超阈，门槛第 6 条判「未通过 / 有条件」。</b>
+   预注册 v1.0 §8 只写「相对差 ≤1e-6」而<strong>未写明分母</strong>，预注册修订 v1.4 已把两个口径写死
+   并采用<strong>合取判定</strong>（两个口径都 ≤1e-6 才算通过）。实测：
+   <strong>权重口径</strong>最大相对差 <strong>{{T_SOLVER_RELDIFF}}</strong>（<strong>{{T_SOLVER_WEIGHT_OVER}}</strong> 个抽样日实例<strong>全部超阈</strong>，
+   相当于阈值的数千倍）；<strong>目标函数口径</strong>最大相对差 <strong>{{T_SOLVER_OBJRELDIFF}}</strong>，
+   其中 <strong>{{T_SOLVER_OBJ_OVER}}</strong> 个实例<strong>同样超阈</strong>（no_mask 的 2023-12-18，1.272e-06）。
+   两个口径都超阈，<strong>不能只挑一个恰好能过的口径把这一门写成「通过」</strong>——因此本单如实标
+   <strong>未通过 / 有条件</strong>。</p>
+
+<p class="note"><b>这个缺陷会不会翻掉判词？——单独量化，结论是不会。</b>
+   权重差异来自目标函数在平坦子空间上的平移（½·H·‖δ‖² 与 SLSQP 的 ftol 同阶），
+   两个解的<strong>目标函数值几乎相同</strong>。为把「几乎相同」变成可核验的数字，本单新增
+   <span class="mono">scripts/work449_solver_materiality.py</span>：把抽样日的权重换成 SLSQP 解，
+   构造<strong>反事实收益序列</strong>（扰动只落在 t 与 t+1 两天），重算三臂 Sharpe 与 ΔSharpe。
+   实测材料性上界：{{T_SOLVER_MATERIALITY}}。
+   <strong>该上界不参与门槛判定</strong>（门槛只看上面的合取规则），它的作用是把
+   「求解器两解不一致」与「结论是否成立」这两件事分开——前者是真的，后者不受影响。</p>
+
+<p>净收益口径：<span class="mono">r_net,t = w_{t−1}ᵀr_t − c·‖w_t − w_{t−1}‖₁</span>，主口径 c = 8 bps（双边），
+   另跑 5 bps 敏感性。持仓股进入涨跌停日后仍持有并赚取该日收益，但不新开仓；离开股票池且可成交者强制清零。</p>
+
+<h2><span class="num">7</span>三档指标</h2>
+
+<table>
+  <caption><b>表 4｜三档掩码下的测试段指标。</b>测试窗 2022-01-01~2024-12-31，主口径 8 bps。
+  </caption>
+  <thead>
+    <tr><th>指标</th><th class="num">no_mask</th><th class="num">halt_only</th><th class="num">full_mask</th><th>论文 Table 11（真实面板）</th></tr>
+  </thead>
+  <tbody>{{T_METRIC_ROWS}}</tbody>
+</table>
+
+<figure>
+  <img src="{{FIG2}}" alt="三臂在 8bps 成本下的累计净值曲线">
+  <figcaption><b>图 2｜三臂累计净值（测试段，8 bps 双边成本）。</b>曲线自 {{T_NAV_START}} 起算，
+    起点为现金、次日建仓，故首日<strong>毛收益</strong>为 0、<strong>净收益</strong>为 −8 bps（建仓成本），
+    三臂一致。来源：本单回测产物
+    <span class="mono">experiments/WORK-449/weights_&lt;arm&gt;.npz</span>。</figcaption>
+</figure>
+
+<h2><span class="num">8</span>主检验量与判定</h2>
+
+<p>主检验量 <b>ΔSharpe ≡ Sharpe(no_mask) − Sharpe(full_mask)</b>（方向已按派单卡对齐：ΔSharpe 为负即方向复现）。
+   统计口径为配对 block bootstrap：对两臂<strong>同一批测试日</strong>的逐日净收益序列做同步重采样
+   （block = 20 个交易日，块内连续、块间独立，1000 次，seed = 42），统计量是每次重采样的 ΔSharpe，
+   报 95% 百分位区间。bootstrap 只跑这一套设定，不因结果不理想而改次数或块长。</p>
+
+<p class="note"><b>三处统计口径的显式披露（预注册修订 v1.4 §3）。</b>
+   ① <b>块长 20 带来的尾部截断</b>：测试段 726 个交易日、块起点 <span class="mono">726 // 20 = 36</span>，
+   可达下标仅 0..719 ⇒ <strong>尾部 6 个交易日（0.83%）在任何一次重采样中都不会被抽到</strong>；
+   年化跨度按可达比例 <span class="mono">720 / 726</span> 等比缩放。对 CI 的影响可忽略，但必须写明，
+   否则读者会以为 726 日全部可达。
+   ② <b>年化用的自然日跨度</b>：<span class="mono">end − start = 1092</span> 天（不含末日；含首尾应为 1093），
+   影响年化收益 0.09%；三臂与两档成本<strong>用同一口径</strong>
+   （<span class="mono">delta_sharpe_consistency_abs_err = 0.0</span>），不影响任何相对比较。
+   ③ <b>成本口径对 ΔSharpe 的贡献</b>：{{T_COST_MECH}}</p>
+
+<table>
+  <caption><b>表 5｜主检验量与判定。</b></caption>
+  <thead><tr><th>项</th><th class="num">8 bps（主判定）</th><th class="num">5 bps（敏感性）</th></tr></thead>
+  <tbody>{{T_PRIMARY_ROWS}}</tbody>
+</table>
+
+<figure>
+  <img src="{{FIG3}}" alt="表观 IC 与可实现 Sharpe 的背离">
+  <figcaption><b>图 3｜背离的形状。</b>左：逐日表观 IC 的测试段均值；右：可实现 Sharpe（8 bps）。
+    箭头与标注按<strong>本单实测方向</strong>绘制：{{T_FIG3_SHAPE}}。
+    论文报告的是<strong>相反</strong>的形状（No mask IC 0.047 / Sharpe 1.23，
+    Full IC 0.039 / Sharpe 1.63）。来源：本单 <span class="mono">metrics_&lt;arm&gt;.json</span> 与 arXiv:2507.07107v2 Table 11。</figcaption>
+</figure>
+
+<h2><span class="num">9</span>论文对照</h2>
+
+<table>
+  <caption><b>表 6｜本单与论文 Table 11 的逐项对照。</b>数值不可直接比较：股票池（全 A vs CSI300）、
+  因子集（论文 213 个 vs 本单 12 个）、数据源与复权口径均不同，本单只对齐<strong>背离方向与量级</strong>。</caption>
+  <thead><tr><th>项</th><th class="num">论文</th><th class="num">本单</th><th>口径差异</th></tr></thead>
+  <tbody>{{T_PAPER_ROWS}}</tbody>
+</table>
+
+<figure>
+  <img src="{{FIG4}}" alt="论文与本单的背离量对照">
+  <figcaption><b>图 4｜背离量对照。</b>上：论文 Table 11 的三档 IC 与 Sharpe；下：本单同口径三档。
+    论文 ΔSharpe = 1.23 − 1.63 = <b>−0.40</b>，本单 ΔSharpe = <b>{{T_DELTA_SHARPE}}</b>。
+    来源：arXiv:2507.07107v2 Table 11 与本单 <span class="mono">metrics_&lt;arm&gt;.json</span>。</figcaption>
+</figure>
+
+<h2><span class="num">10</span>独立复算与可复现性</h2>
+
+<p>独立复算脚本 <span class="mono">audit/recompute_work449.py</span> <strong>不 import 建模阶段任何函数</strong>：
+   它重新读原始快照 CSV，用自己的代码重建稠密面板、收益序列、三档掩码、因子值与中性化，
+   再从权重复算 IC / Sharpe / 年化收益 / 年化波动 / 最大回撤 / 换手，与建模侧逐项比对。</p>
+
+<table>
+  <caption><b>表 7｜复现性门。</b></caption>
+  <thead><tr><th>门</th><th>判据</th><th>实测</th><th>结论</th></tr></thead>
+  <tbody>{{T_GATE_ROWS}}</tbody>
+</table>
+
+<p class="note"><b>两处需要向读者说明的复算口径。</b>
+   ① <b>仓库里有两套「独立复算」实现</b>：<span class="mono">audit/audit_recompute.py</span>（既有，WORK-404 用）
+   与本单的 <span class="mono">audit/recompute_work449.py</span>。本单必须另起一份的原因：
+   WORK-404 的审计器按那单的字段契约与判据表写死，掩码定义、指标集合与面板构造都不同，
+   复用会让「独立」二字失效（同一套建模代码的错误会被同样地复制一遍）。两份实现的<strong>角色不同</strong>，
+   本单只以 <span class="mono">recompute_work449.py</span> 的结论为准，WORK-404 的判据表仍记为该单的已知缺口。
+   ② <b>复算脚本的相对差在「期望值为 0」时会退化</b>：原实现以
+   <span class="mono">max(|实测|,|期望|,1e-12)</span> 作分母，期望为 0 时任何非零实测都返回 1.0，
+   把「实测 6e-08」这种量级显示成「相对差 1.0」。现已改为：期望为 0 时按<strong>绝对差</strong>判定；
+   面板与掩码这类本就要求<strong>逐格相等</strong>的检查改走独立的精确相等分支（不放宽）；
+   因子值抽查从 suggestion <strong>升为 blocking</strong>（按绝对差对 1e-6 阈值判定）。</p>
+
+<h2><span class="num">11</span>失败、限制与已知缺口</h2>
+
+<ul>
+  <li><b>本单最重要的一处自查</b>：首版实现把 <span class="mono">ts_rank</span> 的「窗口最后一个元素」取成了
+      「最后一列股票」，导致该因子值全为 0、训练段样本被清空（train loss = 0、验证 RankIC = NaN）。
+      根因是 numpy 的 <span class="mono">sliding_window_view</span> 与官方 torch 的
+      <span class="mono">unfold(...).permute(...)</span> 窗口轴位置不同。现已把移植改成与官方
+      <strong>逐字直译</strong>，并新增 <span class="mono">scripts/work449_test_primitives.py</span>：
+      把官方 torch 原语转写为参考实现，与 numpy 移植逐格比对，<strong>6 个原语 × 3 种窗口 × 6 组随机面板，
+      掩码 0 处不一致、值最大相对差 1.1e-13</strong>（ts_rank 5.7e-8，源于官方把 rank 转 float32）。</li>
+  <li><b>协议一致性缺陷（已修）</b>：首版面板按「有源数据行」建掩码，导致 no_mask 臂读不到停牌格，
+      违反预注册 §5.2「no_mask 读取全部格子」；现改为稠密网格，停牌日按 field_dictionary §5 前向填充后照读。</li>
+  <li><b>预测错位（已修）</b>：首版把模型输出落在 t+1，导致组合用的是一天的陈旧预测；
+      现按预注册 §9.2 统一为 ŷ_t 对 r_{t+1}，组合在 t 用当日信号建仓。</li>
+  <li><b>ST 区间残缺</b>：Tushare <span class="mono">stock_st</span> 端点返回 40203（无权限），
+      改用 <span class="mono">namechange</span> 取 ST 区间，池内命中 {{T_ST_CODES}} 只。
+      由此漏判的 ST 涨跌停事件上界为测试窗 {{T_ST_MISS}} 格——这会同时压低三臂的 at_limit 掩码，
+      对 ΔSharpe 的影响方向不明（属已知限制，未做额外修正）。</li>
+  <li><b>退市/长期停牌的尾部</b>：{{T_TAIL_STOCKS}} 只股票的最后一个源数据行早于 2024-12-01，
+      其后的格子按「无行」处理（而非停牌），属保守口径。</li>
+  <li><b>未做的事</b>：未复刻论文全部因子、未做 LLM 因子挖掘、未做全市场扩池、
+      未接入付费或 Level-2 数据、未产出任何评级或目标价。</li>
+</ul>
+
+<h3>11.1 本单最重要的一处能力限制：模型相对自己的输入因子明显欠拟合</h3>
+
+<p>按 v1.3 冻结的 MLP+AdjMSE 训练完成后，实测到三件事，指向同一个问题——<strong>模型把输入因子里已有的
+   信息压掉了，而不是没学会</strong>：</p>
+
+<table>
+  <caption><b>表 8｜模型能力诊断（no_mask 臂，测试段 2022-01-04 ~ 2024-12-31）。</b></caption>
+  <thead><tr><th>量</th><th class="num">数值</th><th>读法</th></tr></thead>
+  <tbody>{{T_MODEL_ROWS}}</tbody>
+</table>
+
+<table>
+  <caption><b>表 9｜模型能力的可复现基线（全部由
+    <span class="mono">scripts/work449_baselines.py</span> 产出，不引用未落盘的数字）。</b>
+    基线与本单主模型用同一份快照、同一套样本切分、同一套因子。</caption>
+  <thead><tr><th>基线</th><th class="num">数值</th><th>读法</th></tr></thead>
+  <tbody>{{T_BASE_ROWS}}</tbody>
+</table>
+
+<p>判读三件事：</p>
+<ol>
+  <li><strong>输入因子本身有可观的截面信息</strong>：同一组 12 个因子的<strong>单因子</strong>测试段
+      RankIC |IC| 全距达 <strong>{{T_BASE_FACTOR_RANGE}}</strong>（中位 {{T_BASE_FACTOR_MEDIAN}}，
+      其中 <strong>{{T_BASE_FACTOR_TOP}}</strong>），闭式 OLS 基线的测试段 RankIC 为
+      <strong>{{T_BASE_OLS}}</strong>，而训练出的 MLP 只有 <strong>{{T_BASE_MLP_IC}}</strong>。
+      信号存在，是模型把它压掉了。</li>
+  <li><strong>不是「AdjMSE 偏好常数解」</strong>：训练集上的 AdjMSE = <strong>{{T_BASE_MLP_ADJMSE}}</strong>，
+      而<strong>最优常数预测器</strong>是 <strong>{{T_BASE_CONST_ADJMSE}}</strong>——模型在<strong>训练目标上</strong>甚至不如一个常数，
+      排除了「损失函数的常数吸引子」这一解释，指向<strong>优化没走完</strong>。</li>
+  <li><strong>但模型类不是问题</strong>：在协议允许的<strong>选择用数据</strong>（2021 验证段）上，
+      冻结口径的 <strong>MLP + AdjMSE 是四个配置里验证 IC 最高的一个</strong>；
+      换成线性模型反而更差。所以「MLP 选错了」不成立，
+      成立的是「<strong>这个规模的数据 + 这个训练预算下，训练结果本身不稳</strong>」。</li>
+</ol>
+
+<p class="note"><b>由此得到本单最重要的稳健性警告。</b>上表最后一列显示：<strong>同样的协议，
+   换一个 seed，测试段 IC 就会大幅移动</strong>——冻结口径的 MLP+AdjMSE 在 seed 42 / 43 上分别是
+   +0.0092 / +0.0240，线性+AdjMSE 则是 −0.0043 / −0.0443。原因不难理解：AdjMSE 的权重由
+   <span class="mono">sign(pred)·sign(target) &gt; 0</span> 决定，而预测值恰好在 0 附近时
+   <strong>符号是不连续的</strong>，于是极小的数值扰动（线程数、浮点归约顺序）就会被放大成
+   不同的训练轨迹。<br>
+   <strong>后果</strong>：主检验量 ΔSharpe 的 bootstrap 95% CI 只覆盖<strong>收益序列的抽样噪声</strong>，
+   <strong>不覆盖模型/seed 随机性</strong>。因此 ΔSharpe 的<strong>量级</strong>（+0.55）不可当作
+   精确效应量；<strong>符号是否稳健，必须靠换 seed 复跑三臂来验</strong>，本单在 §11.3 给出该检验的结果。</p>
+
+<p class="note"><b>对此本单做了什么、没做什么。</b>诊断脚本
+   <span class="mono">scripts/work449_model_diagnostic.py</span> 在<strong>完全相同</strong>的数据、样本集、
+   归一化、优化器、学习率、batch、epoch 数、梯度裁剪与 seed 下，只改模型类与损失两个变量，
+   并分别在 2021 验证段（协议允许的<strong>选择用数据</strong>）与测试段（仅作观察）报告逐日 RankIC。
+   本单<strong>没有</strong>据此改模型类、改正则、改超参或加 epoch——那会构成「看结果后调口径」，
+   并违反预注册 §9 的样本外纪律。结论因此限定为：
+   <strong>「掩码背离方向未复现」这一判断成立于三臂之间的相对比较</strong>；
+   <strong>本单的绝对水平（Sharpe 全为负、IC 远低于论文）受此限制影响，不能反过来当作「论文成立」的证据</strong>。</p>
+
+<h3>11.2 审计与主检验自身的缺陷（已修，均在出结论之前）</h3>
+
+<ul>
+  <li><b>主检验的年化分母口径与回测不一致</b>：回测用<strong>自然日</strong>跨度（1092 天）做
+      <span class="mono">365.25/days</span>，主检验却用<strong>交易日</strong>计数（726），
+      会让主检验算出的 ΔSharpe 与三臂上报的 Sharpe 之差对不上（年化收益被高估约 1.5 倍）；
+      同处还漏传了 <span class="mono">days</span> 参数，脚本直接崩溃。修复后新增常驻勾稽字段
+      <span class="mono">delta_sharpe_consistency_abs_err = 0.0</span>。</li>
+  <li><b>独立复算脚本自身带两个 bug</b>：抽样时把扁平格号直接当行号用（越界崩溃）、
+      掩码键名写成 <span class="mono">m_no_mask</span> 而非 <span class="mono">m_no</span>。
+      审计脚本自己跑不通时，「审计通过」这句话是没有意义的——先修好，再看它的结论。</li>
+  <li><b>预注册 v1.0 的优化器超参是转录错误</b>（理由栏自己写的是「常规默认，写死」），
+      与论文 §3.5.2 及官方配置逐项不符；已由预注册修订 v1.3 改回，v1.0 轮次产物全部作废隔离。
+      这一处同时解释了「首版单臂训练要 29 分钟、论文口径只要约 3 分钟」。</li>
+  <li><b>报告模板文件名未按 <span class="mono">report_template_&lt;EXP&gt;.html</span> 约定</b>，
+      一度渲染成 WORK-404 的模板；是靠<strong>看首屏 PNG</strong>才发现的——自动化只查「token 全部替换」
+      抓不到这类错误。</li>
+  <li><b>因子截面标准化与官方 <span class="mono">cs_zscore</span> 不完全一致</b>：本单用 MAD 5× 去极值 +
+      z-score，官方是纯截面 z-score。<strong>论文对此无规定</strong>，本单按 v1.0 冻结口径执行，
+      不在看到结果之后改口径；该变换逐日逐截面施加，对三臂是同一处理。</li>
+  <li><b>官方 <span class="mono">configs/paper.yaml</span> 的 <span class="mono">hidden: 256</span> 与论文正文
+      （128 units / ~44K 参数）互相矛盾</b>，这是官方仓库内部的单源不一致，本单无法用官方侧证据自洽，
+      只能用论文正文 + 参数数目自洽性裁定。冲突并列披露，不掩饰。</li>
+</ul>
+
+<h3>11.3 换 seed 复跑三臂：主检验量的符号是否稳健</h3>
+
+<p>上一节的警告是「模型/seed 随机性没有被主检验的 CI 覆盖」。本节用<strong>换 seed 复跑三臂</strong>把这件事
+   直接量出来：协议、股票池、数据、因子、组合参数、成本口径全部不变，
+   <strong>只把训练随机种子从 42 换成 43</strong>，其余一字不改。</p>
+
+<table>
+  <caption><b>表 10｜seed 43 复跑的三档结果与主检验量对照（seed 42 为协议冻结轮次）。</b></caption>
+  <thead><tr><th>项</th><th class="num">seed 42（冻结）</th><th class="num">seed 43（稳健性）</th><th>读法</th></tr></thead>
+  <tbody>{{T_SEED_ROWS}}</tbody>
+</table>
+
+<p class="note">{{T_SEED_NOTE}}</p>
+
+<h3>11.4 同 seed 重跑：协议门槛第 6 条的第二判据</h3>
+
+<p>§11.3 换的是<strong>种子</strong>（42→43），测的是<strong>种子敏感性</strong>；
+   本节重跑的是<strong>同一个种子</strong>（42→42），测的是<strong>可复现性</strong>——
+   协议 §10 门槛第 6 条写死的是后者：<em>「同 seed 重跑两次，指标一致（相对差 ≤1e-6）」</em>。
+   两者<strong>不能互相顶替</strong>，因此单列本节。协议、股票池、数据快照、因子、超参、
+   线程设置与代码全部不变，只把训练随机种子重跑一次。</p>
+
+<table>
+  <caption><b>表 11｜同 seed（42）重跑逐项比对：协议冻结轮次 vs 独立重跑轮次。</b></caption>
+  <thead><tr><th>项</th><th class="num">冻结轮次</th><th class="num">同 seed 重跑</th><th class="num">相对差</th><th>结论</th></tr></thead>
+  <tbody>{{T_RERUN_ROWS}}</tbody>
+</table>
+
+<p class="note">{{T_RERUN_NOTE}}</p>
+
+<h3>11.5 独立代码审查与本单的处理</h3>
+
+<p>实现完成后由<strong>独立第三方（Verifier 角色，非作者）</strong>做代码审查，审查报告全文入库：
+   <span class="mono">experiments/WORK-449/code_review_work449.md</span>（34.6 KB）。
+   审查方<strong>未修改任何项目文件</strong>，并独立重跑了原语测试、协方差测试、独立复算脚本，
+   还<strong>自己重写了 bootstrap</strong>（得 ΔSharpe 与 CI 与本单逐位相等，diff = 0.0）。
+   审查结论：<strong>变更层面 FAIL</strong>（发现 1–6 须处理后方可合并）、
+   <strong>研究结论层面有条件通过</strong>（「未复现」判词与全部数值经独立复现成立）。
+   逐条处置如下：</p>
+
+<table>
+  <caption><b>表 12｜独立审查发现与本单处置。</b></caption>
+  <thead><tr><th>编号</th><th>严重度</th><th>发现</th><th>本单处置</th></tr></thead>
+  <tbody>{{T_REVIEW_ROWS}}</tbody>
+</table>
+
+<p class="note"><b>有一处审查意见本单选择「并列披露」而非照单全收。</b>
+   审查方自写脚本算出的 OLS 基线与最优常数与本单口径不同（OLS RankIC +0.01000 vs 本单 +0.014628；
+   常数 AdjMSE 4.7243e-04 vs 本单 4.3197768e-04）。按预注册 v1.4 §3.3 的冲突处理规则，
+   <strong>两套口径并列披露、注明各自定义、不合成一个「综合结论」、不删改本单口径下的数字</strong>——
+   方向与结论一致（MLP 差于常数、MLP 差于 OLS、模型欠拟合），量级不同。
+   其余 1–11 号发现与 FYI-1~4 <strong>全部处理或明确披露</strong>。</p>
+
+<h2><span class="num">12</span>复现命令与产物</h2>
+
+<pre><code>{{T_REPRO}}</code></pre>
+
+<p class="meta">产物清单：预注册 <span class="mono">preregistration.md</span> / <span class="mono">preregistration_v1.1.md</span> /
+  <span class="mono">preregistration_v1.2.md</span>；股票池 <span class="mono">pool_membership.csv</span>；
+  快照清单 <span class="mono">snapshot_manifest.json</span>；面板 <span class="mono">panel.npz</span>；
+  因子 <span class="mono">factors_&lt;arm&gt;.npz</span>；模型 <span class="mono">model_&lt;arm&gt;.pt</span>；
+  三臂指标 <span class="mono">metrics_&lt;arm&gt;.json</span>；主检验 <span class="mono">primary_test.json</span>；
+  独立复算 <span class="mono">audit_findings.json</span>；论文对照 <span class="mono">paper_comparison.md</span>；
+  失败日志 <span class="mono">failure_log.md</span>；本报告 <span class="mono">report.html</span>。</p>
+
+<h2><span class="num">13</span>引用</h2>
+<ul class="refs">
+  <li>Liu, J., Qiu, Z., et al. <i>ML-Quant: Quantifying the Masking Effect in Cross-Sectional Stock Return Prediction.</i>
+      arXiv:2507.07107v2（2025）。本单对照其 §3.2、§3.5、§3.6 与 Table 2 / Table 11。</li>
+  <li>官方实现：<span class="mono">github.com/initial-d/ml-quant-trading</span>（MIT License），
+      本单对照其 <span class="mono">src/mlquant/features/tensor_factors.py</span>、
+      <span class="mono">src/mlquant/features/bias.py</span>、<span class="mono">src/mlquant/models/losses.py</span>、
+      <span class="mono">src/mlquant/backtest/engine.py</span>。</li>
+  <li>数据：AKShare <span class="mono">stock_zh_a_hist_em</span>（东方财富·行情）；Tushare <span class="mono">daily</span>、
+      <span class="mono">namechange</span>（交叉校验与 ST 区间）。</li>
+  <li>仓库口径：<span class="mono">data_contracts/field_dictionary.md</span>、<span class="mono">data_contracts/metric_definitions.md</span>。</li>
+  <li>论文原始数字：arXiv:2507.07107v2 Table 11「真实面板」行 —— No mask IC 0.047 / Sharpe 1.23 / MaxDD 22.8%；
+      Halt only 0.043 / 1.39 / 19.4%；Full 0.039 / 1.63 / 11.4%。</li>
+</ul>
+
+<div class="foot">
+  本报告为内部研究模拟，撰写方非持牌机构，不构成投资建议与收益承诺。<br>
+  生成于 {{T_GEN_AT}}；数据快照 {{T_SNAPSHOT}}；代码提交 <span class="mono">{{T_COMMIT}}</span>。
+</div>
+
+</div>
+</body>
+</html>

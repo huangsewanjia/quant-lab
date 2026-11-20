@@ -17,6 +17,16 @@
 report.html
 **/report.html
 
+# ---- WORK-449 例外：本单的交付物必须可核验，报告成品入库 ----
+# 单文件 HTML 报告 + 1440x900 首屏 PNG + A4 打印 PDF + 论文对照 CSV + 图件
+!experiments/WORK-449/report.html
+!experiments/WORK-449/preview_first_screen.png
+!experiments/WORK-449/report_print.pdf
+!experiments/WORK-449/report_print_full.pdf
+!experiments/WORK-449/paper_comparison.csv
+!/figures/WORK-449/
+!/figures/WORK-449/*.png
+
 # ---- 复跑产物（probe 脚本默认输出目录）：不入库，避免覆盖已入库的实测证据 ----
 experiments/*/rerun/
 
@@ -33,3 +43,10 @@ Thumbs.db
 .idea/
 .vscode/
 *.log
+
+# ---- WORK-449 二进制产物（面板 / 因子 / 模型 / 权重）：可由脚本重建，不入库 ----
+*.npz
+*.pt
+
+# ---- WORK-449 作废轮次产物（协方差缺陷修复前的运行结果，不作证据） ----
+experiments/WORK-449/void_run_*/

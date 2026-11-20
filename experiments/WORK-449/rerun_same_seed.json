@@ -1,0 +1,414 @@
+{
+ "experiment": "WORK-449",
+ "generated_at": "2026-11-20T13:14:39.219260+08:00",
+ "script": "scripts/work449_rerun_check.py",
+ "criterion": "protocol §10 gate 6, second clause: same seed re-run, metrics identical (rel diff <= 1e-6)",
+ "round_a": "protocol-frozen round (seed 42)",
+ "round_b": "independent re-run, same seed 42, tag '_r2'",
+ "n_comparisons": 57,
+ "max_rel_diff": 0.0,
+ "max_abs_diff_net_returns": 0.0,
+ "max_abs_diff_pred": 0.0,
+ "all_within_tolerance": true,
+ "comparisons": [
+  {
+   "item": "[no_mask/main] sharpe_rf1.5",
+   "round_a": -0.5801224117768111,
+   "round_b": -0.5801224117768111,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[no_mask/main] ann_return",
+   "round_a": -0.0439777534600283,
+   "round_b": -0.0439777534600283,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[no_mask/main] ann_vol",
+   "round_a": 0.10166432508509712,
+   "round_b": 0.10166432508509712,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[no_mask/main] max_drawdown",
+   "round_a": -0.25097742548780533,
+   "round_b": -0.25097742548780533,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[no_mask/main] turnover_two_sided_total",
+   "round_a": 186.05290807826532,
+   "round_b": 186.05290807826532,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[no_mask/main] apparent_ic_mean",
+   "round_a": 0.007674124158894169,
+   "round_b": 0.007674124158894169,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[no_mask/main] total_return",
+   "round_a": -0.1258126271775627,
+   "round_b": -0.1258126271775627,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[no_mask/main] avg_active_stocks",
+   "round_a": 51.91460055096419,
+   "round_b": 51.91460055096419,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[no_mask/main] net_returns max|Δ|",
+   "round_a": 726,
+   "round_b": 726,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[no_mask/sensitivity_5bps] sharpe_rf1.5",
+   "round_a": -0.40287938301570975,
+   "round_b": -0.40287938301570975,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[no_mask/sensitivity_5bps] ann_return",
+   "round_a": -0.025958946940943473,
+   "round_b": -0.025958946940943473,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[no_mask/sensitivity_5bps] ann_vol",
+   "round_a": 0.10166553233464005,
+   "round_b": 0.10166553233464005,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[no_mask/sensitivity_5bps] max_drawdown",
+   "round_a": -0.2128351180310346,
+   "round_b": -0.2128351180310346,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[no_mask/sensitivity_5bps] turnover_two_sided_total",
+   "round_a": 186.05290807826532,
+   "round_b": 186.05290807826532,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[no_mask/sensitivity_5bps] apparent_ic_mean",
+   "round_a": 0.007674124158894169,
+   "round_b": 0.007674124158894169,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[no_mask/sensitivity_5bps] total_return",
+   "round_a": -0.0756231485471427,
+   "round_b": -0.0756231485471427,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[no_mask/sensitivity_5bps] avg_active_stocks",
+   "round_a": 51.91460055096419,
+   "round_b": 51.91460055096419,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[no_mask/sensitivity_5bps] net_returns max|Δ|",
+   "round_a": 726,
+   "round_b": 726,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[no_mask] pred max|Δ|",
+   "round_a": 2676.0,
+   "round_b": 2676.0,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[halt_only/main] sharpe_rf1.5",
+   "round_a": -0.16984300422947674,
+   "round_b": -0.16984300422947674,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[halt_only/main] ann_return",
+   "round_a": -0.0019657286315624134,
+   "round_b": -0.0019657286315624134,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[halt_only/main] ann_vol",
+   "round_a": 0.09989065318604369,
+   "round_b": 0.09989065318604369,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[halt_only/main] max_drawdown",
+   "round_a": -0.16623141338343395,
+   "round_b": -0.16623141338343395,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[halt_only/main] turnover_two_sided_total",
+   "round_a": 95.38598741415954,
+   "round_b": 95.38598741415954,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[halt_only/main] apparent_ic_mean",
+   "round_a": 0.010639461991170373,
+   "round_b": 0.010639461991170373,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[halt_only/main] total_return",
+   "round_a": -0.005865518039612105,
+   "round_b": -0.005865518039612105,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[halt_only/main] avg_active_stocks",
+   "round_a": 56.05922865013774,
+   "round_b": 56.05922865013774,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[halt_only/main] net_returns max|Δ|",
+   "round_a": 726,
+   "round_b": 726,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[halt_only/sensitivity_5bps] sharpe_rf1.5",
+   "round_a": -0.07375649725630772,
+   "round_b": -0.07375649725630772,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[halt_only/sensitivity_5bps] ann_return",
+   "round_a": 0.007631116532760496,
+   "round_b": 0.007631116532760496,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[halt_only/sensitivity_5bps] ann_vol",
+   "round_a": 0.09990826220546029,
+   "round_b": 0.09990826220546029,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[halt_only/sensitivity_5bps] max_drawdown",
+   "round_a": -0.15080267715976625,
+   "round_b": -0.15080267715976625,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[halt_only/sensitivity_5bps] turnover_two_sided_total",
+   "round_a": 95.38598741415954,
+   "round_b": 95.38598741415954,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[halt_only/sensitivity_5bps] apparent_ic_mean",
+   "round_a": 0.010639461991170373,
+   "round_b": 0.010639461991170373,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[halt_only/sensitivity_5bps] total_return",
+   "round_a": 0.022988647619700764,
+   "round_b": 0.022988647619700764,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[halt_only/sensitivity_5bps] avg_active_stocks",
+   "round_a": 56.05922865013774,
+   "round_b": 56.05922865013774,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[halt_only/sensitivity_5bps] net_returns max|Δ|",
+   "round_a": 726,
+   "round_b": 726,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[halt_only] pred max|Δ|",
+   "round_a": 2676.0,
+   "round_b": 2676.0,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[full_mask/main] sharpe_rf1.5",
+   "round_a": -1.1317663101717768,
+   "round_b": -1.1317663101717768,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[full_mask/main] ann_return",
+   "round_a": -0.11499750422074873,
+   "round_b": -0.11499750422074873,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[full_mask/main] ann_vol",
+   "round_a": 0.11486249683560384,
+   "round_b": 0.11486249683560384,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[full_mask/main] max_drawdown",
+   "round_a": -0.3958173763712277,
+   "round_b": -0.3958173763712277,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[full_mask/main] turnover_two_sided_total",
+   "round_a": 407.86243490988517,
+   "round_b": 407.86243490988517,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[full_mask/main] apparent_ic_mean",
+   "round_a": 0.012091916235806481,
+   "round_b": 0.012091916235806481,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[full_mask/main] total_return",
+   "round_a": -0.30597006319316045,
+   "round_b": -0.30597006319316045,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[full_mask/main] avg_active_stocks",
+   "round_a": 38.71625344352617,
+   "round_b": 38.71625344352617,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[full_mask/main] net_returns max|Δ|",
+   "round_a": 726,
+   "round_b": 726,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[full_mask/sensitivity_5bps] sharpe_rf1.5",
+   "round_a": -0.8098497921354002,
+   "round_b": -0.8098497921354002,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[full_mask/sensitivity_5bps] ann_return",
+   "round_a": -0.0780074776001124,
+   "round_b": -0.0780074776001124,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[full_mask/sensitivity_5bps] ann_vol",
+   "round_a": 0.11484534354805677,
+   "round_b": 0.11484534354805677,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[full_mask/sensitivity_5bps] max_drawdown",
+   "round_a": -0.3241129440136328,
+   "round_b": -0.3241129440136328,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[full_mask/sensitivity_5bps] turnover_two_sided_total",
+   "round_a": 407.86243490988517,
+   "round_b": 407.86243490988517,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[full_mask/sensitivity_5bps] apparent_ic_mean",
+   "round_a": 0.012091916235806481,
+   "round_b": 0.012091916235806481,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[full_mask/sensitivity_5bps] total_return",
+   "round_a": -0.21558780266638655,
+   "round_b": -0.21558780266638655,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[full_mask/sensitivity_5bps] avg_active_stocks",
+   "round_a": 38.71625344352617,
+   "round_b": 38.71625344352617,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[full_mask/sensitivity_5bps] net_returns max|Δ|",
+   "round_a": 726,
+   "round_b": 726,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  },
+  {
+   "item": "[full_mask] pred max|Δ|",
+   "round_a": 2676.0,
+   "round_b": 2676.0,
+   "rel_diff": 0.0,
+   "within_tolerance": true
+  }
+ ]
+}
