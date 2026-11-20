@@ -5,15 +5,22 @@ Protocol: experiments/WORK-449/preregistration.md §5 (mask semantics), §6
 (factor list), §5.4 (window assertion).
 
 Primitive semantics follow the official implementation
-(initial-d/ml-quant-trading, features/tensor_factors.py) as frozen in the
-protocol §5.3:
+(initial-d/ml-quant-trading, src/mlquant/features/tensor_factors.py) as frozen
+in the protocol §5.3:
   ts_mean  out_mask = count(mask) > 0
   ts_std   out_mask = count(mask) >= 2
   ts_corr  out_mask = count(mask) >= 2
   ts_rank  out_mask = all(mask) in window
   ts_min/max out_mask = any(mask) in window
-  masked cells contribute 0 to the numerator and are excluded from the count,
-  so an output value never depends on a masked input value.
+Masked cells contribute 0 to the numerator and are excluded from the count, so
+an output value never depends on a masked input value.
+
+LAYOUT (important).  The official code materialises the rolling windows with
+``_unfold_t(x, w) = x.unfold(0, w, 1).permute(0, 2, 1)`` on a ``[T, N]`` tensor,
+which yields ``[T-w+1, w, N]`` — the window axis sits at position 1.  This
+module mirrors that layout exactly (``_win`` below), so the aggregation axis is
+1 and the "last element of the window" is ``[:, -1, :]``.  Parity against the
+official torch primitives is checked by scripts/work449_test_primitives.py.
 
 Window assertion (protocol §5.4), operationalised on §5.3: a valid output cell
 "consumed" a non-executable price iff its dependency window contains a cell
@@ -52,8 +59,12 @@ CHUNK = 128
 
 
 def _win(x, w):
-    """(T-w+1, N, w) sliding windows along the time axis."""
-    return sliding_window_view(x, w, axis=0)
+    """[T-w+1, w, N] sliding windows along the time axis.
+
+    Same layout as the official ``_unfold_t`` (window axis at position 1).
+    numpy's sliding_window_view puts the window axis last, hence the transpose.
+    """
+    return sliding_window_view(x, w, axis=0).transpose(0, 2, 1)
 
 
 def _roll(fn, *arrays, w, chunk=CHUNK):
@@ -75,91 +86,87 @@ def _roll(fn, *arrays, w, chunk=CHUNK):
 
 
 def ts_mean(x, m, w):
-    xf = np.nan_to_num(x)
     mf = m.astype(np.float64)
-    xm = np.nan_to_num(x) * mf
+    xm = np.where(m, x, 0.0)          # official masked_fill(~mask, 0.0)
 
     def fn(xw, mw):
-        n = mw.sum(axis=2)
-        return np.where(n > 0, xw.sum(axis=2) / np.maximum(n, 1.0), np.nan)
+        n = np.maximum(mw.sum(axis=1), 1.0)
+        return xw.sum(axis=1) / n
     val = _roll(fn, xm, mf, w=w)
-    cnt = _roll(lambda mw: mw.sum(axis=2), mf, w=w)
+    cnt = _roll(lambda mw: mw.sum(axis=1), mf, w=w)
     return val, cnt > 0
 
 
 def ts_std(x, m, w):
-    xf = np.nan_to_num(x)
     mf = m.astype(np.float64)
-    xm = xf * mf
+    xm = np.where(m, x, 0.0)          # official masked_fill(~mask, 0.0)
 
     def fn(xw, mw):
-        n = mw.sum(axis=2)
-        mean = xw.sum(axis=2) / np.maximum(n, 1.0)
-        var = (((xw - mean[:, :, None]) ** 2) * mw).sum(axis=2) / np.maximum(n - 1, 1)
-        return np.where(n >= 2, np.sqrt(var), np.nan)
+        n = np.maximum(mw.sum(axis=1), 2.0)
+        mean = (xw.sum(axis=1) / n)[:, None, :]
+        var = (((xw - mean) ** 2) * mw).sum(axis=1) / (n - 1)
+        return np.sqrt(var)
     val = _roll(fn, xm, mf, w=w)
-    cnt = _roll(lambda mw: mw.sum(axis=2), mf, w=w)
+    cnt = _roll(lambda mw: mw.sum(axis=1), mf, w=w)
     return val, cnt >= 2
 
 
 def ts_corr(x, y, m, w):
-    xf = np.nan_to_num(x)
-    yf = np.nan_to_num(y)
     mf = m.astype(np.float64)
-    xm = xf * mf
-    ym = yf * mf
+    xm = np.where(m, x, 0.0)          # official masked_fill(~mask, 0.0)
+    ym = np.where(m, y, 0.0)
 
     def fn(xw, yw, mw):
-        n = np.maximum(mw.sum(axis=2), 2.0)[:, :, None]
-        mx = (xw * mw).sum(axis=2, keepdims=True) / n
-        my = (yw * mw).sum(axis=2, keepdims=True) / n
+        n = np.maximum(mw.sum(axis=1), 2.0)[:, None, :]
+        mx = (xw * mw).sum(axis=1, keepdims=True) / n
+        my = (yw * mw).sum(axis=1, keepdims=True) / n
         cx = (xw - mx) * mw
         cy = (yw - my) * mw
-        cov = (cx * cy).sum(axis=2)
-        sx = np.sqrt((cx ** 2).sum(axis=2))
-        sy = np.sqrt((cy ** 2).sum(axis=2))
+        cov = (cx * cy).sum(axis=1)
+        sx = np.sqrt((cx ** 2).sum(axis=1))
+        sy = np.sqrt((cy ** 2).sum(axis=1))
         return cov / np.maximum(sx * sy, 1e-12)
     val = _roll(fn, xm, ym, mf, w=w)
-    cnt = _roll(lambda mw: mw.sum(axis=2), mf, w=w)
+    cnt = _roll(lambda mw: mw.sum(axis=1), mf, w=w)
     return val, cnt >= 2
 
 
 def ts_rank(x, m, w):
-    xf = np.nan_to_num(x)
+    xf = np.where(m, x, -np.inf)      # official masked_fill(~mask, -inf)
     mf = m.astype(np.float64)
 
     def fn(xw, mw):
         neg_inf = np.where(mw > 0, xw, -np.inf)
-        last = neg_inf[:, -1:, :]
-        rank = (neg_inf <= last).sum(axis=2).astype(np.float64)
-        n = np.maximum(mw.sum(axis=2), 1.0)
-        return np.where(np.all(mw > 0, axis=2), rank / n, np.nan)
+        last = neg_inf[:, -1:, :]              # last element of the window
+        rank = (neg_inf <= last).sum(axis=1).astype(np.float64)
+        n = np.maximum(mw.sum(axis=1), 1.0)
+        return rank / n
     val = _roll(fn, xf, mf, w=w)
-    allv = _roll(lambda mw: np.all(mw > 0, axis=2), mf, w=w) > 0.5
+    allv = _roll(lambda mw: np.all(mw > 0, axis=1), mf, w=w) > 0.5
     return val, allv
 
 
 def ts_min(x, m, w):
-    xf = np.nan_to_num(x)
+    xf = np.where(m, x, np.inf)       # official masked_fill(~mask, +inf)
     mf = m.astype(np.float64)
 
     def fn(xw, mw):
         big = np.where(mw > 0, xw, np.inf)
-        return np.where(mw.sum(axis=2) > 0, big.min(axis=2), np.nan)
+        return big.min(axis=1)
     val = _roll(fn, xf, mf, w=w)
-    anyv = _roll(lambda mw: mw.sum(axis=2) > 0, mf, w=w) > 0.5
+    anyv = _roll(lambda mw: mw.sum(axis=1) > 0, mf, w=w) > 0.5
     return val, anyv
 
 
 def ts_max(x, m, w):
-    xf = np.nan_to_num(x)
+    xf = np.where(m, x, -np.inf)      # official masked_fill(~mask, -inf)
     mf = m.astype(np.float64)
 
     def fn(xw, mw):
         small = np.where(mw > 0, xw, -np.inf)
-        return np.where(mw.sum(axis=2) > 0, small.max(axis=2), np.nan)
+        return small.max(axis=1)
     val = _roll(fn, xf, mf, w=w)
-    anyv = _roll(lambda mw: mw.sum(axis=2) > 0, mf, w=w) > 0.5
+    anyv = _roll(lambda mw: mw.sum(axis=1) > 0, mf, w=w) > 0.5
     return val, anyv
 
 
@@ -221,8 +228,9 @@ def build_arm(panel, arm):
     r_eff = panel["r_eff"]
     volume = panel["volume"]
     amount = panel["amount"]
-    high = panel["high_qfq"]
-    low = panel["low_qfq"]
+    high = panel["high_hfq"]
+    low = panel["low_hfq"]
+    close_hfq = panel["close_hfq"]
     corrupt = panel["corrupt"]
 
     factors, fmasks = [], []
@@ -245,7 +253,7 @@ def build_arm(panel, arm):
             val, ok = ts_min(r_eff, m, w)
         elif kind == "range":
             with np.errstate(divide="ignore", invalid="ignore"):
-                val = (high - low) / adj_close
+                val = (high - low) / close_hfq
             ok = m & ~corrupt & np.isfinite(val)
             val = np.where(ok, val, np.nan)
         else:
@@ -288,13 +296,16 @@ def main():
             "per_factor": taint,
             "factor_cell_counts": {n: int(masks[:, :, i].sum())
                                    for i, n in enumerate(names)},
+            "all_factors_valid_cells": int(masks.all(axis=2).sum()),
         }
         print(f"{arm}: fired={total_fired} "
-              f"valid={summary[arm]['assertion_valid_cells']}")
+              f"valid={summary[arm]['assertion_valid_cells']} "
+              f"all12={summary[arm]['all_factors_valid_cells']}")
     json.dump(summary, open(os.path.join(exp_dir, "factor_stats.json"), "w"),
               indent=1)
     print(json.dumps({a: {"fired": summary[a]["assertion_fired_cells"],
-                          "valid": summary[a]["assertion_valid_cells"]}
+                          "valid": summary[a]["assertion_valid_cells"],
+                          "all12": summary[a]["all_factors_valid_cells"]}
                       for a in ARMS}, indent=1))
 
 

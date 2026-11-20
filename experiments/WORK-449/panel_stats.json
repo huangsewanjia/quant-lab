@@ -1,0 +1,71 @@
+{
+ "generated_at": "2026-11-20T10:30:45.054578+08:00",
+ "st_diagnostic": {
+  "st_marked_cells_all": 5649,
+  "st_marked_cells_test": 1647,
+  "possible_missed_st_limit_cells_test": 148,
+  "note": "upper bound on ST limit events that the 10% proxy band would miss (preregistration v1.1 \u00a73.1)"
+ },
+ "dates": {
+  "n": 2676,
+  "first": "2014-01-02",
+  "last": "2024-12-31"
+ },
+ "codes": 680,
+ "segments": {
+  "train": [
+   "2015-01-01",
+   "2020-12-31"
+  ],
+  "val": [
+   "2021-01-01",
+   "2021-12-31"
+  ],
+  "test": [
+   "2022-01-01",
+   "2024-12-31"
+  ]
+ },
+ "power_check": {
+  "window": [
+   "2022-01-01",
+   "2024-12-31"
+  ],
+  "full_mask_rate_test_window": 0.019077056018079998,
+  "threshold": 0.005,
+  "locked_pool": "CSI300",
+  "note": "decided from data coverage only, before any model run (protocol \u00a72.2)"
+ },
+ "counts": {
+  "source_rows": 1575502,
+  "dense_panel_rows": 1620295,
+  "suspended_in_window_cells": 44793,
+  "not_listed_cells": 199385,
+  "at_limit_cells": 29303,
+  "corrupt_adj_cells": 822,
+  "not_listed_1y_cells": 346348
+ },
+ "arms": {
+  "no_mask": {
+   "factor_cells_test": 481416,
+   "label_cells_test": 480747,
+   "mask_rate_test": 1.0,
+   "at_limit_cells_test": 4420,
+   "suspended_cells_test": 515
+  },
+  "halt_only": {
+   "factor_cells_test": 480901,
+   "label_cells_test": 480135,
+   "mask_rate_test": 0.998930239127906,
+   "at_limit_cells_test": 4420,
+   "suspended_cells_test": 515
+  },
+  "full_mask": {
+   "factor_cells_test": 472232,
+   "label_cells_test": 468078,
+   "mask_rate_test": 0.98092294398192,
+   "at_limit_cells_test": 4420,
+   "suspended_cells_test": 515
+  }
+ }
+}

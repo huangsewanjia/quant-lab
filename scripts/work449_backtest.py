@@ -36,30 +36,37 @@ RF = 0.015
 EPS_PROJ = 1e-14
 MAX_ITER = 4000
 TOL = 1e-12
+# bisection steps for the water-level projection: the bracket is halved
+# 2**52 times, i.e. shrunk far beyond double precision -> exact projection.
+BISECT_STEPS = 52
 
 
 def ledoit_wolf(X: np.ndarray):
-    """Ledoit-Wolf (2004) shrinkage covariance.
+    """Ledoit-Wolf (2004) shrinkage covariance — identical to sklearn's
+    ``LedoitWolf`` (which is what the official implementation uses).
 
-    X: [n_series, n_obs], each row already demeaned. The estimator treats the
-    n_series series as observations of an n_series-dimensional variable over
-    n_obs periods, so the sum runs over periods.
+    X: [n_series, n_obs], already demeaned along the observation axis.
+    The estimator treats the n_series series as observations of an
+    n_series-dimensional variable over n_obs periods, so the sums run over
+    periods.  Shrinkage:  S_hat = (1-delta)*S + delta*mu*I,  mu = tr(S)/n.
     """
     n, t = X.shape
     if n < 2 or t < 3:
         return np.eye(n) * 1e-8, 0.0
     S = (X @ X.T) / t
-    mu = float(np.trace(S)) / n
-    col_sq = (X ** 2).sum(axis=0)                 # ||y_t||^2 per period
-    sum4 = float((col_sq ** 2).sum())             # sum_t ||y_t||^4
-    quad = float((S @ X * X).sum())               # sum_t y_t' S y_t
-    sfro2 = float((S ** 2).sum())
-    d2 = (sum4 - 2.0 * quad + t * sfro2) / (t * t)
-    b2 = (sum4 - 2.0 * mu * float(col_sq.sum()) + t * mu * mu * n) / (t * t)
-    b2 = min(max(b2, 0.0), d2)
-    delta = 0.0 if d2 <= 0 else b2 / d2
-    shrunk = (1.0 - delta) * S + delta * mu * np.eye(n)
-    return shrunk, delta
+    diag = np.einsum("ij,ij->j", X, X) / t      # diagonal of S, shape (n,)
+    mu = float(diag.sum()) / n
+    # beta_ = sum_i (sum_t X2[t, i])^2 = t^2 * sum_i diag_i^2
+    beta_ = t * t * float(np.sum(diag ** 2))
+    # delta_ = (1/t^2) * sum_{s,t} (x_s . x_t)^2 = ||S||_F^2
+    delta_ = float(np.sum(S ** 2))
+    beta = 1.0 / (n * t) * (beta_ / t - delta_)
+    delta = delta_ - 2.0 * mu * float(diag.sum()) + n * mu * mu
+    delta /= n
+    beta = min(beta, delta)
+    shrink = 0.0 if beta == 0 else beta / delta
+    shrunk = (1.0 - shrink) * S + shrink * mu * np.eye(n)
+    return shrunk, shrink
 
 
 def psd_clip(S: np.ndarray, floor: float = 1e-10):
@@ -69,13 +76,19 @@ def psd_clip(S: np.ndarray, floor: float = 1e-10):
 
 
 def project_box_simplex(v: np.ndarray, c: float, target: float) -> np.ndarray:
-    """Euclidean projection onto {0 <= w <= c, sum(w) = target}."""
+    """Euclidean projection onto {0 <= w <= c, sum(w) = target}.
+
+    Bisection on the water level lambda (protocol §8: "等式-箱约束的欧氏投影用
+    二分水位法精确求").  The bracket [min(v)-c, max(v)] is halved BISECT_STEPS
+    times, i.e. shrunk by 2**52, which is far beyond double precision, so the
+    projected point is exact to machine precision.
+    """
     n = len(v)
     if target <= 0:
         return np.zeros(n)
     lo = float(np.min(v) - c)
     hi = float(np.max(v))
-    for _ in range(200):
+    for _ in range(BISECT_STEPS):
         mid = 0.5 * (lo + hi)
         s = np.clip(v - mid, 0.0, c).sum()
         if s > target:
@@ -88,8 +101,13 @@ def project_box_simplex(v: np.ndarray, c: float, target: float) -> np.ndarray:
 
 def solve_qp(mu: np.ndarray, Sigma: np.ndarray, w_fixed: np.ndarray,
              free: np.ndarray, target: float, alpha: float = ALPHA,
-             w_max: float = W_MAX):
-    """Projected-gradient QP over the free block; w_fixed holds the rest."""
+             w_max: float = W_MAX, warm: np.ndarray | None = None):
+    """Projected-gradient QP over the free block; w_fixed holds the rest.
+
+    `warm` is an optional warm start for the free block (the previous day's
+    solution, rescaled to `target`); it only changes the iteration path, not
+    the optimum (the objective is strictly convex on the free block).
+    """
     nf = int(free.sum())
     if nf == 0 or target <= 0:
         return np.zeros_like(mu)
@@ -99,6 +117,11 @@ def solve_qp(mu: np.ndarray, Sigma: np.ndarray, w_fixed: np.ndarray,
     L = 2.0 * alpha * max(float(np.linalg.eigvalsh(SigFF).max()), 1e-12)
     step = 1.0 / L
     x = np.full(nf, target / nf)
+    if warm is not None and len(warm) == nf:
+        wsum = float(np.sum(warm))
+        if wsum > 1e-12:
+            cand = warm * (target / wsum)
+            x = project_box_simplex(cand, w_max, target)
     y = x.copy()
     tk = 1.0
     z_prev = x.copy()
@@ -122,6 +145,15 @@ def solve_qp(mu: np.ndarray, Sigma: np.ndarray, w_fixed: np.ndarray,
 
 
 def slsqp_qp(mu, Sigma, w_fixed, free, target, alpha=ALPHA, w_max=W_MAX):
+    """Independent reference solver (scipy SLSQP) for the cross-check.
+
+    The gradient is the exact analytic gradient of the objective; the box
+    constraints are handed to scipy through `bounds` (scipy handles the
+    active-set logic itself).  Masking the gradient with (x > 0) would
+    wrongly freeze variables sitting at the lower bound whose gradient
+    points upwards, and the cross-check would then compare two different
+    optima instead of the same one.
+    """
     from scipy.optimize import minimize
     nf = int(free.sum())
     if nf == 0 or target <= 0:
@@ -138,15 +170,14 @@ def slsqp_qp(mu, Sigma, w_fixed, free, target, alpha=ALPHA, w_max=W_MAX):
 
     def grad(x):
         wF = np.clip(x, 0.0, w_max)
-        g = 2.0 * alpha * (SigFF @ wF + SigFB) - muF
-        return g * (x > 0)
+        return 2.0 * alpha * (SigFF @ wF + SigFB) - muF
 
     x0 = np.full(nf, min(target / nf, w_max))
     cons = [{"type": "eq", "fun": lambda x: x.sum() - target,
              "jac": lambda x: np.ones_like(x)}]
     bnds = [(0.0, w_max)] * nf
     res = minimize(f, x0, jac=grad, bounds=bnds, constraints=cons,
-                   method="SLSQP", options={"maxiter": 500, "ftol": 1e-14})
+                   method="SLSQP", options={"maxiter": 1000, "ftol": 1e-12})
     out = w_fixed.copy()
     out[free] = np.clip(res.x, 0.0, w_max)
     return out
@@ -237,14 +268,20 @@ def main():
         else:
             Sigma = np.eye(len(codes)) * 1e-6
 
-        w = solve_qp(mu, Sigma, w_fixed, free, target)
+        w = solve_qp(mu, Sigma, w_fixed, free, target,
+                     warm=w_prev[free] if free.any() else None)
         if t in check_days:
             w2 = slsqp_qp(mu, Sigma, w_fixed, free, target)
             denom = max(np.abs(w2).max(), 1e-12)
+            obj = lambda v: float(ALPHA * v @ Sigma @ v - mu @ v)
+            o1, o2 = obj(w), obj(w2)
             solver_check.append({
                 "date": str(dates[t]),
                 "max_abs_diff": float(np.max(np.abs(w - w2))),
                 "max_rel_diff": float(np.max(np.abs(w - w2)) / denom),
+                "obj_pgp": o1,
+                "obj_slsqp": o2,
+                "obj_rel_diff": float(abs(o1 - o2) / max(abs(o2), 1e-16)),
                 "sum_w": float(w.sum()), "sum_w_slsqp": float(w2.sum()),
             })
         weights[t] = w
@@ -274,13 +311,16 @@ def main():
         ann = (1.0 + total) ** (365.25 / days) - 1.0
         vol = float(np.std(net, ddof=1) * np.sqrt(252))
         sharpe = (ann - RF) / vol if vol > 0 else None
-        # daily apparent IC
+        # daily apparent IC (protocol §9.2: corr(yhat_t, r_{t+1}) on the
+        # arm's valid stock set)
         ics = []
         for t in tidx:
+            if t + 1 >= len(dates):
+                continue
             p = pred[t]
-            y = r_eff[t]
-            ok = sample_ok[t - 1] if t > 0 else np.zeros(len(codes), dtype=bool)
-            ok = ok & np.isfinite(p) & np.isfinite(y)
+            y = r_eff[t + 1]
+            ok = sample_ok[t].copy()
+            ok &= np.isfinite(p) & np.isfinite(y)
             if ok.sum() >= 10:
                 ics.append(float(np.corrcoef(p[ok], y[ok])[0, 1]))
         ics = np.array(ics)
@@ -319,6 +359,9 @@ def main():
         "solver_check_max_rel_diff": (max(c["max_rel_diff"]
                                            for c in solver_check)
                                        if solver_check else None),
+        "solver_check_max_obj_rel_diff": (max(c["obj_rel_diff"]
+                                               for c in solver_check)
+                                           if solver_check else None),
         "main": main_m, "sensitivity_5bps": sens_m,
     }
     json.dump(out, open(os.path.join(exp_dir, f"metrics_{args.arm}.json"), "w"),

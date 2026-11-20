@@ -1,14 +1,34 @@
 #!/usr/bin/env python3
 """WORK-449 · stage 2 step 2 — build the price panel and the three mask arms.
 
-Protocol: experiments/WORK-449/preregistration.md §4.3 (qfq repair), §5 (mask
-definitions, "mask before rolling window"), §2.2 (power check).
+Protocol: experiments/WORK-449/preregistration.md §4 (data source), §4.3
+(repaired-adjusted-price rule), §5 (mask definitions, "mask before rolling
+window"), §2.2 (power check).
 
-Conventions taken from data_contracts/field_dictionary.md:
-  §3  forward return = close_t / close_{t-1} - 1 over consecutive trading days
-  §5  suspended days keep a row, price forward-filled to the last close,
-      volume zeroed; limit days are not tradable; IPO filter = listed > 1y
-  §7  snapshot quality gates
+Panel construction (protocol §5.2 + data_contracts/field_dictionary.md §5)
+--------------------------------------------------------------------------
+The panel is a DENSE grid over the union calendar. A panel row exists for a
+stock from its first East-Money row to its last East-Money row:
+
+  * inside that window the stock is *suspended* on days with no source row:
+    the price is forward-filled to the last close and volume/amount are zeroed
+    (field_dictionary §5).  A suspended day is a data fact, not a mask, so the
+    ``no_mask`` arm reads it (protocol §5.2);
+  * outside that window the stock was not listed (or is delisted): no row at
+    all, price NaN.
+
+Price series are the hfq (backward-adjusted) series of AKShare
+``stock_zh_a_hist_em``; EM's qfq is unusable for early years because its
+2-decimal precision collapses once the adjusted price drops below ~1 yuan
+(preregistration_v1.2.md).
+
+Mask arms (protocol §5.1 / §5.2, one sentence each, order fixed)
+---------------------------------------------------------------
+  no_mask    : no mask at all — every panel cell is readable
+  halt_only  : only the suspension mask — limit-up/limit-down days stay readable
+  full_mask  : suspension + limit mask, i.e. exactly M_exec
+  M_exec     : not suspended AND not at limit AND listed for more than 1 year
+               (shared by all three arms; it is an execution fact)
 
 Outputs
   experiments/<exp>/panel.npz         price/return arrays, calendar, codes
@@ -107,9 +127,9 @@ def main():
             arr[:, j] = vals
         return arr
 
-    close_q = stack("close")
-    high_q = stack("high")
-    low_q = stack("low")
+    close_h = stack("close")          # hfq close
+    high_h = stack("high")
+    low_h = stack("low")
     close_r = stack("close_raw")
     preclose = stack("preclose")
     volume = stack("volume")
@@ -117,7 +137,20 @@ def main():
     pct_chg = stack("pct_chg")
     ts = stack("tradestatus")
     st = stack("is_st")
-    has_row = ~np.isnan(close_q)
+    em_row = ~np.isnan(close_h)      # a source row exists for this cell
+
+    # ---- dense panel grid: first -> last source row of each stock ----
+    first_i = np.full(N, -1, dtype=int)
+    last_i = np.full(N, -1, dtype=int)
+    for j, code in enumerate(codes):
+        idx = [di[d] for d in frames[code].index]
+        first_i[j] = min(idx)
+        last_i[j] = max(idx)
+    grid = np.arange(T)[:, None]
+    has_row = (grid >= first_i[None, :]) & (grid <= last_i[None, :])
+    suspended = has_row & ~em_row
+    print(f"dense rows {int(has_row.sum())} | suspended(in-window) "
+          f"{int(suspended.sum())} | pre-IPO/delisted {int((~has_row).sum())}")
 
     # ---- listed date (IPO) ----
     ipo_map = {}
@@ -128,8 +161,7 @@ def main():
                 ipo_map[code] = meta["ipo_date"]
     listed = np.empty(N, dtype="datetime64[D]")
     for j, code in enumerate(codes):
-        raw = ipo_map.get(code) or (frames[code].index[0]
-                                    if len(frames[code]) else "1990-01-01")
+        raw = ipo_map.get(code) or frames[code].index[0]
         listed[j] = np.datetime64(raw, "D")
     listed_1y = dates[:, None] > (listed[None, :] + np.timedelta64(365, "D"))
 
@@ -144,18 +176,15 @@ def main():
             st_days += int(sel.sum())
     print(f"ST-marked cells from st_intervals: {st_days}")
 
-    suspended = (~has_row) | (ts == 0)
-
     # ---- forward fill prices on suspended / missing days (field_dict §5) ----
-    close_ff = pd.DataFrame(close_q).ffill(axis=0).to_numpy()
-    close_r_ff = pd.DataFrame(close_r).ffill(axis=0).to_numpy()
-    volume_f = np.where(has_row, volume, 0.0)
-    amount_f = np.where(has_row, amount, 0.0)
+    close_ff = pd.DataFrame(close_h).ffill(axis=0).to_numpy()
+    volume_f = np.where(em_row, volume, 0.0)
+    amount_f = np.where(em_row, amount, 0.0)
     amount_f = np.where(np.isnan(amount_f), volume_f * close_ff, amount_f)
 
-    # ---- qfq repair rule (protocol §4.3) ----
+    # ---- repaired adjusted-price rule (protocol §4.3) ----
     with np.errstate(divide="ignore", invalid="ignore"):
-        adj = close_q / close_r
+        adj = close_h / close_r
     adj_ff = pd.DataFrame(adj).ffill(axis=0).to_numpy()
     imp = np.full((T, N), np.nan)
     imp[1:, :] = adj_ff[1:, :] / adj_ff[:-1, :] - 1.0
@@ -166,42 +195,43 @@ def main():
     corrupt[1:, :] = valid_imp[1:, :] & (np.abs(imp[1:, :]) > thr[1:, :])
 
     # ---- returns ----
-    r_q = np.full((T, N), np.nan)
-    r_q[1:, :] = close_ff[1:, :] / close_ff[:-1, :] - 1.0   # halt-spanning
+    r_h = np.full((T, N), np.nan)
+    r_h[1:, :] = close_ff[1:, :] / close_ff[:-1, :] - 1.0   # halt-spanning
     r_raw = pct_chg / 100.0
-    r_eff = r_q.copy()
-    r_eff[corrupt] = np.where(np.isnan(r_raw[corrupt]), r_q[corrupt],
+    r_eff = r_h.copy()
+    r_eff[corrupt] = np.where(np.isnan(r_raw[corrupt]), r_h[corrupt],
                                r_raw[corrupt])
-    r_eff[~has_row] = np.nan
+    r_eff[~has_row] = np.nan          # not listed -> no cell, no return
 
-    # repaired adjusted price level = compounded r_eff
+    # repaired adjusted price level = compounded r_eff (forward filled on
+    # suspended days to the last close, never to a stale value)
     adj_close = np.full((T, N), np.nan)
     acc = np.ones(N)
     last = np.full(N, np.nan)
     for t in range(T):
         r = r_eff[t]
         acc = np.where(np.isnan(r), acc, acc * (1.0 + np.where(np.isnan(r), 0, r)))
-        last = np.where(np.isnan(last) & ~np.isnan(acc), acc, last)
-        adj_close[t] = np.where(np.isnan(r), last, acc)
+        last = np.where(np.isnan(r), last, acc)
+        adj_close[t] = last
 
     # ---- masks ----
     lp = limit_pct_matrix(dates, codes, st == 1)
     with np.errstate(invalid="ignore"):
         at_limit = np.abs(r_raw) > lp
-    at_limit = at_limit & ~np.isnan(r_raw) & has_row
+    at_limit = at_limit & ~np.isnan(r_raw) & em_row
 
     m_exec = has_row & ~suspended & ~at_limit & listed_1y
-    m_no = has_row                                    # no filtering at all
-    m_halt = has_row & ~suspended & listed_1y
-    m_full = m_exec
+    m_no = has_row                                   # no filtering at all
+    m_halt = has_row & ~suspended                    # suspension mask only
+    m_full = m_exec                                  # suspension + limit mask
 
     np.savez_compressed(
         os.path.join(exp_dir, "panel.npz"),
         dates=dates, codes=np.array(codes),
-        close_qfq=close_q, close_qfq_ff=close_ff, close_raw=close_r,
-        high_qfq=high_q, low_qfq=low_q,
+        close_hfq=close_h, close_hfq_ff=close_ff, close_raw=close_r,
+        high_hfq=high_h, low_hfq=low_h,
         adj_close=adj_close, r_eff=r_eff, r_raw=r_raw, pct_chg=pct_chg,
-        volume=volume_f, amount=amount_f, has_row=has_row,
+        volume=volume_f, amount=amount_f, has_row=has_row, em_row=em_row,
         suspended=suspended, at_limit=at_limit, listed_1y=listed_1y,
         corrupt=corrupt, limit_pct=lp, band=bands,
         m_exec=m_exec, m_no=m_no, m_halt=m_halt, m_full=m_full,
@@ -242,11 +272,13 @@ def main():
                      "(protocol §2.2)"),
         },
         "counts": {
+            "source_rows": int(em_row.sum()),
+            "dense_panel_rows": int(has_row.sum()),
+            "suspended_in_window_cells": int(suspended.sum()),
+            "not_listed_cells": int((~has_row).sum()),
             "at_limit_cells": int(at_limit.sum()),
-            "suspended_cells": int(suspended.sum()),
             "corrupt_adj_cells": int(corrupt.sum()),
             "not_listed_1y_cells": int((~listed_1y).sum()),
-            "rows": int(has_row.sum()),
         },
         "arms": {},
     }

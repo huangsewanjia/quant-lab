@@ -2,16 +2,17 @@
 """WORK-449 · stage 3 step 2 — independent recompute gate.
 
 Contract (data_contracts + preregistration §10 gate 5): this script must NOT
-import any function of the modelling stage. It re-reads the raw snapshot CSVs,
-rebuilds the return series and the tradability mask with its own code, and
-recomputes IC / Sharpe / annualised return / annualised volatility / max
-drawdown / turnover, then compares against the modelling side item by item.
+import any function of the modelling stage.  It re-reads the raw snapshot CSVs,
+rebuilds the panel, the return series and the tradability masks with its own
+code, and recomputes IC / Sharpe / annualised return / annualised volatility /
+max drawdown / turnover, then compares against the modelling side item by item.
 
 Only two modelling artifacts are consumed, because they cannot be recomputed
-without retraining: the model predictions and the portfolio weights. The
-factor-validity mask is likewise read from the factor artifact, and is
-additionally spot-checked against an independent recomputation of two
-representative factors on sampled cells.
+without retraining: the model predictions and the portfolio weights.  The
+sample set (all 12 factors valid AND the bidirectional label check) is
+re-derived here from the factor artifact and this script's own masks, and the
+factor values themselves are spot-checked by an independent re-implementation
+of the primitives plus the neutralisation.
 
 Exit code 0 = no blocking finding.
 """
@@ -35,6 +36,7 @@ GROWTH_BOARD_LIMIT_PCT = 0.198
 BSE_LIMIT_PCT = 0.298
 ST_LIMIT_PCT = 0.048
 CHINEXT_20PCT_START = "2020-08-24"
+TEST_START, TEST_END = "2022-01-01", "2024-12-31"
 
 
 def rel_diff(a, b):
@@ -47,18 +49,27 @@ def rel_diff(a, b):
 
 
 def board_of(code: str) -> str:
-    digits = "".join(ch for ch in code if ch.isdigit())
-    if code.startswith("bj") or digits[:1] in ("4", "8", "9"):
+    num = code.split(".")[-1]
+    if code.startswith("bj") or num.startswith(("4", "8", "92")):
         return "bse"
-    if digits.startswith(("688", "689")):
+    if num.startswith(("688", "689")):
         return "star"
-    if digits.startswith(("300", "301")):
+    if num.startswith(("300", "301")):
         return "chinext"
     return "main"
 
 
+def _f(v):
+    try:
+        if v is None or v == "":
+            return math.nan
+        return float(v)
+    except (TypeError, ValueError):
+        return math.nan
+
+
 class Rebuilt:
-    """Independent re-derivation from the raw CSVs."""
+    """Independent re-derivation from the raw snapshot CSVs."""
 
     def __init__(self, repo: str, exp: str):
         self.data_dir = os.path.join(repo, "data", exp)
@@ -94,9 +105,29 @@ class Rebuilt:
                 self.amount[i, j] = _f(r["amount"])
                 self.ts[i, j] = _f(r["tradestatus"])
                 self.st[i, j] = _f(r["is_st"])
-        self.has = ~np.isnan(self.close)
-        self.suspended = (~self.has) | (self.ts == 0)
-        # forward fill (field_dictionary §5)
+        self.em_row = ~np.isnan(self.close)
+
+        # ---- dense panel grid (protocol §5.2 + field_dictionary §5) ----
+        first_i = np.full(n, -1, dtype=int)
+        last_i = np.full(n, -1, dtype=int)
+        for j, code in enumerate(codes):
+            idx = [self.pos[r["date"]] for r in rows[code]]
+            first_i[j] = min(idx)
+            last_i[j] = max(idx)
+        grid = np.arange(t)[:, None]
+        self.has = (grid >= first_i[None, :]) & (grid <= last_i[None, :])
+        self.suspended = self.has & ~self.em_row
+
+        # ---- ST intervals (preregistration v1.1 §3.1) ----
+        st_path = os.path.join(self.exp_dir, "st_intervals.json")
+        if os.path.exists(st_path):
+            st_map = json.load(open(st_path)).get("intervals", {})
+            for j, code in enumerate(codes):
+                for a, b in st_map.get(code, []):
+                    sel = np.array([(x >= a and x <= b) for x in dates])
+                    self.st[sel, j] = 1
+
+        # ---- forward fill (field_dictionary §5) ----
         ff = self.close.copy()
         for j in range(n):
             last = math.nan
@@ -108,12 +139,18 @@ class Rebuilt:
                     last = col[i]
             ff[:, j] = col
         self.close_ff = ff
-        # halt-spanning returns
+        self.volume_f = np.where(self.em_row, self.volume, 0.0)
+        self.amount_f = np.where(self.em_row, self.amount, 0.0)
+        self.amount_f = np.where(np.isnan(self.amount_f),
+                                 self.volume_f * ff, self.amount_f)
+
+        # ---- halt-spanning returns ----
         self.ret = np.full((t, n), math.nan)
         for i in range(1, t):
             self.ret[i, :] = ff[i, :] / ff[i - 1, :] - 1.0
         self.ret[~self.has] = math.nan
-        # qfq corruption guard (prereg §4.3)
+
+        # ---- repaired adjusted-price rule (preregistration §4.3) ----
         with np.errstate(divide="ignore", invalid="ignore"):
             adj = self.close / self.close_raw
         adjff = np.full((t, n), np.nan)
@@ -135,7 +172,18 @@ class Rebuilt:
         self.ret[self.corrupt] = np.where(
             np.isnan(self.pct[self.corrupt]), self.ret[self.corrupt],
             self.pct[self.corrupt] / 100.0)
-        # masks
+
+        # ---- repaired adjusted price level (compounded r_eff) ----
+        self.adj_close = np.full((t, n), math.nan)
+        acc = np.ones(n)
+        lastv = np.full(n, math.nan)
+        for i in range(t):
+            r = self.ret[i]
+            acc = np.where(np.isnan(r), acc, acc * (1.0 + np.where(np.isnan(r), 0, r)))
+            lastv = np.where(np.isnan(r), lastv, acc)
+            self.adj_close[i] = lastv
+
+        # ---- masks (protocol §5.1 / §5.2) ----
         self.listed = self._listed()
         self.listed_1y = self._dates()[:, None] > (
             self.listed[None, :] + np.timedelta64(365, "D"))
@@ -144,12 +192,12 @@ class Rebuilt:
                        & self.listed_1y)
         self.m = {
             "no_mask": self.has,
-            "halt_only": self.has & ~self.suspended & self.listed_1y,
+            "halt_only": self.has & ~self.suspended,
             "full_mask": self.m_exec,
         }
 
     def _dates(self):
-        return np.array(self.dates)
+        return np.array(self.dates, dtype="datetime64[D]")
 
     def _band(self):
         band = np.empty((self.t, self.n))
@@ -189,16 +237,66 @@ class Rebuilt:
         thr[np.ix_(before, chinext)] = MAIN_BOARD_LIMIT_PCT
         with np.errstate(invalid="ignore"):
             at = np.abs(self.pct / 100.0) > thr
-        return at & ~np.isnan(self.pct) & self.has
+        return at & ~np.isnan(self.pct) & self.em_row
 
 
-def _f(v):
-    try:
-        if v is None or v == "":
-            return math.nan
-        return float(v)
-    except ValueError:
-        return math.nan
+# ---------------------------------------------------------------------------
+# independent factor re-implementation (naive, no reuse of modelling code)
+# ---------------------------------------------------------------------------
+def ind_ts_mean(series, mask, w):
+    """Official masked_fill semantics: masked cells contribute 0, count = #mask."""
+    T, N = series.shape
+    out = np.full((T, N), np.nan)
+    cnt = np.zeros((T, N))
+    for i in range(w - 1, T):
+        lo = i - w + 1
+        seg = series[lo:i + 1]
+        m = mask[lo:i + 1]
+        filled = np.where(m, seg, 0.0)
+        c = m.sum(axis=0)
+        out[i] = filled.sum(axis=0) / np.maximum(c, 1.0)
+        cnt[i] = c
+    return out, cnt > 0
+
+
+def ind_ts_rank(series, mask, w):
+    """Rank of the last element inside the window over the in-mask cells."""
+    T, N = series.shape
+    out = np.full((T, N), np.nan)
+    allv = np.zeros((T, N), dtype=bool)
+    for i in range(w - 1, T):
+        lo = i - w + 1
+        seg = series[lo:i + 1]
+        m = mask[lo:i + 1]
+        neg = np.where(m, seg, -np.inf)
+        last = neg[-1, :]
+        rank = (neg <= last[None, :]).sum(axis=0).astype(np.float64)
+        c = m.sum(axis=0)
+        out[i] = np.where(np.all(m, axis=0), rank / np.maximum(c, 1.0), np.nan)
+        allv[i] = np.all(m, axis=0)
+    return out, allv
+
+
+def ind_neutralize(values, valid):
+    """MAD de-trend (5x) then z-score, cross-sectionally, within valid cells."""
+    T, N = values.shape
+    out = np.full((T, N), np.nan)
+    for t in range(T):
+        ok = valid[t] & np.isfinite(values[t])
+        if ok.sum() < 3:
+            continue
+        x = values[t][ok]
+        med = np.median(x)
+        mad = np.median(np.abs(x - med))
+        if mad > 0:
+            xs = np.clip((x - med) / (1.4826 * mad), -5.0, 5.0)
+        else:
+            xs = x - med
+        sd = xs.std()
+        if sd <= 0:
+            continue
+        out[t, ok] = xs / sd
+    return out
 
 
 def main():
@@ -222,7 +320,7 @@ def main():
         return d
 
     panel = np.load(os.path.join(exp_dir, "panel.npz"), allow_pickle=True)
-    # ---- 1. panel-level cross-checks (returns, mask) ----
+    # ---- 1. panel-level cross-checks (returns, masks) ----
     rng = np.random.default_rng(7)
     idx = rng.choice(rb.t * rb.n, size=min(4000, rb.t * rb.n), replace=False)
     pi = np.array([int(k) for k in idx])
@@ -244,6 +342,9 @@ def main():
         d = float((rb.m[arm] != panel[f"m_{arm}"]).mean())
         add("blocking", f"M_factor[{arm}] mask equality", d, 0.0,
             "fraction of cells that differ")
+    d_rows = float((rb.has != panel["has_row"]).mean())
+    add("blocking", "panel row grid equality", d_rows, 0.0,
+        "fraction of cells that differ")
 
     # ---- 2. metric recomputation per arm ----
     for arm in ARMS:
@@ -257,16 +358,18 @@ def main():
         pred = p_npz["pred"]
         model = json.load(open(os.path.join(exp_dir, f"metrics_{arm}.json")))
         dates = rb.dates
-        test_sel = np.array([d >= "2022-01-01" and d <= "2024-12-31"
-                             for d in dates])
+        test_sel = np.array([TEST_START <= d <= TEST_END for d in dates])
         tidx = np.nonzero(test_sel)[0]
-        valid = fac["masks"].all(axis=2)
+        # sample set re-derived from the factor artifact and our own masks
+        allv = fac["masks"].all(axis=2)
+        m_arm = rb.m[arm]
+        sample_ok = np.zeros((rb.t, rb.n), dtype=bool)
+        sample_ok[:-1, :] = (allv[:-1, :] & m_arm[:-1, :] & m_arm[1:, :])
 
         for cost_key in ("main", "sensitivity_5bps"):
             net, gross, turn = [], [], []
             for t in tidx:
-                r = rb.ret[t]
-                r = np.nan_to_num(r, nan=0.0)
+                r = np.nan_to_num(rb.ret[t], nan=0.0)
                 wp = weights[t - 1] if t > 0 else np.zeros(rb.n)
                 dw = float(np.abs(weights[t] - wp).sum())
                 g = float(wp @ r)
@@ -286,11 +389,13 @@ def main():
             sharpe = (ann - RF) / vol if vol > 0 else None
             ics = []
             for t in tidx:
-                ok = valid[t - 1] if t > 0 else np.zeros(rb.n, dtype=bool)
-                ok = ok & np.isfinite(pred[t]) & ~np.isnan(rb.ret[t])
+                if t + 1 >= rb.t:
+                    continue
+                p = pred[t]
+                y = rb.ret[t + 1]
+                ok = sample_ok[t] & np.isfinite(p) & np.isfinite(y)
                 if ok.sum() >= 10:
-                    ics.append(float(np.corrcoef(pred[t][ok],
-                                                rb.ret[t][ok])[0, 1]))
+                    ics.append(float(np.corrcoef(p[ok], y[ok])[0, 1]))
             ics = np.array(ics)
             add("blocking", f"[{arm}/{cost_key}] sharpe", sharpe,
                 model[cost_key]["sharpe_rf1.5"])
@@ -314,39 +419,46 @@ def main():
                 model[cost_key]["avg_active_stocks"])
 
         # ---- 3. factor spot-check (independent recomputation) ----
-        names = list(fac["names"])
+        names = [str(x) for x in fac["names"]]
         vals = fac["values"]
-        m_arm = rb.m[arm]
-        for fname, win in (("ts_mean_ret_20", 20), ("ts_rank_close_60", 60)):
+        specs = (("ts_mean_ret_20", "mean", 20),
+                 ("ts_rank_close_60", "rank", 60))
+        day_pool = np.nonzero(test_sel)[0]
+        sample_days = rng.choice(day_pool, size=min(12, len(day_pool)),
+                                 replace=False)
+        for fname, kind, win in specs:
             if fname not in names:
                 continue
             k = names.index(fname)
-            cells = rng.choice(rb.t * rb.n, size=200, replace=False)
-            worst = 0.0
-            for cell in cells:
-                i, j = int(cell) // rb.n, int(cell) % rb.n
-                if not m_arm[i, j]:
+            if kind == "mean":
+                raw, okm = ind_ts_mean(rb.ret, m_arm, win)
+            else:
+                raw, okm = ind_ts_rank(rb.adj_close, m_arm, win)
+            neu = ind_neutralize(raw, okm)
+            worst_val = 0.0
+            worst_mask = 0
+            for d in sample_days:
+                d = int(d)
+                if d < win - 1:
                     continue
-                if fname == "ts_mean_ret_20":
-                    lo = max(0, i - win + 1)
-                    seg = rb.ret[lo:i + 1, j]
-                    ok = m_arm[lo:i + 1, j] & ~np.isnan(seg)
-                    if ok.sum() == 0:
-                        continue
-                    expect = float(np.nanmean(np.where(ok, seg, np.nan)))
-                else:
-                    lo = max(0, i - win + 1)
-                    seg = rb.close_ff[lo:i + 1, j]
-                    ok = m_arm[lo:i + 1, j]
-                    if ok.sum() < 2:
-                        continue
-                    last = seg[-1]
-                    expect = float((seg[ok] <= last).sum() / ok.sum())
-                got = float(vals[i, j, k])
-                if not math.isnan(expect):
-                    worst = max(worst, rel_diff(got, expect))
-            add("suggestion", f"[{arm}] factor spot-check {fname}", worst, 0.0,
-                "max relative difference on 200 sampled cells")
+                cells = okm[d] & np.isfinite(neu[d])
+                if cells.sum() == 0:
+                    continue
+                stored = vals[d, cells, k].astype(np.float64)
+                mine = neu[d, cells]
+                denom = np.maximum(np.abs(stored), 1e-12)
+                worst_val = max(worst_val, float(np.max(np.abs(stored - mine) /
+                                                         denom)))
+                worst_mask += int(np.sum(
+                    (fac["masks"][d, cells, k]) != okm[d, cells]))
+            add("suggestion", f"[{arm}] factor value spot-check {fname}",
+                worst_val, 0.0,
+                "max relative difference on 12 sampled test days "
+                "(independent re-implementation of the primitive + "
+                "neutralisation)")
+            add("suggestion", f"[{arm}] factor mask spot-check {fname}",
+                float(worst_mask), 0.0,
+                "number of cells whose stored validity mask differs")
 
     blocking = [f for f in findings if f["level"] == "blocking"]
     out = {
@@ -354,8 +466,8 @@ def main():
         "generated_at": datetime.now().astimezone().isoformat(),
         "script": "audit/recompute_work449.py",
         "independence": ("re-reads data/<exp>/*.csv and recomputes returns, "
-                          "masks and all metrics with its own code; imports no "
-                          "modelling-stage function"),
+                          "masks, factor values and all metrics with its own "
+                          "code; imports no modelling-stage function"),
         "tolerance_rel_diff": TOL,
         "blocking": len(blocking),
         "suggestion": len([c for c in comparisons if c["level"] == "suggestion"

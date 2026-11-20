@@ -6,13 +6,13 @@ training). The three arms differ ONLY in M_factor; hyper-parameters, seed and
 split are identical.
 
 Indexing convention
-  pred_from[t, i]  prediction produced from the factors observed at t, i.e. the
-                   model's estimate of r_{t+1}. NaN where the arm's label is
-                   unavailable or the factors are invalid.
-  label[t, i]      = r_eff[t+1, i]
-  valid[t, i]      = all 12 factors valid at t AND the bidirectional label
-                     check m[t] & m[t+1] holds (paper §3.5.1)
-  daily IC at t    = corr(pred_from[t], label[t]) across the valid cross-section
+  pred[t, i]      forecast of r_{t+1} made from the factors observed at t
+                   (NaN where the arm's sample set does not contain the cell)
+  label[t, i]     = r_eff[t+1, i]
+  sample[t, i]    = all 12 factors valid at t AND the bidirectional label
+                   check m[t] & m[t+1] holds (paper §3.5.1)
+  daily IC at t   = corr(pred[t], label[t]) across the valid cross-section
+                   (protocol §9.2: corr(yhat_t, r_{t+1}))
 """
 from __future__ import annotations
 
@@ -43,6 +43,15 @@ ARM_KEY = {"no_mask": "m_no", "halt_only": "m_halt", "full_mask": "m_full"}
 def seed_all(seed: int) -> None:
     np.random.seed(seed)
     torch.manual_seed(seed)
+    # CPU BLAS/torch oversubscription is catastrophic on this host (8 threads
+    # -> 21x slower per step than 3 threads; the same effect was measured for
+    # OpenBLAS eigh).  Pin the thread count so that the three arms are
+    # numerically comparable and the run is reproducible.
+    torch.set_num_threads(int(os.environ.get("WORK449_TORCH_THREADS", "2")))
+    try:
+        torch.set_num_interop_threads(1)
+    except RuntimeError:
+        pass          # already initialised; harmless
 
 
 def adj_mse(pred, target, gamma: float = GAMMA):
@@ -123,6 +132,10 @@ def main():
     label_ok = m_arm[:-1, :] & m_arm[1:, :]          # bidirectional check
     sample_ok = all_valid[:-1, :] & label_ok          # [T-1, N]
     label = r_eff[1:, :]                              # [T-1, N]
+    # full-grid version of the sample set: sample_full[t] = sample_ok[t] for
+    # t <= T-2; the last day has no t+1 label and is never a sample.
+    sample_full = np.zeros((T, N), dtype=bool)
+    sample_full[:-1, :] = sample_ok
 
     def days(a, b):
         return np.nonzero((dates[:-1] >= np.datetime64(a)) &
@@ -207,11 +220,14 @@ def main():
     with torch.no_grad():
         p_all = model(torch.from_numpy(x_all)).numpy()
     pred_from = np.full((T, N), np.nan, dtype=np.float32)
-    pred_from[idx[0] + 1, idx[1]] = p_all.astype(np.float32)
+    # the model output for the sample whose factors sit at t0 is the forecast
+    # of r_{t0+1}; it is therefore stored at t0 (not t0+1) so that the
+    # portfolio formed at t uses the signal available at t.
+    pred_from[idx[0], idx[1]] = p_all.astype(np.float32)
     print(f"best epoch {best['epoch']} valRankIC {best['rankic']}")
 
     np.savez_compressed(os.path.join(exp_dir, f"pred_{args.arm}.npz"),
-                        pred=pred_from, sample_ok=sample_ok,
+                        pred=pred_from, sample_ok=sample_full,
                         dates=dates, codes=panel["codes"])
     torch.save({"state_dict": model.state_dict(), "mu": mu, "sd": sd,
                 "n_features": K, "best_epoch": best["epoch"],
