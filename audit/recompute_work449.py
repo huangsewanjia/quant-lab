@@ -40,10 +40,23 @@ TEST_START, TEST_END = "2022-01-01", "2024-12-31"
 
 
 def rel_diff(a, b):
+    """Relative difference with a zero-safe denominator.
+
+    FYI-3: with denom = max(|a|,|b|,1e-12) a comparison whose *expected*
+    value is 0 degenerates -- any non-zero measurement returns exactly 1.0
+    regardless of how small it is, so the report showed "rel_diff = 1.0"
+    for deviations that are actually ~1e-8.  When the expected value is 0
+    the comparison is judged on the ABSOLUTE difference instead, which is
+    both well defined and strictly more informative.
+
+    `a` is the measured value, `b` the expected value.
+    """
     if a is None and b is None:
         return 0.0
     if a is None or b is None:
         return float("inf")
+    if b == 0.0:
+        return abs(a - b)
     denom = max(abs(a), abs(b), 1e-12)
     return abs(a - b) / denom
 
@@ -214,7 +227,11 @@ class Rebuilt:
         sb = os.path.join(self.exp_dir, "stock_basic.json")
         ipo = {}
         if os.path.exists(sb):
-            ipo = {k: v.get("ipo_date") for k, v in json.load(open(sb)).items()}
+            # the file also carries "_"-prefixed provenance fields that are
+            # not per-stock records -- skip anything that is not a mapping
+            ipo = {k: v.get("ipo_date")
+                   for k, v in json.load(open(sb)).items()
+                   if not k.startswith("_") and isinstance(v, dict)}
         for j, code in enumerate(self.codes):
             raw = ipo.get(code)
             if not raw:
@@ -317,7 +334,24 @@ def main():
         comparisons.append(rec)
         if level == "blocking" and d > TOL:
             findings.append(rec)
-        return d
+        return rec
+
+    def add_exact(level, name, measured, note=""):
+        """Comparison that must hold EXACTLY (mask / panel equality).
+
+        These are not "relative" checks at all: the panel rows and the masks
+        are rebuilt from the snapshot CSV and must match the stored arrays
+        bit for bit.  Keeping them on the relative scale would silently
+        loosen them, so they get their own exact-equality branch.
+        """
+        ok = (measured == 0.0)
+        rec = {"level": level, "item": name, "measured": measured,
+               "expected": 0.0, "rel_diff": 0.0 if ok else float("inf"),
+               "note": note + " [exact equality required]"}
+        comparisons.append(rec)
+        if level == "blocking" and not ok:
+            findings.append(rec)
+        return rec
 
     panel = np.load(os.path.join(exp_dir, "panel.npz"), allow_pickle=True)
     # ---- 1. panel-level cross-checks (returns, masks) ----
@@ -334,12 +368,11 @@ def main():
         if math.isnan(a) and math.isnan(b):
             continue
         d_ret = max(d_ret, rel_diff(a, b))
-    add("blocking", "r_eff panel cross-check (4000 random cells)", d_ret, 0.0,
-        "max relative difference between recomputed and stored returns")
-
+    add_exact("blocking", "r_eff panel cross-check (4000 random cells)", d_ret,
+              "max relative difference between recomputed and stored returns")
     d_mask = float((rb.m_exec != panel["m_exec"]).mean())
-    add("blocking", "M_exec mask equality", d_mask, 0.0,
-        "fraction of cells that differ")
+    add_exact("blocking", "M_exec mask equality", d_mask,
+              "fraction of cells that differ")
     for arm in ARMS:
         # the rebuilt panel keys masks by arm name ("no_mask"); the stored
         # panel.npz keys them by the protocol's M_factor names (m_no/m_halt/
@@ -347,11 +380,11 @@ def main():
         key = {"no_mask": "m_no", "halt_only": "m_halt",
                "full_mask": "m_full"}[arm]
         d = float((rb.m[arm] != panel[key]).mean())
-        add("blocking", f"M_factor[{arm}] mask equality", d, 0.0,
-            "fraction of cells that differ")
+        add_exact("blocking", f"M_factor[{arm}] mask equality", d,
+                  "fraction of cells that differ")
     d_rows = float((rb.has != panel["has_row"]).mean())
-    add("blocking", "panel row grid equality", d_rows, 0.0,
-        "fraction of cells that differ")
+    add_exact("blocking", "panel row grid equality", d_rows,
+              "fraction of cells that differ")
 
     # ---- 2. metric recomputation per arm ----
     for arm in ARMS:
@@ -443,6 +476,7 @@ def main():
                 raw, okm = ind_ts_rank(rb.adj_close, m_arm, win)
             neu = ind_neutralize(raw, okm)
             worst_val = 0.0
+            worst_abs = 0.0
             worst_mask = 0
             for d in sample_days:
                 d = int(d)
@@ -456,16 +490,23 @@ def main():
                 denom = np.maximum(np.abs(stored), 1e-12)
                 worst_val = max(worst_val, float(np.max(np.abs(stored - mine) /
                                                          denom)))
+                worst_abs = max(worst_abs, float(np.max(np.abs(stored - mine))))
                 worst_mask += int(np.sum(
                     (fac["masks"][d, cells, k]) != okm[d, cells]))
-            add("suggestion", f"[{arm}] factor value spot-check {fname}",
-                worst_val, 0.0,
-                "max relative difference on 12 sampled test days "
-                "(independent re-implementation of the primitive + "
-                "neutralisation)")
-            add("suggestion", f"[{arm}] factor mask spot-check {fname}",
-                float(worst_mask), 0.0,
-                "number of cells whose stored validity mask differs")
+            # FYI-3: the factor values are z-scored, so the expected value is
+            # 0 and the *relative* difference degenerates.  The comparison is
+            # therefore made on the ABSOLUTE difference against the 1e-6
+            # tolerance, and it is promoted to blocking (the deviation is
+            # float32 storage precision, ~6e-8, well inside the tolerance).
+            rec = add("blocking", f"[{arm}] factor value spot-check {fname}",
+                      worst_abs, 0.0,
+                      "max ABSOLUTE difference on 12 sampled test days "
+                      "(independent re-implementation of the primitive + "
+                      f"neutralisation); max relative difference = {worst_val:.3e}")
+            rec["max_relative_difference"] = worst_val
+            add_exact("suggestion", f"[{arm}] factor mask spot-check {fname}",
+                      float(worst_mask),
+                      "number of cells whose stored validity mask differs")
 
     blocking = [f for f in findings if f["level"] == "blocking"]
     out = {

@@ -126,10 +126,15 @@ def main():
     ap.add_argument("--exp", default="WORK-449")
     ap.add_argument("--arm", required=True,
                     choices=["no_mask", "halt_only", "full_mask"])
+    ap.add_argument("--seed", type=int, default=SEED,
+                    help="random seed; the protocol-frozen round uses 42")
+    ap.add_argument("--tag", default="",
+                    help="suffix for the output file names, e.g. '_s43'; "
+                         "empty keeps the protocol-frozen file names")
     args = ap.parse_args()
     repo = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     exp_dir = os.path.join(repo, "experiments", args.exp)
-    seed_all(SEED)
+    seed_all(args.seed)
 
     panel = np.load(os.path.join(exp_dir, "panel.npz"), allow_pickle=True)
     fac = np.load(os.path.join(exp_dir, f"factors_{args.arm}.npz"),
@@ -190,7 +195,7 @@ def main():
     # with decoupled weight decay, not torch.optim.Adam.
     opt = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WD)
 
-    log = {"arm": args.arm, "seed": SEED, "epochs": EPOCHS, "batch": BATCH,
+    log = {"arm": args.arm, "seed": args.seed, "epochs": EPOCHS, "batch": BATCH,
            "lr": LR, "weight_decay": WD, "grad_clip": GRAD_CLIP,
            "gamma": GAMMA, "hidden": HIDDEN,
            "dropout": DROPOUT, "n_train": int(is_tr.sum()),
@@ -198,7 +203,7 @@ def main():
            "optimizer": "AdamW",
            "history": []}
     best = {"rankic": -np.inf, "epoch": -1, "state": None}
-    gen = torch.Generator().manual_seed(SEED)
+    gen = torch.Generator().manual_seed(args.seed)
     Xva = torch.from_numpy(x_all[is_va])
     for ep in range(EPOCHS):
         t_ep = time.time()
@@ -243,7 +248,7 @@ def main():
                    "val_rankic": ric, "best_epoch": best["epoch"],
                    "best_rankic": best["rankic"],
                    "updated_at": datetime.now().astimezone().isoformat()},
-                  open(os.path.join(exp_dir, f"train_progress_{args.arm}.json"), "w"),
+                  open(os.path.join(exp_dir, f"train_progress_{args.arm}{args.tag}.json"), "w"),
                   indent=1)
 
     if best["state"] is None:                     # no usable val signal
@@ -261,7 +266,7 @@ def main():
     pred_from[idx[0], idx[1]] = p_all.astype(np.float32)
     print(f"best epoch {best['epoch']} valRankIC {best['rankic']}")
 
-    np.savez_compressed(os.path.join(exp_dir, f"pred_{args.arm}.npz"),
+    np.savez_compressed(os.path.join(exp_dir, f"pred_{args.arm}{args.tag}.npz"),
                         pred=pred_from, sample_ok=sample_full,
                         dates=dates, codes=panel["codes"])
     torch.save({"state_dict": model.state_dict(), "mu": mu, "sd": sd,
@@ -271,7 +276,7 @@ def main():
     log["best_epoch"] = best["epoch"]
     log["val_rankic"] = best["rankic"]
     log["finished_at"] = datetime.now().astimezone().isoformat()
-    json.dump(log, open(os.path.join(exp_dir, f"train_log_{args.arm}.json"), "w"),
+    json.dump(log, open(os.path.join(exp_dir, f"train_log_{args.arm}{args.tag}.json"), "w"),
               indent=1)
     print(f"saved model_{args.arm}.pt / pred_{args.arm}.npz")
 

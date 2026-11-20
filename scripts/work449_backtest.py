@@ -33,7 +33,6 @@ COV_LOOKBACK = 120
 COST_MAIN_BPS = 8.0
 COST_SENS_BPS = 5.0
 RF = 0.015
-EPS_PROJ = 1e-14
 MAX_ITER = 4000
 TOL = 1e-12
 # bisection steps for the water-level projection: the bracket is halved
@@ -189,12 +188,15 @@ def main():
     ap.add_argument("--arm", required=True,
                     choices=["no_mask", "halt_only", "full_mask"])
     ap.add_argument("--solver-check-days", type=int, default=5)
+    ap.add_argument("--tag", default="",
+                    help="suffix for the output file names, e.g. '_s43'; "
+                         "empty keeps the protocol-frozen file names")
     args = ap.parse_args()
     repo = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     exp_dir = os.path.join(repo, "experiments", args.exp)
 
     panel = np.load(os.path.join(exp_dir, "panel.npz"), allow_pickle=True)
-    pred_npz = np.load(os.path.join(exp_dir, f"pred_{args.arm}.npz"),
+    pred_npz = np.load(os.path.join(exp_dir, f"pred_{args.arm}{args.tag}.npz"),
                        allow_pickle=True)
     dates = panel["dates"]
     codes = panel["codes"]
@@ -364,9 +366,9 @@ def main():
                                            if solver_check else None),
         "main": main_m, "sensitivity_5bps": sens_m,
     }
-    json.dump(out, open(os.path.join(exp_dir, f"metrics_{args.arm}.json"), "w"),
+    json.dump(out, open(os.path.join(exp_dir, f"metrics_{args.arm}{args.tag}.json"), "w"),
               indent=1)
-    np.savez_compressed(os.path.join(exp_dir, f"weights_{args.arm}.npz"),
+    np.savez_compressed(os.path.join(exp_dir, f"weights_{args.arm}{args.tag}.npz"),
                         weights=weights, dates=dates, codes=codes)
     print(json.dumps({k: v for k, v in main_m.items()
                       if k not in ("net_returns", "gross_returns")}, indent=1))

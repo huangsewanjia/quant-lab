@@ -257,11 +257,23 @@ a:hover{border-bottom-color:var(--blue)}
    （等式–箱约束的欧氏投影用二分水位法精确求），在 {{T_SOLVER_DAYS}} 个随机交易日与
    <span class="mono">scipy.optimize.minimize(method='SLSQP')</span> 交叉校验。</p>
 
-<p class="note"><b>求解器交叉校验的判读口径（显式披露，待审稿确认）。</b>两者<strong>权重</strong>最大相对差
-   <strong>{{T_SOLVER_RELDIFF}}</strong>，<strong>超过</strong>原定的 ≤1e-6 门槛；但<strong>目标函数值</strong>相对差仅
-   <strong>{{T_SOLVER_OBJRELDIFF}}</strong>。两者同时成立，说明二者落在<strong>同一个最优点</strong>，
-   权重差异来自目标函数在平坦子空间上的平移（½·H·‖δ‖² 与 SLSQP 的 ftol 同阶），不是解错了。
-   本单因此以<strong>目标函数相对差</strong>作为判读口径，并把权重口径的实测值一并披露，不做掩盖。</p>
+<p class="note"><b>求解器交叉校验：两个口径都超阈，门槛第 6 条判「未通过 / 有条件」。</b>
+   预注册 v1.0 §8 只写「相对差 ≤1e-6」而<strong>未写明分母</strong>，预注册修订 v1.4 已把两个口径写死
+   并采用<strong>合取判定</strong>（两个口径都 ≤1e-6 才算通过）。实测：
+   <strong>权重口径</strong>最大相对差 <strong>{{T_SOLVER_RELDIFF}}</strong>（<strong>{{T_SOLVER_WEIGHT_OVER}}</strong> 个抽样日实例<strong>全部超阈</strong>，
+   相当于阈值的数千倍）；<strong>目标函数口径</strong>最大相对差 <strong>{{T_SOLVER_OBJRELDIFF}}</strong>，
+   其中 <strong>{{T_SOLVER_OBJ_OVER}}</strong> 个实例<strong>同样超阈</strong>（no_mask 的 2023-12-18，1.272e-06）。
+   两个口径都超阈，<strong>不能只挑一个恰好能过的口径把这一门写成「通过」</strong>——因此本单如实标
+   <strong>未通过 / 有条件</strong>。</p>
+
+<p class="note"><b>这个缺陷会不会翻掉判词？——单独量化，结论是不会。</b>
+   权重差异来自目标函数在平坦子空间上的平移（½·H·‖δ‖² 与 SLSQP 的 ftol 同阶），
+   两个解的<strong>目标函数值几乎相同</strong>。为把「几乎相同」变成可核验的数字，本单新增
+   <span class="mono">scripts/work449_solver_materiality.py</span>：把抽样日的权重换成 SLSQP 解，
+   构造<strong>反事实收益序列</strong>（扰动只落在 t 与 t+1 两天），重算三臂 Sharpe 与 ΔSharpe。
+   实测材料性上界：{{T_SOLVER_MATERIALITY}}。
+   <strong>该上界不参与门槛判定</strong>（门槛只看上面的合取规则），它的作用是把
+   「求解器两解不一致」与「结论是否成立」这两件事分开——前者是真的，后者不受影响。</p>
 
 <p>净收益口径：<span class="mono">r_net,t = w_{t−1}ᵀr_t − c·‖w_t − w_{t−1}‖₁</span>，主口径 c = 8 bps（双边），
    另跑 5 bps 敏感性。持仓股进入涨跌停日后仍持有并赚取该日收益，但不新开仓；离开股票池且可成交者强制清零。</p>
@@ -280,7 +292,8 @@ a:hover{border-bottom-color:var(--blue)}
 <figure>
   <img src="{{FIG2}}" alt="三臂在 8bps 成本下的累计净值曲线">
   <figcaption><b>图 2｜三臂累计净值（测试段，8 bps 双边成本）。</b>曲线自 {{T_NAV_START}} 起算，
-    起点为现金、次日建仓，故首日收益为 0（三臂一致）。来源：本单回测产物
+    起点为现金、次日建仓，故首日<strong>毛收益</strong>为 0、<strong>净收益</strong>为 −8 bps（建仓成本），
+    三臂一致。来源：本单回测产物
     <span class="mono">experiments/WORK-449/weights_&lt;arm&gt;.npz</span>。</figcaption>
 </figure>
 
@@ -291,6 +304,16 @@ a:hover{border-bottom-color:var(--blue)}
    （block = 20 个交易日，块内连续、块间独立，1000 次，seed = 42），统计量是每次重采样的 ΔSharpe，
    报 95% 百分位区间。bootstrap 只跑这一套设定，不因结果不理想而改次数或块长。</p>
 
+<p class="note"><b>三处统计口径的显式披露（预注册修订 v1.4 §3）。</b>
+   ① <b>块长 20 带来的尾部截断</b>：测试段 726 个交易日、块起点 <span class="mono">726 // 20 = 36</span>，
+   可达下标仅 0..719 ⇒ <strong>尾部 6 个交易日（0.83%）在任何一次重采样中都不会被抽到</strong>；
+   年化跨度按可达比例 <span class="mono">720 / 726</span> 等比缩放。对 CI 的影响可忽略，但必须写明，
+   否则读者会以为 726 日全部可达。
+   ② <b>年化用的自然日跨度</b>：<span class="mono">end − start = 1092</span> 天（不含末日；含首尾应为 1093），
+   影响年化收益 0.09%；三臂与两档成本<strong>用同一口径</strong>
+   （<span class="mono">delta_sharpe_consistency_abs_err = 0.0</span>），不影响任何相对比较。
+   ③ <b>成本口径对 ΔSharpe 的贡献</b>：{{T_COST_MECH}}</p>
+
 <table>
   <caption><b>表 5｜主检验量与判定。</b></caption>
   <thead><tr><th>项</th><th class="num">8 bps（主判定）</th><th class="num">5 bps（敏感性）</th></tr></thead>
@@ -299,8 +322,9 @@ a:hover{border-bottom-color:var(--blue)}
 
 <figure>
   <img src="{{FIG3}}" alt="表观 IC 与可实现 Sharpe 的背离">
-  <figcaption><b>图 3｜背离的形状：表观 IC 上升、可实现 Sharpe 下降。</b>左：逐日表观 IC 的测试段均值；
-    右：可实现 Sharpe（8 bps）。论文报告的是同一形状（No mask IC 0.047 / Sharpe 1.23，
+  <figcaption><b>图 3｜背离的形状。</b>左：逐日表观 IC 的测试段均值；右：可实现 Sharpe（8 bps）。
+    箭头与标注按<strong>本单实测方向</strong>绘制：{{T_FIG3_SHAPE}}。
+    论文报告的是<strong>相反</strong>的形状（No mask IC 0.047 / Sharpe 1.23，
     Full IC 0.039 / Sharpe 1.63）。来源：本单 <span class="mono">metrics_&lt;arm&gt;.json</span> 与 arXiv:2507.07107v2 Table 11。</figcaption>
 </figure>
 
@@ -332,6 +356,18 @@ a:hover{border-bottom-color:var(--blue)}
   <tbody>{{T_GATE_ROWS}}</tbody>
 </table>
 
+<p class="note"><b>两处需要向读者说明的复算口径。</b>
+   ① <b>仓库里有两套「独立复算」实现</b>：<span class="mono">audit/audit_recompute.py</span>（既有，WORK-404 用）
+   与本单的 <span class="mono">audit/recompute_work449.py</span>。本单必须另起一份的原因：
+   WORK-404 的审计器按那单的字段契约与判据表写死，掩码定义、指标集合与面板构造都不同，
+   复用会让「独立」二字失效（同一套建模代码的错误会被同样地复制一遍）。两份实现的<strong>角色不同</strong>，
+   本单只以 <span class="mono">recompute_work449.py</span> 的结论为准，WORK-404 的判据表仍记为该单的已知缺口。
+   ② <b>复算脚本的相对差在「期望值为 0」时会退化</b>：原实现以
+   <span class="mono">max(|实测|,|期望|,1e-12)</span> 作分母，期望为 0 时任何非零实测都返回 1.0，
+   把「实测 6e-08」这种量级显示成「相对差 1.0」。现已改为：期望为 0 时按<strong>绝对差</strong>判定；
+   面板与掩码这类本就要求<strong>逐格相等</strong>的检查改走独立的精确相等分支（不放宽）；
+   因子值抽查从 suggestion <strong>升为 blocking</strong>（按绝对差对 1e-6 阈值判定）。</p>
+
 <h2><span class="num">11</span>失败、限制与已知缺口</h2>
 
 <ul>
@@ -362,15 +398,44 @@ a:hover{border-bottom-color:var(--blue)}
    信息压掉了，而不是没学会</strong>：</p>
 
 <table>
-  <caption><b>表 6｜模型能力诊断（no_mask 臂，测试段 2022-01-04 ~ 2024-12-31）。</b></caption>
+  <caption><b>表 8｜模型能力诊断（no_mask 臂，测试段 2022-01-04 ~ 2024-12-31）。</b></caption>
   <thead><tr><th>量</th><th class="num">数值</th><th>读法</th></tr></thead>
   <tbody>{{T_MODEL_ROWS}}</tbody>
 </table>
 
-<p>判读：<strong>输入因子本身有可观的截面信息</strong>（单因子 |IC| 最高 0.058、|t| 到 7.9），
-   但训练出的 MLP 的截面离散度只有标签的约 0.5%，测试段表观 IC 比闭式 OLS 基线还低约一半；
-   且它在<strong>训练目标上</strong>甚至不如一个最优常数预测器（AdjMSE 4.93e-04 vs 常数 4.32e-04）——
-   这排除了「AdjMSE 偏好常数解」的解释，指向<strong>优化没走完 / 模型类不合适</strong>。</p>
+<table>
+  <caption><b>表 9｜模型能力的可复现基线（全部由
+    <span class="mono">scripts/work449_baselines.py</span> 产出，不引用未落盘的数字）。</b>
+    基线与本单主模型用同一份快照、同一套样本切分、同一套因子。</caption>
+  <thead><tr><th>基线</th><th class="num">数值</th><th>读法</th></tr></thead>
+  <tbody>{{T_BASE_ROWS}}</tbody>
+</table>
+
+<p>判读三件事：</p>
+<ol>
+  <li><strong>输入因子本身有可观的截面信息</strong>：同一组 12 个因子的<strong>单因子</strong>测试段
+      RankIC |IC| 全距达 <strong>{{T_BASE_FACTOR_RANGE}}</strong>（中位 {{T_BASE_FACTOR_MEDIAN}}，
+      其中 <strong>{{T_BASE_FACTOR_TOP}}</strong>），闭式 OLS 基线的测试段 RankIC 为
+      <strong>{{T_BASE_OLS}}</strong>，而训练出的 MLP 只有 <strong>{{T_BASE_MLP_IC}}</strong>。
+      信号存在，是模型把它压掉了。</li>
+  <li><strong>不是「AdjMSE 偏好常数解」</strong>：训练集上的 AdjMSE = <strong>{{T_BASE_MLP_ADJMSE}}</strong>，
+      而<strong>最优常数预测器</strong>是 <strong>{{T_BASE_CONST_ADJMSE}}</strong>——模型在<strong>训练目标上</strong>甚至不如一个常数，
+      排除了「损失函数的常数吸引子」这一解释，指向<strong>优化没走完</strong>。</li>
+  <li><strong>但模型类不是问题</strong>：在协议允许的<strong>选择用数据</strong>（2021 验证段）上，
+      冻结口径的 <strong>MLP + AdjMSE 是四个配置里验证 IC 最高的一个</strong>；
+      换成线性模型反而更差。所以「MLP 选错了」不成立，
+      成立的是「<strong>这个规模的数据 + 这个训练预算下，训练结果本身不稳</strong>」。</li>
+</ol>
+
+<p class="note"><b>由此得到本单最重要的稳健性警告。</b>上表最后一列显示：<strong>同样的协议，
+   换一个 seed，测试段 IC 就会大幅移动</strong>——冻结口径的 MLP+AdjMSE 在 seed 42 / 43 上分别是
+   +0.0092 / +0.0240，线性+AdjMSE 则是 −0.0043 / −0.0443。原因不难理解：AdjMSE 的权重由
+   <span class="mono">sign(pred)·sign(target) &gt; 0</span> 决定，而预测值恰好在 0 附近时
+   <strong>符号是不连续的</strong>，于是极小的数值扰动（线程数、浮点归约顺序）就会被放大成
+   不同的训练轨迹。<br>
+   <strong>后果</strong>：主检验量 ΔSharpe 的 bootstrap 95% CI 只覆盖<strong>收益序列的抽样噪声</strong>，
+   <strong>不覆盖模型/seed 随机性</strong>。因此 ΔSharpe 的<strong>量级</strong>（+0.55）不可当作
+   精确效应量；<strong>符号是否稳健，必须靠换 seed 复跑三臂来验</strong>，本单在 §11.3 给出该检验的结果。</p>
 
 <p class="note"><b>对此本单做了什么、没做什么。</b>诊断脚本
    <span class="mono">scripts/work449_model_diagnostic.py</span> 在<strong>完全相同</strong>的数据、样本集、
@@ -405,6 +470,36 @@ a:hover{border-bottom-color:var(--blue)}
       （128 units / ~44K 参数）互相矛盾</b>，这是官方仓库内部的单源不一致，本单无法用官方侧证据自洽，
       只能用论文正文 + 参数数目自洽性裁定。冲突并列披露，不掩饰。</li>
 </ul>
+
+<h3>11.3 换 seed 复跑三臂：主检验量的符号是否稳健</h3>
+
+<p>上一节的警告是「模型/seed 随机性没有被主检验的 CI 覆盖」。本节用<strong>换 seed 复跑三臂</strong>把这件事
+   直接量出来：协议、股票池、数据、因子、组合参数、成本口径全部不变，
+   <strong>只把训练随机种子从 42 换成 43</strong>，其余一字不改。</p>
+
+<table>
+  <caption><b>表 10｜seed 43 复跑的三档结果与主检验量对照（seed 42 为协议冻结轮次）。</b></caption>
+  <thead><tr><th>项</th><th class="num">seed 42（冻结）</th><th class="num">seed 43（稳健性）</th><th>读法</th></tr></thead>
+  <tbody>{{T_SEED_ROWS}}</tbody>
+</table>
+
+<p class="note">{{T_SEED_NOTE}}</p>
+
+<h3>11.4 同 seed 重跑：协议门槛第 6 条的第二判据</h3>
+
+<p>§11.3 换的是<strong>种子</strong>（42→43），测的是<strong>种子敏感性</strong>；
+   本节重跑的是<strong>同一个种子</strong>（42→42），测的是<strong>可复现性</strong>——
+   协议 §10 门槛第 6 条写死的是后者：<em>「同 seed 重跑两次，指标一致（相对差 ≤1e-6）」</em>。
+   两者<strong>不能互相顶替</strong>，因此单列本节。协议、股票池、数据快照、因子、超参、
+   线程设置与代码全部不变，只把训练随机种子重跑一次。</p>
+
+<table>
+  <caption><b>表 11｜同 seed（42）重跑逐项比对：协议冻结轮次 vs 独立重跑轮次。</b></caption>
+  <thead><tr><th>项</th><th class="num">冻结轮次</th><th class="num">同 seed 重跑</th><th class="num">相对差</th><th>结论</th></tr></thead>
+  <tbody>{{T_RERUN_ROWS}}</tbody>
+</table>
+
+<p class="note">{{T_RERUN_NOTE}}</p>
 
 <h2><span class="num">12</span>复现命令与产物</h2>
 

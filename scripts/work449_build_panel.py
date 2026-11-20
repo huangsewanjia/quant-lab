@@ -157,6 +157,10 @@ def main():
     sb_path = os.path.join(exp_dir, "stock_basic.json")
     if os.path.exists(sb_path):
         for code, meta in json.load(open(sb_path)).items():
+            # the file also carries "_"-prefixed provenance fields that are
+            # not per-stock records -- skip anything that is not a mapping
+            if code.startswith("_") or not isinstance(meta, dict):
+                continue
             if meta.get("ipo_date"):
                 ipo_map[code] = meta["ipo_date"]
     listed = np.empty(N, dtype="datetime64[D]")

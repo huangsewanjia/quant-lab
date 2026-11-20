@@ -1,1 +1,8 @@
-{}
+{
+ "_note": "本文件不含逐股 IPO 记录：写入时为空对象，即 stock_basic 端点未取到逐股可用数据。所有 _ 前缀键为说明字段，不是股票记录（两处读取方会跳过它们）。",
+ "_source": "tushare pro stock_basic —— 未取到逐股记录（写入本文件时为空对象）；本单对 Tushare 端点的实测记录见 preregistration_v1.1.md §1 与 §3.1",
+ "_degradation_rule": "ipo_date := 该股快照首行日期（preregistration v1.1 §3.2）。对 2014 年前已上市的股票，listed > 1 年 恒成立，与真实 IPO 无差异；对 2014 年后上市的股票，快照首行即上市日，精确。",
+ "_scope_note": "建模侧 scripts/work449_build_panel.py 与审计侧 audit/recompute_work449.py 读到空的 ipo 映射，走同一条退化规则；两侧独立重建的掩码 0 格不一致。",
+ "_readers": "scripts/work449_build_panel.py, audit/recompute_work449.py（两者都按 isinstance(meta, dict) 过滤说明字段）",
+ "_stocks": {}
+}

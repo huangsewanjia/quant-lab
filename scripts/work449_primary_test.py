@@ -59,19 +59,21 @@ def calendar_days(start: str, end: str) -> int:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--exp", default="WORK-449")
+    ap.add_argument("--tag", default="",
+                    help="suffix of the metrics files, e.g. '_s43'; empty means "
+                         "the protocol-frozen seed-42 round")
     args = ap.parse_args()
     repo = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     exp_dir = os.path.join(repo, "experiments", args.exp)
 
     arms = {}
     for arm in ("no_mask", "halt_only", "full_mask"):
-        m = json.load(open(os.path.join(exp_dir, f"metrics_{arm}.json")))
+        m = json.load(open(os.path.join(exp_dir, f"metrics_{arm}{args.tag}.json")))
         arms[arm] = m
 
     def run(cost_key: str):
         a = np.array(arms["no_mask"][cost_key]["net_returns"])
         b = np.array(arms["full_mask"][cost_key]["net_returns"])
-        h = np.array(arms["halt_only"][cost_key]["net_returns"])
         meta = arms["no_mask"][cost_key]
         n_trading = int(meta["test_days"])
         cal_days = calendar_days(meta["start"], meta["end"])
@@ -130,7 +132,7 @@ def main():
     m = out["main"]
     out["verdict"] = m["verdict"]
     out["divergence_complete"] = bool(m["delta_ic"] > 0)
-    json.dump(out, open(os.path.join(exp_dir, "primary_test.json"), "w"),
+    json.dump(out, open(os.path.join(exp_dir, f"primary_test{args.tag}.json"), "w"),
               indent=1)
     print(json.dumps(out, indent=1))
 

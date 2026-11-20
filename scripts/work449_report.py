@@ -204,14 +204,27 @@ def fig_divergence(metrics, path):
         lo, hi = min(0, min(vals)), max(vals)
         pad = (hi - lo) * 0.25 or 0.1
         ax.set_ylim(lo - pad, hi + pad * 1.6)
-    axes[0].annotate("", xy=(2, ics[2]), xytext=(0, ics[0]),
+    # The two arrows encode the paper's claimed shape (no_mask: IC up, Sharpe
+    # down).  Their direction AND their wording must follow the measured data,
+    # otherwise the figure asserts something the run does not show.
+    ic_up = ics[0] > ics[2]
+    sh_down = shs[0] < shs[2]
+    axes[0].annotate("", xy=(0, ics[0]) if ic_up else (2, ics[2]),
+                     xytext=(2, ics[2]) if ic_up else (0, ics[0]),
                      arrowprops=dict(arrowstyle="->", color=MUTED, lw=1.0))
-    axes[0].text(1.0, (ics[0] + ics[2]) / 2, "IC rises\n(no_mask > full_mask)",
-                 fontsize=7.4, color=MUTED, ha="center", va="bottom")
-    axes[1].annotate("", xy=(0, shs[0]), xytext=(2, shs[2]),
+    axes[0].text(0.04, 0.94,
+                 "IC rises\n(no_mask > full_mask)" if ic_up else
+                 "IC falls\n(no_mask < full_mask)",
+                 transform=axes[0].transAxes,
+                 fontsize=7.4, color=MUTED, ha="left", va="top")
+    axes[1].annotate("", xy=(0, shs[0]) if sh_down else (2, shs[2]),
+                     xytext=(2, shs[2]) if sh_down else (0, shs[0]),
                      arrowprops=dict(arrowstyle="->", color=MUTED, lw=1.0))
-    axes[1].text(1.0, (shs[0] + shs[2]) / 2, "Sharpe falls\n(mask hurts)",
-                 fontsize=7.4, color=MUTED, ha="center", va="bottom")
+    axes[1].text(0.04, 0.36,
+                 "Sharpe falls\n(mask hurts)" if sh_down else
+                 "Sharpe rises\n(mask helps)",
+                 transform=axes[1].transAxes,
+                 fontsize=7.4, color=MUTED, ha="left", va="top")
     fig.suptitle("Divergence shape: apparent IC vs realizable Sharpe",
                  x=0.005, ha="left", fontsize=10, fontweight="bold", color=INK)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
@@ -504,40 +517,81 @@ def main():
     d["T_ST_MISS"] = str(st_miss)
     d["T_TAIL_STOCKS"] = str(tail_stocks)
     d["T_SOLVER_DAYS"] = "5"
-    d["T_SOLVER_RELDIFF"] = _fmt(
-        max((metrics[a]["solver_check_max_rel_diff"] or 0.0) for a in ARMS), 3)
-    d["T_SOLVER_OBJRELDIFF"] = _fmt(
-        max((metrics[a].get("solver_check_max_obj_rel_diff") or 0.0)
-            for a in ARMS), 3)
+    # solver cross-check: BOTH relative-difference conventions are reported in
+    # scientific notation (protocol revision v1.4 makes the verdict a
+    # conjunction over the two conventions, so neither may be hidden).
+    _sol_inst = []
+    for a in ARMS:
+        for s in metrics[a].get("solver_cross_check", []):
+            _sol_inst.append((a, s))
+    _w_max = max((s["max_rel_diff"] for _, s in _sol_inst), default=float("nan"))
+    _o_max = max((s["obj_rel_diff"] for _, s in _sol_inst), default=float("nan"))
+    _w_over = sum(1 for _, s in _sol_inst if s["max_rel_diff"] > 1e-6)
+    _o_over = sum(1 for _, s in _sol_inst if s["obj_rel_diff"] > 1e-6)
+    d["T_SOLVER_RELDIFF"] = f"{_w_max:.3e}"
+    d["T_SOLVER_OBJRELDIFF"] = f"{_o_max:.3e}"
+    d["T_SOLVER_WEIGHT_OVER"] = f"{_w_over} / {len(_sol_inst)}"
+    d["T_SOLVER_OBJ_OVER"] = f"{_o_over} / {len(_sol_inst)}"
     d["T_NAV_START"] = metrics["no_mask"]["main"]["start"]
 
-    # ---- table 6: model-capability diagnostic (section 11.1) ----
+    # ---- solver-convention materiality probe (protocol v1.4 §1.4) -------
+    _mat_path = os.path.join(exp_dir, "solver_materiality.json")
+    if os.path.exists(_mat_path):
+        _mat = json.load(open(_mat_path, encoding="utf-8"))
+        _ds = _mat.get("delta_sharpe") or {}
+        _ds5 = _mat.get("delta_sharpe_5bps") or {}
+        _repro = max((v["max_reproduce_abs_diff"]
+                      for v in _mat["arms"].values()), default=float("nan"))
+        d["T_SOLVER_MATERIALITY"] = (
+            f"探针自检显示投影梯度解<strong>逐位复现</strong>交付权重"
+            f"（最大绝对差 {_repro:.1e}），说明它重建的是同一天同一个问题；"
+            f"把抽样日换成 SLSQP 解后，8 bps 口径的 ΔSharpe 从 "
+            f"{_ds.get('delivered', float('nan')):.6f} 变为 "
+            f"{_ds.get('counterfactual', float('nan')):.6f}"
+            f"（扰动 {_ds.get('abs_perturbation', float('nan')):.3e}，"
+            f"材料性上界 {_ds.get('materiality_bound', float('nan')):.3e}，"
+            f"仅占 |ΔSharpe| 的 "
+            f"{(_ds.get('materiality_share_of_delta') or 0) * 100:.4f}%）；"
+            f"5 bps 口径下扰动 "
+            f"{_ds5.get('abs_perturbation', float('nan')):.3e}，"
+            f"占 |ΔSharpe| 的 "
+            f"{(_ds5.get('materiality_share_of_delta') or 0) * 100:.4f}%。"
+            f"两档成本下判词均<strong>未翻转</strong>。")
+    else:
+        d["T_SOLVER_MATERIALITY"] = (
+            "材料性探针产物 <span class='mono'>solver_materiality.json</span> "
+            "尚未生成；运行 "
+            "<span class='mono'>scripts/work449_solver_materiality.py</span> "
+            "后重出本报告。")
+
+    # ---- table 7: model-capability diagnostic (section 11.1) ----
     diag_path = os.path.join(exp_dir, "model_diagnostic.json")
     t6 = []
     if os.path.exists(diag_path):
         diag = json.load(open(diag_path, encoding="utf-8"))
         sm = diag["summary"]
-        frozen = sm.get("mlp+adj", {})
-        lin = sm.get("linear+adj", {})
         lab_std = diag.get("label_xsec_std_median")
 
         def add6(name, val, note):
             t6.append(f"<tr><td>{name}</td><td class='num'>{val}</td><td>{note}</td></tr>")
 
-        add6("MLP+AdjMSE（协议冻结）预测截面离散度 / 标签",
-             _fmt(frozen.get("dispersion_ratio_vs_label", float("nan")) * 100, 2) + "%",
-             "模型输出几乎是常数，截面信息被压掉")
-        add6("MLP+AdjMSE 测试段表观 IC",
-             _fmt(frozen.get("test_rankic_mean", float("nan")), 5),
-             "三臂主结果里的 no_mask 表观 IC 即此量级")
-        add6("线性 + AdjMSE 测试段表观 IC",
-             _fmt(lin.get("test_rankic_mean", float("nan")), 5),
-             "同数据 / 同样本 / 同优化设置，只把模型类换成线性")
-        add6("线性 + AdjMSE 验证段表观 IC",
-             _fmt(lin.get("val_rankic_mean", float("nan")), 5),
-             "2021 验证段是协议允许的<strong>选择用</strong>数据")
-        add6("标签截面标准差中位数", _fmt(lab_std, 5) if lab_std else "—",
-             "次日收益的横截面离散度，供对照")
+        add6("标签（次日收益）截面标准差中位数",
+             _fmt(lab_std, 5) if lab_std else "—", "对照基准")
+        order = (("mlp+adj", "MLP + AdjMSE（本单协议冻结）"),
+                 ("mlp+mse", "MLP + 纯 MSE"),
+                 ("linear+adj", "线性 + AdjMSE"),
+                 ("linear+mse", "线性 + 纯 MSE"))
+        for key, label in order:
+            if key not in sm:
+                continue
+            st = sm[key]
+            by_seed = st.get("test_rankic_mean_by_seed", {})
+            spread = (max(by_seed.values()) - min(by_seed.values())
+                      if len(by_seed) > 1 else float("nan"))
+            add6(label, f"{st['val_rankic_mean']:+.5f}",
+                 f"验证段（选择用数据）IC；测试段 IC 均值 "
+                 f"{st['test_rankic_mean']:+.5f}，两 seed 间跨度 {spread:.5f}；"
+                 f"预测截面离散度 / 标签 = {st['dispersion_ratio_vs_label'] * 100:.2f}%")
         add6("诊断脚本", "scripts/work449_model_diagnostic.py", "")
         add6("诊断产物", "experiments/WORK-449/model_diagnostic.json",
              "模型类 × 损失 × seed 的完整对照")
@@ -545,7 +599,210 @@ def main():
         t6.append("<tr><td colspan='3'>模型能力诊断产物 "
                   "<span class='mono'>model_diagnostic.json</span> 未生成；"
                   "运行 <span class='mono'>scripts/work449_model_diagnostic.py</span> 后重出本报告。</td></tr>")
+    # figure-3 caption wording must follow the measured direction
+    _ics = [metrics[a]["main"]["apparent_ic_mean"] for a in ARMS]
+    _shs = [metrics[a]["main"]["sharpe_rf1.5"] for a in ARMS]
+    _ic_txt = ("表观 IC 上升（no_mask &gt; full_mask）" if _ics[0] > _ics[2]
+               else "表观 IC <strong>下降</strong>（no_mask &lt; full_mask）")
+    _sh_txt = ("可实现 Sharpe 下降" if _shs[0] < _shs[2]
+               else "可实现 Sharpe <strong>上升</strong>")
+    d["T_FIG3_SHAPE"] = f"{_ic_txt}，但{_sh_txt}"
     d["T_MODEL_ROWS"] = "".join(t6)
+
+    # ---- reproducible baselines (scripts/work449_baselines.py) ----------
+    bl_path = os.path.join(exp_dir, "baselines.json")
+    bl = {}
+    if os.path.exists(bl_path):
+        bl = json.load(open(bl_path, encoding="utf-8"))
+        sm_fac = bl["per_factor_abs_rankic_summary"]
+        ols = bl["ols_baseline"]
+        cst = bl["best_constant_baseline"]
+        mlp_tr = bl.get("frozen_mlp_train_adjmse", {})
+        disp = bl["mlp_prediction_dispersion"]
+        # pre-computed outside the f-strings: a nested call with a string
+        # literal inside an f-string expression confuses CPython's tokenizer
+        _mlp_final = mlp_tr.get("final_epoch", float("nan"))
+        _mlp_best_loss = mlp_tr.get("best_epoch_train_loss", float("nan"))
+        _mlp_best_ep = mlp_tr.get("best_epoch")
+        d["T_BASE_ROWS"] = "".join([
+            f"<tr><td>12 个因子的测试段单因子 |RankIC| 全距</td>"
+            f"<td class='num'>{sm_fac['min']:.4f} ~ {sm_fac['max']:.4f}</td>"
+            f"<td>中位数 {sm_fac['median']:.4f}；其中 <strong>{sm_fac['n_ge_0.03']} "
+            f"个 ≥ 0.03</strong>、{sm_fac['n_le_0.0161']} 个 ≤ 0.0161"
+            f"（<b>区间下界不是 0.038</b>）</td></tr>",
+            f"<tr><td>12 因子 OLS 基线 · 测试段 RankIC</td>"
+            f"<td class='num'>{ols['test_rankic_mean']:+.5f}</td>"
+            f"<td>t = {ols['test_rankic_t']:.2f}；同口径的逐日 Pearson IC = "
+            f"{ols['test_pearson_ic_mean']:+.5f}（t = {ols['test_pearson_ic_t']:.2f}），"
+            f"两个口径都列出以免混用</td></tr>",
+            f"<tr><td>最优常数预测器（训练段最小化 AdjMSE）</td>"
+            f"<td class='num'>{cst['train_adjmse']:.6e}</td>"
+            f"<td>c = {cst['c']:+.2e}；零常数为 "
+            f"{cst['train_adjmse_zero_constant']:.6e}</td></tr>",
+            f"<tr><td>冻结口径 MLP 的训练集 AdjMSE</td>"
+            f"<td class='num'>{_mlp_final:.6e}</td>"
+            f"<td>末轮；最优轮（epoch {_mlp_best_ep}）= "
+            f"{_mlp_best_loss:.6e}；"
+            f"<b>不如最优常数 {cst['train_adjmse']:.6e}</b></td></tr>",
+            f"<tr><td>MLP 预测截面标准差 / 标签截面标准差</td>"
+            f"<td class='num'>{disp['ratio'] * 100:.2f}%</td>"
+            f"<td>预测 {disp['pred_xsec_std_median_all_test_days']:.4e} vs "
+            f"标签 {disp['label_xsec_std_median_all_test_days']:.4e}"
+            f"（全部 {len(bl['per_factor_test_rankic'])} 个因子的样本外全体日）</td></tr>",
+            f"<tr><td>产物</td><td class='num'>—</td>"
+            f"<td><span class='mono'>scripts/work449_baselines.py</span> → "
+            f"<span class='mono'>experiments/WORK-449/baselines.json</span></td></tr>",
+        ])
+    else:
+        d["T_BASE_ROWS"] = ("<tr><td colspan='3'>基线产物 "
+                            "<span class='mono'>baselines.json</span> 未生成；"
+                            "运行 <span class='mono'>scripts/work449_baselines.py</span> "
+                            "后重出本报告。</td></tr>")
+
+    # prose numbers for 11.1 -- taken from the same baselines artifact, so
+    # the text can never drift away from the table above it
+    if bl:
+        d["T_BASE_FACTOR_RANGE"] = f"{bl['per_factor_abs_rankic_summary']['min']:.4f} ~ " \
+                                    f"{bl['per_factor_abs_rankic_summary']['max']:.4f}"
+        d["T_BASE_FACTOR_MEDIAN"] = f"{bl['per_factor_abs_rankic_summary']['median']:.5f}"
+        d["T_BASE_FACTOR_TOP"] = (
+            f"{bl['per_factor_abs_rankic_summary']['n_ge_0.03']} 个 ≥ 0.03、"
+            f"{bl['per_factor_abs_rankic_summary']['n_le_0.0161']} 个 ≤ 0.0161")
+        d["T_BASE_OLS"] = (f"{bl['ols_baseline']['test_rankic_mean']:+.5f}"
+                           f"（t = {bl['ols_baseline']['test_rankic_t']:.2f}）")
+        d["T_BASE_MLP_IC"] = f"{metrics['no_mask']['main']['apparent_ic_mean']:.5f}"
+        d["T_BASE_MLP_ADJMSE"] = \
+            f"{_mlp_final:.6e}"
+        d["T_BASE_CONST_ADJMSE"] = \
+            f"{bl['best_constant_baseline']['train_adjmse']:.6e}"
+    else:
+        for _k in ("T_BASE_FACTOR_RANGE", "T_BASE_FACTOR_MEDIAN",
+                   "T_BASE_FACTOR_TOP", "T_BASE_OLS", "T_BASE_MLP_IC",
+                   "T_BASE_MLP_ADJMSE", "T_BASE_CONST_ADJMSE"):
+            d[_k] = "—"
+
+    # ---- cost-convention share of deltaSharpe (review FYI-2) -------------
+    _m8 = metrics["no_mask"]["main"]
+    _m8b = metrics["full_mask"]["main"]
+    _m5 = metrics["no_mask"]["sensitivity_5bps"]
+    _m5b = metrics["full_mask"]["sensitivity_5bps"]
+    _d8 = _m8["sharpe_rf1.5"] - _m8b["sharpe_rf1.5"]
+    _d5 = _m5["sharpe_rf1.5"] - _m5b["sharpe_rf1.5"]
+    _nm = metrics["no_mask"]["main"]
+    _fm = metrics["full_mask"]["main"]
+    _turn8 = _nm["turnover_daily_mean_two_sided"]
+    _turn8b = _fm["turnover_daily_mean_two_sided"]
+    d["T_COST_MECH"] = (
+        f"full_mask 的日均双边换手 {_turn8b:.4f} "
+        f"是 no_mask 的 {_turn8b / max(_turn8, 1e-12):.2f} 倍"
+        f"（no_mask 日均 {_turn8:.4f}）——掩码越严，换手越高、成本越高。"
+        f"8 bps 下 ΔSharpe = {_d8:+.4f}，5 bps 下 = {_d5:+.4f}，"
+        f"两者之差 {_d8 - _d5:+.4f}（占 |ΔSharpe| 的 {abs(_d8 - _d5) / abs(_d8) * 100:.0f}%）"
+        f"就是<strong>成本口径本身贡献的部分</strong>，其余来自毛收益。"
+        f"<strong>两档成本下 ΔSharpe 都为正、判词都是「未复现」</strong>，"
+        f"因此结论对成本假设稳健；读者不应把 {_d8:+.2f} 整个当作 alpha 差异。")
+
+    # ---- table 8: seed-robustness of the primary quantity ----
+    p43_path = os.path.join(exp_dir, "primary_test_s43.json")
+    t8 = []
+    if os.path.exists(p43_path):
+        p43 = json.load(open(p43_path, encoding="utf-8"))
+        m43 = p43["main"]
+        met43 = {a: json.load(open(os.path.join(exp_dir,
+                                                 f"metrics_{a}_s43.json"),
+                                        encoding="utf-8")) for a in ARMS}
+
+        def add8(name, a, b, note):
+            t8.append(f"<tr><td>{name}</td><td class='num'>{a}</td>"
+                      f"<td class='num'>{b}</td><td>{note}</td></tr>")
+
+        for arm in ARMS:
+            add8(f"表观 IC · {ARM_LABEL[arm]}",
+                 f"{m['apparent_ic_' + arm]:.5f}",
+                 f"{m43['apparent_ic_' + arm]:.5f}",
+                 "换 seed 后的移动")
+        for arm in ARMS:
+            add8(f"Sharpe · {ARM_LABEL[arm]}",
+                 f"{m['sharpe_' + arm]:.3f}",
+                 f"{m43['sharpe_' + arm]:.3f}",
+                 "换 seed 后的移动")
+        add8("ΔSharpe（主检验量）",
+             f"{m['delta_sharpe']:+.4f}",
+             f"{m43['delta_sharpe']:+.4f}",
+             "论文主张此量 &lt; 0")
+        add8("ΔSharpe 95% CI",
+             f"[{m['delta_sharpe_ci95'][0]:+.4f}, {m['delta_sharpe_ci95'][1]:+.4f}]",
+             f"[{m43['delta_sharpe_ci95'][0]:+.4f}, {m43['delta_sharpe_ci95'][1]:+.4f}]",
+             "配对 block bootstrap")
+        add8("ΔIC（辅证）",
+             f"{m['delta_ic']:+.5f}", f"{m43['delta_ic']:+.5f}", "")
+        same_sign = (m["delta_sharpe"] < 0) == (m43["delta_sharpe"] < 0)
+        d["T_SEED_NOTE"] = (
+            f"读法：两个 seed 的 ΔSharpe "
+            f"{'<strong>同号</strong>' if same_sign else '<strong>异号</strong>'}。"
+            + ("符号在换 seed 后保持不变，"
+               "<strong>「未复现」这一判词对 seed 稳健</strong>；"
+               "但两个 seed 的 ΔSharpe 差异说明效应量本身不精确，"
+               "报数时应以「符号」而非「量级」为准。"
+               if same_sign else
+               "<strong>符号在换 seed 后翻转</strong>——这意味着本单连"
+               "「背离方向是否复现」都<strong>无法判定</strong>："
+               "在 seed 42 下 ΔSharpe 为正（论文主张为负），"
+               "在 seed 43 下为负。此时正确的表述是"
+               "<strong>「本实验功效不足，符号未定」</strong>，"
+               "而不是任何一边的结论。"))
+    else:
+        t8.append("<tr><td colspan='4'>seed 43 复跑产物 "
+                  "<span class='mono'>primary_test_s43.json</span> 未生成；"
+                  "运行带 <span class='mono'>--tag _s43</span> 的训练与回测后重出本报告。</td></tr>")
+        d["T_SEED_NOTE"] = ("seed 43 复跑尚未产出，本节留空；"
+                            "主检验量的 seed 稳健性因此<strong>尚未检验</strong>。")
+    d["T_SEED_ROWS"] = "".join(t8)
+
+    # ---- table 11: same-seed (42) re-run -- protocol gate 6, 2nd criterion
+    _rr_path = os.path.join(exp_dir, "rerun_same_seed.json")
+    t9 = []
+    if os.path.exists(_rr_path):
+        _rr = json.load(open(_rr_path, encoding="utf-8"))
+        _cmp = _rr.get("comparisons", [])
+        _want = ("sharpe_rf1.5", "ann_return", "ann_vol", "max_drawdown",
+                 "turnover_two_sided_total", "apparent_ic_mean")
+        for arm in ARMS:
+            for c in _cmp:
+                if (c["item"].startswith(f"[{arm}/main] ")
+                        and c["item"].split("] ", 1)[1] in _want):
+                    t9.append(
+                        f"<tr><td>{c['item']}</td>"
+                        f"<td class='num'>{c['round_a']:.6g}</td>"
+                        f"<td class='num'>{c['round_b']:.6g}</td>"
+                        f"<td class='num'>{c['rel_diff']:.3e}</td>"
+                        f"<td><span class='tag ok'>一致</span></td></tr>")
+        _n_ok = sum(1 for c in _cmp if c["within_tolerance"])
+        t9.append(
+            f"<tr><td><b>全部比对项</b></td>"
+            f"<td class='num'>{_rr.get('n_comparisons', 0)}</td>"
+            f"<td class='num'>—</td>"
+            f"<td class='num'>{_rr.get('max_rel_diff', float('nan')):.3e}</td>"
+            f"<td><span class='tag ok'>{_n_ok}/{len(_cmp)} 在 1e-6 阈值内</span>"
+            f"</td></tr>")
+        _all_ok = bool(_rr.get("all_within_tolerance"))
+        d["T_RERUN_NOTE"] = (
+            f"协议门槛第 6 条第二判据要求「同 seed 重跑两次，指标一致（相对差 ≤1e-6）」。"
+            f"本节重跑的是<strong>同一个 seed 42</strong>（§11.3 的 seed 43 换的是种子，"
+            f"测的是种子敏感性，<strong>不能顶替本节</strong>）。"
+            f"实测 {_rr.get('n_comparisons', 0)} 项比对，最大相对差 "
+            f"{_rr.get('max_rel_diff', float('nan')):.3e}（阈值 1e-6），"
+            f"<strong>{'全部一致，该判据通过' if _all_ok else '存在超阈项，该判据未通过'}</strong>。"
+            f"产物：<span class='mono'>experiments/WORK-449/rerun_same_seed.json</span>"
+            f"（脚本 <span class='mono'>scripts/work449_rerun_check.py</span>）。")
+    else:
+        t9.append("<tr><td colspan='5'>同 seed 重跑产物 "
+                  "<span class='mono'>rerun_same_seed.json</span> 未生成；"
+                  "运行 <span class='mono'>scripts/work449_rerun_check.py --tag _r2</span> "
+                  "后重出本报告。</td></tr>")
+        d["T_RERUN_NOTE"] = ("同 seed（42）重跑尚未产出，本节留空；"
+                             "协议门槛第 6 条第二判据因此<strong>尚无证据</strong>。")
+    d["T_RERUN_ROWS"] = "".join(t9)
 
     # table 1: data & panel quality
     c = panel_stats["counts"]
@@ -688,6 +945,34 @@ def main():
 
     # table 7: gates
     t7 = []
+    # ---- gate 6 evidence: solver cross-check (both readings) + same-seed rerun
+    _sol_inst = []
+    for _a in ARMS:
+        for _s in metrics[_a].get("solver_cross_check", []) or []:
+            _sol_inst.append((_a, _s))
+    _solver_weight_max = max((s["max_rel_diff"] for _, s in _sol_inst),
+                             default=float("nan"))
+    _solver_obj_max = max((s["obj_rel_diff"] for _, s in _sol_inst),
+                          default=float("nan"))
+    _weight_over = sum(1 for _, s in _sol_inst if s["max_rel_diff"] > 1e-6)
+    _obj_over = sum(1 for _, s in _sol_inst if s["obj_rel_diff"] > 1e-6)
+    _solver_obj_over = _obj_over > 0
+    _gate6_solver_ok = (_weight_over == 0 and _obj_over == 0)
+    # same-seed rerun (protocol gate 6, second criterion): compares the
+    # protocol-frozen round (seed 42) against an independent re-run with the
+    # SAME seed 42 and the same settings.
+    _rerun_path = os.path.join(exp_dir, "rerun_same_seed.json")
+    _gate6_rerun_ok = False
+    if os.path.exists(_rerun_path):
+        _rr = json.load(open(_rerun_path, encoding="utf-8"))
+        _gate6_rerun_ok = bool(_rr.get("all_within_tolerance"))
+        _rerun_txt = (f"seed 42 重跑 {_rr.get('n_comparisons', 0)} 项，"
+                      f"最大相对差 {_rr.get('max_rel_diff', float('nan')):.3e}"
+                      f"（阈值 1e-6，{'通过' if _gate6_rerun_ok else '<b>未通过</b>'}）")
+    else:
+        _rerun_txt = ("<b>未产出证据</b>（协议要求同 seed 重跑两次并比对指标；"
+                      "本单在 §11.3 给出该复跑的实测值）")
+
     def gate(name, crit, meas, ok):
         tag = ("<span class='tag ok'>通过</span>" if ok
                else "<span class='tag no'>未通过</span>")
@@ -709,9 +994,20 @@ def main():
     gate("5 独立复算一致", "逐项相对差 ≤ 1e-6",
          f"blocking={audit['blocking']}，suggestion={audit['suggestion']}",
          audit["blocking"] == 0)
+    # gate 6 has TWO criteria and BOTH are reported; the verdict is the
+    # conjunction, so it must not be reported as "passed" while the evidence
+    # cell shows a number above the threshold.
+    _gate6_ok = _gate6_solver_ok and _gate6_rerun_ok
+    _gate6_solver_txt = (
+        f"权重口径 max_rel_diff {_solver_weight_max:.3e}"
+        f"（阈值 1e-6，<b>超阈</b>）；目标函数口径 max_obj_rel_diff "
+        f"{_solver_obj_max:.3e}"
+        + ("（<b>亦超阈</b>：no_mask 2023-12-18 实例）"
+           if _solver_obj_over else "（未超阈）")
+        + f"；同 seed 重跑 {_rerun_txt}")
     gate("6 求解器与训练可复现",
-         "QP vs SLSQP 相对差 ≤1e-6；同 seed 重跑一致",
-         f"求解器 {d['T_SOLVER_RELDIFF']}；同 seed 重跑见 §10", True)
+         "QP vs SLSQP 相对差 ≤1e-6；同 seed 重跑两次指标一致（≤1e-6）",
+         _gate6_solver_txt, _gate6_ok)
     gate("7 结论可判", "明确判词 + 三条依据 + 免责",
          f"{d['T_VERDICT']}", True)
     d["T_GATE_ROWS"] = "".join(t7)
