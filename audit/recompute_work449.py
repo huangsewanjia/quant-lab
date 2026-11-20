@@ -323,8 +323,10 @@ def main():
     # ---- 1. panel-level cross-checks (returns, masks) ----
     rng = np.random.default_rng(7)
     idx = rng.choice(rb.t * rb.n, size=min(4000, rb.t * rb.n), replace=False)
-    pi = np.array([int(k) for k in idx])
-    pj = np.array([int(k) for k in (idx % rb.n)])
+    # a flat cell index must be decomposed into (row, col) before indexing a
+    # 2-D panel -- using the flat value as a row index runs off the array.
+    pi = (idx // rb.n).astype(int)
+    pj = (idx % rb.n).astype(int)
     d_ret = 0.0
     for k in range(len(pi)):
         i, j = pi[k], pj[k]
@@ -339,7 +341,12 @@ def main():
     add("blocking", "M_exec mask equality", d_mask, 0.0,
         "fraction of cells that differ")
     for arm in ARMS:
-        d = float((rb.m[arm] != panel[f"m_{arm}"]).mean())
+        # the rebuilt panel keys masks by arm name ("no_mask"); the stored
+        # panel.npz keys them by the protocol's M_factor names (m_no/m_halt/
+        # m_full).  Map explicitly instead of f-stringing the arm name.
+        key = {"no_mask": "m_no", "halt_only": "m_halt",
+               "full_mask": "m_full"}[arm]
+        d = float((rb.m[arm] != panel[key]).mean())
         add("blocking", f"M_factor[{arm}] mask equality", d, 0.0,
             "fraction of cells that differ")
     d_rows = float((rb.has != panel["has_row"]).mean())

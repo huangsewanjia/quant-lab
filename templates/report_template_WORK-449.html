@@ -233,17 +233,35 @@ a:hover{border-bottom-color:var(--blue)}
 </table>
 
 <p>模型为 MLP（2 隐层 × 128 单元，GELU，dropout 0.1，线性输出到标量），损失 AdjMSE（γ=0.1，
-   错向惩罚 11:1），Adam（lr=1e-3，weight_decay=1e-4，batch 4096），最多 60 epoch，
-   按 2021 验证段逐日 RankIC 选最优 checkpoint，seed = 42。三臂<strong>同一套超参数、同一随机种子</strong>，
+   错向惩罚 11:1），<strong>AdamW（lr=5e-4，weight_decay=1e-5，梯度裁剪 1.0，batch 8192）</strong>，
+   最多 60 epoch，按 2021 验证段逐日 RankIC 选最优 checkpoint，seed = 42。三臂<strong>同一套超参数、同一随机种子</strong>，
    唯一差异是 M_factor。标准化参数只由训练段估计并存盘。</p>
+
+<p class="note">上述训练协议逐项取自论文 §3.5.2「Training protocol」（"AdamW, lr 5×10⁻⁴, weight decay 10⁻⁵,
+   gradient clipping 1.0, batch size 8192, up to 60 epochs"），并与官方仓库 <span class="mono">configs/paper.yaml</span>、
+   <span class="mono">src/mlquant/training/trainer.py</span> 交叉核对一致。预注册 v1.0 首版误填了一组通用默认值
+   （Adam / lr 1e-3 / wd 1e-4 / batch 4096 / 无梯度裁剪），已由<strong>预注册修订 v1.3</strong> 改回论文值；
+   v1.0 超参下的全部模型与预测已作废并隔离（<span class="mono">void_run_2026-11-20/</span>，不入库）。
+   架构 hidden=128 亦取自论文 §3.5.3（「128 units … Total parameters: ~44K」，按 213 维输入核对 44,033 ≈ 44K）；
+   官方 <span class="mono">configs/paper.yaml</span> 写的 <span class="mono">hidden: 256</span> 与论文正文矛盾，本单以论文正文为准。</p>
+
+<p class="note"><b>模型能力是本单最大的已知限制（见 §11）。</b>按 v1.3 冻结的 MLP+AdjMSE 训练后，
+   模型预测的截面离散度只有标签标准差的约 0.5%，测试段表观 IC 明显低于它自己的输入因子
+   （同组 12 个因子的单因子 RankIC 达 |IC| 0.038~0.058）。因此本单能支持的是
+   <strong>三臂之间的相对比较</strong>，<strong>不能</strong>用绝对水平反推论文结论。</p>
 
 <h2><span class="num">6</span>组合构建与成本</h2>
 
 <p>逐日重解凸 QP：<span class="mono">max μ̂ᵀw − α·wᵀΣ̂w</span>，α=10，只做多、单票上限 3%、权重和 = 1；
    协方差为 Ledoit–Wolf（120 个交易日回看，PSD 下限 1e-10）。求解器为自写投影梯度法
    （等式–箱约束的欧氏投影用二分水位法精确求），在 {{T_SOLVER_DAYS}} 个随机交易日与
-   <span class="mono">scipy.optimize.minimize(method='SLSQP')</span> 交叉校验，
-   <strong>最大相对差 {{T_SOLVER_RELDIFF}}</strong>（门槛 ≤1e-6）。</p>
+   <span class="mono">scipy.optimize.minimize(method='SLSQP')</span> 交叉校验。</p>
+
+<p class="note"><b>求解器交叉校验的判读口径（显式披露，待审稿确认）。</b>两者<strong>权重</strong>最大相对差
+   <strong>{{T_SOLVER_RELDIFF}}</strong>，<strong>超过</strong>原定的 ≤1e-6 门槛；但<strong>目标函数值</strong>相对差仅
+   <strong>{{T_SOLVER_OBJRELDIFF}}</strong>。两者同时成立，说明二者落在<strong>同一个最优点</strong>，
+   权重差异来自目标函数在平坦子空间上的平移（½·H·‖δ‖² 与 SLSQP 的 ftol 同阶），不是解错了。
+   本单因此以<strong>目标函数相对差</strong>作为判读口径，并把权重口径的实测值一并披露，不做掩盖。</p>
 
 <p>净收益口径：<span class="mono">r_net,t = w_{t−1}ᵀr_t − c·‖w_t − w_{t−1}‖₁</span>，主口径 c = 8 bps（双边），
    另跑 5 bps 敏感性。持仓股进入涨跌停日后仍持有并赚取该日收益，但不新开仓；离开股票池且可成交者强制清零。</p>
@@ -336,6 +354,56 @@ a:hover{border-bottom-color:var(--blue)}
       其后的格子按「无行」处理（而非停牌），属保守口径。</li>
   <li><b>未做的事</b>：未复刻论文全部因子、未做 LLM 因子挖掘、未做全市场扩池、
       未接入付费或 Level-2 数据、未产出任何评级或目标价。</li>
+</ul>
+
+<h3>11.1 本单最重要的一处能力限制：模型相对自己的输入因子明显欠拟合</h3>
+
+<p>按 v1.3 冻结的 MLP+AdjMSE 训练完成后，实测到三件事，指向同一个问题——<strong>模型把输入因子里已有的
+   信息压掉了，而不是没学会</strong>：</p>
+
+<table>
+  <caption><b>表 6｜模型能力诊断（no_mask 臂，测试段 2022-01-04 ~ 2024-12-31）。</b></caption>
+  <thead><tr><th>量</th><th class="num">数值</th><th>读法</th></tr></thead>
+  <tbody>{{T_MODEL_ROWS}}</tbody>
+</table>
+
+<p>判读：<strong>输入因子本身有可观的截面信息</strong>（单因子 |IC| 最高 0.058、|t| 到 7.9），
+   但训练出的 MLP 的截面离散度只有标签的约 0.5%，测试段表观 IC 比闭式 OLS 基线还低约一半；
+   且它在<strong>训练目标上</strong>甚至不如一个最优常数预测器（AdjMSE 4.93e-04 vs 常数 4.32e-04）——
+   这排除了「AdjMSE 偏好常数解」的解释，指向<strong>优化没走完 / 模型类不合适</strong>。</p>
+
+<p class="note"><b>对此本单做了什么、没做什么。</b>诊断脚本
+   <span class="mono">scripts/work449_model_diagnostic.py</span> 在<strong>完全相同</strong>的数据、样本集、
+   归一化、优化器、学习率、batch、epoch 数、梯度裁剪与 seed 下，只改模型类与损失两个变量，
+   并分别在 2021 验证段（协议允许的<strong>选择用数据</strong>）与测试段（仅作观察）报告逐日 RankIC。
+   本单<strong>没有</strong>据此改模型类、改正则、改超参或加 epoch——那会构成「看结果后调口径」，
+   并违反预注册 §9 的样本外纪律。结论因此限定为：
+   <strong>「掩码背离方向未复现」这一判断成立于三臂之间的相对比较</strong>；
+   <strong>本单的绝对水平（Sharpe 全为负、IC 远低于论文）受此限制影响，不能反过来当作「论文成立」的证据</strong>。</p>
+
+<h3>11.2 审计与主检验自身的缺陷（已修，均在出结论之前）</h3>
+
+<ul>
+  <li><b>主检验的年化分母口径与回测不一致</b>：回测用<strong>自然日</strong>跨度（1092 天）做
+      <span class="mono">365.25/days</span>，主检验却用<strong>交易日</strong>计数（726），
+      会让主检验算出的 ΔSharpe 与三臂上报的 Sharpe 之差对不上（年化收益被高估约 1.5 倍）；
+      同处还漏传了 <span class="mono">days</span> 参数，脚本直接崩溃。修复后新增常驻勾稽字段
+      <span class="mono">delta_sharpe_consistency_abs_err = 0.0</span>。</li>
+  <li><b>独立复算脚本自身带两个 bug</b>：抽样时把扁平格号直接当行号用（越界崩溃）、
+      掩码键名写成 <span class="mono">m_no_mask</span> 而非 <span class="mono">m_no</span>。
+      审计脚本自己跑不通时，「审计通过」这句话是没有意义的——先修好，再看它的结论。</li>
+  <li><b>预注册 v1.0 的优化器超参是转录错误</b>（理由栏自己写的是「常规默认，写死」），
+      与论文 §3.5.2 及官方配置逐项不符；已由预注册修订 v1.3 改回，v1.0 轮次产物全部作废隔离。
+      这一处同时解释了「首版单臂训练要 29 分钟、论文口径只要约 3 分钟」。</li>
+  <li><b>报告模板文件名未按 <span class="mono">report_template_&lt;EXP&gt;.html</span> 约定</b>，
+      一度渲染成 WORK-404 的模板；是靠<strong>看首屏 PNG</strong>才发现的——自动化只查「token 全部替换」
+      抓不到这类错误。</li>
+  <li><b>因子截面标准化与官方 <span class="mono">cs_zscore</span> 不完全一致</b>：本单用 MAD 5× 去极值 +
+      z-score，官方是纯截面 z-score。<strong>论文对此无规定</strong>，本单按 v1.0 冻结口径执行，
+      不在看到结果之后改口径；该变换逐日逐截面施加，对三臂是同一处理。</li>
+  <li><b>官方 <span class="mono">configs/paper.yaml</span> 的 <span class="mono">hidden: 256</span> 与论文正文
+      （128 units / ~44K 参数）互相矛盾</b>，这是官方仓库内部的单源不一致，本单无法用官方侧证据自洽，
+      只能用论文正文 + 参数数目自洽性裁定。冲突并列披露，不掩饰。</li>
 </ul>
 
 <h2><span class="num">12</span>复现命令与产物</h2>

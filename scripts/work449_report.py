@@ -440,6 +440,29 @@ def main():
     d["T_COMMIT"] = commit[:12]
     d["T_SNAPSHOT"] = snapshot_id
     d["T_PREREG_COMMIT"] = prereg_commit[:12]
+    # The closing sentence must follow the measured direction on BOTH axes --
+    # the paper's claim is "no_mask: apparent IC UP and realizable Sharpe DOWN".
+    _d_sharpe_neg = m["delta_sharpe"] < 0
+    _ic_up = m["delta_ic"] > 0
+    if _d_sharpe_neg and _ic_up:
+        _dir = "表观 IC 上升、可实现 Sharpe 下降的<strong>背离方向被复现</strong>"
+    elif _d_sharpe_neg and not _ic_up:
+        _dir = ("可实现 Sharpe 方向与论文一致（no_mask 更低），但<strong>表观 IC 方向"
+                "与论文相反</strong>（no_mask 更低）")
+    elif (not _d_sharpe_neg) and _ic_up:
+        _dir = ("表观 IC 方向与论文一致（no_mask 更高），但<strong>可实现 Sharpe 方向"
+                "与论文相反</strong>（no_mask 更高）")
+    else:
+        _dir = ("<strong>两个方向都与论文相反</strong>：no_mask 的表观 IC 更低"
+                "（ΔIC 为负），可实现 Sharpe 反而更高（ΔSharpe 为正）")
+    if m["ci_excludes_zero"] and _d_sharpe_neg and _ic_up:
+        _tail = _dir + "。"
+    elif m["ci_excludes_zero"]:
+        _tail = (_dir + "；且 95% CI 不含 0，"
+                 "但<strong>主检验量要求 ΔSharpe &lt; 0</strong>，方向不满足，判词为「未复现」。")
+    else:
+        _tail = (_dir + "；但 95% CI 覆盖 0，"
+                 "判词为「未复现」。")
     d["T_LEAD"] = (
         f"在 {panel_stats['codes']} 只中证 300 历史成分股、"
         f"{panel_stats['dates']['n']} 个交易日（{panel_stats['dates']['first']}"
@@ -451,10 +474,7 @@ def main():
         f"{m['sharpe_full_mask']:.3f}"
         f"（ΔSharpe = {m['delta_sharpe']:+.3f}，95% CI "
         f"[{m['delta_sharpe_ci95'][0]:.3f}, {m['delta_sharpe_ci95'][1]:.3f}]）。"
-        + ("表观 IC 上升、可实现 Sharpe 下降的<strong>背离方向被复现</strong>，"
-           "但 CI 覆盖 0，判词为「未复现」。"
-           if not m["ci_excludes_zero"] else
-           "表观 IC 上升、可实现 Sharpe 下降的背离<strong>被复现</strong>。"))
+        + _tail)
     d["T_VERDICT"] = "复现成立（进）" if m["ci_excludes_zero"] and m["delta_sharpe"] < 0 \
         else "未复现（退）"
     d["T_VERDICT_CLASS"] = "" if (m["ci_excludes_zero"] and m["delta_sharpe"] < 0) \
@@ -466,7 +486,7 @@ def main():
     d["T_DELTA_IC"] = f"{m['delta_ic']:+.4f}"
     d["T_IC_VERDICT"] = ("表观 IC 方向与论文一致（no_mask 更高）"
                           if m["delta_ic"] > 0 else
-                          "表观 IC 方向与论文相反")
+                          "表观 IC 方向与论文相反（no_mask 更低）")
     d["T_VERDICT_NOTE"] = (
         "按预注册 §9.4：ΔSharpe < 0 且 95% CI 不含 0 才判「复现成立」；"
         "两者缺一即判「未复现」，并在 §11 写明差多少与翻案需要动哪一个口径。")
@@ -474,7 +494,7 @@ def main():
                        "与论文的全 A 池存在偏离，结论只在背离方向上可比")
     d["T_DATA_CUTOFF"] = f"{panel_stats['dates']['last']}（快照覆盖至该日）"
     d["T_CODES"] = str(panel_stats["codes"])
-    d["T_POOL_LISTS"] = str(len(manifest["pool"]["effective_lists"]))
+    d["T_POOL_LISTS"] = str(manifest["pool"]["effective_lists"])
     d["T_MASK_RATE"] = _pct(panel_stats["power_check"]["full_mask_rate_test_window"], 2)
     d["T_TUSHARE_CHECK"] = (
         "Tushare daily 与 AKShare 的逐日收盘/涨跌幅在抽样窗口内一致"
@@ -486,7 +506,46 @@ def main():
     d["T_SOLVER_DAYS"] = "5"
     d["T_SOLVER_RELDIFF"] = _fmt(
         max((metrics[a]["solver_check_max_rel_diff"] or 0.0) for a in ARMS), 3)
-    d["T_NAV_START"] = "2022-01-03"
+    d["T_SOLVER_OBJRELDIFF"] = _fmt(
+        max((metrics[a].get("solver_check_max_obj_rel_diff") or 0.0)
+            for a in ARMS), 3)
+    d["T_NAV_START"] = metrics["no_mask"]["main"]["start"]
+
+    # ---- table 6: model-capability diagnostic (section 11.1) ----
+    diag_path = os.path.join(exp_dir, "model_diagnostic.json")
+    t6 = []
+    if os.path.exists(diag_path):
+        diag = json.load(open(diag_path, encoding="utf-8"))
+        sm = diag["summary"]
+        frozen = sm.get("mlp+adj", {})
+        lin = sm.get("linear+adj", {})
+        lab_std = diag.get("label_xsec_std_median")
+
+        def add6(name, val, note):
+            t6.append(f"<tr><td>{name}</td><td class='num'>{val}</td><td>{note}</td></tr>")
+
+        add6("MLP+AdjMSE（协议冻结）预测截面离散度 / 标签",
+             _fmt(frozen.get("dispersion_ratio_vs_label", float("nan")) * 100, 2) + "%",
+             "模型输出几乎是常数，截面信息被压掉")
+        add6("MLP+AdjMSE 测试段表观 IC",
+             _fmt(frozen.get("test_rankic_mean", float("nan")), 5),
+             "三臂主结果里的 no_mask 表观 IC 即此量级")
+        add6("线性 + AdjMSE 测试段表观 IC",
+             _fmt(lin.get("test_rankic_mean", float("nan")), 5),
+             "同数据 / 同样本 / 同优化设置，只把模型类换成线性")
+        add6("线性 + AdjMSE 验证段表观 IC",
+             _fmt(lin.get("val_rankic_mean", float("nan")), 5),
+             "2021 验证段是协议允许的<strong>选择用</strong>数据")
+        add6("标签截面标准差中位数", _fmt(lab_std, 5) if lab_std else "—",
+             "次日收益的横截面离散度，供对照")
+        add6("诊断脚本", "scripts/work449_model_diagnostic.py", "")
+        add6("诊断产物", "experiments/WORK-449/model_diagnostic.json",
+             "模型类 × 损失 × seed 的完整对照")
+    else:
+        t6.append("<tr><td colspan='3'>模型能力诊断产物 "
+                  "<span class='mono'>model_diagnostic.json</span> 未生成；"
+                  "运行 <span class='mono'>scripts/work449_model_diagnostic.py</span> 后重出本报告。</td></tr>")
+    d["T_MODEL_ROWS"] = "".join(t6)
 
     # table 1: data & panel quality
     c = panel_stats["counts"]
@@ -710,7 +769,11 @@ def render_preview(repo, exp_dir):
     pdoc = HTML(filename=html, media_type="print").render()
     pdoc.write_pdf(target=pdffull)
     fd = pdfium.PdfDocument(pdffull)
-    fd[0].save(pdf1)
+    # page-1-only PDF: pypdfium2 has no "page.save" -- build a new document
+    # and import page 0 into it.
+    first = pdfium.PdfDocument.new()
+    first.import_pages(fd, [0])
+    first.save(pdf1)
     print(f"preview -> {png} ({img.size[0]}x{img.size[1]})")
     print(f"print   -> {pdf1} (page 1) + {pdffull} ({len(fd)} pages)")
 
