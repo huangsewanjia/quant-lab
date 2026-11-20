@@ -48,6 +48,8 @@ li{margin-bottom:6px}
 .verdict h3{margin:0 0 8px;font-family:var(--sans);font-size:16px}
 .verdict .word{font-size:22px;font-weight:700;color:var(--teal);letter-spacing:.02em}
 .verdict.negative .word{color:var(--red)}
+.verdict .caveat{margin-top:10px;padding-top:10px;border-top:1px solid var(--rule2);
+  font-size:13.5px;line-height:1.55;color:var(--ink2)}
 figure{margin:26px 0 28px;page-break-inside:avoid}
 figure img{width:100%;height:auto;display:block;border:1px solid var(--rule2)}
 figcaption{font-family:var(--sans);font-size:12.5px;color:var(--ink2);line-height:1.65;margin-top:8px;
@@ -125,6 +127,7 @@ a:hover{border-bottom-color:var(--blue)}
      <b>[{{T_CI_LO}}, {{T_CI_HI}}]</b>，区间{{T_CI_VERDICT}}0。</p>
   <p style="margin-bottom:0"><b>辅证</b> ΔIC ≡ IC(no_mask) − IC(full_mask) = {{T_DELTA_IC}}，
      {{T_IC_VERDICT}}。{{T_VERDICT_NOTE}}</p>
+  <p class="caveat" style="margin-bottom:0">{{T_VERDICT_SEED_CAVEAT}}</p>
 </div>
 
 <figure>
@@ -500,6 +503,29 @@ a:hover{border-bottom-color:var(--blue)}
 </table>
 
 <p class="note">{{T_RERUN_NOTE}}</p>
+
+<h3>11.5 独立代码审查与本单的处理</h3>
+
+<p>实现完成后由<strong>独立第三方（Verifier 角色，非作者）</strong>做代码审查，审查报告全文入库：
+   <span class="mono">experiments/WORK-449/code_review_work449.md</span>（34.6 KB）。
+   审查方<strong>未修改任何项目文件</strong>，并独立重跑了原语测试、协方差测试、独立复算脚本，
+   还<strong>自己重写了 bootstrap</strong>（得 ΔSharpe 与 CI 与本单逐位相等，diff = 0.0）。
+   审查结论：<strong>变更层面 FAIL</strong>（发现 1–6 须处理后方可合并）、
+   <strong>研究结论层面有条件通过</strong>（「未复现」判词与全部数值经独立复现成立）。
+   逐条处置如下：</p>
+
+<table>
+  <caption><b>表 12｜独立审查发现与本单处置。</b></caption>
+  <thead><tr><th>编号</th><th>严重度</th><th>发现</th><th>本单处置</th></tr></thead>
+  <tbody>{{T_REVIEW_ROWS}}</tbody>
+</table>
+
+<p class="note"><b>有一处审查意见本单选择「并列披露」而非照单全收。</b>
+   审查方自写脚本算出的 OLS 基线与最优常数与本单口径不同（OLS RankIC +0.01000 vs 本单 +0.014628；
+   常数 AdjMSE 4.7243e-04 vs 本单 4.3197768e-04）。按预注册 v1.4 §3.3 的冲突处理规则，
+   <strong>两套口径并列披露、注明各自定义、不合成一个「综合结论」、不删改本单口径下的数字</strong>——
+   方向与结论一致（MLP 差于常数、MLP 差于 OLS、模型欠拟合），量级不同。
+   其余 1–11 号发现与 FYI-1~4 <strong>全部处理或明确披露</strong>。</p>
 
 <h2><span class="num">12</span>复现命令与产物</h2>
 

@@ -1,0 +1,13 @@
+metric,arm,paper_table11,this_study,caveat
+apparent_ic,no_mask,0.047,0.007674,factor set 12 vs 213; pool CSI300 vs all-A
+apparent_ic,halt_only,0.043,0.010639,same
+apparent_ic,full_mask,0.039,0.012092,same
+sharpe,no_mask,1.23,-0.580122,"same 8 bps cost, 3% single-name cap"
+sharpe,halt_only,1.39,-0.169843,same
+sharpe,full_mask,1.63,-1.131766,same
+max_drawdown,no_mask,22.8%,-0.250977,close-cummax
+max_drawdown,full_mask,11.4%,-0.395817,close-cummax
+ann_return,no_mask,12.1%,-0.043978,365.25-day annualisation
+ann_return,full_mask,15.8%,-0.114998,365.25-day annualisation
+delta_sharpe,no_mask_minus_full_mask,-0.40,0.551644,primary test quantity
+delta_ic,no_mask_minus_full_mask,+0.008,-0.004418,corroboration

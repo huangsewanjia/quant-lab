@@ -476,6 +476,56 @@ def main():
     else:
         _tail = (_dir + "；但 95% CI 覆盖 0，"
                  "判词为「未复现」。")
+    # ---- seed-robustness clause for the lead --------------------------------
+    # The protocol-frozen round (seed 42) fixes the verdict.  The seed-43
+    # round is additional evidence: if it flips the SIGN of deltaSharpe the
+    # lead sentence must say so, otherwise the headline would overstate.
+    _seed_clause = ""
+    _frozen_verdict = ("复现成立（进）" if m["ci_excludes_zero"] and m["delta_sharpe"] < 0
+                        else "未复现（退）")
+    d["T_VERDICT_SEED_CAVEAT"] = (
+        "换 seed（43）重跑三臂的产物尚未生成，"
+        "本判词的种子稳健性<strong>尚未检验</strong>。")
+    _p43_path = os.path.join(exp_dir, "primary_test_s43.json")
+    if os.path.exists(_p43_path):
+        _p43 = json.load(open(_p43_path, encoding="utf-8"))["main"]
+        _same = (_p43["delta_sharpe"] < 0) == (m["delta_sharpe"] < 0)
+        _ci43 = (f"[{_p43['delta_sharpe_ci95'][0]:+.4f}, "
+                 f"{_p43['delta_sharpe_ci95'][1]:+.4f}]")
+        _in43 = "不含" if _p43["ci_excludes_zero"] else "包含"
+        if _same:
+            d["T_VERDICT_SEED_CAVEAT"] = (
+                f"<b>种子稳健性（已检验）</b>：本判词按预注册 §9.4 在<strong>协议冻结轮次"
+                f"（seed 42）</strong>上机械判定。换成 seed（43）、用<strong>同一套协议、"
+                f"同一份数据、同一批因子</strong>重跑三臂后，ΔSharpe = "
+                f"{_p43['delta_sharpe']:+.4f}（95% CI {_ci43}，区间{_in43} 0），"
+                f"<strong>符号不变</strong>，判词不变。"
+                f"但两轮 ΔSharpe 的差异说明效应量本身不精确，"
+                f"报数时应以「符号」而非「量级」为准。")
+            _seed_clause = (
+                f" 换 seed（43）重跑三臂后 ΔSharpe 仍为 "
+                f"{_p43['delta_sharpe']:+.4f}，<strong>符号不变</strong>，"
+                f"该判词对随机种子稳健（量级仍不精确，见 §11.3）。")
+        else:
+            d["T_VERDICT_SEED_CAVEAT"] = (
+                f"<b>稳健性警告（必读，判词的适用范围因此受限）</b>：本判词按预注册 §9.4 "
+                f"在<strong>协议冻结轮次（seed 42）</strong>上机械判定。但换 seed（43）、"
+                f"用<strong>同一套协议、同一份数据、同一批因子</strong>重跑三臂后，"
+                f"ΔSharpe = {_p43['delta_sharpe']:+.4f}（95% CI {_ci43}，区间{_in43} 0），"
+                f"按 §9.4 的机械规则会得到<strong>相反的判词</strong>；"
+                f"两轮的 ΔSharpe 量级几乎相同而符号相反。"
+                f"这说明<strong>本实验在可实现 Sharpe 轴上功效不足：主检验量的符号"
+                f"不由数据决定，而由训练随机种子决定</strong>。因此本单能站住的结论只有两条："
+                f"① 协议冻结轮次（seed 42）的判词是「{_frozen_verdict}」；"
+                f"② <strong>表观 IC 轴的方向在两个 seed 下同为负"
+                f"（{m['delta_ic']:+.4f} / {_p43['delta_ic']:+.4f}）</strong>，"
+                f"即「去掉掩码并没有让表观 IC 上升」这一条<strong>对种子稳健</strong>；"
+                f"而可实现 Sharpe 轴<strong>不能下结论</strong>（详见 §11.3）。")
+            _seed_clause = (
+                f" <strong>但换 seed（43）重跑三臂后 ΔSharpe 变为 "
+                f"{_p43['delta_sharpe']:+.4f}，符号翻转</strong>——"
+                f"此时正确的表述是「<strong>本实验功效不足，主检验量的符号未定</strong>」，"
+                f"种子 42 的「未复现」只是协议冻结轮次的读数，不能当作稳健结论（见 §11.3）。")
     d["T_LEAD"] = (
         f"在 {panel_stats['codes']} 只中证 300 历史成分股、"
         f"{panel_stats['dates']['n']} 个交易日（{panel_stats['dates']['first']}"
@@ -487,7 +537,7 @@ def main():
         f"{m['sharpe_full_mask']:.3f}"
         f"（ΔSharpe = {m['delta_sharpe']:+.3f}，95% CI "
         f"[{m['delta_sharpe_ci95'][0]:.3f}, {m['delta_sharpe_ci95'][1]:.3f}]）。"
-        + _tail)
+        + _tail + _seed_clause)
     d["T_VERDICT"] = "复现成立（进）" if m["ci_excludes_zero"] and m["delta_sharpe"] < 0 \
         else "未复现（退）"
     d["T_VERDICT_CLASS"] = "" if (m["ci_excludes_zero"] and m["delta_sharpe"] < 0) \
@@ -556,7 +606,7 @@ def main():
             f"{_ds5.get('abs_perturbation', float('nan')):.3e}，"
             f"占 |ΔSharpe| 的 "
             f"{(_ds5.get('materiality_share_of_delta') or 0) * 100:.4f}%。"
-            f"两档成本下判词均<strong>未翻转</strong>。")
+            f"两档成本下判词均<strong>未翻转</strong>")
     else:
         d["T_SOLVER_MATERIALITY"] = (
             "材料性探针产物 <span class='mono'>solver_materiality.json</span> "
@@ -735,7 +785,16 @@ def main():
              f"[{m43['delta_sharpe_ci95'][0]:+.4f}, {m43['delta_sharpe_ci95'][1]:+.4f}]",
              "配对 block bootstrap")
         add8("ΔIC（辅证）",
-             f"{m['delta_ic']:+.5f}", f"{m43['delta_ic']:+.5f}", "")
+             f"{m['delta_ic']:+.5f}", f"{m43['delta_ic']:+.5f}",
+             "两轮同号（均为负）——这一轴的方向<strong>对种子稳健</strong>")
+        _v42 = ("复现成立（进）" if m["ci_excludes_zero"] and m["delta_sharpe"] < 0
+                else "未复现（退）")
+        _v43 = ("复现成立（进）" if m43["ci_excludes_zero"] and m43["delta_sharpe"] < 0
+                else "未复现（退）")
+        add8("按 §9.4 的机械判词",
+             f"<b>{_v42}</b>", f"<b>{_v43}</b>",
+             "同一协议、同一数据，<strong>判词相反</strong>"
+             if _v42 != _v43 else "两轮判词一致")
         same_sign = (m["delta_sharpe"] < 0) == (m43["delta_sharpe"] < 0)
         d["T_SEED_NOTE"] = (
             f"读法：两个 seed 的 ΔSharpe "
@@ -745,12 +804,20 @@ def main():
                "但两个 seed 的 ΔSharpe 差异说明效应量本身不精确，"
                "报数时应以「符号」而非「量级」为准。"
                if same_sign else
-               "<strong>符号在换 seed 后翻转</strong>——这意味着本单连"
+               "<strong>符号在换 seed 后翻转</strong>，而且<strong>两轮的 95% CI 都不含 0</strong>——"
+               f"在 seed 42 下 ΔSharpe 为 {m['delta_sharpe']:+.4f}"
+               f"（CI [{m['delta_sharpe_ci95'][0]:+.4f}, {m['delta_sharpe_ci95'][1]:+.4f}]，"
+               f"判词「未复现」），"
+               f"在 seed 43 下为 {m43['delta_sharpe']:+.4f}"
+               f"（CI [{m43['delta_sharpe_ci95'][0]:+.4f}, {m43['delta_sharpe_ci95'][1]:+.4f}]，"
+               f"判词「复现成立」）。"
+               "两轮量级几乎相同而符号相反，说明本单连"
                "「背离方向是否复现」都<strong>无法判定</strong>："
-               "在 seed 42 下 ΔSharpe 为正（论文主张为负），"
-               "在 seed 43 下为负。此时正确的表述是"
-               "<strong>「本实验功效不足，符号未定」</strong>，"
-               "而不是任何一边的结论。"))
+               "此时正确的表述是<strong>「本实验在可实现 Sharpe 轴上功效不足，"
+               "主检验量的符号不由数据决定、而由训练随机种子决定」</strong>，"
+               "而不是任何一边的结论。根因见 §11.1：AdjMSE 的权重由 "
+               "<span class='mono'>sign(pred)·sign(target) &gt; 0</span> 决定，"
+               "预测值在 0 附近符号不连续，极小的数值扰动会被放大成不同的训练轨迹。"))
     else:
         t8.append("<tr><td colspan='4'>seed 43 复跑产物 "
                   "<span class='mono'>primary_test_s43.json</span> 未生成；"
@@ -803,6 +870,56 @@ def main():
         d["T_RERUN_NOTE"] = ("同 seed（42）重跑尚未产出，本节留空；"
                              "协议门槛第 6 条第二判据因此<strong>尚无证据</strong>。")
     d["T_RERUN_ROWS"] = "".join(t9)
+
+    # ---- table 12: independent review findings and their disposition ------
+    # This is an index into experiments/WORK-449/code_review_work449.md (the
+    # reviewer's own report, committed verbatim); the disposition column is
+    # the author's answer to each finding.
+    _review_path = os.path.join(exp_dir, "code_review_work449.md")
+    _review_rows = [
+        ("1", "Critical", "远程 PR #1 落后本地 2 个 commit，按现状 clone 得到的审计脚本会崩溃、主检验口径错、模板渲染成 WORK-404",
+         "<b>已修</b>：三次 push 补齐，PR head 现与本地一致（见页首「代码提交」）"),
+        ("2", "必须改", "退出门槛第 6 条报「通过」，但实测两个口径都超 1e-6（权重 15/15，目标函数 1/15）",
+         "<b>已修</b>：预注册 v1.4 写死双口径 + 合取判定，门槛行如实标「未通过 / 有条件」，两口径一律科学计数法；"
+         "另加材料性探针（ΔSharpe 扰动 5.75e-06，占 0.0038%，判词未翻转）"),
+        ("3", "必须改", "门槛 6 第二判据（同 seed 重跑）零证据，且指引指向不存在的章节",
+         "<b>已修</b>：新增同种子重跑轮次（seed 42，tag _r2，训练侧预测逐位相同 max|Δ| = 0.0）+ 回测 + "
+         "<span class='mono'>work449_rerun_check.py</span>；报告新增 §11.4 与表 11"),
+        ("4", "必须改", "报告生成器硬编码论文的背离形状（IC 上升 / Sharpe 下降），修复只在未提交的工作区",
+         "<b>已修</b>：改为按实测方向派生并随代码提交入库；首屏 PNG 已目视复核"),
+        ("5", "必须改", "结论产物全部未入库，PR 不可自证",
+         "<b>已修</b>：metrics / primary_test / audit_findings / baselines / model_diagnostic / "
+         "solver_materiality / rerun_same_seed / report_data / 表格 全部入库"),
+        ("6", "必须改", "§11.1 三组模型能力数字无产物支撑（单因子 |IC| 区间下界写成 0.038，真实 0.0004）",
+         "<b>已修</b>：补 <span class='mono'>work449_baselines.py</span>，§11.1 与登记表的数字改为脚本产出值；"
+         "审查方自写脚本的另一套口径<strong>并列披露</strong>"),
+        ("7", "Optional", "stock_basic.json 是 2 字节空对象、无出处、无产出方",
+         "<b>已修</b>：写入出处/退化规则/范围说明；两处读取方跳过非股票记录字段"),
+        ("8", "Optional", "block bootstrap 永远抽不到最后 6 个测试日，补偿因子未说明",
+         "<b>已披露</b>：预注册 v1.4 §3.1 + 报告 §8 写明 720/726 的尾部截断与等比缩放"),
+        ("9", "Nit", "「首日收益为 0」与实测不符（净收益实为 −8.0e-04）",
+         "<b>已修</b>：改为「首日毛收益 0、净收益 −8 bps（建仓成本），三臂一致」"),
+        ("10", "Nit", "死代码（EPS_PROJ、未用的 h）与因子派发的缺模型气味",
+         "<b>已修</b>：两处死代码已删；因子派发记为已知架构气味（本单不改，动到已冻结的因子口径）"),
+        ("11", "Optional", "仓库里有两套独立的「独立复算」实现",
+         "<b>已说明</b>：报告 §10 与失败日志 §3.11c 写清分工与不复用的理由（字段契约/判据表不同，复用会削弱独立性）"),
+        ("FYI-1", "提示", "「用目标函数相对差判读」在实质上站得住，但门槛行的写法不站得住",
+         "<b>已采纳</b>：写成协议 v1.4 §1（双口径 + 合取），并新增可复现的材料性探针把「不影响判词」量化"),
+        ("FYI-2", "提示", "ΔSharpe 里有相当一块是换手×成本，但报告没有量化",
+         "<b>已采纳</b>：报告 §8 写明成本口径贡献 +0.1447（占 26%），两档成本下判词都是「未复现」"),
+        ("FYI-3", "提示", "审计脚本的 rel_diff 在 expected = 0 时退化为恒报 1.0",
+         "<b>已修</b>：改走绝对差分支；面板/掩码改精确相等分支；因子值抽查升为 blocking"),
+        ("FYI-4", "提示", "年化用 1092 自然日而非 1093",
+         "<b>已披露</b>：报告 §8 与失败日志写明口径与 0.09% 影响；两侧口径一致，不改结论"),
+    ]
+    if os.path.exists(_review_path):
+        _t12 = "".join(
+            f"<tr><td><b>{n}</b></td><td>{sev}</td><td>{what}</td><td>{act}</td></tr>"
+            for n, sev, what, act in _review_rows)
+    else:
+        _t12 = ("<tr><td colspan='4'>独立审查报告 "
+                "<span class='mono'>code_review_work449.md</span> 未入库。</td></tr>")
+    d["T_REVIEW_ROWS"] = _t12
 
     # table 1: data & panel quality
     c = panel_stats["counts"]
@@ -992,7 +1109,9 @@ def main():
     gate("4 三档指标齐全", "每档 IC/Sharpe/年化/MDD/换手 + ΔSharpe + 判词",
          "见表 4、表 5", True)
     gate("5 独立复算一致", "逐项相对差 ≤ 1e-6",
-         f"blocking={audit['blocking']}，suggestion={audit['suggestion']}",
+         f"blocking={audit['blocking']}，suggestion={audit['suggestion']}，"
+         f"{audit.get('comparisons', len(audit.get('comparisons', [])))} 项比较"
+         f"（因子值抽查已按绝对差升为 blocking）",
          audit["blocking"] == 0)
     # gate 6 has TWO criteria and BOTH are reported; the verdict is the
     # conjunction, so it must not be reported as "passed" while the evidence
