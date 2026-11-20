@@ -20,6 +20,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from datetime import datetime
 
 import numpy as np
@@ -31,9 +32,21 @@ VAL = ("2021-01-01", "2021-12-31")
 TEST = ("2022-01-01", "2024-12-31")
 SEED = 42
 EPOCHS = 60
-BATCH = 4096
-LR = 1e-3
-WD = 1e-4
+# --- training protocol: paper arXiv:2507.07107v2 §3.5.2 -------------------
+# "AdamW, lr 5e-4, weight decay 1e-5, gradient clipping 1.0, batch size 8192,
+#  up to 60 epochs, early stopping on 10% validation holdout."
+# Preregistration v1.0 transcribed a generic default set (Adam / lr 1e-3 /
+# wd 1e-4 / batch 4096 / no clipping) instead of the paper's line; that
+# transcription error is corrected by preregistration v1.3.
+BATCH = 8192
+LR = 5e-4
+WD = 1e-5
+GRAD_CLIP = 1.0
+# --- architecture: paper §3.5.3 -------------------------------------------
+# "Two hidden layers (128 units, GELU, dropout 0.1) ... Total parameters: ~44K"
+# (with the paper's 213-factor input: 213*128+128 + 128*128+128 + 128+1 = 44,033).
+# NOTE: the official repository's configs/paper.yaml says hidden: 256, which
+# contradicts the paper text (128 units / ~44K params). The paper text wins.
 HIDDEN = 128
 DROPOUT = 0.1
 GAMMA = 0.1
@@ -173,43 +186,65 @@ def main():
     Xtr = torch.from_numpy(x_all[is_tr])
     Ytr = torch.from_numpy(y_all[is_tr])
     model = MLP(K)
-    opt = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=WD)
+    # AdamW (paper §3.5.2); the official implementation uses torch.optim.AdamW
+    # with decoupled weight decay, not torch.optim.Adam.
+    opt = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WD)
 
     log = {"arm": args.arm, "seed": SEED, "epochs": EPOCHS, "batch": BATCH,
-           "lr": LR, "weight_decay": WD, "gamma": GAMMA, "hidden": HIDDEN,
+           "lr": LR, "weight_decay": WD, "grad_clip": GRAD_CLIP,
+           "gamma": GAMMA, "hidden": HIDDEN,
            "dropout": DROPOUT, "n_train": int(is_tr.sum()),
            "n_val": int(is_va.sum()), "n_test": int(is_te.sum()),
+           "optimizer": "AdamW",
            "history": []}
     best = {"rankic": -np.inf, "epoch": -1, "state": None}
     gen = torch.Generator().manual_seed(SEED)
     Xva = torch.from_numpy(x_all[is_va])
     for ep in range(EPOCHS):
+        t_ep = time.time()
         model.train()
         perm = torch.randperm(len(Xtr), generator=gen)
         tot, nb = 0.0, 0
         for i in range(0, len(Xtr), BATCH):
             b = perm[i:i + BATCH]
-            opt.zero_grad()
+            opt.zero_grad(set_to_none=True)
             loss = adj_mse(model(Xtr[b]), Ytr[b])
             loss.backward()
+            if GRAD_CLIP:
+                nn.utils.clip_grad_norm_(model.parameters(), GRAD_CLIP)
             opt.step()
             tot += float(loss)
             nb += 1
+        t_train = time.time() - t_ep
+        t_ep = time.time()
         model.eval()
         with torch.no_grad():
             pv = model(Xva).numpy()
         pgrid = np.full((T - 1, N), np.nan)
         pgrid[idx[0][is_va], idx[1][is_va]] = pv
         ric = daily_rank_ic(pgrid, label, sample_ok, va_days)
+        t_val = time.time() - t_ep
         log["history"].append({"epoch": ep, "train_loss": tot / max(nb, 1),
-                                "val_rankic": ric})
+                                "val_rankic": ric,
+                                "sec_train": round(t_train, 3),
+                                "sec_val": round(t_val, 3)})
         if ric == ric and ric > best["rankic"]:
             best = {"rankic": ric, "epoch": ep,
                     "state": {k: v.detach().clone()
                               for k, v in model.state_dict().items()}}
         if ep % 5 == 0 or ep == EPOCHS - 1:
             print(f"  ep{ep:02d} loss={tot / max(nb, 1):.6f} "
-                  f"valRankIC={ric:.4f}")
+                  f"valRankIC={ric:.4f} train={t_train:.1f}s val={t_val:.1f}s",
+                  flush=True)
+        # progress checkpoint: survives a killed run so the wall-clock cost of
+        # each epoch is auditable after the fact.
+        json.dump({"arm": args.arm, "epoch": ep, "epochs": EPOCHS,
+                   "sec_train": round(t_train, 3), "sec_val": round(t_val, 3),
+                   "val_rankic": ric, "best_epoch": best["epoch"],
+                   "best_rankic": best["rankic"],
+                   "updated_at": datetime.now().astimezone().isoformat()},
+                  open(os.path.join(exp_dir, f"train_progress_{args.arm}.json"), "w"),
+                  indent=1)
 
     if best["state"] is None:                     # no usable val signal
         best = {"rankic": None, "epoch": EPOCHS - 1,
