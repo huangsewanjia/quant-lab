@@ -1392,6 +1392,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--concurrency", type=int, default=8, help="并发数，上限 8")
     parser.add_argument("--rpm", type=float, default=195.0, help="全局请求速率（次/分钟）")
     parser.add_argument("--retries", type=int, default=2, help="单次调用失败重试次数")
+    parser.add_argument("--resume", action="store_true", help="断点续跑（默认开启）")
     parser.add_argument("--no-resume", action="store_true", help="忽略已有 manifest，重新抓取")
     parser.add_argument("--load-only", action="store_true", help="只把已有 Parquet 装入 DuckDB")
     parser.add_argument("--full-refresh", action="store_true", help="装载前清空目标表")
