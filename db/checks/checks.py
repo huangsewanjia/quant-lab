@@ -1,0 +1,409 @@
+"""Quality gates for the WORK-513 backfill.
+
+Six machine-checkable gates; the runner exits non-zero when any of them fails:
+
+  G1  every open trading day in trade_cal has a daily partition, and the row
+      count of each trading day is reconciled against the rolling median of
+      its neighbours (deviations above +-5% are listed individually);
+  G2  primary keys are unique in the Parquet layer, and every DuckDB table has
+      exactly as many rows as its Parquet partitions (a mismatch means the
+      primary key silently dropped rows on load);
+  G3  high >= max(open, close) and low <= min(open, close) on every daily row;
+  G4  adj_factor has no zero, negative or missing value;
+  G5  20 sampled trading days are compared with the Sina source (akshare),
+      tolerance 0.01 CNY on close;
+  G6  partition/manifest integrity: one manifest per partition, every sha256
+      verified, no partition without a manifest.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+from pathlib import Path
+from typing import Any
+
+import pandas as pd
+
+from ..etl import common
+
+AKSHARE_PYTHON = os.environ.get(
+    "QUANTDB_AKSHARE_PYTHON", "/home/moyongkai/mcp/akshare-one-mcp/bin/python"
+)
+
+# Long-listed, always-traded stocks used for the Sina cross-check.
+CROSSCHECK_SYMBOLS = ("sh600000", "sz000001", "sh600519", "sh601318", "sz000002")
+
+PK_DATASETS = (
+    "daily",
+    "daily_basic",
+    "adj_factor",
+    "stk_limit",
+    "suspend_d",
+    "index_daily",
+    "index_weight",
+    "income",
+    "balancesheet",
+    "cashflow",
+    "fina_indicator",
+    "dividend",
+    "namechange",
+)
+
+
+def _code_to_symbol(code: str) -> str:
+    normalised = common.normalize_ts_code(code)
+    left, right = normalised.split(".", 1)
+    return f"{right.lower()}{left}"
+
+
+# --------------------------------------------------------------------------- #
+# G1 - trading-day reconciliation
+# --------------------------------------------------------------------------- #
+
+
+def check_trading_days(con, tolerance: float = 0.05) -> tuple[bool, dict[str, Any]]:
+    # SSE and SZSE carry the same calendar; DISTINCT keeps one row per day.
+    calendar = con.execute(
+        "SELECT DISTINCT cal_date FROM trade_cal WHERE is_open = 1 ORDER BY cal_date"
+    ).fetchall()
+    open_days = [str(row[0]) for row in calendar]
+    counts = con.execute(
+        "SELECT trade_date, count(*) FROM daily GROUP BY 1 ORDER BY 1"
+    ).fetchall()
+    by_day = {str(row[0]): int(row[1]) for row in counts}
+
+    missing = [day for day in open_days if day not in by_day]
+    empty = [day for day in open_days if by_day.get(day) == 0]
+    extra = [day for day in by_day if day not in set(open_days)]
+
+    # Rolling median over +-5 trading days; a genuine data gap or a duplicated
+    # day moves the count far away from its neighbours.
+    series = pd.Series([by_day.get(day, 0) for day in open_days], index=open_days)
+    rolling = series.rolling(11, center=True, min_periods=3).median()
+    anomalies: list[dict[str, Any]] = []
+    for day in open_days:
+        count = by_day.get(day)
+        median = rolling.get(day)
+        if count is None or median is None or median == 0:
+            continue
+        deviation = abs(count - median) / median
+        if deviation > tolerance:
+            anomalies.append(
+                {
+                    "trade_date": day,
+                    "rows": count,
+                    "rolling_median": float(median),
+                    "deviation": round(float(deviation), 4),
+                }
+            )
+    anomalies.sort(key=lambda item: -item["deviation"])
+    ok = not missing and not empty and not extra and not anomalies
+    return ok, {
+        "open_trading_days": len(open_days),
+        "days_with_rows": len(by_day),
+        "missing_days": missing[:50],
+        "missing_day_count": len(missing),
+        "empty_days": empty[:50],
+        "empty_day_count": len(empty),
+        "days_not_in_calendar": extra[:50],
+        "deviation_tolerance": tolerance,
+        "anomaly_count": len(anomalies),
+        "anomalies": anomalies[:50],
+    }
+
+
+# --------------------------------------------------------------------------- #
+# G2 - primary key uniqueness and Parquet/DuckDB parity
+# --------------------------------------------------------------------------- #
+
+
+def check_primary_keys(con) -> tuple[bool, dict[str, Any]]:
+    parity: dict[str, Any] = {}
+    duplicates: dict[str, int] = {}
+
+    for dataset in PK_DATASETS:
+        files = common.partition_globs(dataset)
+        if not files:
+            parity[dataset] = {"partitions": 0, "note": "无分区"}
+            continue
+        glob = common.parquet_glob(dataset)
+        pk = [c for c in common.TABLE_PK[dataset] if c in common.canonical_columns(dataset)]
+        parquet_rows = int(
+            con.execute(
+                "SELECT count(*) FROM read_parquet(?, hive_partitioning=false)", [glob]
+            ).fetchone()[0]
+        )
+        if pk:
+            group = ",".join(str(index + 1) for index in range(len(pk)))
+            dup_count = int(
+                con.execute(
+                    "SELECT count(*) FROM ("
+                    f"SELECT {', '.join(chr(34) + c + chr(34) for c in pk)}, count(*) AS c "
+                    f"FROM read_parquet(?, hive_partitioning=false) GROUP BY {group} HAVING c > 1)",
+                    [glob],
+                ).fetchone()[0]
+            )
+        else:  # pragma: no cover - every dataset declares a primary key
+            dup_count = 0
+        table_rows = int(con.execute(f"SELECT count(*) FROM {dataset}").fetchone()[0])
+        duplicates[dataset] = dup_count
+        parity[dataset] = {
+            "parquet_rows": parquet_rows,
+            "duckdb_rows": table_rows,
+            "difference": parquet_rows - table_rows,
+            "partitions": len(files),
+            "duplicate_key_groups": dup_count,
+        }
+
+    total_dup = sum(duplicates.values())
+    mismatched = {k: v for k, v in parity.items() if v.get("difference", 0) != 0}
+    ok = total_dup == 0 and not mismatched
+    return ok, {
+        "duplicate_keys": duplicates,
+        "total_duplicate_key_groups": total_dup,
+        "row_parity": parity,
+        "mismatched_datasets": mismatched,
+    }
+
+
+# --------------------------------------------------------------------------- #
+# G3 - OHLC consistency
+# --------------------------------------------------------------------------- #
+
+_OHLC_VIOLATION = (
+    "(high IS NOT NULL AND open IS NOT NULL AND close IS NOT NULL "
+    " AND high < greatest(open, close)) "
+    "OR (low IS NOT NULL AND open IS NOT NULL AND close IS NOT NULL "
+    " AND low > least(open, close))"
+)
+
+
+def check_ohlc(con, limit: int = 20) -> tuple[bool, dict[str, Any]]:
+    total = int(con.execute("SELECT count(*) FROM daily").fetchone()[0])
+    violations = int(
+        con.execute(f"SELECT count(*) FROM daily WHERE {_OHLC_VIOLATION}").fetchone()[0]
+    )
+    samples = con.execute(
+        "SELECT ts_code, trade_date, open, high, low, close FROM daily WHERE "
+        f"{_OHLC_VIOLATION} LIMIT ?",
+        [limit],
+    ).fetchall()
+    null_rows = int(
+        con.execute(
+            "SELECT count(*) FROM daily WHERE open IS NULL OR high IS NULL "
+            "OR low IS NULL OR close IS NULL"
+        ).fetchone()[0]
+    )
+    ok = violations == 0
+    return ok, {
+        "rows_checked": total,
+        "violations": violations,
+        "violation_samples": [list(row) for row in samples],
+        "rows_with_null_ohlc": null_rows,
+    }
+
+
+# --------------------------------------------------------------------------- #
+# G4 - adjustment factors
+# --------------------------------------------------------------------------- #
+
+
+def check_adj_factor(con, limit: int = 20) -> tuple[bool, dict[str, Any]]:
+    total = int(con.execute("SELECT count(*) FROM adj_factor").fetchone()[0])
+    non_positive = int(
+        con.execute(
+            "SELECT count(*) FROM adj_factor WHERE adj_factor IS NOT NULL AND adj_factor <= 0"
+        ).fetchone()[0]
+    )
+    nulls = int(
+        con.execute("SELECT count(*) FROM adj_factor WHERE adj_factor IS NULL").fetchone()[0]
+    )
+    samples = con.execute(
+        "SELECT ts_code, trade_date, adj_factor FROM adj_factor "
+        "WHERE adj_factor IS NULL OR adj_factor <= 0 LIMIT ?",
+        [limit],
+    ).fetchall()
+    ok = non_positive == 0 and nulls == 0
+    return ok, {
+        "rows_checked": total,
+        "non_positive": non_positive,
+        "nulls": nulls,
+        "samples": [list(row) for row in samples],
+    }
+
+
+# --------------------------------------------------------------------------- #
+# G5 - cross-check against the Sina source
+# --------------------------------------------------------------------------- #
+
+
+def check_sina_crosscheck(
+    con, sample_days: int = 20, tolerance: float = 0.01
+) -> tuple[bool, dict[str, Any]]:
+    open_days = [
+        str(row[0])
+        for row in con.execute(
+            "SELECT DISTINCT cal_date FROM trade_cal WHERE is_open = 1 ORDER BY cal_date"
+        ).fetchall()
+    ]
+    if not open_days:
+        return False, {"error": "trade_cal 为空"}
+    step = max(1, len(open_days) // sample_days)
+    sampled = open_days[::step][:sample_days]
+
+    symbols = list(CROSSCHECK_SYMBOLS)
+    pairs = [[symbol, day.replace("-", "")] for symbol in symbols for day in sampled]
+
+    script = Path(__file__).with_name("sina_crosscheck.py")
+    if not Path(AKSHARE_PYTHON).exists():
+        return False, {"error": f"akshare python 不存在: {AKSHARE_PYTHON}"}
+    try:
+        completed = subprocess.run(
+            [AKSHARE_PYTHON, str(script)],
+            input=json.dumps({"pairs": pairs}),
+            capture_output=True,
+            text=True,
+            timeout=900,
+        )
+    except subprocess.TimeoutExpired:
+        return False, {"error": "akshare 交叉校验超时"}
+    if completed.returncode != 0:
+        return False, {"error": f"akshare 交叉校验失败: {completed.stderr[:400]}"}
+    try:
+        payload = json.loads(completed.stdout)
+    except json.JSONDecodeError as exc:
+        return False, {"error": f"akshare 输出无法解析: {exc}"}
+    closes = payload.get("closes") or {}
+    errors = payload.get("errors") or {}
+
+    compared = 0
+    matched = 0
+    violations: list[dict[str, Any]] = []
+    max_diff = 0.0
+    for symbol, per_day in closes.items():
+        code = common.normalize_ts_code(symbol)
+        for day, sina_close in per_day.items():
+            tushare = con.execute(
+                "SELECT close FROM daily WHERE ts_code = ? AND trade_date = ?",
+                [code, day],
+            ).fetchone()
+            if tushare is None:
+                continue
+            compared += 1
+            diff = abs(float(tushare[0]) - float(sina_close))
+            max_diff = max(max_diff, diff)
+            if diff <= tolerance:
+                matched += 1
+            else:
+                violations.append(
+                    {
+                        "ts_code": code,
+                        "trade_date": day,
+                        "tushare_close": float(tushare[0]),
+                        "sina_close": float(sina_close),
+                        "diff": round(diff, 4),
+                    }
+                )
+    ok = compared > 0 and not violations and not errors
+    return ok, {
+        "sampled_trading_days": len(sampled),
+        "sampled_dates": sampled,
+        "symbols": symbols,
+        "requested_pairs": len(pairs),
+        "compared_pairs": compared,
+        "matched_pairs": matched,
+        "pairs_missing_in_sina": len(pairs) - compared,
+        "tolerance": tolerance,
+        "max_abs_diff": round(max_diff, 6),
+        "violations": violations[:20],
+        "source_errors": errors,
+    }
+
+
+# --------------------------------------------------------------------------- #
+# G6 - partition / manifest integrity
+# --------------------------------------------------------------------------- #
+
+
+def check_manifest_integrity(datasets: list[str]) -> tuple[bool, dict[str, Any]]:
+    details: dict[str, Any] = {}
+    bad = 0
+    for dataset in datasets:
+        partitions = common.list_partitions(dataset)
+        files = common.partition_globs(dataset)
+        missing_file = 0
+        hash_mismatch = 0
+        unreadable_manifest = 0
+        for partition in partitions:
+            meta = common.read_manifest(dataset, partition)
+            if not meta:
+                unreadable_manifest += 1
+                continue
+            path = common.QDB_HOME / str(meta.get("file", ""))
+            if not path.exists():
+                missing_file += 1
+                continue
+            if path.stat().st_size != int(meta.get("bytes", -1)):
+                hash_mismatch += 1
+                continue
+            if common.sha256_file(path) != meta.get("sha256"):
+                hash_mismatch += 1
+        on_disk = {
+            path.parent.name.split("=", 1)[1]
+            for path in common.RAW_DIR.glob(f"{dataset}/*/part.parquet")
+        }
+        without_manifest = sorted(on_disk - set(partitions))
+        bad += missing_file + hash_mismatch + unreadable_manifest + len(without_manifest)
+        details[dataset] = {
+            "partitions": len(files),
+            "manifests": len(partitions),
+            "missing_file": missing_file,
+            "hash_mismatch": hash_mismatch,
+            "unreadable_manifest": unreadable_manifest,
+            "partitions_without_manifest": len(without_manifest),
+            "examples_without_manifest": without_manifest[:10],
+        }
+    return bad == 0, {"bad_total": bad, "datasets": details}
+
+
+# --------------------------------------------------------------------------- #
+# runner
+# --------------------------------------------------------------------------- #
+
+
+def run_all(
+    datasets: list[str] | None = None,
+    sample_days: int = 20,
+    tolerance: float = 0.01,
+) -> tuple[bool, dict[str, Any]]:
+    datasets = datasets or list(common.TABLE_PK)
+    report: dict[str, Any] = {"generated_at": common.utc_now()}
+    gates = [
+        ("G1_trading_day_reconciliation", None),
+        ("G2_primary_keys_and_parity", None),
+        ("G3_ohlc_consistency", None),
+        ("G4_adj_factor_positive", None),
+        ("G5_sina_crosscheck", None),
+        ("G6_manifest_integrity", None),
+    ]
+    with common.duckdb_connect(read_only=True) as con:
+        bound = {
+            "G1_trading_day_reconciliation": lambda: check_trading_days(con),
+            "G2_primary_keys_and_parity": lambda: check_primary_keys(con),
+            "G3_ohlc_consistency": lambda: check_ohlc(con),
+            "G4_adj_factor_positive": lambda: check_adj_factor(con),
+            "G5_sina_crosscheck": lambda: check_sina_crosscheck(
+                con, sample_days=sample_days, tolerance=tolerance
+            ),
+            "G6_manifest_integrity": lambda: check_manifest_integrity(datasets),
+        }
+        for name, _ in gates:
+            try:
+                ok, detail = bound[name]()
+            except Exception as exc:  # noqa: BLE001
+                ok, detail = False, {"error": f"{type(exc).__name__}: {exc}"}
+            report[name] = {"pass": bool(ok), **detail}
+    report["all_pass"] = all(report[name]["pass"] for name, _ in gates)
+    return report["all_pass"], report

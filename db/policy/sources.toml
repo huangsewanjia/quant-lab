@@ -1,0 +1,62 @@
+# 白名单政策源。只允许这六个机关的官方站点。
+# list_type:
+#   json     - 列表是一个 JSON 数组（gov.cn）
+#   html     - 列表是静态 HTML，按 link_regex 抽 <a>
+#   miit_api - 工信部站内搜索 JSON API
+[[source]]
+id = "gov"
+name = "中国政府网"
+agency = "国务院"
+list_type = "json"
+list_url = "https://www.gov.cn/zhengce/zuixin/ZUIXINZHENGCE.json"
+base_url = "https://www.gov.cn"
+content_selectors = ["#UCAP-CONTENT", ".pages_content", ".trs_editor_view"]
+
+[[source]]
+id = "pbc"
+name = "中国人民银行"
+agency = "中国人民银行"
+list_type = "html"
+list_url = "http://www.pbc.gov.cn/goutongjiaoliu/113456/113469/index.html"
+base_url = "http://www.pbc.gov.cn"
+link_regex = "/goutongjiaoliu/113456/113469/[0-9]+/index\\.html"
+content_selectors = ["td.content", ".content", "#zoom", ".TRS_Editor"]
+
+[[source]]
+id = "csrc"
+name = "中国证监会"
+agency = "中国证监会"
+list_type = "html"
+list_url = "http://www.csrc.gov.cn/csrc/c100028/common_list.shtml"
+base_url = "http://www.csrc.gov.cn"
+link_regex = "/csrc/c[0-9]+/c[0-9]+/content\\.shtml"
+content_selectors = [".detail-news", ".main", ".content"]
+
+[[source]]
+id = "ndrc"
+name = "国家发展改革委"
+agency = "国家发展改革委"
+list_type = "html"
+list_url = "https://www.ndrc.gov.cn/xxgk/zcfb/fzggwl/"
+base_url = "https://www.ndrc.gov.cn/xxgk/zcfb/fzggwl/"
+link_regex = "(?:\\./)?20[0-9]{4}/t20[0-9]{6}_[0-9]+\\.html"
+content_selectors = [".article", ".article_l", ".TRS_Editor", ".content"]
+
+[[source]]
+id = "mof"
+name = "财政部"
+agency = "财政部"
+list_type = "html"
+list_url = "https://www.mof.gov.cn/zhengwuxinxi/caizhengxinwen/"
+base_url = "https://www.mof.gov.cn/zhengwuxinxi/caizhengxinwen/"
+link_regex = "(?:\\./)?20[0-9]{4}/t20[0-9]{6}_[0-9]+\\.htm"
+content_selectors = [".TRS_Editor", ".my_doccontent", ".box_content"]
+
+[[source]]
+id = "miit"
+name = "工业和信息化部"
+agency = "工业和信息化部"
+list_type = "miit_api"
+list_url = "https://www.miit.gov.cn/search-front-server/api/search/info?websiteid=110000000000000&category=51&cateid=51&depth=0&scope=basic&q=&pg=1&p=1&pos=&begin=&end=&dateField=deploytime&selectFields=title,url,deploytime,columnname&group=distinct&level=6&sortFields="
+base_url = "https://www.miit.gov.cn"
+content_selectors = [".article", ".TRS_Editor", ".article-content", ".content", "#content"]
