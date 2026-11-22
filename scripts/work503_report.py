@@ -754,9 +754,15 @@ def build_html(d, repo, exp_dir, fig_dir):
 ../env/.venv/bin/python -u scripts/work503_check_integrity.py
 ../env/.venv/bin/python -u scripts/work503_check_lookahead.py
 
+# 判定逻辑的边界单测（判词带边界、两种符号口径的等价性、SR bootstrap 非退化）
+../env/.venv/bin/python -u scripts/work503_test_verdict.py
+
 # 训练（四档 × 2 种子 + GRU 基线）
 bash scripts/work503_train_all.sh 42 4 6
 bash scripts/work503_train_all.sh 2024 4 6
+
+# 同种子复跑留证（--out-suffix 保证不覆盖正式产物，sha256 记入 reproducibility_check.json）
+../env/.venv/bin/python -u scripts/work503_run_arms.py --arm no_vq --seed 42 --epochs 6 --threads 4 --workers 1 --out-suffix _repro
 
 # 回测、独立复算与判词
 ../env/.venv/bin/python -u scripts/work503_backtest.py
@@ -771,7 +777,7 @@ bash scripts/work503_train_all.sh 2024 4 6
 <thead><tr><th>交付物</th><th>位置</th><th class="c">状态</th></tr></thead>
 <tbody>
 <tr><td>端点实测（8 个端点 + 跨源校验）</td><td><span class="mono">experiments/WORK-503/data_probe.json</span></td><td class="c"><span class="tag ok">已交付</span></td></tr>
-<tr><td>预注册（v1.0 / v1.1 / v1.2，先于回测产物）</td><td><span class="mono">experiments/WORK-503/preregistration*.md</span></td><td class="c"><span class="tag ok">已交付</span></td></tr>
+<tr><td>预注册（v1.0 / v1.1 / v1.2 / v1.3 / v1.4，先于回测产物）</td><td><span class="mono">experiments/WORK-503/preregistration*.md</span></td><td class="c"><span class="tag ok">已交付</span></td></tr>
 <tr><td>掩码契约</td><td><span class="mono">experiments/WORK-503/mask_contract.md</span></td><td class="c"><span class="tag ok">已交付</span></td></tr>
 <tr><td>数据快照清单</td><td><span class="mono">experiments/WORK-503/snapshot_manifest*.json</span></td><td class="c"><span class="tag ok">已交付</span></td></tr>
 <tr><td>完整性断言 I1–I5 / 前视检查 / 断言触发原文</td><td><span class="mono">integrity_check.json</span> / <span class="mono">lookahead_check.json</span> / <span class="mono">assertion_violation.txt</span></td><td class="c"><span class="tag ok">已交付</span></td></tr>
