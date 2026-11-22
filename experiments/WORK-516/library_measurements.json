@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-22T22:58:27.130062+00:00",
+ "generated_at": "2026-11-22T23:05:57.281868+00:00",
  "raw_root": "/srv/share/quantdb/raw",
  "window": {
   "lo": "20140101",
@@ -95,11 +95,19 @@
    }
   },
   "trade_cal": {
-   "SSE": 7630,
-   "SZSE": 7630
+   "partitions": 2,
+   "rows": 15260,
+   "by_partition": {
+    "SSE": 7630,
+    "SZSE": 7630
+   }
   },
   "index_classify": {
-   "SW2021": 511
+   "partitions": 1,
+   "rows": 511,
+   "by_partition": {
+    "SW2021": 511
+   }
   },
   "_segments": {
    "train_2015_2020": {
@@ -395,12 +403,25 @@
   ],
   "expected_export_rows": 10051715,
   "by_window": {
+   "full_library": {
+    "daily_rows": 15966167,
+    "rows_without_adj_factor": 1919,
+    "partitions": 5072,
+    "from": "19900101",
+    "to": "20991231",
+    "first_date": "20060104",
+    "last_date": "20261120",
+    "expected_export_rows": 15964248,
+    "share_without_adj_factor": 0.000120191652761743
+   },
    "2014_2024": {
     "daily_rows": 10053442,
     "rows_without_adj_factor": 1727,
     "partitions": 2676,
     "from": "20140101",
     "to": "20241231",
+    "first_date": "20140102",
+    "last_date": "20241231",
     "expected_export_rows": 10051715,
     "share_without_adj_factor": 0.00017178196283422134
    },
@@ -410,6 +431,8 @@
     "partitions": 2431,
     "from": "20150101",
     "to": "20241231",
+    "first_date": "20150105",
+    "last_date": "20241231",
     "expected_export_rows": 9480715,
     "share_without_adj_factor": 0.00017843570730511778
    },
@@ -419,6 +442,8 @@
     "partitions": 1462,
     "from": "20150101",
     "to": "20201231",
+    "first_date": "20150105",
+    "last_date": "20201231",
     "expected_export_rows": 4664084,
     "share_without_adj_factor": 0.0002527188713690954
    },
@@ -428,6 +453,8 @@
     "partitions": 243,
     "from": "20210101",
     "to": "20211231",
+    "first_date": "20210104",
+    "last_date": "20211231",
     "expected_export_rows": 1085240,
     "share_without_adj_factor": 0.00018886263237658288
    },
@@ -437,6 +464,8 @@
     "partitions": 726,
     "from": "20220101",
     "to": "20241231",
+    "first_date": "20220104",
+    "last_date": "20241231",
     "expected_export_rows": 3731391,
     "share_without_adj_factor": 8.253613166549606e-05
    }

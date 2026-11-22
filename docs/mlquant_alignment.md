@@ -317,13 +317,14 @@ jq '.adj_factor_row_coverage.expected_export_rows' experiments/WORK-516/library_
 | `suspend_d` | 2,431 | 330,217 | `ts_code, trade_date, suspend_timing, suspend_type` | `.row_counts.suspend_d.paper_window` |
 | `index_daily` | 2,431 | 21,976,288 | 指数行情（含 CSI All-A 基准） | `.row_counts.index_daily.paper_window` |
 | `stock_basic` | L/D/P | 5,580 / 344 / 0 | `ts_code, symbol, name, area, industry, market, list_date, act_name, act_ent_type` | `.universe.stock_basic_partition_rows` |
-| `trade_cal` | SSE/SZSE | 7,630 / 7,630 | `exchange, cal_date, is_open, pretrade_date` | `.row_counts.trade_cal` |
-| `index_classify` | SW2021 | 511 | `index_code, industry_name, level(L1=31/L2=134/L3=346), industry_code` | `.row_counts.index_classify` |
+| `trade_cal` | SSE/SZSE | 7,630 / 7,630 | `exchange, cal_date, is_open, pretrade_date` | `.row_counts.trade_cal.by_partition` |
+| `index_classify` | SW2021 | 511 | `index_code, industry_name, level(L1=31/L2=134/L3=346), industry_code` | `.row_counts.index_classify.by_partition` |
 
 > 表里**每一个行数都能用 `jq` 从 `experiments/WORK-516/library_measurements.json` 取到同值**，例如
 > `jq '.row_counts.adj_factor.paper_window.rows'` → `9969383`。日期型数据集的 `paper_window` 子对象同时带
 > `partitions` 与 `rows`（窗口 = 2015-01-01…2024-12-31）；`row_counts.<数据集>.rows` 是**含 1 年预热的
 > 2014–2024 全窗**计数，与本表的 2015–2024 口径**不是同一个数**，引用时不要混用。
+> `trade_cal` / `index_classify` 不是日期分区型，计数放在 `by_partition` 子对象里（`.rows` 是各分区之和）。
 
 **全库覆盖**：2006-01-04 → 2026-11-20，5,072 个交易日分区，`daily` 共 15,966,167 行。
 

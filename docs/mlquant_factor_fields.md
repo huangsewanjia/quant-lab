@@ -28,7 +28,7 @@
 
 | 家族 | 论文 Table 1 计数 | 代码模块 | 家族主题 | OHLCV 即可 | 需 vwap | 需 vwap+amount |
 |---|---:|---|---|---:|---:|---:|
-| `alpha_*` | 9 | `src/mlquant/features/_factors_alpha101.py` | Alpha101 子集（论文 §3.4：只取 9 条） | 9 | 0 | 0 |
+| `alpha_*` | 9 | `src/mlquant/features/_factors_alpha101.py` | Alpha101 子集（论文 §3.4 只取 9 条） | 9 | 0 | 0 |
 | `better_*` | 28 | `src/mlquant/features/_factors_better.py` | VWAP 偏离 / 量价动量 | 8 | 10 | 10 |
 | `best_*` | 21 | `src/mlquant/features/_factors_best.py` | 收盘位置（close-location）动量 | 16 | 5 | 0 |
 | `old_*` | 50 | `src/mlquant/features/_factors_old.py` | 秩相关复合（legacy alpha 信号） | 33 | 17 | 0 |

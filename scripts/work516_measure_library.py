@@ -36,10 +36,19 @@ import pyarrow.parquet as pq
 LO, HI = "20140101", "20241231"
 # Paper window and its three segments.
 PAPER_LO, PAPER_HI = "20150101", "20241231"
+# Whole-library bounds (the alternative, non-default export window).
+LIB_LO, LIB_HI = "19900101", "20991231"
 SEGMENTS = {
     "train_2015_2020": ("20150101", "20201231"),
     "val_2021": ("20210101", "20211231"),
     "test_2022_2024": ("20220101", "20241231"),
+}
+# Windows measured by the single `adj_factor` coverage pass.
+WINDOWS = {
+    "full_library": (LIB_LO, LIB_HI),
+    "2014_2024": (LO, HI),
+    "2015_2024": (PAPER_LO, PAPER_HI),
+    **{label: (lo, hi) for label, (lo, hi) in SEGMENTS.items()},
 }
 # Dates used for the point-in-time checks (proxy vs exchange band, units, etc).
 SAMPLE_DATES = [
@@ -51,12 +60,21 @@ ADJ_LIMIT_DATES = ["20150105", "20170103", "20190102", "20210104", "20230103", "
 BASE_DATE = "20241231"
 
 
+def in_window(key, lo, hi):
+    """Is a YYYYMMDD partition key inside the [lo, hi] window?
+
+    The keys are fixed-width digit strings, so lexicographic order is the same
+    as numeric order.
+    """
+    return lo <= key <= hi
+
+
 def partitions(raw, name, lo=LO, hi=HI):
     root = os.path.join(raw, name)
     out = []
     for p in os.listdir(root):
         key = p.split("=", 1)[1] if "=" in p else ""
-        if len(key) == 8 and key.isdigit() and lo <= key <= hi:
+        if len(key) == 8 and key.isdigit() and in_window(key, lo, hi):
             out.append((key, os.path.join(root, p, "part.parquet")))
     return sorted(out)
 
@@ -77,32 +95,7 @@ def file_sha256(path, chunk=1 << 20):
     return h.hexdigest()
 
 
-def full_library_export_rows(raw):
-    """Export row counts for the *whole* library (not just the 2014-2024 window).
-
-    Same per-date set difference as `adj_factor_row_coverage`, but over every
-    `daily` partition, so the alternative full-library export window quoted in
-    the documents is measured rather than estimated.
-    """
-    ps = partitions(raw, "daily", "19900101", "20991231")
-    total = 0
-    missing = 0
-    for key, f in ps:
-        dcodes = set(pq.read_table(f, columns=["ts_code"])["ts_code"].to_pylist())
-        apath = os.path.join(raw, "adj_factor", f"trade_date={key}", "part.parquet")
-        acodes = set(pq.read_table(apath, columns=["ts_code"])["ts_code"].to_pylist())
-        total += len(dcodes)
-        missing += len(dcodes - acodes)
-    return {
-        "rows_without_adj_factor": missing,
-        "expected_export_rows": total - missing,
-        "share_without_adj_factor": missing / total if total else 0.0,
-        "first_date": ps[0][0] if ps else None,
-        "last_date": ps[-1][0] if ps else None,
-    }
-
-
-def row_counts(raw):
+def row_counts(raw, coverage):
     res = {}
     for name in ("daily", "adj_factor", "daily_basic", "stk_limit",
                  "suspend_d", "index_daily"):
@@ -121,15 +114,19 @@ def row_counts(raw):
         }
     # Catalogue datasets are not date-partitioned: report their per-partition
     # row counts directly, so every row count quoted in the docs stays
-    # retrievable from this artefact.
+    # retrievable from this artefact. Same shape as the dated datasets.
     for name in ("trade_cal", "index_classify"):
         root = os.path.join(raw, name)
-        res[name] = {}
+        if not os.path.isdir(root):
+            continue
+        by_part = {}
         for part in sorted(os.listdir(root)):
             path = os.path.join(root, part, "part.parquet")
             if os.path.exists(path):
                 key = part.split("=", 1)[1] if "=" in part else part
-                res[name][key] = pq.ParquetFile(path).metadata.num_rows
+                by_part[key] = pq.ParquetFile(path).metadata.num_rows
+        res[name] = {"partitions": len(by_part), "rows": sum(by_part.values()),
+                     "by_partition": by_part}
     # segments
     segs = {}
     for label, (lo, hi) in SEGMENTS.items():
@@ -138,11 +135,18 @@ def row_counts(raw):
         segs[label] = {"partitions": len(ps), "rows": rows,
                        "from": lo, "to": hi}
     res["_segments"] = segs
-    # full library
-    ps = partitions(raw, "daily", "19900101", "20991231")
-    rows = sum(pq.ParquetFile(f).metadata.num_rows for _, f in ps)
-    res["_full_library"] = {"partitions": len(ps), "rows": rows}
-    res["_full_library"].update(full_library_export_rows(raw))
+    # Full library: same rows as the metadata count, plus the export coverage
+    # measured by the single `adj_factor` coverage pass.
+    fl = coverage["by_window"]["full_library"]
+    res["_full_library"] = {
+        "partitions": fl["partitions"],
+        "rows": fl["daily_rows"],
+        "rows_without_adj_factor": fl["rows_without_adj_factor"],
+        "expected_export_rows": fl["expected_export_rows"],
+        "share_without_adj_factor": fl["share_without_adj_factor"],
+        "first_date": fl["first_date"],
+        "last_date": fl["last_date"],
+    }
     return res
 
 
@@ -152,7 +156,7 @@ def universe(raw):
     for key, f in partitions(raw, "daily", LO, HI):
         c = pq.read_table(f, columns=["ts_code"])["ts_code"].to_pylist()
         codes_full.update(c)
-        if PAPER_LO <= key <= PAPER_HI:
+        if in_window(key, PAPER_LO, PAPER_HI):
             codes.update(c)
     sb = {}
     for p in ("D", "L", "P"):
@@ -353,29 +357,35 @@ def adj_factor_row_coverage(raw):
     missing = 0
     dates_with_missing = 0
     worst = []
-    windows = {
-        "2014_2024": (LO, HI),
-        "2015_2024": (PAPER_LO, PAPER_HI),
-        **{label: (lo, hi) for label, (lo, hi) in SEGMENTS.items()},
-    }
     win = {k: {"daily_rows": 0, "rows_without_adj_factor": 0,
-               "partitions": 0, "from": lo, "to": hi}
-           for k, (lo, hi) in windows.items()}
-    for key, f in partitions(raw, "daily", LO, HI):
+               "partitions": 0, "from": lo, "to": hi,
+               "first_date": None, "last_date": None}
+           for k, (lo, hi) in WINDOWS.items()}
+    for key, f in partitions(raw, "daily", LIB_LO, LIB_HI):
         dcodes = set(pq.read_table(f, columns=["ts_code"])["ts_code"].to_pylist())
         apath = os.path.join(raw, "adj_factor", f"trade_date={key}", "part.parquet")
-        acodes = set(pq.read_table(apath, columns=["ts_code"])["ts_code"].to_pylist())
+        # A day with no `adj_factor` partition at all loses every row, exactly
+        # like a day whose rows are individually missing a factor.
+        if os.path.exists(apath):
+            acodes = set(pq.read_table(apath, columns=["ts_code"])["ts_code"].to_pylist())
+        else:
+            acodes = set()
         gap = dcodes - acodes
-        total += len(dcodes)
-        missing += len(gap)
-        for k, (lo, hi) in windows.items():
-            if lo <= key <= hi:
+        for k, (lo, hi) in WINDOWS.items():
+            if in_window(key, lo, hi):
                 win[k]["daily_rows"] += len(dcodes)
                 win[k]["rows_without_adj_factor"] += len(gap)
                 win[k]["partitions"] += 1
-        if gap:
-            dates_with_missing += 1
-            worst.append({"date": key, "missing": len(gap), "daily_rows": len(dcodes)})
+                if win[k]["first_date"] is None:
+                    win[k]["first_date"] = key
+                win[k]["last_date"] = key
+        if in_window(key, LO, HI):
+            total += len(dcodes)
+            missing += len(gap)
+            if gap:
+                dates_with_missing += 1
+                worst.append({"date": key, "missing": len(gap),
+                              "daily_rows": len(dcodes)})
     worst.sort(key=lambda x: -x["missing"])
     for k in win:
         win[k]["expected_export_rows"] = (win[k]["daily_rows"]
@@ -432,18 +442,22 @@ def main():
         print(f"raw library not found: {args.raw}", file=sys.stderr)
         return 2
 
+    # The coverage pass walks every `daily` partition once; the row counts
+    # reuse its per-window buckets instead of re-reading the library.
+    coverage = adj_factor_row_coverage(args.raw)
+
     art = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "raw_root": args.raw,
         "window": {"lo": LO, "hi": HI},
         "paper_window": {"lo": PAPER_LO, "hi": PAPER_HI},
-        "row_counts": row_counts(args.raw),
+        "row_counts": row_counts(args.raw, coverage),
         "universe": universe(args.raw),
         "adj_factor": adj_factor_stats(args.raw),
         "unit_check_vwap": unit_check(args.raw),
         "limit_proxy_vs_exchange_band": proxy_vs_exchange_band(args.raw),
         "adjusted_limit_fidelity": adjusted_limit_fidelity(args.raw),
-        "adj_factor_row_coverage": adj_factor_row_coverage(args.raw),
+        "adj_factor_row_coverage": coverage,
         "model_parameter_counts": model_parameter_counts(),
     }
 
