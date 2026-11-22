@@ -213,7 +213,7 @@ def main(argv: list[str] | None = None) -> int:
                 params.append(_date_arg(args.ann_before))
             query = (
                 f"SELECT * FROM {args.table} WHERE {' AND '.join(clauses)} "
-                "ORDER BY end_date, ann_date"
+                "ORDER BY end_date, ann_date, dup_seq"
             )
             run_sql(con, _param_sql(query, params), limit=limit, fmt=fmt, out=out)
     finally:

@@ -192,6 +192,14 @@ $PY -m pytest db/tests -q
 G5 的新浪源用 `stock_zh_a_hist_sina`（新浪），一次请求取回个股全历史，因此 20 个交易日 × 5 只股票只需 5 次上游请求。
 交叉校验方向是「tushare 服务端 ↔ 本机源」，符合数据源路由纪律。
 
+**空数据不判通过**：G1/G2/G3/G4/G6 在「表是空的」或「数据集一个分区都没有」时一律判 FAIL——缺数据不是数据干净。
+
+### 本轮闸门实测结果
+
+<!-- gates:begin -->
+（待跑：回填完成后由 `finalize.sh` 写入）
+<!-- gates:end -->
+
 ---
 
 ## 6. 单位与口径
@@ -244,4 +252,27 @@ G5 的新浪源用 `stock_zh_a_hist_sina`（新浪），一次请求取回个股
 
 ## 9. 交付统计
 
-见文末「交付统计」小节（由 `python -m db.etl.stats` 生成）。
+由 `python -m db.etl.stats` 生成（分区数 / manifest 数 / 行数 / 字节 / 空分区 / 上游调用 / 上游耗时）：
+
+<!-- stats:begin -->
+| 数据集 | 接口 | 拉法 | 分区键 | 分区数 | manifest | 行数 | 字节 | 空分区 | 上游调用 | 调用报错 | 上游耗时 |
+|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| trade_cal | `trade_cal` | calendar | exchange= | 2 | 2 | 15,260 | 114,321 | 0 | 6 | 0 | 2 s |
+| stock_basic | `stock_basic` | stock_basic | status= | 3 | 3 | 5,924 | 213,454 | 1 | 7 | 0 | 2 s |
+| daily | `daily` | range | trade_date= | 5072 | 5072 | 15,966,167 | 694,116,859 | 0 | 5,459 | 0 | 794 s |
+| daily_basic | `daily_basic` | range | trade_date= | 5072 | 5072 | 15,875,303 | 1,694,222,643 | 0 | 5,636 | 0 | 874 s |
+| adj_factor | `adj_factor` | range | trade_date= | 361 | 361 | 499,786 | 4,206,601 | 0 | 215 | 0 | 19 s |
+| index_daily | `index_daily` | trade_date | trade_date= | 0 | 0 | 0 | 0 | 0 | 4 | 0 | 1 s |
+| stk_limit | `stk_limit` | range | trade_date= | 0 | 0 | 0 | 0 | 0 | 4 | 0 | 0 s |
+| suspend_d | `suspend_d` | range | trade_date= | 0 | 0 | 0 | 0 | 0 | 4 | 0 | 0 s |
+| income | `income` | financial | ts_code= | 0 | 0 | 0 | 0 | 0 | 46 | 0 | 4 s |
+| balancesheet | `balancesheet` | financial | ts_code= | 0 | 0 | 0 | 0 | 0 | 45 | 0 | 4 s |
+| cashflow | `cashflow` | financial | ts_code= | 0 | 0 | 0 | 0 | 0 | 45 | 0 | 4 s |
+| fina_indicator | `fina_indicator` | financial | ts_code= | 0 | 0 | 0 | 0 | 0 | 46 | 0 | 5 s |
+| dividend | `dividend` | per_code | ts_code= | 0 | 0 | 0 | 0 | 0 | 8 | 0 | 1 s |
+| namechange | `namechange` | namechange | ts_code= | 0 | 0 | 0 | 0 | 0 | 8 | 0 | 0 s |
+| index_weight | `index_weight` | index_weight | index_code= | 0 | 0 | 0 | 0 | 0 | 4 | 0 | 0 s |
+| index_classify | `index_classify` | classify | src= | 1 | 1 | 511 | 12,753 | 0 | 5 | 0 | 1 s |
+| **合计** | | | | **10,511** | | **32,362,951** | **2,392,886,631** | | **11,542** | **0** | **1711 s** |
+
+<!-- stats:end -->
