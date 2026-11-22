@@ -61,3 +61,6 @@ Thumbs.db
 
 # ---- WORK-449 作废轮次产物（协方差缺陷修复前的运行结果，不作证据） ----
 experiments/WORK-449/void_run_*/
+
+# ---- 上游模型 checkpoint（体积大，可由训练脚本重建） ----
+vendor/PRISM-VQ/checkpoints/
