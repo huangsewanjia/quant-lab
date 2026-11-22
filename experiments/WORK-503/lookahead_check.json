@@ -3,7 +3,7 @@
  "max_feat_abs_diff": 1.9268062514399276e-06,
  "feature_date_mismatches": 0,
  "prior_max_abs_diff": 2.799620782756307e-06,
- "label_max_abs_diff": 0.0,
+ "label_max_abs_diff": 3.7194826107977974e-09,
  "samples": [
   {
    "instrument": "sh601997",
@@ -44,7 +44,7 @@
  ],
  "prior_checked": 1971865,
  "prior_mismatches": 0,
- "label_checked": 0,
+ "label_checked": 125,
  "label_mismatches": 0,
  "passed": true
 }
