@@ -543,6 +543,40 @@ def benchmark_series(market: Market, pit: pd.DataFrame, test_dates) -> dict:
     return {"equal_weight": np.asarray(ew), "cap_weighted": np.asarray(cw)}
 
 
+def index_series(data_dir: str, test_dates) -> tuple[list, np.ndarray]:
+    """Daily returns of the real CSI300 index (price index) from the snapshot.
+
+    The index file is `data/WORK-503/index_sh000300.csv`, cross-checked
+    field-by-field against the Tushare MCP probe (data_probe.json, E7:
+    close 3277.129 / open 3281.6692 on 2024-01-10, identical to 1e-6).
+
+    Why the index itself and not a self-built cap-weighted basket: CSI300 is
+    **free-float** weighted, and the PIT roster's index weights were not
+    available (the probe returned a single row for one stock on one date) and
+    no float-market-cap field exists in the fundamentals snapshot (only
+    bvps).  The fallback therefore degenerated to **total** market cap, and
+    the resulting basket is NOT the index: measured over the test window it
+    returned +9.5% while the index returned -20.0%, with a daily-return
+    correlation of 0.98 — the whole gap is the weighting definition (the
+    largest contributors are the big SOEs: PetroChina, ABC, ICBC, BOC,
+    Shenhua, which happened to rally through 2022-2024).
+    """
+    path = os.path.join(data_dir, "index_sh000300.csv")
+    if not os.path.exists(path):
+        return [], np.asarray([])
+    df = pd.read_csv(path, usecols=["date", "close"])
+    df["date"] = pd.to_datetime(df["date"].astype(str).str[:10])
+    df = df.set_index("date").sort_index()
+    ret = df["close"].pct_change()
+    dates, vals = [], []
+    for d in test_dates:
+        k = pd.Timestamp(d)
+        if k in ret.index and np.isfinite(ret.loc[k]):
+            dates.append(k)
+            vals.append(float(ret.loc[k]))
+    return dates, np.asarray(vals, dtype="float64")
+
+
 def benchmark_stats(port: np.ndarray, bench: np.ndarray) -> dict:
     """Excess return / IR / tracking error between a portfolio and a benchmark."""
     n = min(len(port), len(bench))
@@ -601,13 +635,26 @@ def main():
             if not td.empty:
                 td.to_parquet(os.path.join(exp_dir, "preds", f"{key}_trades.parquet"))
             # benchmark-adjusted alpha
-            bm = benchmark_series(market, pit, sorted(daily["datetime"].unique()))
+            test_dates = sorted(daily["datetime"].unique())
+            bm = benchmark_series(market, pit, test_dates)
+            idx_dates, idx_rets = index_series(data_dir, test_dates)
             for nm, arr in bm.items():
                 r[f"alpha_{nm}"] = benchmark_stats(
                     daily["ret"].to_numpy(), arr)
-            pd.DataFrame({"datetime": sorted(daily["datetime"].unique()),
+            if len(idx_rets):
+                # align the portfolio returns to the index dates
+                mp = dict(zip(pd.to_datetime(daily["datetime"]), daily["ret"]))
+                port_al = np.asarray([mp[d] for d in idx_dates])
+                r["alpha_index"] = benchmark_stats(port_al, idx_rets)
+                r["alpha_index"]["benchmark"] = "CSI300 指数（000300.SH，价格指数）"
+            r["alpha_equal_weight"]["benchmark"] = "PIT 名单等权（自建）"
+            r["alpha_cap_weighted"]["benchmark"] = (
+                "PIT 名单总市值加权（自建；非指数口径，指数为自由流通市值加权）")
+            pd.DataFrame({"datetime": test_dates,
                           "equal_weight": bm["equal_weight"],
-                          "cap_weighted": bm["cap_weighted"]}).to_parquet(
+                          "cap_weighted": bm["cap_weighted"],
+                          "index": idx_rets if len(idx_rets) else
+                          np.full(len(test_dates), np.nan)}).to_parquet(
                 os.path.join(exp_dir, "preds", f"{key}_bench.parquet"))
             results[key] = r
             print(f"{key}: RankIC {r['rankic']:.4f} ICIR {r['rankicir']:.4f} "
