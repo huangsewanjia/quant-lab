@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Portable wrapper: QUANTDB_PYTHON overrides the venv interpreter.
+set -euo pipefail
+PY="${QUANTDB_PYTHON:-/home/moyongkai/.venvs/quantdb/bin/python}"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+export PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}"
+exec "$PY" -m db.ql "$@"

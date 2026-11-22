@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WORK-513 交付说明：可增量更新的 A 股数据底座</title>
+<style>
+:root { --ink:#161616; --muted:#5b5b5b; --rule:#d8d8d8; --teal:#0B6E99; --orange:#C46B2E; --paper:#ffffff; }
+* { box-sizing:border-box; }
+body { margin:0; background:#f4f4f1; color:var(--ink); font-family:"Helvetica Neue",Arial,"Noto Sans CJK SC","Microsoft YaHei",sans-serif; line-height:1.72; }
+.page { max-width:980px; margin:0 auto; background:var(--paper); padding:46px 58px 52px; }
+h1 { font-size:30px; line-height:1.25; margin:0 0 8px; letter-spacing:0; }
+h2 { font-size:20px; margin:34px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--rule); }
+h3 { font-size:15px; margin:22px 0 8px; }
+p { margin:8px 0 12px; }
+.sub { color:var(--muted); font-size:15px; margin-bottom:20px; }
+.meta { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; border-top:2px solid var(--ink); border-bottom:1px solid var(--rule); padding:12px 0; font-size:12px; color:var(--muted); }
+.meta b { color:var(--ink); display:block; font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+.abstract { background:#f7f9f9; border-left:3px solid var(--teal); padding:14px 16px; margin:18px 0 8px; }
+.abstract p { margin:4px 0; }
+table { width:100%; border-collapse:collapse; margin:10px 0 6px; font-size:12px; }
+th { text-align:left; background:#eef3f4; border-top:1px solid var(--ink); border-bottom:1px solid var(--ink); padding:7px; font-weight:600; }
+td { border-bottom:1px solid var(--rule); padding:7px; vertical-align:top; }
+tr:nth-child(even) td { background:#fafafa; }
+.ok { color:#2f6b3a; font-weight:600; }
+.warn { color:#9a4e1e; font-weight:600; }
+figure { margin:18px 0 16px; }
+figure img { width:100%; height:auto; border:1px solid #e3e3e3; }
+figcaption { font-size:11.5px; color:var(--muted); margin-top:6px; }
+figcaption b { color:var(--ink); }
+pre { background:#f6f6f6; border:1px solid #e2e2e2; padding:10px 12px; overflow:auto; font-size:11.5px; line-height:1.5; }
+code { font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace; }
+.two { display:grid; grid-template-columns:1fr 1fr; gap:22px; }
+.flow { display:flex; flex-wrap:nowrap; align-items:stretch; gap:6px; margin:14px 0 10px; }
+.step { flex:1 1 0; min-width:0; border:1px solid var(--rule); border-top:3px solid var(--teal); padding:8px 8px; background:#fbfcfc; }
+.step b { display:block; font-size:12px; line-height:1.35; }
+.step small { display:block; color:var(--muted); font-size:10.5px; line-height:1.4; }
+.arrow { align-self:center; color:#888; font-size:14px; }
+.note { font-size:12px; color:var(--muted); }
+.tag { display:inline-block; border:1px solid var(--rule); padding:1px 7px; margin-right:5px; font-size:11px; color:var(--muted); }
+footer { border-top:1px solid var(--rule); margin-top:34px; padding-top:12px; font-size:11px; color:var(--muted); }
+@media (max-width:720px) { .page { padding:26px 18px; } .meta { grid-template-columns:1fr 1fr; } .two { grid-template-columns:1fr; } .flow { flex-wrap:wrap; } .arrow { display:none; } .step { flex:1 1 44%; } h1 { font-size:24px; } }
+@media print { body { background:#fff; } .page { max-width:none; padding:0; } h2 { break-after:avoid; } figure, table { break-inside:avoid; } }
+</style>
+</head>
+<body><main class="page">
+<h1>WORK-513 交付说明：可增量更新的 A 股数据底座</h1>
+<p class="sub">P0 日频优先；目录、schema、ETL 骨架、质量闸、ql、政策采集与单股端到端冒烟</p>
+<div class="meta">
+  <div><b>Issue</b>WORK-513</div>
+  <div><b>基线 SHA</b><code>78e5b5e</code></div>
+  <div><b>交付 SHA</b><code>{{SHA}}</code></div>
+  <div><b>生成时间</b>{{GENERATED}}（Asia/Shanghai）</div>
+</div>
+
+<div class="abstract">
+<p><b>结论。</b>本单交付了一套可运行的本地数据底座：15 张 P0 表的 DuckDB schema、按交易日分区的 Parquet 原始层、带 sha256 manifest 的增量 ETL、6 项质量闸、只读 <code>ql</code>、六源政策采集，以及一条无 token 的单股冒烟。</p>
+<p><b>证据。</b>600000.SH 20 年 4,808 个交易日完成 raw→manifest→DuckDB→ql 全链路；14 项单测通过；质量闸 6 项 PASS；政策 5 篇入库、6 条按规则记缺。</p>
+<p><b>边界。</b>没有拉全市场，也没有使用 Tushare token；全市场回填需要 token 到位后另开任务。</p>
+</div>
+
+<h2>1. 做了什么</h2>
+<p>代码落在 <code>quant-lab/db/</code>，数据落在 <code>/srv/share/quantdb/</code>。交付按 issue 的 10 项验收逐一对应：</p>
+{{REQ_TABLE}}
+
+<h3>1.1 分层与数据流</h3>
+<div class="flow" role="img" aria-label="quantdb 数据流">
+  <div class="step"><b>Tushare / 新浪</b><small>上游行情与财务调用</small></div>
+  <div class="arrow">→</div>
+  <div class="step"><b>限流、重试、日志</b><small>默认 9 rpm；每次调用写 JSONL</small></div>
+  <div class="arrow">→</div>
+  <div class="step"><b>Parquet L0</b><small>按 trade_date 分区，只追加</small></div>
+  <div class="arrow">→</div>
+  <div class="step"><b>Manifest</b><small>行数、字节数、sha256</small></div>
+  <div class="arrow">→</div>
+  <div class="step"><b>DuckDB L1</b><small>15 表 schema，主键 upsert</small></div>
+  <div class="arrow">→</div>
+  <div class="step"><b>ql / checks</b><small>只读查询与独立质量闸</small></div>
+</div>
+<p class="note">图 1 · quantdb 数据流。上游调用先经过限流、重试与调用日志；原始层按交易日分区写 Parquet，并为每个分区写行数与 sha256 manifest；DuckDB 只读查询由 ql 承担，质量闸独立复算。</p>
+<p>L0 只追加；L1 用主键 upsert。分区 manifest 是断点与审计的共同依据：manifest、文件、字节数、sha256 四项都匹配才跳过。DuckDB 的溢写目录固定到 <code>/srv/share/quantdb/staging/tmp</code>，避免写满 SSD。</p>
+
+<h3>1.2 schema 与口径</h3>
+<p><code>db/schema.sql</code> 覆盖 <code>trade_cal</code>、<code>stock_basic</code>、<code>daily</code>、<code>adj_factor</code>、<code>daily_basic</code>、<code>stk_limit</code>、<code>suspend_d</code>、<code>index_daily</code>、<code>index_weight</code>、<code>income</code>、<code>balancesheet</code>、<code>cashflow</code>、<code>fina_indicator</code>、<code>dividend</code>、<code>namechange</code>。主键、单位注释与 PIT 列都在 schema 内，不依赖外部约定。</p>
+<p><span class="tag">复权</span>只存原始 <code>close</code> 与 <code>adj_factor</code>，复权在查询期计算。</p>
+<p><span class="tag">PIT</span>财务表保留 <code>ann_date</code> 与 <code>f_ann_date</code>，回测按公告日入样。</p>
+<p><span class="tag">退市</span><code>stock_basic</code> 取 L/D/P；<code>daily</code> 落盘后不按当前在市过滤。</p>
+
+<h2>2. 怎么验证</h2>
+<h3>2.1 单股冒烟</h3>
+<figure>
+<img alt="600000.SH close and volume" src="data:image/png;base64,{{PRICE_IMG}}">
+<figcaption><b>图 2 | 600000.SH 原始收盘与成交量。</b>{{PRICE_CAPTION}}</figcaption>
+</figure>
+{{METRICS_TABLE}}
+<p>单交易日调用与 20 年序列的最后一天逐字段一致：开、高、低、收、量、额全部为 <code>true</code>。这说明两条新浪通道返回在入库口径上对齐。</p>
+
+<h3>2.2 ql 回显</h3>
+<pre>$ python -m db.ql sql "SELECT count(*) AS rows FROM daily WHERE ts_code = '600000.SH'"
+{{QL_COUNT}}</pre>
+<p>默认最多 200 行；本次 2020 年查询触发截断提示，符合规格。完整结果可用 <code>--out</code> 写出。</p>
+
+<h3>2.3 质量闸与测试</h3>
+{{GATE_TABLE}}
+<p>测试覆盖分区幂等、断点续跑、manifest 校验、<code>ql</code> 行数上限、schema 完整性、PIT 列、单位注释、政策双时间轴。实测 <b>14 passed</b>。</p>
+
+<h2>3. 政策采集</h2>
+<p>六源白名单配置在 <code>db/policy/sources.toml</code>。只有 <code>publish_date</code> 与 <code>effective_date</code> 都齐全的条目才写正文和 meta；缺一写入 <code>policy/missing/YYYYMMDD.jsonl</code>，不把新闻稿冒充政策。同文按正文 sha256 去重。</p>
+<figure>
+<img alt="policy collection outcome" src="data:image/png;base64,{{POLICY_IMG}}">
+<figcaption><b>图 3 | 六源政策采集结果。</b>本轮每源最多处理 2 条，用于验证抓取、正文抽取、双时间轴与去重链路；不是全量政策库。</figcaption>
+</figure>
+{{POLICY_TABLE}}
+<h3>3.1 入库样例</h3>
+{{DOC_TABLE}}
+<p class="note">说明：gov.cn 的完整发文机关/文号元数据块位于正文容器之外，本轮部分文号只抓到正文中的“第 848 号”。字段非空，但完整“国令第 848 号”需要在后续版本补元数据块解析。</p>
+
+<h2>4. 怎么回滚</h2>
+<div class="two">
+<div>
+<h3>代码</h3>
+<p><code>git revert &lt;sha&gt;</code>，然后重跑 <code>pytest db/tests -q</code> 与 <code>python -m db.checks.run all</code>。</p>
+<h3>DuckDB</h3>
+<p>停止写入，备份 <code>/srv/share/quantdb/db/quantdb.duckdb</code>；删除后执行 <code>init-db</code> 与 <code>load --full-refresh</code>，从 raw 重建。raw 不被 ETL 删除。</p>
+</div>
+<div>
+<h3>raw 分区</h3>
+<p>按 manifest 的 sha256 定位异常分区，重拉该分区覆盖。manifest 与文件不一致时 ETL 不会跳过。</p>
+<h3>政策</h3>
+<p>删除 <code>policy/&lt;source&gt;/&lt;sha16&gt;/</code> 与 <code>index.json</code> 对应条目，重跑采集；不影响行情库。</p>
+</div>
+</div>
+
+<h2>5. 遗留与需要确认</h2>
+<table>
+<thead><tr><th>事项</th><th>状态</th><th>影响</th></tr></thead>
+<tbody>
+<tr><td>全市场历史回填</td><td class="warn">未做</td><td>需要 Tushare token；本单按 issue 要求不拉全市场。</td></tr>
+<tr><td>定时空备</td><td class="warn">未启用</td><td>RUNBOOK 给了 rsync 命令；是否加 cron/systemd timer 需要用户确认。</td></tr>
+<tr><td>政策文号完整性</td><td class="warn">部分</td><td>gov.cn 元数据块未解析，部分文号退化为“第 N 号”。</td></tr>
+<tr><td>政策全量覆盖</td><td class="warn">未做</td><td>本轮每源 2 条验证链路，不是全量历史政策库。</td></tr>
+<tr><td>1 分钟线</td><td>不在范围</td><td>按 issue 只做 P0 日频；1 分钟线约 57 GB，另开任务。</td></tr>
+</tbody>
+</table>
+
+<h2>6. 结论</h2>
+<p>本单把“取数、落盘、校验、查询、政策”串成了一条可复跑的最小链路。它不是全市场数据仓库，但已经把后续全量回填需要的目录、schema、口径、质量门和查询接口固定下来。下一步最有价值的工作是 token 到位后做全市场回填，并在真实全量数据上重跑 6 项质量闸。</p>
+
+<h2>附录 A · 绝对路径</h2>
+<pre>主库          /srv/share/quantdb
+L0 raw        /srv/share/quantdb/raw/&lt;dataset&gt;/trade_date=YYYYMMDD/data.parquet
+manifest      /srv/share/quantdb/meta/&lt;dataset&gt;/&lt;partition&gt;.json
+L1 DuckDB     /srv/share/quantdb/db/quantdb.duckdb
+政策          /srv/share/quantdb/policy/
+日志          /srv/share/quantdb/logs/fetch-YYYYMMDD.jsonl
+溢写          /srv/share/quantdb/staging/tmp
+冷备          /srv/backup/quantdb/
+venv          /home/moyongkai/.venvs/quantdb
+token          /home/moyongkai/.config/quantdb/tushare.token
+akshare       /home/moyongkai/mcp/akshare-one-mcp/bin/python</pre>
+
+<h2>附录 B · 复跑命令</h2>
+<pre>cd /srv/data/multica/workspaces/workspace-c8faa36a018a/work-513-4f411958f723/workdir/quant-lab
+export PYTHONPATH="$PWD"
+PY=/home/moyongkai/.venvs/quantdb/bin/python
+$PY -m pytest db/tests -q
+$PY -m db.etl.smoke_sina --code 600000.SH --years 20
+$PY -m db.checks.run all
+$PY -m db.policy.fetch_policy --source all --max-items 2
+db/bin/ql daily --code 600000.SH --start 20200101 --end 20201231</pre>
+
+<footer>WORK-513 · 交付 SHA <code>{{SHA}}</code> · 生成于 {{GENERATED}} · 数据路径与命令均为本机实测</footer>
+</main></body></html>
