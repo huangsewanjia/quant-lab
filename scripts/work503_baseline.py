@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import random
 import sys
 import time
 
@@ -65,6 +66,7 @@ def main():
     torch.set_num_threads(args.threads)
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
+    random.seed(args.seed)
 
     from work503_run_arms import Work503Dataset, _ffill_bfill
 

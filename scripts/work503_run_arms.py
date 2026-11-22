@@ -227,6 +227,15 @@ def main():
     from dataset.dataset import init_data_loader
     import pytorch_lightning as pl
 
+    # The seed has to initialise the global RNGs BEFORE the model is built and
+    # before the per-day batch order is drawn.  Upstream stage2.py does the
+    # same (`seed_everything(cfg.train.seed)` + `pl.seed_everything(...,
+    # workers=True)`); without it the "seed" would only label an unseeded
+    # random draw and the run could not be reproduced from the seed.
+    from utils import seed_everything
+    seed_everything(args.seed)
+    pl.seed_everything(args.seed, workers=True)
+
     sample_index = pd.read_parquet(os.path.join(ds_dir, "sample_index.parquet"))
     sample_index["datetime"] = pd.to_datetime(sample_index["datetime"])
     segs = {}
