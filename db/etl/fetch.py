@@ -396,6 +396,57 @@ class Fetcher:
         """True once the slice budget is used up (the run resumes from disk)."""
         return self.deadline is not None and time.monotonic() >= self.deadline
 
+    def run_bounded(self, items: list[str], handle: Callable[[str], None], label: str) -> None:
+        """Run ``handle`` over ``items`` in bounded batches, honouring the budget.
+
+        Submitting every task up front and then breaking out of the result loop
+        does NOT stop the work: the executor's ``shutdown(wait=True)`` drains
+        the queue, so a slice that was supposed to end after 8 minutes kept
+        running - and kept spending upstream calls - until the whole dataset
+        was done.
+        """
+        if not items:
+            return
+        if self.concurrency <= 1:
+            for item in items:
+                if self.expired():
+                    print(f"[slice] 时间预算用尽，剩余{label}留给下一次续跑", flush=True)
+                    return
+                handle(item)
+            return
+        batch_size = max(self.concurrency * 4, self.concurrency)
+        pending = list(items)
+        with ThreadPoolExecutor(max_workers=self.concurrency) as pool:
+            while pending:
+                if self.expired():
+                    print(f"[slice] 时间预算用尽，剩余{label}留给下一次续跑", flush=True)
+                    return
+                batch = pending[:batch_size]
+                pending = pending[len(batch):]
+                futures = {pool.submit(handle, item): item for item in batch}
+                for future in as_completed(futures):
+                    future.result()
+
+    def resumable(self, dataset: str, partition: str) -> bool:
+        """True when the partition is complete AND belongs to this run window.
+
+        A narrow run (--start/--end) writes partitions whose content only
+        covers that window. Resuming them for a wider study window would
+        silently keep the narrow data for good, so the window is recorded in
+        the manifest and a mismatch forces a re-fetch.
+        """
+        if not self.resume:
+            return False
+        if not common.manifest_ok(dataset, partition):
+            return False
+        if dataset not in common.WINDOW_SCOPED_DATASETS:
+            return True
+        meta = common.read_manifest(dataset, partition) or {}
+        window = meta.get("study_window")
+        if window is None:
+            return True
+        return list(window) == [self.start, self.end]
+
     def _density(self) -> ListingDensity | None:
         """Listing-density estimator used to size the window splits."""
         if self._listing_density is None:
@@ -754,12 +805,12 @@ class Fetcher:
                         "tushare",
                         extra_meta={
                             "query": {"start_date": run[0], "end_date": run[-1]},
-                            "empty": True,
+                            "empty_upstream": True,
                         },
                     )
                     progress.bump()
                 except Exception as exc:  # noqa: BLE001
-                    on_failure(trade_date, exc)
+                    on_failure(trade_date, trade_date, exc)
         common.append_failures(failures, spec.name)
         common.clear_failures(spec.name, written)
         print(progress.summary(), flush=True)
@@ -790,6 +841,24 @@ class Fetcher:
                     return
                 cap = ROW_CAPS.get(spec.api)
                 truncated = bool(cap and len(frame) >= cap)
+                if truncated:
+                    # The response reached the upstream row cap, so rows may be
+                    # missing. The partition must not be published as complete.
+                    with lock:
+                        failures.append(
+                            {
+                                "dataset": spec.name,
+                                "partition": trade_date,
+                                "error": f"响应触到上游行数上限({len(frame)}>= {cap})，可能截断",
+                            }
+                        )
+                    progress.bump(failed=True)
+                    print(
+                        f"[fail] {spec.name} {trade_date}: 响应触到行数上限，可能截断",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                    return
                 common.write_partition(
                     frame,
                     spec.name,
@@ -805,19 +874,7 @@ class Fetcher:
                 print(f"[fail] {spec.name} {trade_date}: {exc}", file=sys.stderr, flush=True)
 
         todo = missing
-        if concurrency <= 1:
-            for trade_date in todo:
-                if self.expired():
-                    print("[slice] 时间预算用尽", flush=True)
-                    break
-                handle(trade_date)
-        else:
-            with ThreadPoolExecutor(max_workers=concurrency) as pool:
-                futures = [pool.submit(handle, d) for d in todo]
-                for future in as_completed(futures):
-                    future.result()
-                    if self.expired():
-                        break
+        self.run_bounded(todo, handle, spec.name)
         common.append_failures(failures, spec.name)
         print(progress.summary(), flush=True)
         return progress.done, failures
@@ -848,7 +905,7 @@ class Fetcher:
         universe = self._stock_universe()
         codes = list(universe["ts_code"].dropna().unique())
         dates = {row["ts_code"]: row for row in universe.to_dict(orient="records")}
-        todo = [c for c in codes if not (self.resume and common.manifest_ok(spec.name, c))]
+        todo = [c for c in codes if not self.resumable(spec.name, c)]
         failures: list[dict[str, Any]] = []
         progress = Progress(spec.name, len(todo))
         lock = threading.Lock()
@@ -863,7 +920,7 @@ class Fetcher:
                     spec.name,
                     code,
                     "tushare",
-                    extra_meta={"rows_raw": 0},
+                    extra_meta={"rows_raw": 0, "study_window": [self.start, self.end]},
                 )
                 progress.bump()
                 return
@@ -885,8 +942,9 @@ class Fetcher:
                 print(f"[fail] {spec.name} {code} {lo}..{hi}: {exc}", file=sys.stderr, flush=True)
 
             try:
+                complete = True
                 for lo, hi in windows:
-                    self._windows(
+                    ok = self._windows(
                         spec,
                         {"ts_code": code, "start_date": lo, "end_date": hi},
                         ROW_CAPS.get(spec.api),
@@ -894,6 +952,18 @@ class Fetcher:
                         on_failure,
                         density_aware=False,
                     )
+                    if not ok:
+                        # The slice budget ran out inside this code's window
+                        # tree: the statement history would be short but the
+                        # manifest would claim completeness, so the partition
+                        # is NOT written and the next slice retries the code.
+                        complete = False
+                        break
+                if not complete:
+                    print(
+                        f"[slice] {spec.name} {code} 未取完，留给下一次续跑", flush=True
+                    )
+                    return
                 if window_failures:
                     # One window failed: the statement history would be short
                     # but the manifest would claim completeness, so the
@@ -915,7 +985,7 @@ class Fetcher:
                         spec.name,
                         code,
                         "tushare",
-                        extra_meta={"rows_raw": 0},
+                        extra_meta={"rows_raw": 0, "study_window": [self.start, self.end]},
                     )
                     progress.bump()
                     return
@@ -930,6 +1000,7 @@ class Fetcher:
                     extra_meta={
                         "query": {"ts_code": code, "windows": windows},
                         "rows_dropped_null_pk": dropped,
+                        "study_window": [self.start, self.end],
                     },
                 )
                 common.clear_failures(spec.name, [code])
@@ -940,19 +1011,7 @@ class Fetcher:
                 progress.bump(failed=True)
                 print(f"[fail] {spec.name} {code}: {exc}", file=sys.stderr, flush=True)
 
-        if concurrency <= 1:
-            for code in todo:
-                if self.expired():
-                    print("[slice] 时间预算用尽", flush=True)
-                    break
-                handle(code)
-        else:
-            with ThreadPoolExecutor(max_workers=concurrency) as pool:
-                futures = [pool.submit(handle, c) for c in todo]
-                for future in as_completed(futures):
-                    future.result()
-                    if self.expired():
-                        break
+        self.run_bounded(todo, handle, spec.name)
         common.append_failures(failures, spec.name)
         print(progress.summary(), flush=True)
         return progress.done, failures
@@ -963,7 +1022,7 @@ class Fetcher:
         6-month window hit the 2000-row cap), so the per-code query is used."""
         universe = self._stock_universe()
         codes = list(universe["ts_code"].dropna().unique())
-        todo = [c for c in codes if not (self.resume and common.manifest_ok(spec.name, c))]
+        todo = [c for c in codes if not self.resumable(spec.name, c)]
         failures: list[dict[str, Any]] = []
         progress = Progress(spec.name, len(todo))
         lock = threading.Lock()
@@ -974,6 +1033,24 @@ class Fetcher:
                 rows_raw = len(frame)
                 cap = ROW_CAPS.get(spec.api)
                 truncated = bool(cap and len(frame) >= cap)
+                if truncated:
+                    # The response reached the upstream row cap, so rows may be
+                    # missing. The partition must not be published as complete.
+                    with lock:
+                        failures.append(
+                            {
+                                "dataset": spec.name,
+                                "partition": code,
+                                "error": f"响应触到上游行数上限({len(frame)}>= {cap})，可能截断",
+                            }
+                        )
+                    progress.bump(failed=True)
+                    print(
+                        f"[fail] {spec.name} {code}: 响应触到行数上限，可能截断",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                    return
                 if not frame.empty:
                     frame = frame.copy()
                     frame["ann_date"] = frame_dates(frame, "ann_date")
@@ -994,6 +1071,7 @@ class Fetcher:
                         "query": {"ts_code": code},
                         "rows_dropped_null_pk": dropped,
                         "possible_truncation": truncated,
+                        "study_window": [self.start, self.end],
                     },
                 )
                 progress.bump()
@@ -1003,19 +1081,7 @@ class Fetcher:
                 progress.bump(failed=True)
                 print(f"[fail] {spec.name} {code}: {exc}", file=sys.stderr, flush=True)
 
-        if concurrency <= 1:
-            for code in todo:
-                if self.expired():
-                    print("[slice] 时间预算用尽", flush=True)
-                    break
-                handle(code)
-        else:
-            with ThreadPoolExecutor(max_workers=concurrency) as pool:
-                futures = [pool.submit(handle, c) for c in todo]
-                for future in as_completed(futures):
-                    future.result()
-                    if self.expired():
-                        break
+        self.run_bounded(todo, handle, spec.name)
         common.append_failures(failures, spec.name)
         print(progress.summary(), flush=True)
         return progress.done, failures
@@ -1031,6 +1097,7 @@ class Fetcher:
         universe = self._stock_universe()
         codes = set(universe["ts_code"].dropna().unique())
         failures: list[dict[str, Any]] = []
+        failed_years: list[str] = []
         frames = []
         for year in range(int(self.start[:4]), int(self.end[:4]) + 1):
             lo = max(f"{year}0101", self.start)
@@ -1048,9 +1115,21 @@ class Fetcher:
                 if not frame.empty:
                     frames.append(frame)
             except Exception as exc:  # noqa: BLE001
+                failed_years.append(str(year))
                 failures.append({"dataset": spec.name, "partition": str(year), "error": str(exc)})
                 print(f"[fail] {spec.name} {year}: {exc}", file=sys.stderr, flush=True)
         common.append_failures(failures, spec.name)
+        if failed_years:
+            # A year failed: the union would be missing that year's rows while
+            # the manifest claimed completeness, and the rows would never be
+            # repaired. Nothing is written; the next run retries the whole
+            # sweep.
+            print(
+                f"[fail] {spec.name}: 年份窗口失败 {failed_years}，未写分区",
+                file=sys.stderr,
+                flush=True,
+            )
+            return 0, failures
         combined = concat_frames(frames)
         if combined.empty:
             return 0, failures
@@ -1059,14 +1138,17 @@ class Fetcher:
         combined = combined[combined["ts_code"].isin(codes)]
         written = 0
         for code, group in combined.groupby("ts_code", sort=True):
-            if self.resume and common.manifest_ok(spec.name, str(code)):
+            if self.resumable(spec.name, str(code)):
                 continue
             common.write_partition(
                 group.reset_index(drop=True),
                 spec.name,
                 str(code),
                 "tushare",
-                extra_meta={"query": {"years": "yearly windows"}},
+                extra_meta={
+                    "query": {"years": "yearly windows"},
+                    "study_window": [self.start, self.end],
+                },
             )
             written += 1
         print(f"[done] {spec.name}: {written} partitions, {len(failures)} failures", flush=True)
@@ -1077,12 +1159,13 @@ class Fetcher:
         failures: list[dict[str, Any]] = []
         done = 0
         for index_code in INDEX_UNIVERSE:
-            if self.resume and common.manifest_ok(spec.name, index_code):
+            if self.resumable(spec.name, index_code):
                 done += 1
                 continue
             frames = []
             months_requested = 0
             months_with_rows = 0
+            failed_months: list[str] = []
             year, month = int(self.start[:4]), int(self.start[4:6])
             end_year, end_month = int(self.end[:4]), int(self.end[4:6])
             while (year, month) <= (end_year, end_month):
@@ -1104,10 +1187,21 @@ class Fetcher:
                         months_with_rows += 1
                         frames.append(frame)
                 except Exception as exc:  # noqa: BLE001
+                    failed_months.append(f"{index_code} {lo}")
                     failures.append(
                         {"dataset": spec.name, "partition": f"{index_code} {lo}", "error": str(exc)}
                     )
                 year, month = _next_month(year, month)
+            if failed_months:
+                # A monthly window failed: the constituent set would be missing
+                # that month while the manifest claimed completeness. Nothing is
+                # written; the next run retries the whole sweep.
+                print(
+                    f"[fail] {spec.name} {index_code}: 月份窗口失败 {failed_months}，未写分区",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                continue
             combined = concat_frames(frames)
             if combined.empty:
                 # Every monthly window came back empty: the upstream has no
@@ -1131,6 +1225,7 @@ class Fetcher:
                         "months_requested": months_requested,
                         "months_with_rows": months_with_rows,
                         "empty_upstream": True,
+                        "study_window": [self.start, self.end],
                     },
                 )
                 done += 1
@@ -1154,6 +1249,7 @@ class Fetcher:
                     },
                     "months_requested": months_requested,
                     "months_with_rows": months_with_rows,
+                    "study_window": [self.start, self.end],
                 },
             )
             done += 1

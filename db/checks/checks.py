@@ -53,9 +53,7 @@ PK_DATASETS = (
 
 
 def _code_to_symbol(code: str) -> str:
-    normalised = common.normalize_ts_code(code)
-    left, right = normalised.split(".", 1)
-    return f"{right.lower()}{left}"
+    return common.ts_code_to_sina(code)
 
 
 def _iso_date(day: str) -> str | None:

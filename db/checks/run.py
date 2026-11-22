@@ -55,25 +55,39 @@ def main(argv: list[str] | None = None) -> int:
         gates = {name: report[name] for name in GATE_NAMES}
     else:
         report = {"generated_at": common.utc_now()}
-        with common.duckdb_connect(read_only=True) as con:
-            runner = {
-                "G1_trading_day_reconciliation": lambda: checks.check_trading_days(con),
-                "G2_primary_keys_and_parity": lambda: checks.check_primary_keys(con),
-                "G3_ohlc_consistency": lambda: checks.check_ohlc(con),
-                "G4_adj_factor_positive": lambda: checks.check_adj_factor(con),
-                "G5_sina_crosscheck": lambda: checks.check_sina_crosscheck(
-                    con, sample_days=args.sample_days, tolerance=args.tolerance
-                ),
-                "G6_manifest_integrity": lambda: checks.check_manifest_integrity(
-                    datasets or list(common.TABLE_PK)
-                ),
+        try:
+            con = common.duckdb_connect(read_only=True)
+        except Exception as exc:  # noqa: BLE001
+            # A missing/unopenable database is a FAIL, not a crash: the report
+            # must still be written so the gate result is on record.
+            gates = {
+                args.check: {
+                    "pass": False,
+                    "error": f"DuckDB 无法打开: {type(exc).__name__}: {exc}",
+                }
             }
-            try:
-                gate_ok, detail = runner[args.check]()
-            except Exception as exc:  # noqa: BLE001
-                gate_ok, detail = False, {"error": f"{type(exc).__name__}: {exc}"}
-        gates = {args.check: {"pass": bool(gate_ok), **detail}}
-        ok = bool(gate_ok)
+            ok = False
+            con = None
+        if con is not None:
+            with con:
+                runner = {
+                    "G1_trading_day_reconciliation": lambda: checks.check_trading_days(con),
+                    "G2_primary_keys_and_parity": lambda: checks.check_primary_keys(con),
+                    "G3_ohlc_consistency": lambda: checks.check_ohlc(con),
+                    "G4_adj_factor_positive": lambda: checks.check_adj_factor(con),
+                    "G5_sina_crosscheck": lambda: checks.check_sina_crosscheck(
+                        con, sample_days=args.sample_days, tolerance=args.tolerance
+                    ),
+                    "G6_manifest_integrity": lambda: checks.check_manifest_integrity(
+                        datasets or list(common.TABLE_PK)
+                    ),
+                }
+                try:
+                    gate_ok, detail = runner[args.check]()
+                except Exception as exc:  # noqa: BLE001
+                    gate_ok, detail = False, {"error": f"{type(exc).__name__}: {exc}"}
+            gates = {args.check: {"pass": bool(gate_ok), **detail}}
+            ok = bool(gate_ok)
 
     out = (
         Path(args.out)

@@ -113,6 +113,22 @@ BASE_PK: dict[str, tuple[str, ...]] = {
 # Datasets that carry the synthetic `dup_seq` discriminator.
 DUP_SEQ_DATASETS = frozenset(BASE_PK)
 
+# Datasets whose partition CONTENT depends on the run window (--start/--end).
+# A narrow run writes partitions that only cover that window; resuming them
+# for a wider study window would silently keep the narrow data, so the window
+# is recorded in the manifest and a mismatch forces a re-fetch.
+WINDOW_SCOPED_DATASETS = frozenset(
+    {
+        "income",
+        "balancesheet",
+        "cashflow",
+        "fina_indicator",
+        "dividend",
+        "namechange",
+        "index_weight",
+    }
+)
+
 # Columns that must be read as DATE in DuckDB.
 DATE_COLUMNS: dict[str, set[str]] = {
     "trade_cal": {"cal_date", "pretrade_date"},
@@ -527,6 +543,13 @@ def ensure_db() -> None:
 def schema_columns(con, table: str) -> list[str]:
     rows = con.execute(f"DESCRIBE {table}").fetchall()
     return [str(row[0]) for row in rows]
+
+
+def ts_code_to_sina(code: str) -> str:
+    """600000.SH -> sh600000, the symbol format akshare's Sina source expects."""
+    normalised = normalize_ts_code(code)
+    left, right = normalised.split(".", 1)
+    return f"{right.lower()}{left}"
 
 
 def normalize_ts_code(code: str) -> str:
