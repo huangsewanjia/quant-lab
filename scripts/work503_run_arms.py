@@ -196,6 +196,11 @@ def main():
     ap.add_argument("--exp", default="WORK-503")
     ap.add_argument("--threads", type=int, default=8)
     ap.add_argument("--workers", type=int, default=2)
+    ap.add_argument("--out-suffix", default="",
+                    help="suffix for the output file names.  A reproducibility "
+                         "re-run must not overwrite the official artefacts, so "
+                         "it writes <arm>_s<seed><suffix>.parquet instead. "
+                         "Default '' keeps the official names.")
     args = ap.parse_args()
 
     torch.set_num_threads(args.threads)
@@ -334,12 +339,14 @@ def main():
     df, rankic, icir = run_inference(m2, test_loader, cfg)
     df = df.reset_index()
     df.columns = ["datetime", "instrument", "score", "label"]
-    out_path = os.path.join(out_dir, f"{args.arm}_s{args.seed}.parquet")
+    out_path = os.path.join(out_dir, f"{args.arm}_s{args.seed}{args.out_suffix}.parquet")
     df.to_parquet(out_path)
     log["metrics"] = {k: float(v) for k, v in icir.items()}
     log["preds"] = out_path
+    log["out_suffix"] = args.out_suffix
     log["total_seconds"] = round(time.time() - t0, 1)
-    json.dump(log, open(os.path.join(out_dir, f"{args.arm}_s{args.seed}.json"),
+    json.dump(log, open(os.path.join(out_dir,
+                                     f"{args.arm}_s{args.seed}{args.out_suffix}.json"),
                         "w"), ensure_ascii=False, indent=1)
     print(json.dumps(log, ensure_ascii=False, indent=1))
 
