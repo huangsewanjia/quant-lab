@@ -1,0 +1,55 @@
+{
+  "tool": "scripts/work503_repro_check.py",
+  "exp": "WORK-503",
+  "method": "同一 arm、同一 seed、同一 commit 的两次独立训练；正式产物不被覆盖（重跑写 _repro 后缀）。字节 sha256 与逐格精确比较同时记录。",
+  "n_pairs": 1,
+  "n_pass": 1,
+  "all_pass": true,
+  "results": [
+    {
+      "name": "no_vq_s42",
+      "official": "/srv/data/multica/workspaces/workspace-c8faa36a018a/work-503-69b2057aa375/workdir/quant-lab/experiments/WORK-503/preds/no_vq_s42.parquet",
+      "repro": "/srv/data/multica/workspaces/workspace-c8faa36a018a/work-503-69b2057aa375/workdir/quant-lab/experiments/WORK-503/preds/no_vq_s42_repro.parquet",
+      "official_sha256": "367e29a7bddbbf8f96b20906857a7fe8c5decd48bffc66ac8219c6eea6335a2e",
+      "repro_sha256": "367e29a7bddbbf8f96b20906857a7fe8c5decd48bffc66ac8219c6eea6335a2e",
+      "sha256_equal": true,
+      "rows_official": 217800,
+      "rows_repro": 217800,
+      "columns_official": [
+        "datetime",
+        "instrument",
+        "score",
+        "label"
+      ],
+      "columns_repro": [
+        "datetime",
+        "instrument",
+        "score",
+        "label"
+      ],
+      "columns_match": true,
+      "per_column": {
+        "datetime": {
+          "n_mismatched_cells": 0,
+          "max_abs_diff": 0.0
+        },
+        "instrument": {
+          "n_mismatched_cells": 0,
+          "max_abs_diff": 0.0
+        },
+        "label": {
+          "n_mismatched_cells": 0,
+          "max_abs_diff": 0.0
+        },
+        "score": {
+          "n_mismatched_cells": 0,
+          "max_abs_diff": 0.0
+        }
+      },
+      "n_mismatched_cells": 0,
+      "max_abs_diff": 0.0,
+      "identical": true,
+      "status": "pass"
+    }
+  ]
+}

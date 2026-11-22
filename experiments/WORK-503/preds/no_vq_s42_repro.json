@@ -1,0 +1,19 @@
+{
+ "arm": "no_vq",
+ "seed": 42,
+ "epochs": 6,
+ "n_train": 345040,
+ "n_valid": 145287,
+ "n_test": 217800,
+ "batches": 1219,
+ "stage2_seconds": 421.8,
+ "metrics": {
+  "IC": 0.04938816283490113,
+  "ICIR": 0.34234832901609447,
+  "RankIC": 0.055699293704441655,
+  "RankICIR": 0.3975973889690648
+ },
+ "preds": "/srv/data/multica/workspaces/workspace-c8faa36a018a/work-503-69b2057aa375/workdir/quant-lab/experiments/WORK-503/preds/no_vq_s42_repro.parquet",
+ "out_suffix": "_repro",
+ "total_seconds": 455.7
+}

@@ -17,6 +17,11 @@
 | nit 2 | GRU 基线每 epoch 重置 RNG | `scripts/work503_baseline.py` 的 `rng` |
 | — | **第一轮误报复核**：同 seed 两个并发训练进程 | 实测为 DataLoader worker（PPID = 训练主进程）；本轮请再看一眼并给结论 |
 | — | **新增实现**（第一轮之后、改过代码） | 市值加权基准改用真实 CSI300 指数 + 自建总市值篮子并列披露；成本敏感性汇总脚本 |
+| — | **终稿跑数阶段新出的 4 个 bug（提交方自查 + 独立复算抓出）** | ① MDD 运行峰值漏算初始资金 → `scripts/work503_backtest.py`（peak 前置 1.0）；② H2 的逐日 RankIC 序列未按日期对齐 → `scripts/work503_verdict.py`（新增 `load_rankic_dates()` + 两条 assert）；③ PIT 覆盖率分母写成宇宙笛卡尔积 + shape 广播错 → `scripts/work503_check_integrity.py`；④ GRU 基线三个 bug → `scripts/work503_baseline.py`（qlib `GRU` 是包装类、kwargs 被吞、取标签用错索引）；详见 `failure_log.md` §10–§11 |
+
+> **本轮复审的重点新增项**：请独立复核上面第 ① ② ③ 项的修法是否真的把两侧口径对齐了
+> （MDD：建模侧峰值起点是否为 1.0；H2：join 后的 `mean_full` 是否等于回测里的 `rankic`；
+> PIT 覆盖率：分母是否为「PIT 对总数」而不是全体格子），并给测量值。
 
 ## 二、终稿产物的独立复跑（必须实跑，把命令与输出贴进报告）
 

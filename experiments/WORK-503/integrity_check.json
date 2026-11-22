@@ -197,9 +197,13 @@
  "I5_test_coverage": {
   "test_days": 726,
   "pit_pairs": 217800,
+  "pit_pairs_covered": 217660,
   "rows_with_bar": 0.9993572084481175,
   "tradable_share": 0.950803489439853,
+  "pit_coverage": 0.9993572084481175,
+  "pit_coverage_threshold": 0.9,
   "threshold": 0.85,
+  "pit_coverage_definition": "测试段内 PIT (交易日, 股票) 对中，同时存在于样本索引与行情快照的比例（分母 = PIT 对总数，预注册 v1.3 §6）",
   "passed": true
  },
  "all_passed": true

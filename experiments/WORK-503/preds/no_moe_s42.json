@@ -1,0 +1,20 @@
+{
+ "arm": "no_moe",
+ "seed": 42,
+ "epochs": 6,
+ "n_train": 345040,
+ "n_valid": 145287,
+ "n_test": 217800,
+ "batches": 1219,
+ "stage1_reused": "/srv/data/multica/workspaces/workspace-c8faa36a018a/work-503-69b2057aa375/workdir/quant-lab/vendor/PRISM-VQ/checkpoints/stage1_s42.pt",
+ "stage2_seconds": 1050.5,
+ "metrics": {
+  "IC": 0.05279078807877758,
+  "ICIR": 0.2845244550148245,
+  "RankIC": 0.07005730549579432,
+  "RankICIR": 0.3817046316267546
+ },
+ "preds": "/srv/data/multica/workspaces/workspace-c8faa36a018a/work-503-69b2057aa375/workdir/quant-lab/experiments/WORK-503/preds/no_moe_s42.parquet",
+ "out_suffix": "",
+ "total_seconds": 1109.3
+}
