@@ -358,6 +358,51 @@ def recompute(pred: pd.DataFrame, pit: pd.DataFrame, state: pd.DataFrame,
             "_trace": trace}
 
 
+def independence_selfcheck() -> dict:
+    """Check that this audit script does not reuse the modelling stage.
+
+    audit/README.md rule 2 forbids the audit script from importing any
+    function of the modelling stage; the check is made mechanical here so the
+    artefact carries the evidence instead of the claim.
+
+    The README also asks for a standard-library-only implementation.  That
+    part is **not** satisfied and is disclosed rather than hidden: the
+    prediction snapshots are parquet, and a parquet reader does not exist in
+    the standard library.  numpy / pandas / scipy are used for I/O and for
+    the rank correlation only; every portfolio number is recomputed by the
+    dictionary/ledger code path below, which shares no function with
+    scripts/work503_backtest.py.
+    """
+    import ast
+    path = os.path.abspath(__file__)
+    tree = ast.parse(open(path, encoding="utf-8").read())
+    imported = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for a in node.names:
+                imported.add(a.name.split(".")[0])
+        elif isinstance(node, ast.ImportFrom):
+            if node.module:
+                imported.add(node.module.split(".")[0])
+            elif node.level:                      # relative import
+                imported.add("." * node.level)
+    forbidden = sorted(m for m in imported
+                       if m.startswith("work503") or m.startswith("scripts")
+                       or m.startswith("."))
+    return {
+        "imported_modules": sorted(imported),
+        "modeling_imports": forbidden,
+        "modeling_imports_found": len(forbidden),
+        "stdlib_only": False,
+        "third_party_deps": ["numpy", "pandas", "scipy"],
+        "deviation_note": (
+            "audit/README.md 规则 2 的「只允许标准库」一条未满足：预测快照是 "
+            "parquet，标准库没有 parquet 读取器。第三方库仅用于读快照与算 "
+            "spearman；组合数值全部由本脚本自己的字典/账本实现重算，"
+            "与 scripts/work503_backtest.py 不共用任何函数。"),
+    }
+
+
 def main():
     pit, state = load_panel()
     book = PriceBook(DATA)
@@ -395,7 +440,8 @@ def main():
                                    "model_side": a, "recompute": b,
                                    "rel_diff": rel})
     report = {"tolerance": TOL, "items": out, "mismatches": mismatches,
-              "n_mismatches": len(mismatches)}
+              "n_mismatches": len(mismatches),
+              "independence": independence_selfcheck()}
     json.dump(report, open(os.path.join(EXP, cli.out), "w"),
               ensure_ascii=False, indent=1)
     for k, v in out.items():
