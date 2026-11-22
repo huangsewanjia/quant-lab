@@ -45,11 +45,39 @@ class LinearHead(nn.Module):
         return self.fc(x[:, -1, :])
 
 
-def build_model(kind: str):
+def build_model(kind: str, seed: int, epochs: int):
+    """Build the baseline model.
+
+    NOTE (bug fix, 2026-11-22): qlib's ``GRU`` is a *wrapper* class
+    (``qlib.contrib.model.pytorch_gru_ts.GRU``), not an ``nn.Module`` — the
+    actual torch module lives in ``self.GRU_model``.  The previous call
+    ``GRU(d_feat=..., d_model=64, n_layers=1, dropout=0.1)`` had two defects:
+
+    1. ``d_model`` / ``n_layers`` are **not** parameters of qlib's ``GRU``
+       (its signature is ``d_feat / hidden_size / num_layers / dropout / ...``),
+       so they were swallowed by ``**kwargs`` and silently ignored — the model
+       actually ran with ``num_layers=2, dropout=0.0``.
+    2. The wrapper exposes no ``.parameters()`` / ``.state_dict()``, so the
+       training loop crashed with
+       ``AttributeError: 'GRU' object has no attribute 'parameters'``.
+
+    Both are plumbing bugs in *our* script, not protocol choices: the
+    pre-registration only names the class
+    (``qlib.contrib.model.pytorch_gru_ts.GRU``), so the hyper-parameters the
+    script always intended (``hidden_size=64``, ``num_layers=1``,
+    ``dropout=0.1``) are now actually applied, and ``seed=`` is forwarded so
+    qlib seeds the RNG before the module is constructed.
+    """
     if kind == "gru":
         from qlib.contrib.model.pytorch_gru_ts import GRU
-        return GRU(d_feat=N_FEATURES, d_model=64, n_layers=1, dropout=0.1)
+        return GRU(d_feat=N_FEATURES, hidden_size=64, num_layers=1,
+                   dropout=0.1, n_epochs=epochs, lr=1e-3, seed=seed)
     return LinearHead(N_FEATURES)
+
+
+def core_module(model):
+    """Return the torch module that actually holds the parameters."""
+    return getattr(model, "GRU_model", model)
 
 
 def main():
@@ -88,8 +116,9 @@ def main():
     test_ds = Work503Dataset(ds_dir, segs["test"], True, cs_label=False,
                               dropna_label=False)
 
-    model = build_model(args.kind)
-    opt = torch.optim.AdamW(model.parameters(), lr=args.lr)
+    model = build_model(args.kind, args.seed, args.epochs)
+    core = core_module(model)
+    opt = torch.optim.AdamW(core.parameters(), lr=args.lr)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(
         opt, T_max=max(1, args.epochs))
 
@@ -108,33 +137,37 @@ def main():
             rng.shuffle(groups)
         for g in groups:
             rows = [i for i in g]
-            batch = np.stack([ds.rows[i] for i in rows])
+            # `ds.rows[i]` is only the (instrument, datetime) key pair — the
+            # actual (T, 174) sample must come from `ds[i]`.  Stacking the key
+            # pairs produced an object array that torch refuses to convert
+            # (TypeError: can't convert np.ndarray of type numpy.object_).
+            batch = np.stack([ds[i] for i in rows])
             yield torch.from_numpy(batch), rows
 
     best_val, best_state = np.inf, None
     t0 = time.time()
     for ep in range(args.epochs):
-        model.train()
+        core.train()
         tot, nb = 0.0, 0
         for batch, _ in batches(train_ds, True):
             x = batch[:, :, :N_FEATURES].float()
             y = batch[:, -1, N_FEATURES + N_PRIOR + TARGET].float()
-            pred = model(x).squeeze(-1)
+            pred = core(x).reshape(-1)
             loss = nn.functional.mse_loss(pred, y)
             opt.zero_grad()
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            torch.nn.utils.clip_grad_norm_(core.parameters(), 1.0)
             opt.step()
             tot += float(loss)
             nb += 1
         sched.step()
-        model.eval()
+        core.eval()
         vs, vn = 0.0, 0
         with torch.no_grad():
             for batch, _ in batches(valid_ds, False):
                 x = batch[:, :, :N_FEATURES].float()
                 y = batch[:, -1, N_FEATURES + N_PRIOR + TARGET].float()
-                pred = model(x).squeeze(-1)
+                pred = core(x).reshape(-1)
                 vs += float(nn.functional.mse_loss(pred, y))
                 vn += 1
         vloss = vs / max(1, vn)
@@ -142,18 +175,18 @@ def main():
               f"({time.time() - t0:.0f}s)", flush=True)
         if vloss < best_val:
             best_val = vloss
-            best_state = {k: v.clone() for k, v in model.state_dict().items()}
+            best_state = {k: v.clone() for k, v in core.state_dict().items()}
 
     if best_state is not None:
-        model.load_state_dict(best_state)
+        core.load_state_dict(best_state)
 
     # ---- inference on the test set --------------------------------------
-    model.eval()
+    core.eval()
     rows, scores = [], []
     with torch.no_grad():
         for batch, idx in batches(test_ds, False):
             x = batch[:, :, :N_FEATURES].float()
-            pred = model(x).squeeze(-1).numpy()
+            pred = core(x).reshape(-1).numpy()
             scores.append(pred)
             rows.extend(idx)
     df = pd.DataFrame({"instrument": [test_ds.rows[i][0] for i in rows],

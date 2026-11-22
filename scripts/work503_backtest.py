@@ -600,6 +600,13 @@ def main():
     ap.add_argument("--buy-bps", type=float, default=5.0)
     ap.add_argument("--sell-bps", type=float, default=15.0)
     ap.add_argument("--out", default="backtest_results.json")
+    ap.add_argument(
+        "--preds-tag", default="",
+        help="suffix for the per-run artefacts written under preds/ "
+             "(daily / rankic / trades / bench).  Empty = the canonical names "
+             "the verdict + audit scripts read.  Non-empty lets several cost "
+             "scenarios run concurrently without overwriting each other; "
+             "the canonical (empty) run stays the one the verdict reads.")
     args = ap.parse_args()
 
     repo = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -629,11 +636,12 @@ def main():
             ric = r.pop("rankic_series")
             td = r.pop("trades")
             key = f"{arm}_s{seed}"
+            tag = args.preds_tag
             daily["net_log_ret"] = np.log1p(daily["ret"].to_numpy())
-            daily.to_parquet(os.path.join(exp_dir, "preds", f"{key}_daily.parquet"))
-            np.save(os.path.join(exp_dir, "preds", f"{key}_rankic.npy"), ric)
+            daily.to_parquet(os.path.join(exp_dir, "preds", f"{key}{tag}_daily.parquet"))
+            np.save(os.path.join(exp_dir, "preds", f"{key}{tag}_rankic.npy"), ric)
             if not td.empty:
-                td.to_parquet(os.path.join(exp_dir, "preds", f"{key}_trades.parquet"))
+                td.to_parquet(os.path.join(exp_dir, "preds", f"{key}{tag}_trades.parquet"))
             # benchmark-adjusted alpha
             test_dates = sorted(daily["datetime"].unique())
             bm = benchmark_series(market, pit, test_dates)
@@ -655,7 +663,7 @@ def main():
                           "cap_weighted": bm["cap_weighted"],
                           "index": idx_rets if len(idx_rets) else
                           np.full(len(test_dates), np.nan)}).to_parquet(
-                os.path.join(exp_dir, "preds", f"{key}_bench.parquet"))
+                os.path.join(exp_dir, "preds", f"{key}{tag}_bench.parquet"))
             results[key] = r
             print(f"{key}: RankIC {r['rankic']:.4f} ICIR {r['rankicir']:.4f} "
                   f"AR {r['ar']:.4f} MDD {r['mdd']:.4f} SR {r['sr']:.4f} "

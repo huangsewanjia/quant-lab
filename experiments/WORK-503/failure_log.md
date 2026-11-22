@@ -135,3 +135,48 @@
 - 结论：**信号本身有正的超额收益（毛口径 +6.7%~+10.3%/年），但在预注册的「只做多 + 日频调仓 + 5/15bps」组合口径下被成本吃光**，净 SR 转负。
 - 这一条不改变任何阈值或判词规则，只是把「净 SR < 0 → 直接判退」这条硬规则**命中时的原因**写清楚，避免被误读成「信号无效」。
 - 产物：`experiments/WORK-503/backtest_gross_diagnostic.json`（明确标注为预注册外诊断）。
+
+## 10. 训练收尾时暴露的 GRU 基线脚本 bug（已修；基线此前一次都没成功跑过）
+
+### 10.1 现象
+
+四档消融（full / no_vq / no_moe / no_prior × 种子 42/2024）全部训练完成（16:40），
+但 **GRU 基线两次都以 rc=1 崩掉**，H2（vs 固定基线 GRU 的 RankIC 差）一度没有基线可用：
+
+```
+AttributeError: 'GRU' object has no attribute 'parameters'
+  File "scripts/work503_baseline.py", line 92, in main
+    opt = torch.optim.AdamW(model.parameters(), lr=args.lr)
+TypeError: can't convert np.ndarray of type numpy.object_. ...
+  File "scripts/work503_baseline.py", line 141, in batches
+    yield torch.from_numpy(batch), rows
+```
+
+### 10.2 两个 bug 的归因
+
+| # | bug | 归因 | 修法 |
+|---|---|---|---|
+| 1 | 拿 qlib 的 `GRU` **包装类**当 `nn.Module` 用 | `qlib.contrib.model.pytorch_gru_ts.GRU` 是 `Model` 的子类，**不是** `nn.Module`；真正的 torch 模块在 `self.GRU_model` 里，包装类没有 `.parameters()` / `.state_dict()` | 训练循环改用 `core_module(model)` 取真正的模块；优化器、梯度裁剪、`state_dict` 全部走 `core` |
+| 2 | 同一个构造调用里 `d_model=64, n_layers=1, dropout=0.1` **被静默吞掉** | qlib 的 `GRU` 签名是 `d_feat / hidden_size / num_layers / dropout / …`，`d_model` 与 `n_layers` 不在其中，被 `**kwargs` 吃掉 → 实际跑的是 **2 层、dropout=0.0** | 改用真实参数名 `hidden_size=64, num_layers=1, dropout=0.1`，并把 `seed=` 透传给 qlib（它在建模块前播种 RNG） |
+| 3 | 拼 batch 时取的是 `ds.rows[i]`（(instrument, datetime) **键对**）而不是 `ds[i]`（真正的 (T,174) 样本） | 键对是字符串/时间戳的元组，`np.stack` 得到 object 数组，torch 拒绝转换 | 改为 `np.stack([ds[i] for i in rows])`，与 `work503_run_arms.py` 的取样路径一致 |
+
+### 10.3 这算不算「事后改口径」
+
+**不算**：预注册 v1.1 只点名了基线**类**（`qlib.contrib.model.pytorch_gru_ts.GRU`）与「同特征、同 PIT 名单、同切分、同种子、同逐日 batch、同 MSE 损失」的协议，
+**没有冻结基线的层数/隐藏维/优化器细节**；本单脚本里一直写的是 `hidden_size 64 / 1 层 / dropout 0.1 / AdamW lr 1e-3 / 余弦退火`，
+只是这些值此前**没有真正传给 qlib**。修的是**传参 plumbing**，不是研究口径。
+修完后的基线结构（已实测）：`GRUModel`，1 层、hidden 64、**43,073 个参数**，输出 (B,)。
+
+### 10.4 一并加的一个小改动：回测输出标签
+
+`scripts/work503_backtest.py` 新增 `--preds-tag`（默认空串 = 原行为不变）。
+用途：三档成本（主口径 5/15 bps、单边 8 bps、双边 30 bps）与零成本诊断**并行跑**时，
+各自的 `daily / rankic / trades / bench` 落盘互不覆盖。
+**判定与审计读的那一套永远是 `--preds-tag` 为空的主口径文件**（`backtest_results.json` 与 `preds/<arm>_s<seed>_daily.parquet`）。
+
+### 10.5 仍然成立的口径披露
+
+- GRU 基线的 valid loss 在两个种子上都是**单调上升**（1.0033 → 1.0401 / 1.0133 → 1.0325），
+  早停取最优 epoch（第 0 个）；这说明该基线在预注册的逐日 batch 协议下**很快过拟合**。
+  这是**结果本身**，不是 bug；但也意味着「GRU 很强」这件事在本单口径下不成立。
+- H2 的增量显著性因此必须按实测读，**不能**写成「基线弱、所以我们赢」。
