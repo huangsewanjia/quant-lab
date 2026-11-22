@@ -405,10 +405,23 @@ def build_html(d, repo, exp_dir, fig_dir):
     h1, h2, h3 = v["H1"], v["H2"], v["H3"]
     m = d["metrics"]
     neg = ("退" in v["verdict"]) or ("数据不可用" in v["verdict"])
+    _dd = h1.get("delta_drop")
+    if _dd is None or (isinstance(_dd, float) and _dd != _dd):
+        band_txt = "—"
+    elif -0.40 <= _dd <= -0.15:
+        band_txt = f"{pct(-0.40)} ~ {pct(-0.15)}（「进」带）"
+    elif -0.10 <= _dd <= 0.10:
+        band_txt = f"{pct(-0.10)} ~ {pct(+0.10)}（「退」带）"
+    else:
+        band_txt = "两条带之外（「部分复现」带）"
     commit = git(repo, "rev-parse", "HEAD")
     short = commit[:7]
     prereg_sha = git(repo, "log", "--format=%h %cI", "-1",
-                     "--", "experiments/WORK-503/preregistration_v1.2.md")
+                     "--", "experiments/WORK-503/preregistration_v1.4.md")
+    prereg_sha13 = git(repo, "log", "--format=%h %cI", "-1",
+                       "--", "experiments/WORK-503/preregistration_v1.3.md")
+    prereg_sha12 = git(repo, "log", "--format=%h %cI", "-1",
+                       "--", "experiments/WORK-503/preregistration_v1.2.md")
     ic = d.get("integrity_check", {})
     la = d.get("lookahead_check", {})
     au = d.get("audit_recompute", {})
@@ -529,7 +542,7 @@ def build_html(d, repo, exp_dir, fig_dir):
     <span><b>撰写</b> 金融研究 agent（署名义承担本单结论）</span>
     <span><b>生成时间</b> {datetime.now().strftime('%Y-%m-%d %H:%M')} CST</span>
     <span><b>代码提交</b> <span class="mono">{short}</span></span>
-    <span><b>预注册</b> <span class="mono">{prereg_sha.split()[0] if prereg_sha else '—'}</span>（v1.2，先于任何回测产物）</span>
+    <span><b>预注册</b> <span class="mono">{prereg_sha13.split()[0] if prereg_sha13 else '—'}</span>（v1.3 冻结判词量口径）· <span class="mono">{prereg_sha.split()[0] if prereg_sha else '—'}</span>（v1.4 更正论证）· 均先于任何正式回测产物</span>
   </div>
 </header>
 
@@ -543,14 +556,18 @@ def build_html(d, repo, exp_dir, fig_dir):
 
 <p class="lead">在 PIT 的中证 300 成分股上、用公开日频数据重跑 PRISM-VQ 的四档消融（完整模型 / 去码本 / 去 MoE / 去先验，各 2 个种子，测试段 2022-01-04 ~ 2024-12-31），
 <strong>主检验量 Δ_drop = {pct(h1['delta_drop'])}</strong>（预注册阈值：{pct(-0.40)} ~ {pct(-0.15)} 判「进」，{pct(-0.10)} ~ {pct(+0.10)} 判「退」），
-判词为 <strong>「{v['verdict']}」</strong>。
+<strong>H1 自身的判词是「{h1['verdict']}」</strong>；顶层判词为 <strong>「{v['verdict']}」</strong>。
 论文 Table 2 的对应值是 {pct(h1['paper_delta_ic'])}（同一口径）；按派单卡字面式 Δ_formula = (RankIC_full − RankIC_no_vq)/RankIC_full，本单为 {pct(h1.get('delta_formula'))}、论文为 {pct(h1.get('paper_delta_formula'))}，两者互为相反数、判词集合逐点相同（预注册 v1.3 §3–§4）。
 净 SR 中位数 {fmt(h3['sr_median'], 3)}（论文 {fmt(h3['paper_sr'], 4)}），日均单边换手 {fmt(h3['per_seed'][str(v['seeds'][0])]['turnover'], 3) if h3['per_seed'] else '—'}（双边口径与论文的 {fmt(h3['paper_turnover'], 4)} 同量级）。</p>
 
 <div class="verdict {'negative' if neg else ''}">
   <h3>判词</h3>
   <div class="word">{v['verdict']}</div>
-  <div class="caveat">判词只由主检验量 H1 决定（Δ_drop）；H2（相对固定基线 GRU 的增量显著性）与 H3（可交易性）并列报告，不单独决定进退。
+  <div class="caveat"><strong>主检验量 H1 自己的判词是「{h1['verdict']}」</strong>（Δ_drop = {pct(h1['delta_drop'])}，落在 {band_txt}）——
+  也就是说，<strong>「码本有没有增量」这件事{('复现成立' if '进' in str(h1['verdict']) else '未复现')}</strong>。
+  但按预注册，H3 的「净 SR &lt; 0 直接判退」是一条<strong>独立于 H1 的硬规则</strong>：本单净 SR 中位数 {fmt(h3['sr_median'], 3)} &lt; 0，
+  该规则把顶层判词改写成上句的「{v['verdict']}」。
+  H2（相对固定基线 GRU 的增量显著性）并列报告，不单独决定进退。
   失败判据命中：{('、'.join(v['failure_criteria_hit']) if v['failure_criteria_hit'] else '无')}。</div>
 </div>
 
@@ -572,11 +589,16 @@ def build_html(d, repo, exp_dir, fig_dir):
 
 <div class="keybox">
   <h3>判词规则（跑之前就冻结在预注册里）</h3>
-  <p>主检验量 <strong>Δ_ic = (RankIC_full − RankIC_no_vq) / RankIC_full</strong>，取各档 ≥2 个种子的中位数：
-  Δ_ic 落在 <strong>[−40%, −15%]</strong> → 判「进」（码本有效性复现成立）；
+  <p>主检验量 <strong>Δ_drop = (RankIC_no_vq − RankIC_full) / RankIC_full</strong>（预注册 v1.3 冻结的口径），取各档 ≥2 个种子的中位数：
+  Δ_drop 落在 <strong>[−40%, −15%]</strong> → 判「进」（码本有效性复现成立）；
   落在 <strong>[−10%, +10%]</strong> → 判「退」（未复现）；其余 → 判「部分复现」，必须写清偏差来源与翻案条件。</p>
-  <p class="meta">RankIC = 当日预测分数与实现收益的秩相关（Spearman），测试期日均；三个预注册版本（v1.0 / v1.1 / v1.2）与掩码契约
-  都在本单仓库内按时间顺序 commit，且早于任何回测产物。</p>
+  <p>派单卡给出的字面式是 <span class="mono">Δ_formula = (RankIC_full − RankIC_no_vq) / RankIC_full</span>，
+  它与 Δ_drop <strong>互为相反数</strong>：读法 A（Δ_drop 配原带）与读法 B（Δ_formula 配取反后的进带）<strong>逐点等价</strong>，
+  唯一不自洽的是字面读法 C（Δ_formula 配原带）——那会让论文自己的 −26.9% 判成「部分复现」，等于让「复现成立」不可达。
+  预注册 v1.4 把这一点写成了正确论证；两个带上的<strong>数字一次都没改过</strong>。
+  边界单测 <span class="mono">scripts/work503_test_verdict.py</span> 固化了两种自洽读法的等价性。</p>
+  <p class="meta">RankIC = 当日预测分数与实现收益的秩相关（Spearman），测试期日均；预注册 v1.0 / v1.1 / v1.2 / v1.3 / v1.4 与掩码契约
+  都在本单仓库内按时间顺序 commit，且早于任何正式回测产物。</p>
 </div>
 
 <h2><span class="num">2</span>数据底座与数据质量</h2>
