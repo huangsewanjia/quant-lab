@@ -278,10 +278,11 @@ def backtest(pred: pd.DataFrame, market: Market, buy_bps: float = 5.0,
             assert_price_available(inst, t, market, px, "buy")
             amount = min(tgt, cash / (1.0 + buy_cost))
             if violation == "weight" and not violation_fired:
-                # deliberately break the cash cap so that the weight/ledger
-                # invariant below fires (mask_contract §7 assertion 4)
+                # deliberately spend more cash than there is so that the
+                # weight/ledger invariant below fires (mask_contract §7
+                # assertion 4): cash goes negative, invested weight > 1
                 violation_fired = True
-                amount = tgt
+                amount = max(tgt, cash + tgt)
             if amount <= 0:
                 break
             n_sh = amount / (px * (1.0 + buy_cost))
