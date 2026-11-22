@@ -58,6 +58,21 @@ def _code_to_symbol(code: str) -> str:
     return f"{right.lower()}{left}"
 
 
+def _iso_date(day: str) -> str | None:
+    """Normalise a YYYYMMDD / YYYY-MM-DD day to the ISO form DuckDB expects.
+
+    The Sina helper reports days as ``YYYYMMDD`` strings while the DuckDB
+    ``trade_date`` column is a real DATE, so the value has to be converted
+    before it can be bound as a query parameter.
+    """
+    text = str(day).strip()
+    if len(text) == 8 and text.isdigit():
+        return f"{text[0:4]}-{text[4:6]}-{text[6:8]}"
+    if len(text) == 10 and text[4] == "-" and text[7] == "-":
+        return text
+    return None
+
+
 # --------------------------------------------------------------------------- #
 # G1 - trading-day reconciliation
 # --------------------------------------------------------------------------- #
@@ -99,10 +114,12 @@ def check_trading_days(con, tolerance: float = 0.05) -> tuple[bool, dict[str, An
                 }
             )
     anomalies.sort(key=lambda item: -item["deviation"])
-    ok = not missing and not empty and not extra and not anomalies
+    ok = not missing and not empty and not extra and not anomalies and bool(open_days) and bool(by_day)
     return ok, {
         "open_trading_days": len(open_days),
         "days_with_rows": len(by_day),
+        "empty_calendar": not open_days,
+        "empty_daily": not by_day,
         "missing_days": missing[:50],
         "missing_day_count": len(missing),
         "empty_days": empty[:50],
@@ -122,11 +139,15 @@ def check_trading_days(con, tolerance: float = 0.05) -> tuple[bool, dict[str, An
 def check_primary_keys(con) -> tuple[bool, dict[str, Any]]:
     parity: dict[str, Any] = {}
     duplicates: dict[str, int] = {}
+    missing: list[str] = []
 
     for dataset in PK_DATASETS:
         files = common.partition_globs(dataset)
         if not files:
-            parity[dataset] = {"partitions": 0, "note": "无分区"}
+            # A dataset with no partitions at all would otherwise "pass" this
+            # gate with zero rows - that is a missing dataset, not a clean one.
+            missing.append(dataset)
+            parity[dataset] = {"partitions": 0, "note": "无分区", "difference": 0}
             continue
         glob = common.parquet_glob(dataset)
         pk = [c for c in common.TABLE_PK[dataset] if c in common.canonical_columns(dataset)]
@@ -159,12 +180,13 @@ def check_primary_keys(con) -> tuple[bool, dict[str, Any]]:
 
     total_dup = sum(duplicates.values())
     mismatched = {k: v for k, v in parity.items() if v.get("difference", 0) != 0}
-    ok = total_dup == 0 and not mismatched
+    ok = total_dup == 0 and not mismatched and not missing
     return ok, {
         "duplicate_keys": duplicates,
         "total_duplicate_key_groups": total_dup,
         "row_parity": parity,
         "mismatched_datasets": mismatched,
+        "missing_datasets": missing,
     }
 
 
@@ -196,12 +218,13 @@ def check_ohlc(con, limit: int = 20) -> tuple[bool, dict[str, Any]]:
             "OR low IS NULL OR close IS NULL"
         ).fetchone()[0]
     )
-    ok = violations == 0
+    ok = violations == 0 and total > 0
     return ok, {
         "rows_checked": total,
         "violations": violations,
         "violation_samples": [list(row) for row in samples],
         "rows_with_null_ohlc": null_rows,
+        "empty_table": total == 0,
     }
 
 
@@ -225,12 +248,13 @@ def check_adj_factor(con, limit: int = 20) -> tuple[bool, dict[str, Any]]:
         "WHERE adj_factor IS NULL OR adj_factor <= 0 LIMIT ?",
         [limit],
     ).fetchall()
-    ok = non_positive == 0 and nulls == 0
+    ok = non_positive == 0 and nulls == 0 and total > 0
     return ok, {
         "rows_checked": total,
         "non_positive": non_positive,
         "nulls": nulls,
         "samples": [list(row) for row in samples],
+        "empty_table": total == 0,
     }
 
 
@@ -285,9 +309,12 @@ def check_sina_crosscheck(
     for symbol, per_day in closes.items():
         code = common.normalize_ts_code(symbol)
         for day, sina_close in per_day.items():
+            iso = _iso_date(day)
+            if iso is None:
+                continue
             tushare = con.execute(
-                "SELECT close FROM daily WHERE ts_code = ? AND trade_date = ?",
-                [code, day],
+                "SELECT close FROM daily WHERE ts_code = ? AND trade_date = ?::DATE",
+                [code, iso],
             ).fetchone()
             if tushare is None:
                 continue
@@ -330,9 +357,14 @@ def check_sina_crosscheck(
 def check_manifest_integrity(datasets: list[str]) -> tuple[bool, dict[str, Any]]:
     details: dict[str, Any] = {}
     bad = 0
+    missing_datasets: list[str] = []
     for dataset in datasets:
         partitions = common.list_partitions(dataset)
         files = common.partition_globs(dataset)
+        if not files:
+            # No partition at all means the dataset was never fetched; that is
+            # a failure, not an integrity pass.
+            missing_datasets.append(dataset)
         missing_file = 0
         hash_mismatch = 0
         unreadable_manifest = 0
@@ -364,8 +396,14 @@ def check_manifest_integrity(datasets: list[str]) -> tuple[bool, dict[str, Any]]
             "unreadable_manifest": unreadable_manifest,
             "partitions_without_manifest": len(without_manifest),
             "examples_without_manifest": without_manifest[:10],
+            "missing_dataset": not files,
         }
-    return bad == 0, {"bad_total": bad, "datasets": details}
+    bad += len(missing_datasets)
+    return bad == 0, {
+        "bad_total": bad,
+        "missing_datasets": missing_datasets,
+        "datasets": details,
+    }
 
 
 # --------------------------------------------------------------------------- #
