@@ -7,6 +7,12 @@
 
 ## 一、审查对象（唯一，不要扩范围）
 
+> **占位产物声明（重要，避免误报）**：本契约落盘时，四档消融与基线的**正式训练仍在进行**（本机无 GPU，单轮全量训练约 2.5–3 小时）。
+> 因此工作区里 `experiments/WORK-503/preds/*.parquet`、`verdict.json`、`metrics_table.csv`、`report.html`、`preview_first_screen.png`、
+> `report_print.pdf` 目前是**冒烟/占位产物**（含模拟数据），不是研究结果，终稿会覆盖它们。
+> **不要把占位产物的数值当作发现**；凡是基于占位产物得出的对账结论，一律注明「基于占位产物，待终稿复跑」。
+> 代码本身（`scripts/**`、`audit/**`）是终稿代码，不受此声明影响。
+
 | 项 | 值 |
 |---|---|
 | 仓库 | `/srv/data/multica/workspaces/workspace-c8faa36a018a/work-503-69b2057aa375/workdir/quant-lab` |
@@ -49,12 +55,14 @@
 2. **独立复跑结果**：把下列命令实际跑一遍，把命令与关键输出贴进报告：
    ```bash
    cd /srv/data/multica/workspaces/workspace-c8faa36a018a/work-503-69b2057aa375/workdir/quant-lab
-   ../env/.venv/bin/python -u audit/recompute_work503.py
+   ../env/.venv/bin/python -u audit/recompute_work503.py --out /tmp/work503_audit_reviewer.json
    ../env/.venv/bin/python -u scripts/work503_verdict.py
    ../env/.venv/bin/python -u scripts/work503_check_integrity.py
    ```
    并报告：`audit_recompute.json` 的 `n_mismatches`、`independence.modeling_imports_found`、以及 `verdict.json` 的 `verdict` 与 `H1.delta_ic`。
    - **审计方不得修改被审代码**（audit/README.md 规则：风控审计不能改被审模型）。发现问题只报不改；需要改动由提交方执行后再复跑。
+   - `work503_verdict.py` 会覆盖仓库里的 `verdict.json` / `metrics_table.csv` —— 这是允许的（提交方在终稿后会自己再跑一遍），但**不要改任何 `scripts/**` 或 `audit/**` 里的文件**。
+   - `work503_check_integrity.py` 会重算数据集完整性断言，CPU 较重；**如与训练抢资源，可跳过并在报告里写「未完成 + 原因」**，不要因此停工。
 3. **复现性检查**：同种子两次独立跑的结果是否逐位一致（对照 `preds/` 中已有的同种子复跑记录）。若无法在预算内完成，明确写「未完成 + 原因」，不要写成「通过」。
 
 ## 四、预算与停止条件
