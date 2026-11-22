@@ -1,0 +1,72 @@
+{
+  "pdf": "figures/WORK-503/fig3.pdf",
+  "auditable": true,
+  "verdict": "FIX BEFORE DELIVERY",
+  "page_count": 1,
+  "visible_text_box_count": 25,
+  "text_trace_count": 26,
+  "stroke_path_count": 38,
+  "filled_region_count": 18,
+  "image_region_count": 0,
+  "summary": {
+    "fail": 2,
+    "warn": 0,
+    "contained_fill_overlays": 0,
+    "contained_image_overlays": 0
+  },
+  "thresholds": {
+    "text_inset_pt": 0.6,
+    "min_overlap_ratio": 0.05,
+    "clipping_tolerance_pt": 0.5
+  },
+  "findings": [
+    {
+      "severity": "FAIL",
+      "kind": "text-stroke",
+      "page": 1,
+      "message": "Text is crossed by 1 stroked path(s)",
+      "text": "w/o MoE",
+      "text_bbox": [
+        76.24336242675781,
+        52.25973892211914,
+        109.79107666015625,
+        60.25973892211914
+      ],
+      "other_text": null,
+      "other_bbox": [
+        46.64336013793945,
+        57.2119140625,
+        414.9233703613281,
+        57.2119140625
+      ],
+      "object_count": 1,
+      "object_indexes": [
+        21
+      ]
+    },
+    {
+      "severity": "FAIL",
+      "kind": "text-stroke",
+      "page": 1,
+      "message": "Text is crossed by 1 stroked path(s)",
+      "text": "CSI300 equal-weight",
+      "text_bbox": [
+        176.0496063232422,
+        52.25973892211914,
+        258.9885559082031,
+        60.25973892211914
+      ],
+      "other_text": null,
+      "other_bbox": [
+        46.64336013793945,
+        57.2119140625,
+        414.9233703613281,
+        57.2119140625
+      ],
+      "object_count": 1,
+      "object_indexes": [
+        21
+      ]
+    }
+  ]
+}

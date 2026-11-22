@@ -34,6 +34,7 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
 
 BLUE, TEAL, RED = "#0F4D92", "#42949E", "#B64342"
 INK, INK2, MUTED = "#1a1a1a", "#3d3d3d", "#6f6f6f"
@@ -141,59 +142,67 @@ def fig_ablation(d, path):
         if vals:
             ax.plot([x[i] - w / 2] * len(vals), vals, "o", ms=3.4, color=INK,
                     zorder=5, label="individual seeds" if i == 0 else None)
-    for rect, v in list(zip(b1, ours)) + list(zip(b2, paper)):
-        ax.annotate(f"{v:.4f}", (rect.get_x() + rect.get_width() / 2,
-                                 rect.get_height()),
-                    textcoords="offset points", xytext=(0, 3), ha="center",
-                    fontsize=7.6, color=INK2)
+
+
     ax.set_xticks(x)
     ax.set_xticklabels([ARM_LABEL[a] for a in arms], fontsize=8)
     ax.set_ylabel("Daily RankIC (test period 2022-01-04 .. 2024-12-31)")
     ax.set_title("Ablation RankIC: this study vs the paper")
-    ax.set_ylim(0, max(paper) * 1.22)
+    ax.set_ylim(0, max(paper) * 1.30)
     _clean(ax)
-    ax.legend(loc="upper right", ncol=1)
+    # the legend sits below the axes: inside the plot it would be crossed by
+    # the grid lines (rendered collision audit)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.13), ncol=3,
+              fontsize=7.5)
     _save(fig, path)
 
 
 def fig_delta(d, path):
     """delta_ic against the pre-registered decision bands."""
     h1 = d["verdict"]["H1"]
-    fig, ax = plt.subplots(figsize=(6.6, 2.5))
-    ax.axvspan(-0.60, -0.40, color="#f2f2f0", zorder=0)
-    ax.axvspan(-0.40, -0.15, color="#eaf1f8", zorder=0)
-    ax.axvspan(-0.15, -0.10, color="#f7f7f5", zorder=0)
-    ax.axvspan(-0.10, 0.10, color="#f8ecec", zorder=0)
-    ax.axvspan(0.10, 0.20, color="#f7f7f5", zorder=0)
-    ax.text(-0.50, 1.62, "partial", ha="center", fontsize=7.5, color=MUTED)
-    ax.text(-0.275, 1.62, "IN  [-40%, -15%]", ha="center", fontsize=8,
-            color=BLUE, fontweight="bold")
-    ax.text(-0.125, 1.62, "partial", ha="center", fontsize=7.5, color=MUTED)
-    ax.text(0.0, 1.62, "OUT  [-10%, +10%]", ha="center", fontsize=8,
-            color=RED, fontweight="bold")
-    ax.text(0.15, 1.62, "partial", ha="center", fontsize=7.5, color=MUTED)
-    ax.axvline(h1["delta_ic"], color=BLUE, lw=2.2, zorder=4)
-    ax.annotate(f"this study  {h1['delta_ic']*100:+.1f}%",
-                (h1["delta_ic"], 0.30), textcoords="offset points",
-                xytext=(0, 0), ha="center", fontsize=9, color=BLUE,
-                fontweight="bold")
-    ax.axvline(h1["paper_delta_ic"], color=RED, lw=1.6, ls="--", zorder=4)
-    ax.annotate(f"paper  {h1['paper_delta_ic']*100:+.1f}%",
-                (h1["paper_delta_ic"], 0.95), textcoords="offset points",
-                xytext=(0, 0), ha="center", fontsize=8.5, color=RED)
-    for s, v in h1.get("delta_ic_per_seed", {}).items():
-        ax.plot([v], [1.15], "o", ms=5, color=INK, zorder=6)
-        ax.annotate(f"seed {s}", (v, 1.15), textcoords="offset points",
-                    xytext=(0, 7), ha="center", fontsize=7, color=INK2)
-    ax.set_xlim(-0.60, 0.20)
-    ax.set_ylim(0, 2.0)
+    delta = float(h1["delta_ic"])
+    paper = float(h1["paper_delta_ic"])
+    fig, ax = plt.subplots(figsize=(6.6, 2.3))
+    bands = [(-0.75, -0.40, "#f2f2f0"), (-0.40, -0.15, "#eaf1f8"),
+             (-0.15, -0.10, "#f7f7f5"), (-0.10, 0.10, "#f8ecec"),
+             (0.10, 0.25, "#f7f7f5")]
+    for lo, hi, col in bands:
+        ax.axvspan(lo, hi, ymin=0.0, ymax=1.0, color=col, zorder=0)
+    ax.vlines(delta, 0.0, 0.72, color=BLUE, lw=2.2, zorder=4)
+    ax.vlines(paper, 0.0, 0.72, color=RED, lw=1.6, ls="--", zorder=4)
+    ax.plot([delta], [0.88], marker="v", ms=9, color=BLUE, zorder=6,
+            linestyle="none")
+    ax.plot([paper], [0.88], marker="D", ms=6, color=RED, zorder=6,
+            linestyle="none")
+    seeds = sorted(h1.get("delta_ic_per_seed", {}).items())
+    for i, (s_, v) in enumerate(seeds):
+        y = 0.30 + 0.22 * i
+        ax.plot([v], [y], "o", ms=5, color=INK, zorder=6, linestyle="none")
+    ax.set_xlim(-0.75, max(0.25, paper + 0.06, delta + 0.06))
+    ax.set_ylim(0, 1.0)
     ax.set_yticks([])
     ax.set_xlabel("delta_ic = (RankIC_full - RankIC_no_vq) / RankIC_full")
     ax.set_title("The pre-registered decision bands and where this study lands")
-    for s in ("left", "right", "top"):
-        ax.spines[s].set_visible(False)
+    for s_ in ("left", "right", "top"):
+        ax.spines[s_].set_visible(False)
     ax.spines["bottom"].set_color(RULE)
     ax.grid(False)
+    handles = [Patch(facecolor="#eaf1f8", edgecolor="none",
+                     label="IN  [-40%, -15%]"),
+               Patch(facecolor="#f8ecec", edgecolor="none",
+                     label="OUT  [-10%, +10%]"),
+               Patch(facecolor="#f2f2f0", edgecolor="none",
+                     label="partial reproduction"),
+               plt.Line2D([], [], color=BLUE, lw=2.2, marker="v", ms=7,
+                          label=f"this study  {delta*100:+.1f}%"),
+               plt.Line2D([], [], color=RED, lw=1.6, ls="--", marker="D", ms=5,
+                          label=f"paper  {paper*100:+.1f}%")]
+    for i, (s_, v) in enumerate(seeds):
+        handles.append(plt.Line2D([], [], color=INK, marker="o", ms=5,
+                                  linestyle="none",
+                                  label=f"seed {s_}  {v*100:+.1f}%"))
+    ax.legend(handles=handles, loc="upper center",
+              bbox_to_anchor=(0.5, -0.30), ncol=3, fontsize=7.5)
     _save(fig, path)
 
 
@@ -227,7 +236,8 @@ def fig_equity(d, path):
     ax.set_ylabel("Cumulative net log return")
     ax.set_title("Net value of the four ablation arms and the GRU baseline")
     _clean(ax)
-    ax.legend(loc="upper left", ncol=2)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.13), ncol=3,
+              fontsize=7.5)
     _save(fig, path)
 
 
@@ -257,7 +267,8 @@ def fig_bootstrap(d, path):
     ax.set_title("H2: incremental RankIC over the fixed GRU baseline "
                  "(block = 5 days)")
     _clean(ax, grid_axis="y")
-    ax.legend(loc="upper right", fontsize=7)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.15), ncol=2,
+              fontsize=7)
     _save(fig, path)
 
 
@@ -433,14 +444,9 @@ def build_html(d, repo, exp_dir, fig_dir):
 
     paper_rows = []
     for arm in ARM_ORDER:
-        ours = h1.get({"full": "rankic_full_median",
-                       "no_vq": "rankic_no_vq_median"}.get(arm, ""), None)
-        med = np.median([v["runs"][f"{arm}_s{s}"]["rankic"] for s in v["seeds"]
-                         if f"{arm}_s{s}" in v["runs"]]) if arm in ("full", "no_vq") else None
-        if med is None:
-            vals = [v["runs"][f"{arm}_s{s}"]["rankic"] for s in v["seeds"]
-                    if f"{arm}_s{s}" in v["runs"]]
-            med = float(np.median(vals)) if vals else None
+        vals = [v["runs"][f"{arm}_s{s}"]["rankic"] for s in v["seeds"]
+                if f"{arm}_s{s}" in v["runs"]]
+        med = float(np.median(vals)) if vals else None
         paper_rows.append(
             f"<tr><td>{ARM_LABEL[arm]}</td><td class='num'>{fmt(med)}</td>"
             f"<td class='num'>{fmt(PAPER_ABLATION[arm])}</td>"

@@ -1,0 +1,282 @@
+{
+  "pdf": "figures/WORK-503/fig2.pdf",
+  "auditable": true,
+  "verdict": "FIX BEFORE DELIVERY",
+  "page_count": 1,
+  "visible_text_box_count": 15,
+  "text_trace_count": 18,
+  "stroke_path_count": 15,
+  "filled_region_count": 14,
+  "image_region_count": 0,
+  "summary": {
+    "fail": 5,
+    "warn": 5,
+    "contained_fill_overlays": 2,
+    "contained_image_overlays": 0
+  },
+  "thresholds": {
+    "text_inset_pt": 0.6,
+    "min_overlap_ratio": 0.05,
+    "clipping_tolerance_pt": 0.5
+  },
+  "findings": [
+    {
+      "severity": "FAIL",
+      "kind": "text-stroke",
+      "page": 1,
+      "message": "Text is crossed by 2 stroked path(s)",
+      "text": "seed 42",
+      "text_bbox": [
+        214.51878356933594,
+        64.96879577636719,
+        242.3434600830078,
+        71.96879577636719
+      ],
+      "other_text": null,
+      "other_bbox": [
+        136.09800720214844,
+        20.79766845703125,
+        246.58200073242188,
+        164.94166564941406
+      ],
+      "object_count": 2,
+      "object_indexes": [
+        3,
+        4
+      ]
+    },
+    {
+      "severity": "FAIL",
+      "kind": "text-stroke",
+      "page": 1,
+      "message": "Text is crossed by 3 stroked path(s)",
+      "text": "seed 2024",
+      "text_bbox": [
+        214.85023498535156,
+        75.69579315185547,
+        251.5779266357422,
+        82.69579315185547
+      ],
+      "other_text": null,
+      "other_bbox": [
+        136.09800720214844,
+        20.79766845703125,
+        320.2380065917969,
+        164.94166564941406
+      ],
+      "object_count": 3,
+      "object_indexes": [
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "severity": "FAIL",
+      "kind": "text-stroke",
+      "page": 1,
+      "message": "Text is crossed by 3 stroked path(s)",
+      "text": "partial",
+      "text_bbox": [
+        226.109375,
+        44.53743362426758,
+        248.6532745361328,
+        51.53743362426758
+      ],
+      "other_text": null,
+      "other_bbox": [
+        136.09800720214844,
+        20.79766845703125,
+        320.2380065917969,
+        164.94166564941406
+      ],
+      "object_count": 3,
+      "object_indexes": [
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "severity": "FAIL",
+      "kind": "text-stroke",
+      "page": 1,
+      "message": "Text is crossed by 3 stroked path(s)",
+      "text": "OUT  [-10%, +10%]",
+      "text_bbox": [
+        237.82406616210938,
+        26.588041305541992,
+        328.9930114746094,
+        35.08803939819336
+      ],
+      "other_text": null,
+      "other_bbox": [
+        228.16799926757812,
+        20.79766845703125,
+        375.4800109863281,
+        164.94166564941406
+      ],
+      "object_count": 3,
+      "object_indexes": [
+        4,
+        5,
+        6
+      ]
+    },
+    {
+      "severity": "FAIL",
+      "kind": "text-stroke",
+      "page": 1,
+      "message": "Text is crossed by 4 stroked path(s)",
+      "text": "this study  +21.2%",
+      "text_bbox": [
+        310.8075866699219,
+        129.76727294921875,
+        411.83258056640625,
+        139.26727294921875
+      ],
+      "other_text": null,
+      "other_bbox": [
+        246.58200073242188,
+        20.79766845703125,
+        382.6061706542969,
+        164.94166564941406
+      ],
+      "object_count": 4,
+      "object_indexes": [
+        5,
+        6,
+        13,
+        14
+      ]
+    },
+    {
+      "severity": "WARN",
+      "kind": "text-fill-edge",
+      "page": 1,
+      "message": "Text partially overlaps the edge of 2 filled region(s)",
+      "text": "seed 42",
+      "text_bbox": [
+        214.51878356933594,
+        64.96879577636719,
+        242.3434600830078,
+        71.96879577636719
+      ],
+      "other_text": null,
+      "other_bbox": [
+        136.09800720214844,
+        20.79766845703125,
+        246.58200073242188,
+        164.94166564941406
+      ],
+      "object_count": 2,
+      "object_indexes": [
+        3000,
+        4000
+      ]
+    },
+    {
+      "severity": "WARN",
+      "kind": "text-fill-edge",
+      "page": 1,
+      "message": "Text partially overlaps the edge of 3 filled region(s)",
+      "text": "seed 2024",
+      "text_bbox": [
+        214.85023498535156,
+        75.69579315185547,
+        251.5779266357422,
+        82.69579315185547
+      ],
+      "other_text": null,
+      "other_bbox": [
+        136.09800720214844,
+        20.79766845703125,
+        320.2380065917969,
+        164.94166564941406
+      ],
+      "object_count": 3,
+      "object_indexes": [
+        3000,
+        4000,
+        5000
+      ]
+    },
+    {
+      "severity": "WARN",
+      "kind": "text-fill-edge",
+      "page": 1,
+      "message": "Text partially overlaps the edge of 3 filled region(s)",
+      "text": "partial",
+      "text_bbox": [
+        226.109375,
+        44.53743362426758,
+        248.6532745361328,
+        51.53743362426758
+      ],
+      "other_text": null,
+      "other_bbox": [
+        136.09800720214844,
+        20.79766845703125,
+        320.2380065917969,
+        164.94166564941406
+      ],
+      "object_count": 3,
+      "object_indexes": [
+        3000,
+        4000,
+        5000
+      ]
+    },
+    {
+      "severity": "WARN",
+      "kind": "text-fill-edge",
+      "page": 1,
+      "message": "Text partially overlaps the edge of 3 filled region(s)",
+      "text": "OUT  [-10%, +10%]",
+      "text_bbox": [
+        237.82406616210938,
+        26.588041305541992,
+        328.9930114746094,
+        35.08803939819336
+      ],
+      "other_text": null,
+      "other_bbox": [
+        228.16799926757812,
+        20.79766845703125,
+        375.4800109863281,
+        164.94166564941406
+      ],
+      "object_count": 3,
+      "object_indexes": [
+        4000,
+        5000,
+        6000
+      ]
+    },
+    {
+      "severity": "WARN",
+      "kind": "text-fill-edge",
+      "page": 1,
+      "message": "Text partially overlaps the edge of 2 filled region(s)",
+      "text": "this study  +21.2%",
+      "text_bbox": [
+        310.8075866699219,
+        129.76727294921875,
+        411.83258056640625,
+        139.26727294921875
+      ],
+      "other_text": null,
+      "other_bbox": [
+        246.58200073242188,
+        20.79766845703125,
+        375.4800109863281,
+        164.94166564941406
+      ],
+      "object_count": 2,
+      "object_indexes": [
+        5000,
+        6000
+      ]
+    }
+  ]
+}
