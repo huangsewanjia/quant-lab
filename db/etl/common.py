@@ -179,7 +179,12 @@ def manifest_ok(dataset: str, partition: str, verify_hash: bool = True) -> bool:
     file_path = QDB_HOME / str(meta.get("file", ""))
     if not meta.get("file") or not file_path.exists():
         return False
-    if file_path.stat().st_size != int(meta.get("bytes", -1)):
+    try:
+        expected_bytes = int(meta.get("bytes", -1))
+        expected_rows = int(meta.get("rows", -1))
+    except (TypeError, ValueError):
+        return False
+    if file_path.stat().st_size != expected_bytes:
         return False
     if verify_hash and sha256_file(file_path) != meta.get("sha256"):
         return False
@@ -189,7 +194,7 @@ def manifest_ok(dataset: str, partition: str, verify_hash: bool = True) -> bool:
         actual_rows = int(pq.ParquetFile(file_path).metadata.num_rows)
     except Exception:  # noqa: BLE001
         return False
-    if actual_rows != int(meta.get("rows", -1)):
+    if actual_rows != expected_rows:
         return False
     return True
 
@@ -493,11 +498,16 @@ def load_partitions(
     cols = schema_columns(con, dataset)
     if full_refresh:
         con.execute(f"DELETE FROM {dataset}")
-    # Read every *.parquet in the partition: the main writer uses data.parquet,
-    # while a concurrent backfill may use part.parquet.
+    # Load only the file named by that partition's manifest. A concurrent writer
+    # may leave part.parquet, but unmanifested files must not silently enter L1.
     files = []
     for key in complete:
-        files.extend(str(path) for path in sorted(partition_dir(dataset, key).glob("*.parquet")))
+        meta = read_manifest(dataset, key) or {}
+        rel = meta.get("file")
+        if rel:
+            path = QDB_HOME / str(rel)
+            if path.exists():
+                files.append(str(path))
     if not files:
         return 0
     date_cols = DATE_COLUMNS.get(dataset, set())

@@ -96,7 +96,7 @@ python -m db.checks.run all
 | cross-source | 抽样股票用新浪 `stock_zh_a_hist_sina` 比对落盘 `close`，绝对差 ≤ 0.01 元 |
 | rowcount | 每日行数 >0，且至少一个 code |
 
-任一失败退出码 1；报告写 `/srv/share/quantdb/meta/checks/checks-YYYYMMDD.json`。
+任一失败退出码 1；`all` 报告写 `/srv/share/quantdb/meta/checks/checks-YYYYMMDD-all.json`，单项检查写 `checks-YYYYMMDD-<name>.json`。
 
 ## 6. 政策采集
 

@@ -110,12 +110,7 @@ def run_sql(con, sql: str, *, limit: int | None, fmt: str, out: Path | None) -> 
     if not query:
         raise SystemExit("SQL 为空")
     overflow = False
-    probe_sql = re.sub(
-        r"^\s*(?:--[^\n]*(?:\n|$)|/\*.*?\*/)",
-        "",
-        query,
-        flags=re.S,
-    )
+    probe_sql = _strip_leading_comments(query)
     first_word = probe_sql.lstrip().split(None, 1)[0].lower() if probe_sql.strip() else ""
     can_wrap = first_word in {"select", "with", "from", "describe", "show", "pragma"}
     if limit is not None and out is None and can_wrap:
@@ -127,6 +122,22 @@ def run_sql(con, sql: str, *, limit: int | None, fmt: str, out: Path | None) -> 
     else:
         df = con.execute(query).fetchdf()
     _emit(df, fmt, out, overflow, int(limit or 0))
+
+
+def _strip_leading_comments(sql: str) -> str:
+    """Remove any number of leading line/block comments before the first keyword."""
+    out = sql.lstrip()
+    while True:
+        new = re.sub(
+            r"^(?:--[^\n]*(?:\n|$)|/\*.*?\*/)",
+            "",
+            out,
+            count=1,
+            flags=re.S,
+        ).lstrip()
+        if new == out:
+            return out
+        out = new
 
 
 def build_parser() -> argparse.ArgumentParser:

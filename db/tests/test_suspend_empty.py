@@ -6,7 +6,7 @@ from db.etl import common, fetch
 
 
 class EmptyFetcher:
-    def call(self, method, dataset, *, trade_date=None, ts_code=None, **kwargs):
+    def call(self, method, dataset, *, trade_date=None, ts_code=None, params=None, **kwargs):
         return pd.DataFrame()
 
 

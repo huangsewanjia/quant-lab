@@ -11,7 +11,7 @@ class FakeFetcher:
     def __init__(self):
         self.calls = []
 
-    def call(self, method, dataset, *, trade_date=None, ts_code=None, **kwargs):
+    def call(self, method, dataset, *, trade_date=None, ts_code=None, params=None, **kwargs):
         self.calls.append(trade_date)
         return pd.DataFrame(
             [

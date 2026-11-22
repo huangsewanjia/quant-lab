@@ -40,11 +40,22 @@ def check_manifest(verify_hash: bool = True) -> tuple[bool, dict[str, Any]]:
         if not meta:
             missing.append(f"{dataset}/{partition}: manifest 不可读")
             continue
+        if meta.get("dataset") != dataset or meta.get("partition") != common.safe_key(partition):
+            bad.append(
+                f"{dataset}/{partition}: identity={meta.get('dataset')}/{meta.get('partition')}"
+            )
+            continue
         file_path = common.QDB_HOME / str(meta.get("file", ""))
         if not file_path.exists():
             missing.append(f"{dataset}/{partition}: {file_path} 不存在")
             continue
-        if file_path.stat().st_size != int(meta.get("bytes", -1)):
+        try:
+            expected_bytes = int(meta.get("bytes", -1))
+            expected_rows = int(meta.get("rows", -1))
+        except (TypeError, ValueError):
+            bad.append(f"{dataset}/{partition}: bytes/rows 字段类型损坏")
+            continue
+        if file_path.stat().st_size != expected_bytes:
             bad.append(f"{dataset}/{partition}: 字节数不匹配")
             continue
         if verify_hash and common.sha256_file(file_path) != meta.get("sha256"):
@@ -57,9 +68,19 @@ def check_manifest(verify_hash: bool = True) -> tuple[bool, dict[str, Any]]:
         except Exception as exc:  # noqa: BLE001
             bad.append(f"{dataset}/{partition}: 行数不可读 ({exc})")
             continue
-        if actual_rows != int(meta.get("rows", -1)):
+        if actual_rows != expected_rows:
             bad.append(
                 f"{dataset}/{partition}: 行数 {actual_rows} != manifest {meta.get('rows')}"
+            )
+        covered = {str(file_path.relative_to(common.QDB_HOME))}
+        extra = {
+            str(path.relative_to(common.QDB_HOME))
+            for path in common.partition_dir(dataset, partition).glob("*.parquet")
+            if str(path.relative_to(common.QDB_HOME)) not in covered
+        }
+        if extra:
+            bad.append(
+                f"{dataset}/{partition}: 有 manifest 未覆盖的 parquet: {sorted(extra)[:3]}"
             )
     ok = not missing and not bad
     return ok, {

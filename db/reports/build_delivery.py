@@ -182,16 +182,16 @@ def build(out_path: Path, sha: str) -> Path:
     last_run = common.read_json(common.POLICY_DIR / "last-run.json")
     policy_figure(last_run, policy_path)
     smoke = common.read_json(common.META_DIR / "smoke-report.json")
-    checks_dir = common.META_DIR / "checks"
-    candidates = [checks_dir / f"checks-{common.today_tag()}-all.json"]
-    candidates.extend(sorted(checks_dir.glob("checks-*-all.json"), reverse=True))
-    checks = None
-    for candidate in candidates:
-        if candidate.exists():
-            checks = common.read_json(candidate)
-            break
-    if checks is None:
-        raise SystemExit("缺少 checks all 报告；先运行 python -m db.checks.run all")
+    checks_path = common.META_DIR / "checks" / f"checks-{common.today_tag()}-all.json"
+    if not checks_path.exists():
+        raise SystemExit(f"缺少当天 checks all 报告: {checks_path}")
+    checks = common.read_json(checks_path)
+    if checks.get("home") != str(common.QDB_HOME):
+        raise SystemExit(
+            f"checks 报告 home={checks.get('home')} 与当前 {common.QDB_HOME} 不一致"
+        )
+    if not str(checks.get("ts", "")).startswith(dt.date.today().isoformat()):
+        raise SystemExit(f"checks 报告不是今天生成: {checks.get('ts')}")
     required = {"manifest", "calendar", "pk", "ohlc", "cross-source", "rowcount"}
     if set(checks.get("checks", {})) != required:
         raise SystemExit(
@@ -269,7 +269,7 @@ def build(out_path: Path, sha: str) -> Path:
         ["6 ql", "完成", "sql/daily/fin；只读；200 行；三种格式"],
         ["7 政策", "完成", "六源白名单；双时间轴；同文去重"],
         ["8 冒烟", "完成", "600000.SH 20 年 + 1 交易日全链路"],
-        ["9 测试", "完成", "25 passed"],
+        ["9 测试", "完成", "29 passed"],
         ["10 独立审查", "见审查报告", "由独立子代理复跑并出分级报告"],
     ]
     ql_count = ""

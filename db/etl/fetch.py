@@ -79,15 +79,22 @@ class TushareFetcher:
         *,
         trade_date: str | None = None,
         ts_code: str | None = None,
+        params: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> pd.DataFrame:
+        call_kwargs = dict(params or {})
+        if trade_date is not None:
+            call_kwargs.setdefault("trade_date", trade_date)
+        if ts_code is not None:
+            call_kwargs.setdefault("ts_code", ts_code)
+        call_kwargs.update(kwargs)
         last_error: Exception | None = None
         for attempt in range(1, self.retries + 2):
             self.limiter.wait()
             started = time.monotonic()
             try:
                 fn = getattr(self.pro, method)
-                df = fn(**kwargs)
+                df = fn(**call_kwargs)
                 if df is None:
                     df = pd.DataFrame()
                 elapsed = int((time.monotonic() - started) * 1000)
@@ -215,11 +222,13 @@ def fetch_by_trade_date(
 
     def one(trade_date: str) -> dict[str, Any]:
         extra = dict(kwargs or {})
+        upstream = dict(extra)
+        upstream["trade_date"] = trade_date
         df = fetcher.call(
             method,
             dataset,
             trade_date=trade_date,
-            **extra,
+            params=upstream,
         )
         if df.empty and dataset != "suspend_d":
             raise FetchError(f"{dataset} {trade_date} 返回空")

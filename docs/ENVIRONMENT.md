@@ -65,7 +65,7 @@
 
 | 命令 | 实测结果 |
 |---|---|
-| `pytest db/tests -q` | 25 passed |
+| `pytest db/tests -q` | 29 passed |
 | `python -m db.checks.run all` | 6 项 PASS |
 | `python -m db.etl.smoke_sina` | 4,808 行，raw 32.5 MB，DuckDB 装载 5.2 s，ql 正常 |
 

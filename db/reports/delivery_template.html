@@ -55,7 +55,7 @@ footer { border-top:1px solid var(--rule); margin-top:34px; padding-top:12px; fo
 
 <div class="abstract">
 <p><b>结论。</b>本单交付了一套可运行的本地数据底座：15 张 P0 表的 DuckDB schema、按交易日分区的 Parquet 原始层、带 sha256 manifest 的增量 ETL、6 项质量闸、只读 <code>ql</code>、六源政策采集，以及一条无 token 的单股冒烟。</p>
-<p><b>证据。</b>600000.SH 20 年 4,808 个交易日完成 raw→manifest→DuckDB→ql 全链路；25 项单测通过；质量闸 6 项 PASS；政策 5 篇入库、6 条按规则记缺。</p>
+<p><b>证据。</b>600000.SH 20 年 4,808 个交易日完成 raw→manifest→DuckDB→ql 全链路；29 项单测通过；质量闸 6 项 PASS；政策 5 篇入库、6 条按规则记缺。</p>
 <p><b>边界。</b>没有拉全市场，也没有使用 Tushare token；全市场回填需要 token 到位后另开任务。</p>
 </div>
 
@@ -103,7 +103,7 @@ footer { border-top:1px solid var(--rule); margin-top:34px; padding-top:12px; fo
 
 <h3>2.3 质量闸与测试</h3>
 {{GATE_TABLE}}
-<p>测试覆盖分区幂等、断点续跑、manifest 校验、<code>ql</code> 行数上限、schema 完整性、PIT 列、单位注释、政策双时间轴、财务调用参数、日历合并、停牌空结果、白名单与 HTTPS 传输。实测 <b>25 passed</b>。</p>
+<p>测试覆盖分区幂等、断点续跑、manifest 校验、<code>ql</code> 行数上限、schema 完整性、PIT 列、单位注释、政策双时间轴、财务调用参数、日历合并、停牌空结果、白名单与 HTTPS 传输。实测 <b>29 passed</b>。</p>
 
 <h2>3. 政策采集</h2>
 <p>六源白名单配置在 <code>db/policy/sources.toml</code>。只有 <code>publish_date</code> 与 <code>effective_date</code> 都齐全的条目才写正文和 meta；缺一写入 <code>policy/missing/YYYYMMDD.jsonl</code>，不把新闻稿冒充政策。同文按正文 sha256 去重。</p>

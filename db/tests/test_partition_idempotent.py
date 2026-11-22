@@ -5,6 +5,7 @@ import shutil
 
 import pandas as pd
 
+from db.checks import checks
 from db.etl import common
 
 
@@ -68,7 +69,7 @@ def test_duckdb_load_is_idempotent(qdb):
     assert meta["rows"] == 2
 
 
-def test_load_dedupes_data_and_part_parquet(qdb):
+def test_load_ignores_unmanifested_part_parquet(qdb):
     day = dt.date(2020, 1, 2)
     df = _daily([("600000.SH", day), ("000001.SZ", day)])
     common.write_partition(df, "daily", "20200102", "test")
@@ -81,3 +82,6 @@ def test_load_dedupes_data_and_part_parquet(qdb):
         count = con.execute("SELECT count(*) FROM daily").fetchone()[0]
     assert rows == 2
     assert count == 2
+    ok, detail = checks.check_manifest()
+    assert not ok
+    assert any("未覆盖" in item for item in detail["bad"])

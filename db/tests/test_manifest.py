@@ -71,3 +71,28 @@ def test_raw_partition_without_manifest_fails(qdb):
     ok, detail = checks.check_manifest()
     assert not ok
     assert detail["missing_count"] == 1
+
+
+def test_manifest_identity_tamper_fails(qdb):
+    _write_one(qdb)
+    path = common.manifest_path("daily", "20200102")
+    meta = common.read_json(path)
+    meta["dataset"] = "income"
+    meta["partition"] = "OTHER"
+    common.write_json_atomic(path, meta)
+    assert not common.manifest_ok("daily", "20200102")
+    ok, detail = checks.check_manifest()
+    assert not ok
+    assert any("identity" in item for item in detail["bad"])
+
+
+def test_manifest_null_rows_fails_without_exception(qdb):
+    _write_one(qdb)
+    path = common.manifest_path("daily", "20200102")
+    meta = common.read_json(path)
+    meta["rows"] = None
+    common.write_json_atomic(path, meta)
+    assert not common.manifest_ok("daily", "20200102")
+    ok, detail = checks.check_manifest()
+    assert not ok
+    assert any("bytes/rows" in item for item in detail["bad"])

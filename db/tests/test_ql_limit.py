@@ -95,6 +95,27 @@ def test_comment_leading_sql_is_still_limited(qdb, capsys):
     assert "截断" in captured.err
 
 
+def test_multiple_comments_still_limited(qdb, capsys):
+    _seed(qdb)
+    sql = "-- first\n-- second\n/* third */\n-- fourth\nSELECT * FROM daily ORDER BY trade_date"
+    code = cli.main(
+        [
+            "--db",
+            str(common.DB_PATH),
+            "--limit",
+            "10",
+            "--format",
+            "csv",
+            "sql",
+            sql,
+        ]
+    )
+    captured = capsys.readouterr()
+    assert code == 0
+    assert len([line for line in captured.out.splitlines() if line.strip()]) == 11
+    assert "截断" in captured.err
+
+
 def test_non_positive_limit_is_rejected(qdb):
     with pytest.raises(SystemExit):
         cli.main(["--db", str(common.DB_PATH), "--limit", "0", "sql", "SELECT 1"])
