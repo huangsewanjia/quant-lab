@@ -69,6 +69,9 @@ def main():
     prereg = git("log", "--format=%h %cI", "-1", "--",
                  f"experiments/{args.exp}/preregistration_v1.4.md")
     prereg_sha = prereg.split()[0] if prereg else "—"
+    prereg13 = git("log", "--format=%h %cI", "-1", "--",
+                   f"experiments/{args.exp}/preregistration_v1.3.md")
+    prereg13_sha = prereg13.split()[0] if prereg13 else "—"
 
     # ---- the four-arm table -------------------------------------------
     rows = []
@@ -236,8 +239,9 @@ flowchart TD
 
 ### 预注册（先于回测产物）
 
-- 最终生效版本 **v1.4**，commit **{prereg_sha}**（{prereg.split()[1] if len(prereg.split())>1 else ''}）。
-- 历史版本 v1.0 / v1.1 / v1.2 / v1.3 全部保留在 `experiments/{args.exp}/preregistration*.md`。
+- 最终生效版本 **v1.4**，commit **{prereg_sha}**（{prereg.split()[1] if len(prereg.split())>1 else ''}）；
+  其中 **v1.3（commit {prereg13_sha}）冻结了主检验量的符号口径**，v1.4 更正 v1.3 §4 的错误论证（两者都早于任何正式回测产物）。
+- 历史版本 v1.0 / v1.1 / v1.2 全部保留在 `experiments/{args.exp}/preregistration*.md`。
 - **v1.3 / v1.4 的唯一实质变更**：主检验量的符号口径。派单卡的公式、论文基准「−26.9%」、进带 [−40%,−15%] 三句互相矛盾
   （按字面公式代入论文数字得 +26.9%，落不进进带）；本单冻结为 Δ_drop = (RankIC_no_vq − RankIC_full)/RankIC_full，
   **判词带逐字不动**，并并列报告字面式 Δ_formula。该修订在正式训练跑完之前完成，判词带的数字一次都没变过。
