@@ -41,7 +41,7 @@
 | 项 | 数量 |
 |---|---:|
 | 主对齐表行数 | **53**（数据 13 / 因子 9 / 标签 3 / 模型 8 / 组合 10 / 成本 3 / 评价 7） |
-| 指向代码的 `path:line` 引用 | **72**（全部经脚本逐条核验：`assert` 每条引用的行区间内含预期标识串） |
+| 指向代码的 `path:line` 引用 | **72**（交付时用脚本逐条核验：每条引用的行区间内含预期标识串。⚠️ **该核验脚本未随本单入库，第三方无法复跑**——复算入口只覆盖下面 §1.1 表里的两个脚本，不含引用核验） |
 | 论文内部冲突条目 | **6**（§2.8，P1–P6） |
 | 缺口与风险条目 | **20**（§6，G-01…G-21） |
 | 213 因子逐条字段需求 | **213**（见 [`mlquant_factor_fields.md`](./mlquant_factor_fields.md)） |
@@ -68,6 +68,16 @@ python scripts/enumerate_mlquant_factors.py \
     --out  docs/mlquant_factor_fields.csv
 ```
 
+**「每一个量化数字都由仓库内脚本产出」是可以当场验的**：本文件 §5.1 / §5.4 与
+[导出规格 §7](./mlquant_export_spec.md) 引用的行数，在 JSON 里都标了 `jq` 路径。例如：
+
+```bash
+jq '.row_counts.adj_factor.paper_window.rows'  experiments/WORK-516/library_measurements.json  # 9969383
+jq '.adj_factor_row_coverage.expected_export_rows' experiments/WORK-516/library_measurements.json  # 10051715
+```
+
+脚本重跑后产物应与入库 JSON **除 `generated_at` 外 0 差异**（`generated_at` 是每次运行的时间戳）。
+
 ---
 
 ## 2. 主对齐表
@@ -91,7 +101,7 @@ python scripts/enumerate_mlquant_factors.py \
 | A10 | 全文未单独写退市处理 | loader 无退市逻辑；官方仓无 `stock_basic` | 新库 `stock_basic` 有 L(5,580)/D(344)/P(空) 三态 | **一致**：只要股票池用「窗口内 `daily` 出现过的全部代码」，而不是「当前在市代码」 |
 | A11 | 全文未写交易日历 | 面板日历 = 文件里出现过的日期 | 新库 `trade_cal`（SSE/SZSE）可作权威日历 | **一致**：面板日历取 `daily` 分区并集；导出时用 `trade_cal` 交叉校验 |
 | A12 | §A.3（p.17）原语三契约：zero-on-mask / independence / propagation | `features/tensor_factors.py:49-83` `cs_rank`、`:115-131` `ts_sum/ts_mean`、`:173-191` `ts_corr` | WORK-449 已逐条镜像（`work449_build_factors.py:88-120`），并有对拍脚本 `work449_test_primitives.py` | **一致**，我们已有对拍证据 |
-| A13 | §8（p.14）「一条 `make paper CONFIG=configs/paper.yaml` 复现全部合成实验」；`configs/paper.yaml:5-10` 的注释称 `gen-data` 会检查 `data.ochlv_path`，有则走 `load_ochlv_csv` | **注释与代码不符**：`cli/main.py:242-254` 的 `cmd_gen_data` **无条件**调 `make_synthetic_panel(syn)`，**没有** `ochlv_path` 分支；`load_ochlv_csv` 在 `src/` 内**无任何调用点**，只在 `docs/reproducing_paper.md:69-71` 作为手工步骤出现 | 我们走新库 parquet 直连，不依赖这条路径 | **缺口（代码）**：**官方 CLI 没有任何加载真实数据的入口**。`make paper CONFIG=configs/paper.yaml` 只能跑合成面板 ⇒ **Table 11 的真实面板数字官方仓根本复现不出来**，必须自己写数据接入层（本单交付的[导出规格](./mlquant_export_spec.md)就是这一层） |
+| A13 | §8（p.14）「一条 `make paper CONFIG=configs/paper.yaml` 复现全部合成实验」；`configs/paper.yaml:5-10` 的注释称 `gen-data` 会检查 `data.ochlv_path`，有则走 `load_ochlv_csv` | **注释与代码不符**：`cli/main.py:242-254` 的 `cmd_gen_data` **无条件**调 `make_synthetic_panel(syn)`，**没有** `ochlv_path` 分支。**loader 本身是存在的、也是可调用的**：`src/mlquant/data/__init__.py:31` 导入 `load_ochlv_csv`、`:40` 进 `__all__`，`:48-66` 的 `make_panel(source="csv", path=…)` 会调用它（`data/loaders.py:58`）；**但官方 CLI 没有任何子命令走这条路径**——`cli/main.py:68-78` 的 `_load_panel` 只从 `panel.pt` 重建面板，`:32` 的 import 里也没有 `make_panel`/`load_ochlv_csv` | 我们走新库 parquet 直连，不依赖这条路径 | **缺口（代码）**：**官方 CLI 没有任何加载真实数据的入口**。`make paper CONFIG=configs/paper.yaml` 只能跑合成面板 ⇒ **Table 11 的真实面板数字官方仓根本复现不出来**，必须自己写数据接入层（本单交付的[导出规格](./mlquant_export_spec.md)就是这一层）。**缺口是「缺 CLI 接线 + 缺数据格式桥」，不是「缺 loader」** |
 
 ### 2.2 因子
 
@@ -125,7 +135,7 @@ python scripts/enumerate_mlquant_factors.py \
 | D4 | §3.5.2 Eq(3)（p.5）AdjMSE：同号 → `γ`，异号 → `1+γ`；`γ=0.1` 时惩罚比 11:1 | `models/losses.py:44-56`：`same_sign = (pred*target) > 0` → `γ`，否则 `1+γ` ✓ | WORK-449 v1.3 已对齐 | **一致**。边界差异须披露：代码用 `>0`，论文写 `sign(ŷ)=sign(y)`；**任一为 0 时两者不等价**（代码判为异号） |
 | D5 | §3.5.2（p.6）「AdamW, lr 5e-4, wd 1e-5, grad clip 1.0, batch 8192, ≤60 epochs, **10% validation holdout 上 early stopping**」 | `configs/paper.yaml:36-45` 全部对上 ✓；`training/trainer.py:61-65` AdamW；`:188-190` `clip_grad_norm_`；`:97-106` 验证集 = **时间上最后 10% 的完整日期**（`val_split_mode="time"`）；`:153-163` 跑满 60 epoch，**保存 val loss 最优的 checkpoint**，**没有 patience、没有提前退出** | WORK-449 v1.3 §3 **不采用** 10% 留出，保留 2015-2020/2021/2022-2024 三段切，理由已写死 | **基本一致，两处口径必须写死**：①「10% holdout」在代码里是**按时间切**（最近 10% 日期），不是随机留出；② 代码**没有 early stopping**，是「跑满 + 保留最优 checkpoint」。论文措辞与代码不等价，须按代码走并披露 |
 | D6 | §3.5.1（p.5）样本 = (t 日因子向量, t+1 收益) | `training/dataset.py:28-64` ✓ | 同 | **一致** |
-| D7 | §3.5.4（p.6）GBM 增广：估 per-stock μ̂/σ̂ → 生成 log-return → **在合成面板上重算全部 213 因子** → 拼接；创新项按 **21 天块**抽样；`n_s=1` 数据翻倍 | `training/augment.py:23-89`：产出 `[n_s·T, N]` 的**收益**张量与全 True 掩码；`block_size=21` ✓、`n_synthetic=1` ✓、μ̂/σ̂ 用掩码历史 ✓。**但 `gbm_augment` 在 `src/` 内无任何调用点**（只被 `training/__init__.py` 导出） | 无 | **缺口（代码）**：**「合成面板重算因子」这一步官方没实现、也没接线**。论文 Algorithm 1（p.17）第 5–8 行的流程在 CLI 里没有对应物 ⇒ Table 4/12 的 +0.19 Sharpe **无法用 `make paper CONFIG=configs/paper.yaml` 直接复现** |
+| D7 | §3.5.4（p.6）GBM 增广：估 per-stock μ̂/σ̂ → 生成 log-return → **在合成面板上重算全部 213 因子** → 拼接；创新项按 **21 天块**抽样；`n_s=1` 数据翻倍 | `training/augment.py:23-89`：产出 `[n_s·T, N]` 的**收益**张量与全 True 掩码；`block_size=21` ✓、`n_synthetic=1` ✓、μ̂/σ̂ 用掩码历史 ✓。**但 `gbm_augment` 在 `src/` 内没有任何调用方**（只被 `training/__init__.py` 导出） | 无 | **缺口（代码）**：**「合成面板重算因子」这一步官方没实现、也没接线**。论文 Algorithm 1（p.17）第 5–8 行的流程在 CLI 里没有对应物 ⇒ Table 4/12 的 +0.19 Sharpe **无法用 `make paper CONFIG=configs/paper.yaml` 直接复现** |
 | D8 | §3.3（p.4）/§4.4（p.8）单 A100 GPU、4.2 GB 显存、51× 加速 | `configs/paper.yaml:42` `device: cuda` | 本机无 GPU（CPU 路线） | **需确认**：不影响规格对齐，影响复现耗时 |
 
 ### 2.5 组合
@@ -298,17 +308,22 @@ python scripts/enumerate_mlquant_factors.py \
 
 ### 5.1 已入库的数据集与 schema
 
-| 数据集 | 分区数 | 行数（2015–2024） | 关键列 |
-|---|---:|---:|---|
-| `daily` | 2,431 | **9,482,407** | `ts_code, trade_date, open, high, low, close, pre_close, change, pct_chg, vol, amount` |
-| `adj_factor` | 2,433 | 9,969,383 | `ts_code, trade_date, adj_factor` |
-| `daily_basic` | 2,431 | 9,392,135 | `turnover_rate, turnover_rate_f, volume_ratio, pe, pb, total_mv, circ_mv, free_share, …` |
-| `stk_limit` | 2,431 | 9,724,911 | `ts_code, trade_date, up_limit, down_limit` ← **交易所真实涨跌停价** |
-| `suspend_d` | 2,431 | 330,217 | `ts_code, trade_date, suspend_timing, suspend_type` |
-| `index_daily` | 2,431 | 21,976,288 | 指数行情（含 CSI All-A 基准） |
-| `stock_basic` | L/D/P | 5,580 / 344 / 0 | `ts_code, symbol, name, area, industry, market, list_date, act_name, act_ent_type` |
-| `trade_cal` | SSE/SZSE | 7,630 / — | `exchange, cal_date, is_open, pretrade_date` |
-| `index_classify` | SW2021 | 511 | `index_code, industry_name, level(L1=31/L2=134/L3=346), industry_code` |
+| 数据集 | 分区数 | 行数（2015–2024） | 关键列 | JSON 字段（`jq` 取值） |
+|---|---:|---:|---|---|
+| `daily` | 2,431 | **9,482,407** | `ts_code, trade_date, open, high, low, close, pre_close, change, pct_chg, vol, amount` | `.row_counts.daily.paper_window` |
+| `adj_factor` | 2,433 | 9,969,383 | `ts_code, trade_date, adj_factor` | `.row_counts.adj_factor.paper_window` |
+| `daily_basic` | 2,431 | 9,392,135 | `turnover_rate, turnover_rate_f, volume_ratio, pe, pb, total_mv, circ_mv, free_share, …` | `.row_counts.daily_basic.paper_window` |
+| `stk_limit` | 2,431 | 9,724,911 | `ts_code, trade_date, up_limit, down_limit` ← **交易所真实涨跌停价** | `.row_counts.stk_limit.paper_window` |
+| `suspend_d` | 2,431 | 330,217 | `ts_code, trade_date, suspend_timing, suspend_type` | `.row_counts.suspend_d.paper_window` |
+| `index_daily` | 2,431 | 21,976,288 | 指数行情（含 CSI All-A 基准） | `.row_counts.index_daily.paper_window` |
+| `stock_basic` | L/D/P | 5,580 / 344 / 0 | `ts_code, symbol, name, area, industry, market, list_date, act_name, act_ent_type` | `.universe.stock_basic_partition_rows` |
+| `trade_cal` | SSE/SZSE | 7,630 / 7,630 | `exchange, cal_date, is_open, pretrade_date` | `.row_counts.trade_cal` |
+| `index_classify` | SW2021 | 511 | `index_code, industry_name, level(L1=31/L2=134/L3=346), industry_code` | `.row_counts.index_classify` |
+
+> 表里**每一个行数都能用 `jq` 从 `experiments/WORK-516/library_measurements.json` 取到同值**，例如
+> `jq '.row_counts.adj_factor.paper_window.rows'` → `9969383`。日期型数据集的 `paper_window` 子对象同时带
+> `partitions` 与 `rows`（窗口 = 2015-01-01…2024-12-31）；`row_counts.<数据集>.rows` 是**含 1 年预热的
+> 2014–2024 全窗**计数，与本表的 2015–2024 口径**不是同一个数**，引用时不要混用。
 
 **全库覆盖**：2006-01-04 → 2026-11-20，5,072 个交易日分区，`daily` 共 15,966,167 行。
 
@@ -330,13 +345,17 @@ python scripts/enumerate_mlquant_factors.py \
 
 ### 5.4 关键行数（导出预期）
 
-| 窗口 | 交易日 | `daily` 行数 |
-|---|---:|---:|
-| 2014-01-01 – 2024-12-31（**含 1 年预热**，推荐导出窗） | 2,676 | **10,053,442** |
-| 2015-01-01 – 2024-12-31（论文真实面板窗） | 2,431 | 9,482,407 |
-| 2015–2020（训练段） | 1,462 | 4,665,263 |
-| 2021（验证段） | 243 | 1,085,445 |
-| 2022–2024（测试段） | **726** | 3,731,699 |
+| 窗口 | 交易日 | `daily` 行数 | JSON 字段（`jq`） |
+|---|---:|---:|---|
+| 2014-01-01 – 2024-12-31（**含 1 年预热**，推荐导出窗） | 2,676 | **10,053,442** | `.row_counts.daily` |
+| 2015-01-01 – 2024-12-31（论文真实面板窗） | 2,431 | 9,482,407 | `.row_counts.daily.paper_window` |
+| 2015–2020（训练段） | 1,462 | 4,665,263 | `.row_counts._segments.train_2015_2020` |
+| 2021（验证段） | 243 | 1,085,445 | `.row_counts._segments.val_2021` |
+| 2022–2024（测试段） | **726** | 3,731,699 | `.row_counts._segments.test_2022_2024` |
+
+> **注意两套口径不要混用**：上表是 `daily` 的**原始行数**。**导出后**的行数（剔除缺 `adj_factor` 的行）
+> 在 `.adj_factor_row_coverage.by_window` 里，2014–2024 窗 = **10,051,715** 行，见
+> [导出规格 §7](./mlquant_export_spec.md#7-预期行数实测可直接用来验收)。
 
 ---
 
@@ -352,8 +371,8 @@ python scripts/enumerate_mlquant_factors.py \
 | **G-01** | **IPO「上市>1年」过滤未实现**（`src/` 全仓无 `list_date` 逻辑） | 论文 Eq(1) 的第三个条件；影响全部 213 因子与标签的样本选择 | **能，且不用近似**：新库 `stock_basic.list_date` 直接可用，WORK-449 已有 `listed_1y` 实现（`work449_build_panel.py:170`） | 低。须注意**退市股**也要用其原始上市日，不能用「当前在市」清单 |
 | **G-02** | **行业/市值中性化 Eq(2) 未接线**（`neutralize_industry` 只在 tests 里被调用） | §3.4；影响 213 个因子进入模型前的分布 | **部分能**：① 行业 —— 用 `index_classify` SW2021 **L1=31 类**或 `stock_basic.industry`（110 类）替代论文的「29 个中证行业」，**分类体系不同**；② 市值 —— `daily_basic.total_mv`/`circ_mv` 可用 | **中–高**。分类体系替换会改变残差化的自由度与含义，**不能声称复现了 Eq(2)**，只能声称「用 SW2021 L1 做了等价的行业剔除」。若坚持中证 29 类，需另找数据源 |
 | **G-03** | **§3.5.1 的 t+1 双向限价标签检查未实现**（`cli/main.py:295` 用的 label_mask 来自原始面板，不含限价条件） | 标签样本选择；直接影响 Table 11 的 Sharpe | **能，不用近似**：用 `stk_limit` 在 t+1 判触板，构造 `M_{t+1}` 再与 `M_t` 取交集 | 低，但**必须做**——这正是论文「上游污染」论证的核心环节，漏掉它等于把论文最想验证的那件事跳过了 |
-| **G-04** | **GBM 增广「合成面板重算因子」未实现、未接线**（`gbm_augment` 在 `src/` 无调用点） | 论文 Table 4/12 的 +0.19 Sharpe；Algorithm 1 第 5–8 行 | **能，但要自己写**：按 §3.5.4 用 μ̂/σ̂ + 21 天块创新项生成合成价格路径，再跑一遍 213 因子 | **高（工程量）**。这一步在官方仓里不存在，属于「从论文重建」。**建议单独立子单做**，不阻塞 P0 规格对齐 |
-| **G-04b** | **官方 CLI 没有真实数据入口**（`cli/main.py:242-254` 的 `gen-data` 无条件走合成数据；`configs/paper.yaml:5-10` 的 `data.ochlv_path` 注释与代码不符；`load_ochlv_csv` 在 `src/` 内无调用点） | **Table 11 的真实面板数字**——官方仓复现不出来 | **能，不用近似**：本单交付的[导出规格](./mlquant_export_spec.md)就是这一层（parquet → `load_ochlv_csv` 长表），列名/单位/复权口径全部写死 | 低（写脚本的活），但**这是整个复现的入口，没有它后面都跑不了** |
+| **G-04** | **GBM 增广「合成面板重算因子」未实现、未接线**（`gbm_augment` 在 `src/` 内没有任何调用方） | 论文 Table 4/12 的 +0.19 Sharpe；Algorithm 1 第 5–8 行 | **能，但要自己写**：按 §3.5.4 用 μ̂/σ̂ + 21 天块创新项生成合成价格路径，再跑一遍 213 因子 | **高（工程量）**。这一步在官方仓里不存在，属于「从论文重建」。**建议单独立子单做**，不阻塞 P0 规格对齐 |
+| **G-04b** | **官方 CLI 没有真实数据入口**（`cli/main.py:242-254` 的 `gen-data` 无条件走合成数据；`configs/paper.yaml:5-10` 的 `data.ochlv_path` 注释与代码不符）。**缺口在 CLI 接线与数据格式桥，不在 loader**：`load_ochlv_csv`（`data/loaders.py:58`）本身可用，经 `src/mlquant/data/__init__.py:48-66` 的 `make_panel(source="csv", path=…)` 调用（`:31` 导入、`:40` 进 `__all__`）；但 `cli/main.py:68-78` 的 `_load_panel` 只从 `panel.pt` 重建面板、`:32` 未 import `make_panel`/`load_ochlv_csv` ⇒ **官方 CLI 无任何子命令走这条路** | **Table 11 的真实面板数字**——官方仓复现不出来 | **能，不用近似**：本单交付的[导出规格](./mlquant_export_spec.md)就是这一层（parquet → `load_ochlv_csv` 长表），列名/单位/复权口径全部写死 | 低（写脚本的活），但**这是整个复现的入口，没有它后面都跑不了** |
 
 ### 6.2 我们自身的缺口
 

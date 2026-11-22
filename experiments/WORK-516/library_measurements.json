@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-22T15:32:40.221696+00:00",
+ "generated_at": "2026-11-22T22:58:27.130062+00:00",
  "raw_root": "/srv/share/quantdb/raw",
  "window": {
   "lo": "20140101",
@@ -12,27 +12,94 @@
  "row_counts": {
   "daily": {
    "partitions": 2676,
-   "rows": 10053442
+   "rows": 10053442,
+   "window": {
+    "lo": "20140101",
+    "hi": "20241231"
+   },
+   "paper_window": {
+    "lo": "20150101",
+    "hi": "20241231",
+    "partitions": 2431,
+    "rows": 9482407
+   }
   },
   "adj_factor": {
    "partitions": 2678,
-   "rows": 10592327
+   "rows": 10592327,
+   "window": {
+    "lo": "20140101",
+    "hi": "20241231"
+   },
+   "paper_window": {
+    "lo": "20150101",
+    "hi": "20241231",
+    "partitions": 2433,
+    "rows": 9969383
+   }
   },
   "daily_basic": {
    "partitions": 2676,
-   "rows": 9962812
+   "rows": 9962812,
+   "window": {
+    "lo": "20140101",
+    "hi": "20241231"
+   },
+   "paper_window": {
+    "lo": "20150101",
+    "hi": "20241231",
+    "partitions": 2431,
+    "rows": 9392135
+   }
   },
   "stk_limit": {
    "partitions": 2676,
-   "rows": 10344477
+   "rows": 10344477,
+   "window": {
+    "lo": "20140101",
+    "hi": "20241231"
+   },
+   "paper_window": {
+    "lo": "20150101",
+    "hi": "20241231",
+    "partitions": 2431,
+    "rows": 9724911
+   }
   },
   "suspend_d": {
    "partitions": 2676,
-   "rows": 381728
+   "rows": 381728,
+   "window": {
+    "lo": "20140101",
+    "hi": "20241231"
+   },
+   "paper_window": {
+    "lo": "20150101",
+    "hi": "20241231",
+    "partitions": 2431,
+    "rows": 330217
+   }
   },
   "index_daily": {
    "partitions": 2676,
-   "rows": 23414471
+   "rows": 23414471,
+   "window": {
+    "lo": "20140101",
+    "hi": "20241231"
+   },
+   "paper_window": {
+    "lo": "20150101",
+    "hi": "20241231",
+    "partitions": 2431,
+    "rows": 21976288
+   }
+  },
+  "trade_cal": {
+   "SSE": 7630,
+   "SZSE": 7630
+  },
+  "index_classify": {
+   "SW2021": 511
   },
   "_segments": {
    "train_2015_2020": {
@@ -56,11 +123,17 @@
   },
   "_full_library": {
    "partitions": 5072,
-   "rows": 15966167
+   "rows": 15966167,
+   "rows_without_adj_factor": 1919,
+   "expected_export_rows": 15964248,
+   "share_without_adj_factor": 0.000120191652761743,
+   "first_date": "20060104",
+   "last_date": "20261120"
   }
  },
  "universe": {
   "distinct_codes_in_daily_2015_2024": 5591,
+  "distinct_codes_in_daily_2014_2024": 5594,
   "stock_basic_status_counts": {
    "D": 344,
    "L": 5580
@@ -320,7 +393,54 @@
     "daily_rows": 3843
    }
   ],
-  "expected_export_rows": 10051715
+  "expected_export_rows": 10051715,
+  "by_window": {
+   "2014_2024": {
+    "daily_rows": 10053442,
+    "rows_without_adj_factor": 1727,
+    "partitions": 2676,
+    "from": "20140101",
+    "to": "20241231",
+    "expected_export_rows": 10051715,
+    "share_without_adj_factor": 0.00017178196283422134
+   },
+   "2015_2024": {
+    "daily_rows": 9482407,
+    "rows_without_adj_factor": 1692,
+    "partitions": 2431,
+    "from": "20150101",
+    "to": "20241231",
+    "expected_export_rows": 9480715,
+    "share_without_adj_factor": 0.00017843570730511778
+   },
+   "train_2015_2020": {
+    "daily_rows": 4665263,
+    "rows_without_adj_factor": 1179,
+    "partitions": 1462,
+    "from": "20150101",
+    "to": "20201231",
+    "expected_export_rows": 4664084,
+    "share_without_adj_factor": 0.0002527188713690954
+   },
+   "val_2021": {
+    "daily_rows": 1085445,
+    "rows_without_adj_factor": 205,
+    "partitions": 243,
+    "from": "20210101",
+    "to": "20211231",
+    "expected_export_rows": 1085240,
+    "share_without_adj_factor": 0.00018886263237658288
+   },
+   "test_2022_2024": {
+    "daily_rows": 3731699,
+    "rows_without_adj_factor": 308,
+    "partitions": 726,
+    "from": "20220101",
+    "to": "20241231",
+    "expected_export_rows": 3731391,
+    "share_without_adj_factor": 8.253613166549606e-05
+   }
+  }
  },
  "model_parameter_counts": {
   "mlp_in213_hidden128": 44033,
