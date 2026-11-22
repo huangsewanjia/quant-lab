@@ -160,6 +160,11 @@ def main():
                           PAPER_ABLATION["full"],
         "bands": {"进": [-0.40, -0.15], "退": [-0.10, 0.10]},
         "verdict": verdict,
+        "sign_note": (
+            "RankIC_full 为负时，Δ_ic 的符号会随分母翻转、不可按原阈值直接读；"
+            f"本单 RankIC_full 中位数 = {ric_full:.4f}"
+            + ("（为负，需按符号翻转口径另作判断，判词须写明）。"
+               if ric_full < 0 else "（为正，阈值按原口径直接读）。")),
     }
 
     # ---- H2 -------------------------------------------------------------
@@ -340,7 +345,17 @@ def main():
     out["by_arm"] = by_arm
 
     cmp_rows = []
-    for arm in ARMS:
+    # 差异原因（派单卡交付物 #7：论文数字（标表号）/ 本单数字 / 差异原因）
+    REASON = {
+        "full": "训练段 2015-2019（论文 2009-2019）、≤6 轮（论文 ≤50）、本机无 GPU；"
+                "先验为自建 6 个 A 股因子（论文为 JKP 13 因子）；逐日施加涨跌停/停牌掩码；"
+                "数据底座为公开源重建（非 Qlib cn_data）",
+        "no_moe": "同上（仅去掉 MoE）",
+        "no_prior": "同上；且先验被整档置零 —— 本档降幅**不能**用来支持「码本有效」",
+        "no_vq": "同上（仅去掉 VQ 码本，H1 的分母档）",
+        "gru": "本单同协议重训的固定基线（Qlib 官方 GRU），与论文 Table 1 的 GRU 行对照",
+    }
+    for arm in ARMS + [BASELINE]:
         for seed in seeds:
             key = f"{arm}_s{seed}"
             if key not in per_run:
@@ -351,12 +366,17 @@ def main():
                 "rankic": v["rankic"], "rankicir": v["rankicir"],
                 "ar": v["ar"], "mdd": v["mdd"], "sr": v["sr"],
                 "turnover": v.get("turnover_both_sides"),
+                "paper_ref": ("paper Table 2 (ablation)" if arm in PAPER_ABLATION
+                              else "paper Table 1 (baseline)"),
+                "diff_reason": REASON.get(arm, ""),
             })
     for name, m in PAPER.items():
         cmp_rows.append({"source": "paper Table 1", "system": name, "seed": None,
+                         "paper_ref": "paper Table 1", "diff_reason": "论文原值",
                          **m})
     for arm, ric in PAPER_ABLATION.items():
         cmp_rows.append({"source": "paper Table 2", "system": arm, "seed": None,
+                         "paper_ref": "paper Table 2", "diff_reason": "论文原值",
                          "rankic": ric})
     pd.DataFrame(cmp_rows).to_csv(
         os.path.join(exp_dir, "paper_comparison.csv"), index=False)
