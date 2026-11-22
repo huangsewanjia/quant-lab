@@ -1,0 +1,39 @@
+{
+ "experiment": "WORK-503",
+ "generated_at": "2026-11-22T13:40:08.911885+08:00",
+ "source": "akshare stock_financial_analysis_indicator (新浪财经·财务指标)",
+ "field": "每股净资产_调整后(元)",
+ "units": {
+  "bvps": "元"
+ },
+ "point_in_time_rule": "report period becomes usable 120 calendar days after the period end",
+ "items": [
+  {
+   "code": "sh.600000",
+   "ok": true,
+   "rows": 54,
+   "error": "",
+   "date_min": "2011-03-31",
+   "date_max": "2024-12-31",
+   "sha256": "20f33b42daa18aa2a66d294ec05dff25418c45fa4fcf91cade075b5ab1efbf37"
+  },
+  {
+   "code": "sh.600004",
+   "ok": true,
+   "rows": 56,
+   "error": "",
+   "date_min": "2011-03-31",
+   "date_max": "2024-12-31",
+   "sha256": "56bf9835f04f878e9a7455a3320a3440bbf91c23f5fc71e391b7ab4f3ef9af98"
+  },
+  {
+   "code": "sh.600005",
+   "ok": true,
+   "rows": 24,
+   "error": "",
+   "date_min": "2011-03-31",
+   "date_max": "2016-12-31",
+   "sha256": "0c5af1241b6e7719ee87de7bf1a53a69aabec4d8ca0c7034b7a174fe6426ef86"
+  }
+ ]
+}

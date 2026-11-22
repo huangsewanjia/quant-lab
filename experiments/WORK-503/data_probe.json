@@ -1,0 +1,172 @@
+{
+  "experiment": "WORK-503",
+  "stage": "0 — 端点复测 (endpoint probe)",
+  "probed_at": "2026-11-22",
+  "rule": "每个端点实打实打一次；先探样例再放量。任一端点 403/40203 或测试期覆盖不足 -> 停手回报。本轮 8 个 Tushare MCP 调用全部返回 200 且无 40203/403。",
+  "primary_probe_source": "tushare MCP (服务端出口)",
+  "bulk_source": "baostock (本机出口) — 批量取数走本机源，Tushare 服务端仅作探针与交叉校验",
+  "cross_validation_pair": "tushare 服务端 ↔ baostock 本机源（符合 AGENTS.md 数据源路由规则的独立校验对；akshare 新浪/腾讯与东财同为本机出口，彼此不算独立源）",
+
+  "endpoints": [
+    {
+      "id": "E1",
+      "class": "日频个股 bar（开高低收 + 复权因子 + 成交量 + 成交额）",
+      "tool": "mcp__tushare__daily",
+      "params": {"ts_code": "600519.SH", "start_date": "20240102", "end_date": "20240110"},
+      "rows_returned": 7,
+      "coverage_start": "2024-01-02",
+      "coverage_end": "2024-01-10",
+      "fields_returned": ["ts_code", "trade_date", "open", "high", "low", "close", "pre_close", "change", "pct_chg", "vol", "amount"],
+      "units": {"vol": "手", "amount": "千元"},
+      "status": "ok",
+      "error": "",
+      "evidence_sample": {"trade_date": "20240110", "open": 1641.1, "high": 1659.46, "low": 1638.0, "close": 1641.5, "pre_close": 1641.0, "pct_chg": 0.0305, "vol": 17350.67, "amount": 2856120.718}
+    },
+    {
+      "id": "E2",
+      "class": "日频个股 bar — 复权因子",
+      "tool": "mcp__tushare__adj_factor",
+      "params": {"ts_code": "600519.SH", "start_date": "20240102", "end_date": "20240110"},
+      "rows_returned": 7,
+      "coverage_start": "2024-01-02",
+      "coverage_end": "2024-01-10",
+      "fields_returned": ["ts_code", "trade_date", "adj_factor"],
+      "status": "ok",
+      "error": "",
+      "evidence_sample": {"trade_date": "20240110", "adj_factor": 7.8576}
+    },
+    {
+      "id": "E3",
+      "class": "涨跌停价 / 涨跌停标记 + 估值 + 换手率（掩码与先验因子用）",
+      "tool": "mcp__tushare__daily_basic",
+      "params": {"ts_code": "600519.SH", "start_date": "20240102", "end_date": "20240110", "fields": ["ts_code", "trade_date", "close", "turnover_rate", "pe", "pb", "total_mv", "circ_mv", "limit_status"]},
+      "rows_returned": 7,
+      "coverage_start": "2024-01-02",
+      "coverage_end": "2024-01-10",
+      "fields_returned": ["ts_code", "trade_date", "close", "turnover_rate", "pe", "pb", "total_mv", "circ_mv", "limit_status"],
+      "limit_status_codebook": {"0": "平盘", "1": "上涨(不含涨停)", "2": "涨停(不含一字涨停)", "3": "一字涨停", "4": "下跌(不含跌停)", "5": "跌停(不含一字跌停)", "6": "一字跌停"},
+      "status": "ok",
+      "error": "",
+      "evidence_sample": {"trade_date": "20240110", "turnover_rate": 0.1381, "pe": 32.8789, "pb": 10.6397, "total_mv": 206204868.87, "circ_mv": 206204868.87, "limit_status": 1}
+    },
+    {
+      "id": "E4",
+      "class": "point-in-time 指数成分与权重（CSI300）",
+      "tool": "mcp__tushare__index_weight",
+      "params": {"index_code": "000300.SH", "ts_code": "600519.SH", "trade_date": "20240131"},
+      "rows_returned": 1,
+      "coverage_start": "2024-01-31",
+      "coverage_end": "2024-01-31",
+      "fields_returned": ["index_code", "con_code", "trade_date", "weight"],
+      "status": "ok",
+      "error": "",
+      "evidence_sample": {"index_code": "000300.SH", "con_code": "600519.SH", "trade_date": "20240131", "weight": 6.191},
+      "note": "端点为月度快照；PIT 性由「按历史 trade_date 取当时名单」保证，不得用当前名单回填历史。"
+    },
+    {
+      "id": "E5",
+      "class": "停牌标记（掩码用）",
+      "tool": "mcp__tushare__suspend_d",
+      "params": {"ts_code": "688086.SH", "start_date": "20230401", "end_date": "20230707"},
+      "rows_returned": 34,
+      "coverage_start": "2023-04-24",
+      "coverage_end": "2023-07-06",
+      "fields_returned": ["ts_code", "trade_date", "suspend_timing", "suspend_type"],
+      "suspend_type_codebook": {"S": "停牌", "R": "复牌"},
+      "status": "ok",
+      "error": "",
+      "evidence_sample": {"trade_date": "20230424", "suspend_type": "S"},
+      "note": "688086.SH（退紫晶）2023-04-24 起连续 S、2023-06-08 一条 R、2023-07-03 起再次 S；端点可返回真实停牌记录。对 600519.SH 的 2024 全年查询返回 0 行（该股当年无停牌），属正常空结果而非端点失败。"
+    },
+    {
+      "id": "E6",
+      "class": "退市股名录（幸存者偏差体检用）",
+      "tool": "mcp__tushare__stock_basic",
+      "params": {"list_status": "D", "fields": ["ts_code", "symbol", "name", "list_date", "delist_date", "market"]},
+      "rows_returned": 330,
+      "coverage_start": "1993-03-16 (最早 list_date)",
+      "coverage_end": "2026-11-13 (最晚 delist_date)",
+      "fields_returned": ["ts_code", "symbol", "name", "list_date", "delist_date", "market"],
+      "status": "ok",
+      "error": "",
+      "evidence_sample": {"ts_code": "688086.SH", "name": "退紫晶(退)", "list_date": "20200226", "delist_date": "20230707", "market": "科创板"}
+    },
+    {
+      "id": "E7",
+      "class": "基准指数日频（CSI300，基准调整 alpha 用）",
+      "tool": "mcp__tushare__index_daily",
+      "params": {"ts_code": "000300.SH", "start_date": "20240102", "end_date": "20240110"},
+      "rows_returned": 7,
+      "coverage_start": "2024-01-02",
+      "coverage_end": "2024-01-10",
+      "fields_returned": ["ts_code", "trade_date", "close", "open", "high", "low", "pre_close", "change", "pct_chg", "vol", "amount"],
+      "status": "ok",
+      "error": "",
+      "evidence_sample": {"trade_date": "20240110", "close": 3277.129, "open": 3281.6692, "pct_chg": -0.4668}
+    },
+    {
+      "id": "E8",
+      "class": "交易日历",
+      "tool": "mcp__tushare__trade_cal",
+      "params": {"exchange": "SSE", "start_date": "20240101", "end_date": "20240131"},
+      "rows_returned": 31,
+      "coverage_start": "2024-01-01",
+      "coverage_end": "2024-01-31",
+      "fields_returned": ["exchange", "cal_date", "is_open", "pretrade_date"],
+      "status": "ok",
+      "error": "",
+      "evidence_sample": {"cal_date": "20240101", "is_open": 0, "pretrade_date": "20231229"},
+      "note": "31 个自然日中 21 个 is_open=1。"
+    }
+  ],
+
+  "test_period_coverage_check": {
+    "required": "2022-01-04 ~ 2024-12-31 日频个股 bar 全覆盖",
+    "probes": [
+      {"tool": "mcp__tushare__daily", "params": {"ts_code": "600519.SH", "start_date": "20220104", "end_date": "20220110"}, "rows_returned": 5, "coverage_start": "2022-01-04", "coverage_end": "2022-01-10", "status": "ok"},
+      {"tool": "mcp__tushare__daily", "params": {"ts_code": "600519.SH", "start_date": "20240102", "end_date": "20240110"}, "rows_returned": 7, "coverage_start": "2024-01-02", "coverage_end": "2024-01-10", "status": "ok"},
+      {"tool": "mcp__tushare__daily", "params": {"ts_code": "600519.SH", "start_date": "20241220", "end_date": "20241231"}, "rows_returned": 8, "coverage_start": "2024-12-20", "coverage_end": "2024-12-31", "status": "ok"}
+    ],
+    "conclusion": "测试期首、中、尾三段均有数据，日期缺口只可能是休市日。覆盖充足。"
+  },
+
+  "local_source_probe": {
+    "source": "baostock (www.baostock.com)",
+    "probes": [
+      {"interface": "query_history_k_data_plus(sh.600519, adjustflag='3')", "params": "2024-01-02~2024-01-10", "rows_returned": 7, "status": "ok"},
+      {"interface": "query_history_k_data_plus(sh.000300)", "params": "2012-01-01~2024-12-31", "rows_returned": "3160+", "status": "ok", "note": "指数 k-data 的日期参数必须是 YYYY-MM-DD；传 YYYYMMDD 报原文『日期格式不正确，请修改。』"},
+      {"interface": "query_hs300_stocks(date='2024-01-31')", "rows_returned": 300, "status": "ok", "note": "返回该历史日期在册的 300 只成分股 + 该名单的生效日（2024-01-29），PIT 可用"},
+      {"interface": "query_hs300_stocks(date='2015-06-15')", "rows_returned": 300, "status": "ok", "note": "名单生效日 2015-06-15"},
+      {"interface": "query_hs300_stocks(date='2018-06-15')", "rows_returned": 300, "status": "ok", "note": "名单生效日 2018-06-11"},
+      {"interface": "query_hs300_stocks(date='2022-12-30')", "rows_returned": 300, "status": "ok", "note": "名单生效日 2022-08-01"},
+      {"interface": "query_history_k_data_plus 字段 peTTM/pbMRQ/psTTM/turn/tradestatus/isST", "rows_returned": "逐日", "status": "ok", "evidence_sample": {"date": "2024-01-02", "close": 1685.01, "peTTM": 29.732003, "pbMRQ": 9.718191, "psTTM": 14.793451, "turn": 0.256, "tradestatus": 1, "isST": 0}}
+    ]
+  },
+
+  "cross_source_check": {
+    "pair": "tushare MCP (服务端) vs baostock (本机)",
+    "same_day": "2024-01-02",
+    "ts_code": "600519.SH",
+    "items": [
+      {"field": "open", "tushare_daily": 1715.0, "baostock_raw": 1715.0, "rel_diff": 0.0},
+      {"field": "high", "tushare_daily": 1718.19, "baostock_raw": 1718.19, "rel_diff": 0.0},
+      {"field": "low", "tushare_daily": 1678.1, "baostock_raw": 1678.1, "rel_diff": 0.0},
+      {"field": "close", "tushare_daily": 1685.01, "baostock_raw": 1685.01, "rel_diff": 0.0},
+      {"field": "pre_close", "tushare_daily": 1726.0, "baostock_raw": 1726.0, "rel_diff": 0.0},
+      {"field": "pct_chg", "tushare_daily": -2.3749, "baostock_raw": -2.3749, "rel_diff": 0.0},
+      {"field": "volume", "tushare_daily": 32156.44, "tushare_unit": "手", "baostock_raw": 3215644, "baostock_unit": "股", "note": "32156.44 手 × 100 = 3215644 股，换算后一致"},
+      {"field": "amount", "tushare_daily": 5440082.548, "tushare_unit": "千元", "baostock_raw": 5440082548.08, "baostock_unit": "元", "note": "5440082.548 千元 × 1000 = 5440082548.08 元，换算后一致"},
+      {"field": "turnover_rate", "tushare_daily_basic": 0.256, "baostock": 0.256, "rel_diff": 0.0},
+      {"field": "adj_factor (tushare) vs 复权比 (hfq/raw)", "tushare_adj_factor": 7.8576, "note": "baostock 后复权价 / 不复权价 = 同一复权比，口径一致"}
+    ],
+    "conclusion": "8/8 字段跨源一致（含单位换算）。本机源可用于批量取数。"
+  },
+
+  "not_obtained": [
+    {"item": "JKP 全球因子库 13 因子（A 股逐股覆盖）", "reason": "JKP 因子按美股组合构建，不提供 A 股个股级对应值；按本单预注册第 4 条降级为自建 A 股可得先验"},
+    {"item": "Level-2/3 逐笔、付费终端、另类数据", "reason": "本单明确不拿（停手条款第 4 条）"}
+  ],
+
+  "stop_conditions_hit": [],
+  "verdict": "PASS — 4 类必需端点全部可用，测试期覆盖充足，无 403/40203，可进入预注册阶段。"
+}
