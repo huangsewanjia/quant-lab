@@ -65,11 +65,26 @@
 
 | 命令 | 实测结果 |
 |---|---|
-| `pytest db/tests -q` | 35 passed |
-| `python -m db.checks.run all` | 6 项闸，见 `meta/checks/checks-<date>.json` |
-| `python -m db.etl.stats` | 台账统计（分区/行数/字节/上游调用） |
+| `pytest db/tests -q` | 96 passed（含独立审查 4 条 blocking 的回归用例、空分区、财务主键 `dup_seq` 的回归用例） |
+| `python -m db.checks.run all` | 6 项闸，见 `meta/checks/checks-<date>.json`；空数据一律判 FAIL（缺数据 ≠ 数据干净） |
+| `python -m db.etl.stats` | 台账统计（分区/行数/字节/空分区/上游调用/上游耗时） |
+| `python -m db.etl.delivery` | 交付快照（环境版本、逐数据集行数与字节、调用与报错数） |
+
+实测的上游约束（2026-11-22 直连 `api.tushare.pro`，非 MCP）：
+
+| 接口 | 实测到的行数上限 | 本库的处理 |
+|---|---|---|
+| `daily` / `daily_basic` / `adj_factor` | 6,000 行 | 按日期窗口取，命中上限自动细分 |
+| `stk_limit` | 7,800 行 | 同上 |
+| `suspend_d` | 5,000 行 | 同上 |
+| `namechange` | 10,000 行（全窗口）/ 按年 241～2,417 行 | 按自然年取，21 次调用后按 `ts_code` 拆分 |
+| `index_weight` | 7,000 行 | 按指数 × 月取 |
+| `dividend` | 2,000 行 | 按 `ts_code` 取（实测单股 45～93 行） |
+| `income` | 170 行安全阈值（实测单窗口最高 178 行） | 按 `ts_code` + 公告日窗口取 |
+| `balancesheet` / `cashflow` / `fina_indicator` | 100 行 | 同上；实测全窗口 = 两半窗口之和，未发生截断 |
 
 ## 环境阻塞
 
 - 无阻塞项。
 - 上游单次返回有行数上限（daily 类 6,000 行、财务四表 100 行），必须按窗口取数并在命中上限时折半重取，否则静默截断。
+- `stk_limit` / `suspend_d` 早年上游无数据：已完整取到但没有数据的交易日会落成**空分区**（manifest 记 `empty_upstream: true`）；上游窗口**失败**时不写分区（manifest 缺失 → 下轮重试）。两者必须区分，否则空数据会被当成「还没取过」反复重拉，回填永远跑不完。
