@@ -210,11 +210,32 @@ def main():
             "alpha_cw": per_run[f"full_s{s}"].get("alpha_cap_weighted"),
         }
     sr_med = med("full", "sr")
+    # 可交易性规则（派单卡原文）：净 SR 的 95% CI 下界 > 0 且相对论文缩水 ≤60%
+    # → 可交易性成立；净 SR < 0 → 直接判退，与 H1 无关。
+    paper_sr = PAPER["PRISM-VQ"]["sr"]
+    sr_ci_lo = {s: h3[s]["sr_ci"].get("lo") for s in h3
+                if h3[s].get("sr_ci")}
+    ci_lo_min = (min(v for v in sr_ci_lo.values()
+                      if v is not None and np.isfinite(v))
+                 if any(v is not None and np.isfinite(v)
+                        for v in sr_ci_lo.values()) else np.nan)
+    shrinkage = (sr_med[0] / paper_sr) if (paper_sr and
+                                          not np.isnan(sr_med[0])) else np.nan
+    net_sr_negative = bool(not np.isnan(sr_med[0]) and sr_med[0] < 0)
+    tradable = bool(not np.isnan(ci_lo_min) and ci_lo_min > 0 and
+                    not np.isnan(shrinkage) and shrinkage >= 0.40)
     out["H3"] = {"per_seed": h3, "sr_median": sr_med[0],
                  "sr_per_seed": sr_med[1],
-                 "paper_sr": PAPER["PRISM-VQ"]["sr"],
+                 "paper_sr": paper_sr,
                  "paper_turnover": PAPER["PRISM-VQ"]["turnover"],
-                 "tradicable": bool(sr_med[0] > 0),
+                 "sr_ci_lower_bound_per_seed": sr_ci_lo,
+                 "sr_ci_lower_bound_min": ci_lo_min,
+                 "shrinkage_vs_paper": shrinkage,
+                 "shrinkage_limit": 0.40,
+                 "net_sr_negative": net_sr_negative,
+                 "tradicable": tradable,
+                 "rule": "净 SR 的 95% CI 下界 > 0 且相对论文缩水 ≤60% → 可交易性成立；"
+                         "净 SR < 0 → 直接判退（与 H1 无关）",
                  "note": "净 SR < 0 直接判退；95% CI 下界 > 0 且相对论文缩水 ≤60% "
                          "判可交易性成立"}
 
@@ -276,6 +297,47 @@ def main():
         })
     tab = pd.DataFrame(rows).sort_values(["arm", "seed"])
     tab.to_csv(os.path.join(exp_dir, "metrics_table.csv"), index=False)
+
+    # ---- per-arm mean ± range over the seeds ---------------------------
+    # 派单卡要求：「必须报 mean ± range，不许只报最好的一次」。
+    # 逐种子明细留在 metrics_table.csv，这里再给一张按档聚合的人读表。
+    METRICS = ["rankic", "rankicir", "sr", "ar", "mdd", "turnover",
+               "turnover_both_sides", "alpha_ew_annualized"]
+
+    def metric_value(v, m):
+        if m == "alpha_ew_annualized":
+            return (v.get("alpha_equal_weight") or {}).get("excess_annualized")
+        return v.get(m)
+
+    arm_rows, by_arm = [], {}
+    for arm in ARMS + [BASELINE]:
+        vals = {m: [metric_value(per_run[f"{arm}_s{s}"], m) for s in seeds
+                    if f"{arm}_s{s}" in per_run] for m in METRICS}
+        rec = {"arm": arm, "n_seeds": len(next(iter(vals.values()), []))}
+        for m in METRICS:
+            arr = np.asarray([v for v in vals[m] if v is not None
+                              and np.isfinite(v)], dtype="float64")
+            if arr.size == 0:
+                rec[m] = None
+                rec[f"{m}_mean"] = None
+                rec[f"{m}_min"] = None
+                rec[f"{m}_max"] = None
+                rec[f"{m}_range"] = None
+                rec[f"{m}_mean_pm_range"] = None
+                continue
+            mean = float(arr.mean())
+            rec[m] = mean
+            rec[f"{m}_mean"] = mean
+            rec[f"{m}_min"] = float(arr.min())
+            rec[f"{m}_max"] = float(arr.max())
+            rec[f"{m}_range"] = float(arr.max() - arr.min())
+            rec[f"{m}_mean_pm_range"] = (f"{mean:.4f} "
+                                         f"[{arr.min():.4f}, {arr.max():.4f}]")
+        by_arm[arm] = rec
+        arm_rows.append(rec)
+    arm_tab = pd.DataFrame(arm_rows)
+    arm_tab.to_csv(os.path.join(exp_dir, "metrics_by_arm.csv"), index=False)
+    out["by_arm"] = by_arm
 
     cmp_rows = []
     for arm in ARMS:

@@ -417,6 +417,24 @@ def build_html(d, repo, exp_dir, fig_dir):
     for arm in ARM_ORDER + ["gru"]:
         tbl_rows.append(rows_for(arm))
 
+    # 按档聚合（mean ± range）—— 派单卡要求「必须报 mean ± range，
+    # 不许只报最好的一次」，逐种子明细见表 6，这张表给聚合口径。
+    arm_rows = []
+    for arm in ARM_ORDER + ["gru"]:
+        a = (v.get("by_arm") or {}).get(arm)
+        if not a:
+            continue
+        arm_rows.append(
+            f"<tr><td>{ARM_LABEL.get(arm, arm)}</td>"
+            f"<td class='num'>{a.get('n_seeds')}</td>"
+            f"<td class='num'>{a.get('rankic_mean_pm_range') or '—'}</td>"
+            f"<td class='num'>{a.get('rankicir_mean_pm_range') or '—'}</td>"
+            f"<td class='num'>{a.get('sr_mean_pm_range') or '—'}</td>"
+            f"<td class='num'>{a.get('ar_mean_pm_range') or '—'}</td>"
+            f"<td class='num'>{a.get('mdd_mean_pm_range') or '—'}</td>"
+            f"<td class='num'>{a.get('turnover_mean_pm_range') or '—'}</td>"
+            f"<td class='num'>{a.get('alpha_ew_annualized_mean_pm_range') or '—'}</td></tr>")
+
     h2_rows = []
     for s in v["seeds"]:
         p = h2["per_seed"].get(str(s))
@@ -650,12 +668,23 @@ def build_html(d, repo, exp_dir, fig_dir):
 其中换手的口径要特别说明：预注册写的是<strong>单边</strong>换手（买入权重 + 卖出权重再除以 2），论文的 0.3259 看起来是<strong>双边</strong>口径，
 本单的双边换手与论文同量级，说明组合构造本身是对齐的。</p>
 
+<p><strong>可交易性判定（跑之前冻结的规则）</strong>：净 SR 的 95% CI 下界 &gt; 0，且相对论文缩水 ≤60%（即本单净 SR ≥ 论文 SR 的 40%），
+才判「可交易性成立」。本单实测：CI 下界最小值 {fmt(h3.get('sr_ci_lower_bound_min'), 3)}，
+净 SR 中位数 {fmt(h3.get('sr_median'), 3)}，相对论文 SR 的比值 {fmt(h3.get('shrinkage_vs_paper'), 3)}（下限 {fmt(h3.get('shrinkage_limit'), 2)}），
+判定为 <strong>{'可交易性成立' if h3.get('tradicable') else '可交易性不成立'}</strong>。
+另有一条独立于 H1 的硬规则：净 SR &lt; 0 直接判退——本单{'命中（净 SR 为负，判词已改为退）' if h3.get('net_sr_negative') else '未命中'}。</p>
+
 <h2><span class="num">7</span>四档消融的完整指标</h2>
 
 <table>
 <caption>表 6 · 四档 × 2 个种子的完整指标（测试段 2022-01-04 ~ 2024-12-31）</caption>
 <thead><tr><th>档</th><th class="num">种子</th><th class="num">RankIC</th><th class="num">RankICIR</th><th class="num">AR</th><th class="num">MDD</th><th class="num">SR</th><th class="num">单边换手</th><th class="num">持仓数</th></tr></thead>
 <tbody>{''.join(tbl_rows)}</tbody></table>
+
+<table>
+<caption>表 7 · 各档按种子聚合（mean ± range，种子 42 / 2024）——只报最好的一次不作为结论</caption>
+<thead><tr><th>档</th><th class="num">种子数</th><th class="num">RankIC</th><th class="num">RankICIR</th><th class="num">SR</th><th class="num">AR</th><th class="num">MDD</th><th class="num">单边换手</th><th class="num">基准调整 alpha（年化）</th></tr></thead>
+<tbody>{''.join(arm_rows)}</tbody></table>
 
 <h2><span class="num">8</span>失败项、限制与翻案条件</h2>
 
@@ -715,7 +744,7 @@ bash scripts/work503_train_all.sh 2024 4 6
 ../env/.venv/bin/python -u scripts/work503_report.py --exp WORK-503 --preview</code></pre>
 
 <table>
-<caption>表 7 · 交付物与验收对照</caption>
+<caption>表 8 · 交付物与验收对照</caption>
 <thead><tr><th>交付物</th><th>位置</th><th class="c">状态</th></tr></thead>
 <tbody>
 <tr><td>端点实测（8 个端点 + 跨源校验）</td><td><span class="mono">experiments/WORK-503/data_probe.json</span></td><td class="c"><span class="tag ok">已交付</span></td></tr>
