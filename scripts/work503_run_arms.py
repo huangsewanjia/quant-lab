@@ -49,33 +49,44 @@ class Work503Dataset:
     def __init__(self, ds_dir, index_df, use_prior=True, cs_label=True,
                  dropna_label=True):
         self.ds_dir = ds_dir
-        self.index = index_df
         self.use_prior = use_prior
         self.cs_label = cs_label
-        self.cal = pd.DatetimeIndex(sorted(index_df.index.get_level_values(
-            "datetime").unique()))
+        # The per-instrument arrays are indexed by the GLOBAL trading calendar
+        # that work503_build_dataset.py wrote next to them.  Building the
+        # position map from the *segment* calendar instead would silently read
+        # another day's features (preregistration_v1.2.md §B).
+        with open(os.path.join(ds_dir, "calendar.txt"), encoding="utf-8") as fh:
+            self.cal = pd.DatetimeIndex(
+                [pd.Timestamp(line.strip()) for line in fh if line.strip()])
         self.cal_pos = {d: i for i, d in enumerate(self.cal)}
         self._feat, self._prior, self._label = {}, {}, {}
-        self.rows = list(index_df.index)
+
+        df = index_df.reset_index()
+        df = df.sort_values(["datetime", "instrument"], kind="mergesort")
+        rows = list(zip(df["instrument"].to_numpy(), df["datetime"].to_numpy()))
         if dropna_label:
             keep = []
-            for i, (inst, dt) in enumerate(self.rows):
+            for i, (inst, dt) in enumerate(rows):
                 lab = self._get_label(inst, dt)
                 if lab is not None and not np.isnan(lab).any():
                     keep.append(i)
-            self.rows = [self.rows[i] for i in keep]
-            self.index = index_df.iloc[keep]
+            rows = [rows[i] for i in keep]
+            df = df.iloc[keep]
+        self.rows = rows
+        self.index = df.set_index(["datetime", "instrument"])
 
     # -- lazy per-instrument arrays --------------------------------------
     def _load(self, inst):
         if inst not in self._feat:
+            # memory-mapped: the feature matrices are ~2 MB per instrument and
+            # DataLoader workers would otherwise each hold a private copy.
             self._feat[inst] = np.load(os.path.join(
-                self.ds_dir, "feat", f"{inst}.npy")).astype("float32")
+                self.ds_dir, "feat", f"{inst}.npy"), mmap_mode="r")
             self._prior[inst] = np.load(os.path.join(
-                self.ds_dir, "prior", f"{inst}.npy")).astype("float32")
+                self.ds_dir, "prior", f"{inst}.npy"), mmap_mode="r")
             sub = "label_cs" if self.cs_label else "label"
             self._label[inst] = np.load(os.path.join(
-                self.ds_dir, sub, f"{inst}.npy")).astype("float32")
+                self.ds_dir, sub, f"{inst}.npy"), mmap_mode="r")
         return self._feat[inst], self._prior[inst], self._label[inst]
 
     def _get_label(self, inst, dt):
@@ -85,10 +96,13 @@ class Work503Dataset:
         t = self.cal_pos.get(dt)
         if t is None:
             return None
-        return lab[t]
+        return np.asarray(lab[t])
 
     def get_index(self):
-        return self.index
+        # qlib-compatible: a MultiIndex ordered (datetime, instrument) so that
+        # the official DailyBatchSamplerRandom groups by date and
+        # run_inference's sortlevel(0) keeps the batch order.
+        return self.index.index
 
     def __len__(self):
         return len(self.rows)
@@ -98,7 +112,7 @@ class Work503Dataset:
         F, P, L = self._load(inst)
         t = self.cal_pos[dt]
         lo = max(0, t - T + 1)
-        win = F[lo:t + 1]
+        win = np.asarray(F[lo:t + 1], dtype="float32")
         if win.shape[0] < T:
             pad = np.full((T - win.shape[0], win.shape[1]), np.nan, dtype="float32")
             win = np.concatenate([pad, win], axis=0)
@@ -106,9 +120,9 @@ class Work503Dataset:
         win = _ffill_bfill(win)
         out = np.zeros((T, N_FEATURES + N_PRIOR + N_LABEL), dtype="float32")
         out[:, :N_FEATURES] = win
-        pr = P[t] if self.use_prior else np.zeros(N_PRIOR, dtype="float32")
+        pr = np.asarray(P[t]) if self.use_prior else np.zeros(N_PRIOR, dtype="float32")
         out[T - 1, N_FEATURES:N_FEATURES + N_PRIOR] = pr
-        out[T - 1, N_FEATURES + N_PRIOR:] = L[t]
+        out[T - 1, N_FEATURES + N_PRIOR:] = np.asarray(L[t])
         return out
 
 
@@ -178,7 +192,7 @@ def main():
     ap.add_argument("--arm", required=True,
                     choices=["full", "no_vq", "no_moe", "no_prior"])
     ap.add_argument("--seed", type=int, required=True)
-    ap.add_argument("--epochs", type=int, default=8)
+    ap.add_argument("--epochs", type=int, default=6)
     ap.add_argument("--exp", default="WORK-503")
     ap.add_argument("--threads", type=int, default=8)
     args = ap.parse_args()
@@ -204,8 +218,8 @@ def main():
         sub = sample_index[sample_index["segment"] == seg].copy()
         sub = sub.sort_values(["datetime", "instrument"])
         idx = pd.MultiIndex.from_arrays(
-            [sub["instrument"].to_numpy(), sub["datetime"].to_numpy()],
-            names=["instrument", "datetime"])
+            [sub["datetime"].to_numpy(), sub["instrument"].to_numpy()],
+            names=["datetime", "instrument"])
         sub = sub.set_index(idx)
         segs[seg] = sub
         print(f"segment {seg}: {len(sub)} samples")
@@ -222,7 +236,12 @@ def main():
     test_loader, _ = init_data_loader(test_ds, shuffle=False, num_workers=0)
     print(f"train batches/epoch: {n_batches}")
 
-    ckpt_name = f"stage1_{args.arm}_s{args.seed}.pt"
+    # The stage-1 VQ-VAE is identical for the arms that use it (full /
+    # no_moe / no_prior all load the same pre-trained stage-1 checkpoint,
+    # exactly as the upstream ablation scripts do), so it is trained once
+    # per seed and shared.
+    ckpt_name = f"stage1_s{args.seed}.pt"
+    ckpt_path = os.path.join(VENDOR, "checkpoints", ckpt_name)
     cfg = build_config(args.arm, args.seed, args.epochs, ckpt_name)
 
     t0 = time.time()
@@ -231,29 +250,31 @@ def main():
            "n_test": len(test_ds), "batches": n_batches}
 
     # ---- stage 1 -------------------------------------------------------
-    if args.arm != "no_vq":
+    if args.arm != "no_vq" and not os.path.exists(ckpt_path):
         from trainer.train_vqvae import FactorVQVAE
         m1 = FactorVQVAE(cfg, T_max=n_batches * args.epochs)
         ck = pl.callbacks.ModelCheckpoint(
             dirpath=os.path.join(VENDOR, "checkpoints"), save_top_k=1,
             monitor="val_loss", mode="min",
-            filename=f"stage1_{args.arm}_s{args.seed}")
+            filename=f"stage1_s{args.seed}")
         es = pl.callbacks.EarlyStopping(monitor="val_loss", mode="min",
-                                        patience=5, min_delta=1e-5)
+                                        patience=3, min_delta=1e-5)
         tr = pl.Trainer(max_epochs=args.epochs, accelerator="cpu", devices=1,
                         precision=32, gradient_clip_val=1, logger=False,
                         callbacks=[ck, es], enable_progress_bar=False,
                         enable_model_summary=False, deterministic=True)
         tr.fit(m1, train_dataloaders=train_loader, val_dataloaders=valid_loader)
         best = ck.best_model_path or os.path.join(
-            VENDOR, "checkpoints", f"stage1_{args.arm}_s{args.seed}.ckpt")
+            VENDOR, "checkpoints", f"stage1_s{args.seed}.ckpt")
         state = torch.load(best, map_location="cpu")
         torch.save({"state_dict": state["state_dict"] if "state_dict" in state
-                    else state},
-                   os.path.join(VENDOR, "checkpoints", ckpt_name))
+                    else state}, ckpt_path)
         log["stage1_best"] = str(best)
         log["stage1_seconds"] = round(time.time() - t0, 1)
         print(f"stage1 done in {log['stage1_seconds']}s", flush=True)
+    elif args.arm != "no_vq":
+        log["stage1_reused"] = ckpt_path
+        print(f"stage1 reused: {ckpt_path}")
 
     # ---- stage 2 -------------------------------------------------------
     if args.arm == "full":
@@ -271,7 +292,7 @@ def main():
         monitor="val_loss", mode="min",
         filename=f"stage2_{args.arm}_s{args.seed}")
     es2 = pl.callbacks.EarlyStopping(monitor="val_loss", mode="min",
-                                     patience=5, min_delta=1e-5)
+                                     patience=3, min_delta=1e-5)
     tr2 = pl.Trainer(max_epochs=args.epochs, accelerator="cpu", devices=1,
                      precision=32, gradient_clip_val=1, logger=False,
                      callbacks=[ck2, es2], enable_progress_bar=False,

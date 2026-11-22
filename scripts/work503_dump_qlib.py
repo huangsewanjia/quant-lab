@@ -21,6 +21,17 @@ Qlib's Alpha158 "price" group needs.
 Raw (unadjusted) prices stay in data/WORK-503/sina/ and are used for the
 涨跌停 mask and for the tradability rules (mask_contract.md).
 
+Calendar alignment (preregistration_v1.2.md §A)
+------------------------------------------------
+Qlib's `.day.bin` format is *dense over the calendar*: the j-th float32 after
+the start index belongs to calendar day `start_index + j`.  Writing only the
+days a stock actually traded (i.e. packing them) shifts every later price
+forward by the number of suspended days in between -- 724 stocks, 608 of them
+with holes, 54,600 calendar days in total.  This script therefore writes one
+value per calendar day and fills the suspended days exactly as
+mask_contract.md §2.2 prescribes: prices forward-filled to the previous close,
+`volume = 0`, `amount = 0`.
+
 Point-in-time membership (pool_membership.csv) is NOT used to build the
 feature files; it is applied when the sample index is built, so that a stock
 is only a sample while it is actually in CSI 300.
@@ -92,6 +103,7 @@ def main():
     raw_dir = os.path.join(data_dir, "sina")
     hfq_dir = os.path.join(data_dir, "sina_hfq")
     items, ok, fail = [], 0, []
+    n_holes = 0
     for code in codes:
         sym = to_qlib_symbol(code)
         p_raw = os.path.join(raw_dir, f"{code}.csv")
@@ -103,33 +115,58 @@ def main():
         hfq = pd.read_csv(p_hfq)
         raw["date"] = raw["date"].astype(str).str[:10]
         hfq["date"] = hfq["date"].astype(str).str[:10]
-        df = raw.merge(hfq, on="date", suffixes=("_raw", "_hfq"))
-        df = df[df["date"].isin(cal_index)].sort_values("date").reset_index(drop=True)
-        if df.empty:
+        # dense on the exchange calendar: missing calendar days are suspended
+        raw = raw.set_index("date").reindex(cal)
+        hfq = hfq.set_index("date").reindex(cal)
+        if raw["volume"].isna().all():
             fail.append({"code": code, "error": "no rows on calendar"})
             continue
-        start_index = cal_index[df["date"].iloc[0]]
-        n_cal = len(cal) - start_index
-        factor = (df["close_hfq"] / df["close_raw"]).astype("float64")
-        vwap = (df["amount_raw"] / df["volume_raw"].replace(0, np.nan)) * factor
+
+        volume = raw["volume"].to_numpy("float64")
+        traded = np.isfinite(volume) & (volume > 0)
+        if not traded.any():
+            fail.append({"code": code, "error": "no traded day"})
+            continue
+        first_i = int(np.argmax(traded))
+        last_i = int(len(traded) - 1 - np.argmax(traded[::-1]))
+        n_holes += int((~traded[first_i:last_i + 1]).sum())
+
+        # ---- mask_contract.md §2.2: suspended days keep the row, prices are
+        # forward-filled to the previous close, volume = 0, amount = 0.
+        close_raw = raw["close"].to_numpy("float64")
+        close_hfq = hfq["close"].to_numpy("float64")
+        close_raw_f = pd.Series(close_raw).where(traded).ffill().to_numpy("float64")
+        close_hfq_f = pd.Series(close_hfq).where(traded).ffill().to_numpy("float64")
+
+        def px(df, col, fallback):
+            v = df[col].to_numpy("float64")
+            ok = traded & np.isfinite(v)
+            return np.where(ok, v, fallback)
+
+        open_h = px(hfq, "open", close_hfq_f)
+        close_h = close_hfq_f
+        high_h = px(hfq, "high", close_hfq_f)
+        low_h = px(hfq, "low", close_hfq_f)
+        volume_out = np.where(traded, volume, 0.0)
+        amount = np.where(traded, raw["amount"].to_numpy("float64"), 0.0)
+        factor = close_hfq_f / close_raw_f
+        denom = np.where(traded & (volume > 0), volume, 1.0)
+        vwap = np.where(traded & (volume > 0), (amount / denom) * factor, close_hfq_f)
+
         series = {
-            "open": df["open_hfq"].to_numpy("float64"),
-            "close": df["close_hfq"].to_numpy("float64"),
-            "high": df["high_hfq"].to_numpy("float64"),
-            "low": df["low_hfq"].to_numpy("float64"),
-            "volume": df["volume_raw"].to_numpy("float64"),
-            "factor": factor.to_numpy("float64"),
-            "vwap": vwap.to_numpy("float64"),
-            "amount": df["amount_raw"].to_numpy("float64"),
+            "open": open_h, "close": close_h, "high": high_h, "low": low_h,
+            "volume": volume_out, "factor": factor, "vwap": vwap, "amount": amount,
         }
+        n = last_i - first_i + 1
         for name, vals in series.items():
-            arr = np.full(n_cal, np.nan, dtype="float64")
-            arr[: len(vals)] = vals
+            arr = vals[first_i:last_i + 1].astype("float64")
             write_bin(os.path.join(out_dir, "features", sym.lower(),
-                                   f"{name}.day.bin"), start_index, arr)
+                                   f"{name}.day.bin"), first_i, arr)
         items.append({"symbol": sym, "code": code,
-                      "start": df["date"].iloc[0], "end": df["date"].iloc[-1],
-                      "rows": int(len(df)),
+                      "start": cal[first_i], "end": cal[last_i],
+                      "calendar_days": int(n),
+                      "traded_days": int(traded[first_i:last_i + 1].sum()),
+                      "suspended_days": int(n - traded[first_i:last_i + 1].sum()),
                       "factors": [f"features/{sym.lower()}/{f}.day.bin"
                                   for f in FIELDS]})
         ok += 1
@@ -150,6 +187,10 @@ def main():
         "fields": list(FIELDS),
         "price_basis": "后复权 (hfq) for open/close/high/low; factor = hfq/raw",
         "source": "akshare stock_zh_a_hist_sina (新浪财经), raw + hfq",
+        "calendar_alignment": "dense per calendar day (qlib .day.bin semantics); "
+                              "suspended days forward-filled to previous close, "
+                              "volume = 0, amount = 0 (mask_contract.md §2.2)",
+        "suspended_days_total": int(n_holes),
         "items": items,
     }
     mpath = os.path.join(exp_dir, "snapshot_manifest_qlib.json")

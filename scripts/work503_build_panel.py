@@ -83,18 +83,20 @@ def main():
     idx = pd.read_csv(os.path.join(data_dir, "index_sh000300.csv"))
     idx["date"] = idx["date"].astype(str).str[:10]
     idx = idx.sort_values("date").reset_index(drop=True)
-    cal = idx["date"].tolist()
+    cal = pd.DatetimeIndex(idx["date"]).sort_values()
     cal_pos = {d: i for i, d in enumerate(cal)}
     idx_close = idx["close"].to_numpy("float64")
     print(f"calendar {len(cal)} days {cal[0]}..{cal[-1]}")
 
     # ---- PIT membership --------------------------------------------------
     mem = load_membership(exp_dir)
-    eff_dates = sorted(mem["effective_date"].unique())
+    eff_dates = sorted(pd.to_datetime(mem["effective_date"].unique()))
     # daily membership: forward-fill the latest effective list
+    mem["effective_date"] = pd.to_datetime(mem["effective_date"])
     members_by_eff = {d: set(g["code"]) for d, g in mem.groupby("effective_date")}
     pit = np.zeros((len(cal), 0), dtype=bool)   # filled below
-    codes = sorted(mem["code"].unique())
+    codes = sorted(mem["code"].unique())          # "sh.600000" (file names)
+    syms = [c.replace(".", "") for c in codes]    # "sh600000" (index keys)
     pit = np.zeros((len(cal), len(codes)), dtype=bool)
     col_of = {c: i for i, c in enumerate(codes)}
     eff_idx = {d: i for i, d in enumerate(eff_dates)}
@@ -105,7 +107,7 @@ def main():
         for c in members_by_eff[eff_dates[cur]]:
             pit[t, col_of[c]] = True
     pit_df = pd.DataFrame(pit, index=pd.Index(cal, name="date"),
-                          columns=pd.Index(codes, name="instrument"))
+                          columns=pd.Index(syms, name="instrument"))
     print(f"PIT membership: {len(eff_dates)} effective lists, "
           f"{pit.sum()} (stock, day) pairs, "
           f"mean constituents/day {pit.sum(axis=1).mean():.1f}")
@@ -117,16 +119,15 @@ def main():
     mkt_20d = mkt_close / mkt_close.shift(20) - 1.0
     mkt_prior = mkt_20d.to_numpy()
 
-    for code in codes:
-        sym = code.replace(".", "")
+    for code, sym in zip(codes, syms):
         p_raw = os.path.join(data_dir, "sina", f"{code}.csv")
         p_hfq = os.path.join(data_dir, "sina_hfq", f"{code}.csv")
         if not (os.path.exists(p_raw) and os.path.exists(p_hfq)):
             continue
         raw = pd.read_csv(p_raw)
         hfq = pd.read_csv(p_hfq)
-        raw["date"] = raw["date"].astype(str).str[:10]
-        hfq["date"] = hfq["date"].astype(str).str[:10]
+        raw["date"] = pd.to_datetime(raw["date"].astype(str).str[:10])
+        hfq["date"] = pd.to_datetime(hfq["date"].astype(str).str[:10])
         raw = raw.set_index("date").reindex(cal)
         hfq = hfq.set_index("date").reindex(cal)
 
@@ -137,7 +138,14 @@ def main():
         close_hfq = hfq["close"].to_numpy("float64")
 
         # ---- tradability state
-        prev_close = pd.Series(close_raw, index=cal).shift(1).to_numpy()
+        traded = raw["volume"].notna().to_numpy() & (volume > 0)
+        # preregistration_v1.2.md §D: the daily price limit is measured against
+        # the previous *traded* close.  Taking the previous calendar day's close
+        # instead would leave it undefined on the first day back from a
+        # suspension and silently skip the limit test there (漏掩码), which
+        # contradicts mask_contract.md §3.3 ("宁可多掩码，不可漏掩码").
+        close_raw_f = pd.Series(close_raw, index=cal).where(traded).ffill().to_numpy()
+        prev_close = pd.Series(close_raw_f, index=cal).shift(1).to_numpy()
         bands = band_for(code)
         pct = np.full(len(cal), np.nan)
         with np.errstate(divide="ignore", invalid="ignore"):
@@ -150,7 +158,6 @@ def main():
             with np.errstate(invalid="ignore"):
                 limit_up |= (close_raw >= lu - 0.005) & np.isfinite(lu) & (prev_close > 0)
                 limit_down |= (close_raw <= ld + 0.005) & np.isfinite(ld) & (prev_close > 0)
-        traded = raw["volume"].notna().to_numpy() & (volume > 0)
         suspended = (~traded) & raw["close"].isna().to_numpy()
         # a row present but with zero volume is a suspended day as well
         suspended |= (~traded) & raw["close"].notna().to_numpy() & (volume == 0)
@@ -163,7 +170,11 @@ def main():
         ret1 = close_s.pct_change()
         vol60 = ret1.rolling(60).std() * np.sqrt(252)
         rev5 = close_s.shift(1) / close_s.shift(6) - 1.0
-        float_mcap = pd.Series(shares * close_raw, index=cal)
+        # suspended days: market cap uses the last available close and the last
+        # known share count (mask_contract.md §2.2), otherwise the size prior
+        # would go missing on every suspended day.
+        shares_f = pd.Series(shares, index=cal).ffill().to_numpy("float64")
+        float_mcap = pd.Series(shares_f * close_raw_f, index=cal)
         size_lm = np.log(float_mcap.where(float_mcap > 0))
         # value: BVPS from the fundamentals snapshot, usable from effective_date
         p_fund = os.path.join(data_dir, "fundamentals", f"{code}.csv")
@@ -212,12 +223,16 @@ def main():
     pit_df.to_parquet(os.path.join(panel_dir, "pit.parquet"))
 
     # ---- summary ---------------------------------------------------------
-    in_pit = pit_df.stack().reindex(state.index).fillna(False).to_numpy()
+    pit_s = pit_df.stack()                       # index: (date, instrument)
+    pit_s.index = pit_s.index.swaplevel(0, 1)    # -> (instrument, date)
+    in_pit = (pit_s.reindex(state.index).fillna(False)
+              .to_numpy().astype(bool))
     summ = {
-        "calendar": {"days": len(cal), "start": cal[0], "end": cal[-1]},
+        "calendar": {"days": len(cal),
+                     "start": str(cal[0].date()), "end": str(cal[-1].date())},
         "instruments": len(codes),
         "pit": {"effective_lists": len(eff_dates),
-                "effective_dates": eff_dates,
+                "effective_dates": [str(pd.Timestamp(d).date()) for d in eff_dates],
                 "stock_day_pairs": int(pit.sum()),
                 "mean_constituents_per_day": float(pit.sum(axis=1).mean())},
         "coverage_in_pit": {

@@ -39,7 +39,7 @@ import time
 import numpy as np
 import pandas as pd
 
-TRAIN = ("2013-01-01", "2019-12-31")
+TRAIN = ("2015-01-01", "2019-12-31")     # preregistration_v1.1.md §2
 VALID = ("2020-01-01", "2021-12-31")
 TEST = ("2022-01-01", "2024-12-31")
 LOOKBACK = 20          # T
@@ -87,13 +87,21 @@ def main():
     from qlib.data import D
 
     qlib.init(provider_uri=os.path.join(data_dir, "qlib_cn"), region="cn")
-    exprs = Alpha158().get_feature_config()["feature"]
-    feat_names = list(exprs.keys())
+    # get_feature_config does not touch instance state; building a real
+    # handler here would trigger a full data fetch with the default universe.
+    expr_list, name_list = Alpha158.__new__(Alpha158).get_feature_config()
+    feat_names = list(name_list)
     print(f"Alpha158 expressions: {len(feat_names)}")
 
     cal = D.calendar(start_time="2012-01-01", end_time="2024-12-31")
     cal = pd.DatetimeIndex(cal)
     n_cal = len(cal)
+    # The sample arrays (feat / prior / label) are indexed by this global
+    # calendar; the dataset layer must use the same one
+    # (preregistration_v1.2.md §B).  Written out so the dataset never has to
+    # guess which calendar the arrays were built on.
+    with open(os.path.join(ds_dir, "calendar.txt"), "w", encoding="utf-8") as fh:
+        fh.write("\n".join(str(d.date()) for d in cal) + "\n")
 
     # ---- PIT membership on the calendar ----------------------------------
     pit = pd.read_parquet(os.path.join(data_dir, "panel", "pit.parquet"))
@@ -114,7 +122,9 @@ def main():
     done = 0
     for gstart in range(0, len(symbols), args.group):
         group = symbols[gstart:gstart + args.group]
-        raw = D.features(group, exprs, start_time="2012-01-01", end_time="2024-12-31")
+        raw = D.features(group, expr_list, start_time="2012-01-01",
+                         end_time="2024-12-31")
+        raw.columns = feat_names
         for sym in group:
             sub = raw.xs(sym, level="instrument")
             arr = sub.reindex(cal).to_numpy("float64")
@@ -206,16 +216,38 @@ def main():
         np.save(os.path.join(ds_dir, "label_cs", f"{sym}.npy"), cs[:, i, :])
 
     # ---- 7. sample index -------------------------------------------------
+    # mask_contract.md §5: a stock needs 20 trading days of history before it
+    # may become a sample (its 20-day feature window must be complete).
+    # preregistration_v1.2.md §C instantiates this as
+    #   (t - first_traded_day + 1) >= 20   (calendar coverage of the window)
+    #   cum_traded_days(t) >= 20           (20 actual quotes, not just days)
+    state = pd.read_parquet(os.path.join(data_dir, "panel", "trade_state.parquet"))
+    state = state.reset_index()
+    state["datetime"] = pd.to_datetime(state["datetime"])
+    susp = (state.pivot(index="datetime", columns="instrument", values="suspended")
+                .reindex(index=cal, columns=symbols))
+    susp_mat = susp.to_numpy(dtype=bool)
+
     rows = []
     seg_arr = seg
+    n_new = 0
     for i, sym in enumerate(symbols):
+        traded = ~susp_mat[:, i]
+        if not traded.any():
+            continue
+        first_i = int(np.argmax(traded))
+        cum = np.cumsum(traded)
         days = np.where(pit_mask[:, i])[0]
         for t in days:
+            if t - first_i + 1 < 20 or cum[t] < 20:
+                n_new += 1
+                continue
             rows.append((sym, cal[t], seg_arr[t]))
     samples = pd.DataFrame(rows, columns=["instrument", "datetime", "segment"])
     samples.to_parquet(os.path.join(ds_dir, "sample_index.parquet"))
     counts = samples.groupby("segment").size().to_dict()
-    print("samples per segment", counts, "total", len(samples))
+    print("samples per segment", counts, "total", len(samples),
+          "dropped_by_new_listing_rule", n_new)
 
     meta = {
         "feature_names": feat_names,
@@ -228,9 +260,11 @@ def main():
                      "end": str(cal[-1].date())},
         "samples_per_segment": counts,
         "instruments": len(symbols),
+        "dropped_by_new_listing_rule": int(n_new),
+        "calendar_file": "data/WORK-503/ds/calendar.txt",
         "preprocessors": {
-            "feature": "RobustZScoreNorm(clip_outlier=True) + Fillna(0), fit on PIT train rows 2013-2019",
-            "prior": "RobustZScoreNorm(clip_outlier=True) + Fillna(0), fit on PIT train rows 2013-2019",
+            "feature": "RobustZScoreNorm(clip_outlier=True) + Fillna(0), fit on PIT train rows 2015-2019",
+            "prior": "RobustZScoreNorm(clip_outlier=True) + Fillna(0), fit on PIT train rows 2015-2019",
             "label": "DropnaLabel + CSRankNorm (train/valid); raw returns (test)",
         },
         "label_definition": "open(t+1) -> close(t+k), k=1..10; main target k=5",
