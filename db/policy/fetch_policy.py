@@ -52,12 +52,26 @@ class Fetcher:
         self.limiter = common.RateLimiter(rpm)
         self.retries = retries
 
-    def get(self, url: str) -> str:
+    def get(self, url: str, source: dict[str, Any]) -> str:
         last: Exception | None = None
         for attempt in range(1, self.retries + 2):
             self.limiter.wait()
             try:
-                resp = self.session.get(url, timeout=25)
+                current = url
+                resp = None
+                for _ in range(5):
+                    if not allowed(source, current):
+                        raise PolicyError(f"URL 不在白名单主机内: {current}")
+                    resp = self.session.get(current, timeout=25, allow_redirects=False)
+                    if resp.status_code in {301, 302, 303, 307, 308}:
+                        location = resp.headers.get("location")
+                        if not location:
+                            raise PolicyError(f"重定向缺少 Location: {current}")
+                        current = urljoin(current, location)
+                        continue
+                    break
+                if resp is None:
+                    raise PolicyError(f"无响应: {url}")
                 resp.raise_for_status()
                 if not resp.encoding or resp.encoding.lower() in {"iso-8859-1", "ascii"}:
                     resp.encoding = resp.apparent_encoding or "utf-8"
@@ -70,18 +84,15 @@ class Fetcher:
 
 
 def allowed(source: dict[str, Any], url: str) -> bool:
-    host = urlparse(url).netloc.lower()
-    base_host = urlparse(source.get("base_url", "")).netloc.lower()
-    if not host:
+    parsed = urlparse(url)
+    if parsed.scheme.lower() not in {"http", "https"}:
         return False
-    if host == base_host:
-        return True
-    # Government sites sometimes use a document subdomain (e.g. gks.mof.gov.cn).
-    base_parts = base_host.split(".")
-    if len(base_parts) >= 2:
-        root = ".".join(base_parts[-2:])
-        return host.endswith("." + root) or host == root
-    return False
+    hosts = {str(host).lower() for host in (source.get("allowed_hosts") or [])}
+    base_host = urlparse(source.get("base_url", "")).netloc.lower()
+    if base_host:
+        hosts.add(base_host)
+    host = urlparse(url).netloc.lower()
+    return bool(host) and host in hosts
 
 
 def _hint_from_row(anchor) -> str | None:
@@ -107,7 +118,7 @@ def _hint_from_row(anchor) -> str | None:
 
 
 def list_html(source: dict[str, Any], fetcher: Fetcher) -> list[dict[str, Any]]:
-    html = fetcher.get(source["list_url"])
+    html = fetcher.get(source["list_url"], source)
     soup = BeautifulSoup(html, "lxml")
     pattern = re.compile(source["link_regex"])
     items: list[dict[str, Any]] = []
@@ -128,7 +139,7 @@ def list_html(source: dict[str, Any], fetcher: Fetcher) -> list[dict[str, Any]]:
 
 
 def list_json(source: dict[str, Any], fetcher: Fetcher) -> list[dict[str, Any]]:
-    text = fetcher.get(source["list_url"])
+    text = fetcher.get(source["list_url"], source)
     payload = json.loads(text)
     if isinstance(payload, dict):
         payload = payload.get("data") or payload.get("list") or []
@@ -174,7 +185,7 @@ def _walk_miit(node: Any, source: dict[str, Any], out: list[dict[str, Any]]) -> 
 
 
 def list_miit(source: dict[str, Any], fetcher: Fetcher) -> list[dict[str, Any]]:
-    text = fetcher.get(source["list_url"])
+    text = fetcher.get(source["list_url"], source)
     payload = json.loads(text)
     out: list[dict[str, Any]] = []
     _walk_miit(payload, source, out)
@@ -279,7 +290,7 @@ def run_source(
             print(f"[dup-url] {title[:50]}")
             continue
         try:
-            html = fetcher.get(url)
+            html = fetcher.get(url, source)
             doc = build_document(
                 html=html,
                 url=url,

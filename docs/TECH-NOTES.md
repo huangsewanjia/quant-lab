@@ -65,3 +65,5 @@
 | DuckDB 单写者 | 并发写会锁冲突 | ETL 写串行；查询用只读连接 |
 | 新浪接口更名 | `stock_zh_a_daily` 在 1.20.46 后移除 | 代码使用 `stock_zh_a_hist_sina`，并在 ENVIRONMENT 记录版本 |
 | 财务表字段极多 | 全量建列易漏 | 核心列建模，完整源行存 `raw_json` |
+| Tushare SDK 默认 HTTP | token 会走明文传输 | 启动时把 `DataApi._DataApi__http_url` 覆盖为 HTTPS，并加单测 |
+| 共享数据目录并发写入 | 另一个进程可能用 `part.parquet` 或不同日志字段 | 装载按分区读取全部 `*.parquet` 并按 PK 去重；验证使用隔离 home |

@@ -26,9 +26,23 @@ import pandas as pd
 
 from . import common
 
+TUSHARE_HTTPS_URL = "https://api.waditu.com/dataapi"
+
 
 class FetchError(RuntimeError):
     pass
+
+
+def secure_tushare_transport() -> None:
+    """Force the installed Tushare client onto HTTPS.
+
+    tushare 1.4.29 hard-codes http://api.waditu.com/dataapi and puts the token
+    in the POST body. The same host serves HTTPS, so overriding the class
+    attribute keeps the SDK behavior while removing plaintext transport.
+    """
+    import tushare.pro.client as ts_client
+
+    ts_client.DataApi._DataApi__http_url = TUSHARE_HTTPS_URL
 
 
 class TushareFetcher:
@@ -48,6 +62,7 @@ class TushareFetcher:
         self.limiter = common.RateLimiter(rpm)
         self.log = common.CallLogger()
         self._local = threading.local()
+        secure_tushare_transport()
 
     @property
     def pro(self):
@@ -127,9 +142,18 @@ def read_codes(value: str | None, file_path: str | None) -> list[str]:
 
 def open_dates(fetcher: TushareFetcher | None, start: str, end: str) -> list[str]:
     """Use local trade_cal; fall back to daily partitions; only then call Tushare."""
-    cal_file = common.partition_dir("trade_cal", "calendar") / "data.parquet"
-    if cal_file.exists():
-        df = pd.read_parquet(cal_file)
+    cal = common.read_partition_frame("trade_cal", "calendar")
+    if cal is not None and not cal.empty:
+        cal_dates = pd.to_datetime(cal["cal_date"])
+        covered = (
+            cal_dates.min().strftime("%Y%m%d") <= start
+            and cal_dates.max().strftime("%Y%m%d") >= end
+        )
+        if not covered and fetcher is not None:
+            ensure_calendar(fetcher, start, end)
+            cal = common.read_partition_frame("trade_cal", "calendar")
+    if cal is not None and not cal.empty:
+        df = cal
         dates = df[(df["is_open"] == 1)].copy()
         dates["trade_date"] = pd.to_datetime(dates["cal_date"]).dt.strftime("%Y%m%d")
         return sorted(dates.loc[(dates["trade_date"] >= start) & (dates["trade_date"] <= end), "trade_date"].tolist())
@@ -156,6 +180,9 @@ def ensure_calendar(fetcher: TushareFetcher, start: str, end: str) -> dict[str, 
         raise FetchError(f"trade_cal 返回空: {start}..{end}")
     with common.duckdb_connect(read_only=True) as con:
         work = common.conform_frame(df, "trade_cal", con, "tushare")
+    old = common.read_partition_frame("trade_cal", "calendar")
+    if old is not None and not old.empty:
+        work = pd.concat([old, work], ignore_index=True)
     return common.write_partition(work, "trade_cal", "calendar", "tushare")
 
 
@@ -186,25 +213,20 @@ def fetch_by_trade_date(
     failures: list[dict[str, Any]] = []
     done = 0
 
-    with common.duckdb_connect() as con:
-        common.apply_schema(con)
-
     def one(trade_date: str) -> dict[str, Any]:
         extra = dict(kwargs or {})
-        if dataset == "suspend_d":
-            call_kwargs = {"suspend_date": trade_date, **extra}
-        else:
-            call_kwargs = dict(extra)
         df = fetcher.call(
             method,
             dataset,
             trade_date=trade_date,
-            **call_kwargs,
+            **extra,
         )
-        if df.empty:
+        if df.empty and dataset != "suspend_d":
             raise FetchError(f"{dataset} {trade_date} 返回空")
         with common.duckdb_connect(read_only=True) as con:
-            work = common.conform_frame(df, dataset, con, "tushare")
+            # No suspension on that day is a valid observation, not a failure.
+            source_df = df if not df.empty else pd.DataFrame()
+            work = common.conform_frame(source_df, dataset, con, "tushare")
         return common.write_partition(work, dataset, trade_date, "tushare")
 
     if concurrency <= 1:
@@ -261,9 +283,8 @@ def fetch_index_daily(
             for trade_date, group in work.groupby("trade_date", sort=True):
                 key = pd.Timestamp(trade_date).strftime("%Y%m%d")
                 # Each date partition holds all requested index codes.
-                target = common.partition_dir("index_daily", key) / "data.parquet"
-                if target.exists():
-                    old = pd.read_parquet(target)
+                old = common.read_partition_frame("index_daily", key)
+                if old is not None and not old.empty:
                     old = old[old["ts_code"] != code]
                     group = pd.concat([old, group], ignore_index=True)
                 common.write_partition(group, "index_daily", key, "tushare")
@@ -316,9 +337,19 @@ def fetch_financials(
     if unknown:
         raise FetchError(f"未知财务数据集: {unknown}")
 
-    def one(code: str, dataset: str) -> dict[str, Any]:
+    def one(code: str, dataset: str) -> dict[str, Any] | None:
         method = FIN_DATASETS[dataset]
-        kwargs: dict[str, Any] = {"ts_code": code}
+        meta = common.read_manifest(dataset, code)
+        query = (meta or {}).get("query") or {}
+        if (
+            meta
+            and common.manifest_ok(dataset, code)
+            and isinstance(meta.get("query"), dict)
+            and query.get("start") == start
+            and query.get("end") == end
+        ):
+            return None
+        kwargs: dict[str, Any] = {}
         if start:
             kwargs["start_date"] = start
         if end:
@@ -328,15 +359,24 @@ def fetch_financials(
             raise FetchError(f"{dataset} {code} 返回空")
         with common.duckdb_connect(read_only=True) as con:
             work = common.conform_frame(df, dataset, con, "tushare")
-        return common.write_partition(work, dataset, code, "tushare")
+        old = common.read_partition_frame(dataset, code)
+        if old is not None and not old.empty:
+            work = pd.concat([old, work], ignore_index=True)
+        return common.write_partition(
+            work,
+            dataset,
+            code,
+            "tushare",
+            extra_meta={"query": {"start": start, "end": end}},
+        )
 
     jobs = [(code, dataset) for code in codes for dataset in datasets]
     if concurrency <= 1:
         for code, dataset in jobs:
             try:
-                one(code, dataset)
+                result = one(code, dataset)
                 done += 1
-                print(f"[ok] {dataset} {code}")
+                print(f"[skip] {dataset} {code}" if result is None else f"[ok] {dataset} {code}")
             except Exception as exc:  # noqa: BLE001
                 failures.append({"dataset": dataset, "partition": code, "error": str(exc)})
                 print(f"[fail] {dataset} {code}: {exc}", file=sys.stderr)
@@ -346,9 +386,9 @@ def fetch_financials(
             for future in as_completed(futures):
                 code, dataset = futures[future]
                 try:
-                    future.result()
+                    result = future.result()
                     done += 1
-                    print(f"[ok] {dataset} {code}")
+                    print(f"[skip] {dataset} {code}" if result is None else f"[ok] {dataset} {code}")
                 except Exception as exc:  # noqa: BLE001
                     failures.append({"dataset": dataset, "partition": code, "error": str(exc)})
                     print(f"[fail] {dataset} {code}: {exc}", file=sys.stderr)
@@ -370,9 +410,14 @@ def load_duckdb(datasets: list[str], full_refresh: bool) -> int:
             if not parts:
                 print(f"[skip] {dataset}: 无分区")
                 continue
+            complete = [p for p in parts if common.manifest_ok(dataset, p)]
+            skipped = len(parts) - len(complete)
             rows = common.load_partitions(con, dataset, parts, full_refresh=full_refresh)
             loaded += rows
-            print(f"[ok] {dataset}: {len(parts)} 分区 / {rows} 行")
+            print(
+                f"[ok] {dataset}: {len(complete)}/{len(parts)} 分区 / {rows} 行"
+                + (f"（跳过未完成 manifest {skipped} 个）" if skipped else "")
+            )
         con.execute("CHECKPOINT")
     return loaded
 

@@ -12,11 +12,10 @@ import datetime as dt
 import hashlib
 import json
 import os
-import random
 import threading
 import time
 from pathlib import Path
-from typing import Any, Callable, Iterable
+from typing import Any, Iterable
 
 import pandas as pd
 
@@ -175,12 +174,22 @@ def manifest_ok(dataset: str, partition: str, verify_hash: bool = True) -> bool:
     meta = read_manifest(dataset, partition)
     if not meta:
         return False
+    if meta.get("dataset") != dataset or meta.get("partition") != safe_key(partition):
+        return False
     file_path = QDB_HOME / str(meta.get("file", ""))
     if not meta.get("file") or not file_path.exists():
         return False
     if file_path.stat().st_size != int(meta.get("bytes", -1)):
         return False
     if verify_hash and sha256_file(file_path) != meta.get("sha256"):
+        return False
+    try:
+        import pyarrow.parquet as pq
+
+        actual_rows = int(pq.ParquetFile(file_path).metadata.num_rows)
+    except Exception:  # noqa: BLE001
+        return False
+    if actual_rows != int(meta.get("rows", -1)):
         return False
     return True
 
@@ -305,30 +314,6 @@ class CallLogger:
                 fh.write(line + "\n")
 
 
-def retry_call(
-    fn: Callable[[], Any],
-    *,
-    retries: int = 2,
-    base_sleep: float = 1.0,
-    on_attempt: Callable[[int, Exception | None, Any], None] | None = None,
-) -> tuple[bool, Any, str | None, int]:
-    """Run fn with at most `retries` retries. Returns (ok, value, error, attempts)."""
-    last_error: Exception | None = None
-    for attempt in range(1, retries + 2):
-        try:
-            value = fn()
-            if on_attempt:
-                on_attempt(attempt, None, value)
-            return True, value, None, attempt
-        except Exception as exc:  # noqa: BLE001 - upstream SDK raises many types
-            last_error = exc
-            if on_attempt:
-                on_attempt(attempt, exc, None)
-            if attempt <= retries:
-                time.sleep(base_sleep * (2 ** (attempt - 1)) + random.uniform(0, 0.2))
-    return False, None, f"{type(last_error).__name__}: {last_error}", retries + 1
-
-
 def read_token(required: bool = True) -> str | None:
     token = os.environ.get(TOKEN_ENV, "").strip()
     if not token and TOKEN_FILE.exists():
@@ -405,12 +390,6 @@ def ts_code_to_sina(code: str) -> str:
     return f"{prefix}{left}"
 
 
-def frame_to_records(df: pd.DataFrame) -> list[dict[str, Any]]:
-    """JSON-safe records; NaN/NaT become null."""
-    payload = df.astype(object).where(pd.notna(df), None)
-    return payload.to_dict(orient="records")
-
-
 def fill_raw_json(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         df["raw_json"] = []
@@ -484,6 +463,18 @@ def insert_dataframe(con, table: str, df: pd.DataFrame, replace: bool = True) ->
     return len(work)
 
 
+def read_partition_frame(dataset: str, partition: str) -> pd.DataFrame | None:
+    """Read every Parquet file in a partition, including another writer's part.parquet."""
+    folder = partition_dir(dataset, partition)
+    files = sorted(folder.glob("*.parquet")) if folder.exists() else []
+    if not files:
+        return None
+    frames = [pd.read_parquet(path) for path in files]
+    if not frames:
+        return None
+    return pd.concat(frames, ignore_index=True)
+
+
 def load_partitions(
     con,
     dataset: str,
@@ -496,13 +487,17 @@ def load_partitions(
     keys = list(partitions) if partitions is not None else list_partitions(dataset)
     if not keys:
         return 0
+    complete = [key for key in keys if manifest_ok(dataset, key)]
+    if not complete:
+        return 0
     cols = schema_columns(con, dataset)
     if full_refresh:
         con.execute(f"DELETE FROM {dataset}")
-    loaded = 0
-    # Prefer a single glob scan; DuckDB parallelises it and avoids one query per file.
-    files = [str(partition_dir(dataset, key) / "data.parquet") for key in keys]
-    files = [path for path in files if Path(path).exists()]
+    # Read every *.parquet in the partition: the main writer uses data.parquet,
+    # while a concurrent backfill may use part.parquet.
+    files = []
+    for key in complete:
+        files.extend(str(path) for path in sorted(partition_dir(dataset, key).glob("*.parquet")))
     if not files:
         return 0
     date_cols = DATE_COLUMNS.get(dataset, set())
@@ -518,12 +513,20 @@ def load_partitions(
     # would otherwise override the Parquet DATE column with a BIGINT partition key.
     con.execute(
         "CREATE OR REPLACE TEMP TABLE _batch AS "
-        "SELECT * FROM read_parquet(?, hive_partitioning=false)",
+        "SELECT * FROM read_parquet(?, hive_partitioning=false, union_by_name=true)",
         [files],
     )
+    pk_cols = ", ".join(TABLE_PK[dataset])
     con.execute(
-        f"INSERT OR REPLACE INTO {dataset} BY NAME SELECT {select_cols} FROM _batch"
+        "CREATE OR REPLACE TEMP TABLE _dedup AS "
+        f"SELECT * EXCLUDE (_rn) FROM ("
+        f"SELECT *, row_number() OVER (PARTITION BY {pk_cols}) AS _rn FROM _batch"
+        ") WHERE _rn = 1"
     )
-    loaded = int(con.execute("SELECT count(*) FROM _batch").fetchone()[0])
+    con.execute(
+        f"INSERT OR REPLACE INTO {dataset} BY NAME SELECT {select_cols} FROM _dedup"
+    )
+    loaded = int(con.execute("SELECT count(*) FROM _dedup").fetchone()[0])
     con.execute("DROP TABLE _batch")
+    con.execute("DROP TABLE _dedup")
     return loaded

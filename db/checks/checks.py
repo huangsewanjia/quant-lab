@@ -17,26 +17,54 @@ class CheckError(RuntimeError):
 def check_manifest(verify_hash: bool = True) -> tuple[bool, dict[str, Any]]:
     missing: list[str] = []
     bad: list[str] = []
-    total = 0
+    raw_keys: set[tuple[str, str]] = set()
     for dataset in common.TABLE_PK:
-        for partition in common.list_partitions(dataset):
-            total += 1
-            meta = common.read_manifest(dataset, partition)
-            if not meta:
-                missing.append(f"{dataset}/{partition}: manifest 不可读")
-                continue
-            file_path = common.QDB_HOME / str(meta.get("file", ""))
-            if not file_path.exists():
-                missing.append(f"{dataset}/{partition}: {file_path} 不存在")
-                continue
-            if file_path.stat().st_size != int(meta.get("bytes", -1)):
-                bad.append(f"{dataset}/{partition}: 字节数不匹配")
-                continue
-            if verify_hash and common.sha256_file(file_path) != meta.get("sha256"):
-                bad.append(f"{dataset}/{partition}: sha256 不匹配")
+        base = common.RAW_DIR / dataset
+        if not base.exists():
+            continue
+        for folder in base.iterdir():
+            if folder.is_dir() and any(folder.glob("*.parquet")):
+                key = folder.name.split("=", 1)[1] if "=" in folder.name else folder.name
+                raw_keys.add((dataset, key))
+    manifest_keys = {
+        (dataset, partition)
+        for dataset in common.TABLE_PK
+        for partition in common.list_partitions(dataset)
+    }
+    for dataset, partition in sorted(raw_keys - manifest_keys):
+        missing.append(f"{dataset}/{partition}: 有 parquet 但缺 manifest")
+    total = 0
+    for dataset, partition in sorted(manifest_keys):
+        total += 1
+        meta = common.read_manifest(dataset, partition)
+        if not meta:
+            missing.append(f"{dataset}/{partition}: manifest 不可读")
+            continue
+        file_path = common.QDB_HOME / str(meta.get("file", ""))
+        if not file_path.exists():
+            missing.append(f"{dataset}/{partition}: {file_path} 不存在")
+            continue
+        if file_path.stat().st_size != int(meta.get("bytes", -1)):
+            bad.append(f"{dataset}/{partition}: 字节数不匹配")
+            continue
+        if verify_hash and common.sha256_file(file_path) != meta.get("sha256"):
+            bad.append(f"{dataset}/{partition}: sha256 不匹配")
+            continue
+        try:
+            import pyarrow.parquet as pq
+
+            actual_rows = int(pq.ParquetFile(file_path).metadata.num_rows)
+        except Exception as exc:  # noqa: BLE001
+            bad.append(f"{dataset}/{partition}: 行数不可读 ({exc})")
+            continue
+        if actual_rows != int(meta.get("rows", -1)):
+            bad.append(
+                f"{dataset}/{partition}: 行数 {actual_rows} != manifest {meta.get('rows')}"
+            )
     ok = not missing and not bad
     return ok, {
         "partitions": total,
+        "raw_partitions": len(raw_keys),
         "missing": missing[:50],
         "bad": bad[:50],
         "missing_count": len(missing),
@@ -195,7 +223,7 @@ def check_cross_source(
 
 
 def check_rowcount(con) -> tuple[bool, dict[str, Any]]:
-    """Every day must have rows and at least one distinct code."""
+    """Every open day in range must have at least one daily row."""
     rows = con.execute(
         """
         SELECT trade_date, count(*) AS rows, count(DISTINCT ts_code) AS codes
@@ -204,11 +232,26 @@ def check_rowcount(con) -> tuple[bool, dict[str, Any]]:
     ).fetchall()
     empty = [str(row[0]) for row in rows if int(row[1]) <= 0]
     zero_code = [str(row[0]) for row in rows if int(row[2]) <= 0]
+    actual = {str(row[0]) for row in rows}
+    if actual:
+        lo, hi = min(actual), max(actual)
+        expected = {
+            str(row[0])
+            for row in con.execute(
+                "SELECT cal_date FROM trade_cal WHERE is_open = 1"
+            ).fetchall()
+            if lo <= str(row[0]) <= hi
+        }
+    else:
+        expected = set()
+    missing = sorted(expected - actual)
     total_rows = sum(int(row[1]) for row in rows)
-    ok = bool(rows) and not empty and not zero_code
+    ok = bool(rows) and not empty and not zero_code and not missing
     return ok, {
         "days": len(rows),
         "total_rows": total_rows,
         "empty_days": empty[:20],
         "zero_code_days": zero_code[:20],
+        "missing_open_days": missing[:20],
+        "missing_open_count": len(missing),
     }

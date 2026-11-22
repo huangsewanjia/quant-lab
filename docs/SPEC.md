@@ -53,10 +53,14 @@ python -m db.etl.fetch load --datasets all
 - 按 `trade_date` 整截面拉行情；按 `ts_code` 拉财务。
 - 幂等：同参数重跑不产生重复行；分区按主键去重后原子覆盖。
 - 断点：manifest 存在、文件存在、字节数和 sha256 都匹配才跳过；否则重拉。
+- 日历：新日期区间与已有 `trade_cal/calendar` 合并，不覆盖旧年份；请求区间超出日历时先补拉再合并。
+- 财务：按 `ts_code` 的分区在重新拉取时与旧分区合并，按 PK 去重；manifest 的 `query` 与本次区间一致才跳过。
+- 停牌：`suspend_d` 当天无停牌是合法空结果，写 0 行分区与 manifest，不算失败。
 - 失败：每次调用最多重试 2 次；最终失败写 `meta/failures-YYYYMMDD.json`，继续其余分区。
 - 速率：默认 9 次/分钟；`--rpm` 可调；`--concurrency` 范围 1..19。
 - 日志：每次调用写 `trade_date`/`ts_code`/耗时/行数/状态；不写 token。
 - token：环境变量 `TUSHARE_TOKEN` 或 `/home/moyongkai/.config/quantdb/tushare.token`（600）。
+- 传输：tushare 1.4.29 默认走 `http://api.waditu.com`；代码启动时强制改为 `https://api.waditu.com/dataapi`。
 
 ## 4. ql 契约
 
@@ -74,6 +78,7 @@ db/bin/ql sql "SELECT * FROM daily" --out /tmp/all.csv
 - 默认最多 200 行；超限时 stderr 提示 `--limit` / `--out`。
 - `--format table|json|csv`。
 - `--out` 写完整结果，不截断。
+- `--limit` 必须是正整数；要全量请用 `--out`。
 - `fin --table` 可选 `fina_indicator`（默认）、`income`、`balancesheet`、`cashflow`；`--ann-before` 做 PIT 过滤。
 
 ## 5. 质量闸
@@ -84,7 +89,7 @@ python -m db.checks.run all
 
 | 检查 | 判据 |
 |---|---|
-| manifest | 每个分区 manifest 可读、文件存在、字节数与 sha256 匹配 |
+| manifest | 每个分区 manifest 可读、文件存在、字节数与 sha256 匹配、Parquet 实际行数等于 manifest 行数；有 Parquet 无 manifest 也失败 |
 | calendar | `daily` 的日期必须落在 `trade_cal.is_open=1`；区间内 open 日不得缺 |
 | pk | 每表按 `TABLE_PK` 分组无重复 |
 | ohlc | `high >= max(open, close)`、`low <= min(open, close)`、`high >= low`、价格非空 |
@@ -99,7 +104,8 @@ python -m db.checks.run all
 
 规则：
 
-- 只抓白名单主机；跟随官方子域（如 `gks.mof.gov.cn`）但校验根域。
+- 只抓白名单主机；每个来源的官方子域在 `sources.toml` 显式列出。
+- 主机白名单在 `sources.toml` 逐项列出，不再按根域放行；每次重定向都校验目标主机与 HTTP(S) 协议。
 - 正文抽为纯文本，写 `content.txt`。
 - `meta.json` 至少含：`publish_date`、`effective_date`、`agency`、`document_number`、`url`、`fetched_at`、`sha256`。
 - 双时间轴缺一：不写正文与 meta，写 `policy/missing/YYYYMMDD.jsonl`。

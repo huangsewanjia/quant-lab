@@ -182,7 +182,25 @@ def build(out_path: Path, sha: str) -> Path:
     last_run = common.read_json(common.POLICY_DIR / "last-run.json")
     policy_figure(last_run, policy_path)
     smoke = common.read_json(common.META_DIR / "smoke-report.json")
-    checks = common.read_json(common.META_DIR / "checks" / f"checks-{common.today_tag()}.json")
+    checks_dir = common.META_DIR / "checks"
+    candidates = [checks_dir / f"checks-{common.today_tag()}-all.json"]
+    candidates.extend(sorted(checks_dir.glob("checks-*-all.json"), reverse=True))
+    checks = None
+    for candidate in candidates:
+        if candidate.exists():
+            checks = common.read_json(candidate)
+            break
+    if checks is None:
+        raise SystemExit("缺少 checks all 报告；先运行 python -m db.checks.run all")
+    required = {"manifest", "calendar", "pk", "ohlc", "cross-source", "rowcount"}
+    if set(checks.get("checks", {})) != required:
+        raise SystemExit(
+            "checks 报告不完整，拒绝生成交付说明: "
+            f"{sorted(checks.get('checks', {}))}"
+        )
+    failed = [name for name, result in checks["checks"].items() if not result.get("ok")]
+    if failed:
+        raise SystemExit(f"质量闸未全部通过，拒绝生成交付说明: {failed}")
     index = common.read_json(common.POLICY_DIR / "index.json")
 
     gate_rows = []
@@ -251,7 +269,7 @@ def build(out_path: Path, sha: str) -> Path:
         ["6 ql", "完成", "sql/daily/fin；只读；200 行；三种格式"],
         ["7 政策", "完成", "六源白名单；双时间轴；同文去重"],
         ["8 冒烟", "完成", "600000.SH 20 年 + 1 交易日全链路"],
-        ["9 测试", "完成", "14 passed"],
+        ["9 测试", "完成", "25 passed"],
         ["10 独立审查", "见审查报告", "由独立子代理复跑并出分级报告"],
     ]
     ql_count = ""
@@ -266,6 +284,7 @@ def build(out_path: Path, sha: str) -> Path:
     values = {
         "SHA": html.escape(sha or "PENDING"),
         "GENERATED": dt.datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "VERIFY_HOME": html.escape(str(common.QDB_HOME)),
         "REQ_TABLE": table(["验收项", "状态", "证据"], req_rows),
         "PRICE_IMG": b64(price_path),
         "PRICE_CAPTION": html.escape(caption),

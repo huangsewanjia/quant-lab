@@ -51,3 +51,23 @@ def test_manifest_missing_file_fails(qdb):
     ok, detail = checks.check_manifest()
     assert not ok
     assert detail["missing_count"] == 1
+
+
+def test_manifest_rows_tamper_fails(qdb):
+    _write_one(qdb)
+    path = common.manifest_path("daily", "20200102")
+    meta = common.read_json(path)
+    meta["rows"] = 999999
+    common.write_json_atomic(path, meta)
+    assert not common.manifest_ok("daily", "20200102")
+    ok, detail = checks.check_manifest()
+    assert not ok
+    assert detail["bad_count"] == 1
+
+
+def test_raw_partition_without_manifest_fails(qdb):
+    _write_one(qdb)
+    common.manifest_path("daily", "20200102").unlink()
+    ok, detail = checks.check_manifest()
+    assert not ok
+    assert detail["missing_count"] == 1

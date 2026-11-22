@@ -62,10 +62,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if not (0 < args.tolerance <= 0.01):
+        raise SystemExit("--tolerance 必须在 (0, 0.01] 元之间；规格上限是 0.01 元")
     common.ensure_layout()
     common.ensure_db()
     names = CHECKS if args.check == "all" else [args.check]
-    report = {"ts": common.utc_now(), "checks": {}}
+    report = {"ts": common.utc_now(), "home": str(common.QDB_HOME), "checks": {}}
     any_failed = False
     con = common.duckdb_connect(read_only=True)
     try:
@@ -82,7 +84,8 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         con.close()
     report["ok"] = not any_failed
-    out = common.META_DIR / "checks" / f"checks-{common.today_tag()}.json"
+    suffix = "all" if args.check == "all" else args.check
+    out = common.META_DIR / "checks" / f"checks-{common.today_tag()}-{suffix}.json"
     common.write_json_atomic(out, report)
     print(f"report: {out}")
     return 1 if any_failed else 0

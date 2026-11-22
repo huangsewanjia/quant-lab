@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -109,7 +110,13 @@ def run_sql(con, sql: str, *, limit: int | None, fmt: str, out: Path | None) -> 
     if not query:
         raise SystemExit("SQL 为空")
     overflow = False
-    first_word = query.lstrip().split(None, 1)[0].lower()
+    probe_sql = re.sub(
+        r"^\s*(?:--[^\n]*(?:\n|$)|/\*.*?\*/)",
+        "",
+        query,
+        flags=re.S,
+    )
+    first_word = probe_sql.lstrip().split(None, 1)[0].lower() if probe_sql.strip() else ""
     can_wrap = first_word in {"select", "with", "from", "describe", "show", "pragma"}
     if limit is not None and out is None and can_wrap:
         probe = f"SELECT * FROM ({query}) AS _q LIMIT {limit + 1}"
@@ -181,6 +188,8 @@ def main(argv: list[str] | None = None) -> int:
     raw_limit = getattr(args, "sub_limit", None)
     if raw_limit is None:
         raw_limit = args.limit
+    if raw_limit is not None and raw_limit <= 0:
+        raise SystemExit("--limit 必须是正整数；要导出全部结果请用 --out")
     out = Path(out_value).expanduser() if out_value else None
     limit = raw_limit if raw_limit and raw_limit > 0 else None
     con = _connect(Path(args.db).expanduser())

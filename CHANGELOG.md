@@ -9,7 +9,7 @@
 - `db/checks/`：manifest、日历勾稽、主键、OHLC、跨源抽样、每日行数 6 项质量闸。
 - `db/ql/` 与 `db/bin/ql`：只读查询 CLI，默认 200 行，table/json/csv。
 - `db/policy/`：六源白名单政策采集，双时间轴，正文 txt + meta.json，同文去重。
-- `db/tests/`：分区幂等、断点、manifest、ql 上限、schema、政策抽取，14 项测试。
+- `db/tests/`：分区幂等、断点、manifest、ql 上限、schema、政策抽取、财务调用、日历合并、停牌空结果、白名单、HTTPS 传输，25 项测试。
 
 文档：
 

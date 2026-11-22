@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime as dt
 
 import pandas as pd
+import pytest
 
 from db.etl import common
 from db.ql import cli
@@ -72,3 +73,28 @@ def test_out_writes_all_rows(qdb, tmp_path, capsys):
     assert target.exists()
     assert len(target.read_text(encoding="utf-8").splitlines()) == 26
     assert "已写出 25 行" in captured.out
+
+
+def test_comment_leading_sql_is_still_limited(qdb, capsys):
+    _seed(qdb)
+    code = cli.main(
+        [
+            "--db",
+            str(common.DB_PATH),
+            "--limit",
+            "10",
+            "--format",
+            "csv",
+            "sql",
+            "-- leading comment\nSELECT * FROM daily ORDER BY trade_date",
+        ]
+    )
+    captured = capsys.readouterr()
+    assert code == 0
+    assert len([line for line in captured.out.splitlines() if line.strip()]) == 11
+    assert "截断" in captured.err
+
+
+def test_non_positive_limit_is_rejected(qdb):
+    with pytest.raises(SystemExit):
+        cli.main(["--db", str(common.DB_PATH), "--limit", "0", "sql", "SELECT 1"])

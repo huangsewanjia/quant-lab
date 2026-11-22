@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import shutil
 
 import pandas as pd
 
@@ -65,3 +66,18 @@ def test_duckdb_load_is_idempotent(qdb):
     assert rows1 == rows2 == 2
     assert count == 2
     assert meta["rows"] == 2
+
+
+def test_load_dedupes_data_and_part_parquet(qdb):
+    day = dt.date(2020, 1, 2)
+    df = _daily([("600000.SH", day), ("000001.SZ", day)])
+    common.write_partition(df, "daily", "20200102", "test")
+    folder = common.partition_dir("daily", "20200102")
+    # Another writer may use part.parquet in the same partition.
+    shutil.copy(folder / "data.parquet", folder / "part.parquet")
+    with common.duckdb_connect() as con:
+        common.apply_schema(con)
+        rows = common.load_partitions(con, "daily", ["20200102"])
+        count = con.execute("SELECT count(*) FROM daily").fetchone()[0]
+    assert rows == 2
+    assert count == 2
