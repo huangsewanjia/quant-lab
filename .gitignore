@@ -27,6 +27,17 @@ report.html
 !/figures/WORK-449/
 !/figures/WORK-449/*.png
 
+# ---- WORK-503 例外：报告成品与论文对照表入库 ----
+!experiments/WORK-503/report.html
+!experiments/WORK-503/preview_first_screen.png
+!experiments/WORK-503/report_print.pdf
+!experiments/WORK-503/paper_comparison.csv
+!/figures/WORK-503/
+!/figures/WORK-503/*.png
+
+# ---- 中间产物（预测 parquet / 逐日面板）：可由训练与回测脚本重建，不入库 ----
+*.parquet
+
 # ---- 复跑产物（probe 脚本默认输出目录）：不入库，避免覆盖已入库的实测证据 ----
 experiments/*/rerun/
 

@@ -51,6 +51,35 @@ class MaskAssertionError(AssertionError):
     """Raised by the mask_contract.md §7 assertions."""
 
 
+def assert_not_limit_down(inst: str, t: int, market: "Market", side: str):
+    if bool(market.limit_down[t, market.inst_pos[inst]]):
+        raise MaskAssertionError(
+            f"assert_not_limit_down: {side} {inst} on "
+            f"{market.cal[t].date()} while limit_down is True")
+
+
+def assert_not_suspended(inst: str, t: int, market: "Market", side: str):
+    if bool(market.suspended[t, market.inst_pos[inst]]):
+        raise MaskAssertionError(
+            f"assert_not_suspended: {side} {inst} on "
+            f"{market.cal[t].date()} while the stock is suspended")
+
+
+def assert_not_limit_up(inst: str, t: int, market: "Market", side: str):
+    if bool(market.limit_up[t, market.inst_pos[inst]]):
+        raise MaskAssertionError(
+            f"assert_not_limit_up: {side} {inst} on "
+            f"{market.cal[t].date()} while limit_up is True")
+
+
+def assert_price_available(inst: str, t: int, market: "Market", px: float,
+                           side: str):
+    if not np.isfinite(px) or px <= 0:
+        raise MaskAssertionError(
+            f"assert_price_available: {side} {inst} on "
+            f"{market.cal[t].date()} used a non tradable price ({px})")
+
+
 # ---------------------------------------------------------------------------
 # price / state tables
 # ---------------------------------------------------------------------------
@@ -160,9 +189,31 @@ class Market:
             return False
         return np.isfinite(self.close_m[t, j])
 
-    def can_buy_at_open(self, inst: str, t: int) -> bool:
+    def can_buy_on_close(self, inst: str, t: int) -> bool:
+        """Buyable on the decision day (mask_contract.md §3.4).
+
+        A name that is suspended or closed limit-up on day t is removed from
+        the Top-K candidate list, so that the slot is taken by the next best
+        tradable name instead of by cash.
+        """
         j = self.inst_pos[inst]
         if bool(self.suspended[t, j]):
+            return False
+        if bool(self.limit_up[t, j]):
+            return False
+        return True
+
+    def can_buy_at_open(self, inst: str, t: int) -> bool:
+        """Buyable at the open of day t.
+
+        Two gates, both conservative (they can only remove trades):
+          * the mask_contract.md §3.4 flag `limit_up` on the execution day;
+          * the name opening locked at the upper limit (knowable at the open).
+        """
+        j = self.inst_pos[inst]
+        if bool(self.suspended[t, j]):
+            return False
+        if bool(self.limit_up[t, j]):
             return False
         if self.limit_up_at_open(inst, t):
             return False
@@ -193,10 +244,24 @@ def backtest(pred: pd.DataFrame, market: Market, buy_bps: float = 5.0,
     violations = []
 
     prev_value = None
+    violation_fired = False
     for di, d in enumerate(dates):
         t = market.cal_pos.get(pd.Timestamp(d))
         if t is None:
             continue
+
+        # --- mask_contract.md §7: the assertions have to fire for real.
+        # WORK503_ASSERT_VIOLATION=1 makes the engine attempt one trade the
+        # mask forbids; the assertion must then raise.
+        if violation and not violation_fired:
+            g0 = by_date[d]
+            for cand in g0["instrument"]:
+                j = market.inst_pos[cand]
+                if bool(market.suspended[t, j]) or bool(market.limit_up[t, j]):
+                    violation_fired = True
+                    assert_not_suspended(cand, t, market, "buy")
+                    assert_not_limit_up(cand, t, market, "buy")
+                    break
 
         # ---- 1. execute the orders decided at the previous close ---------
         for inst, tgt, dec_date, dec_value in pending:
@@ -205,6 +270,10 @@ def backtest(pred: pd.DataFrame, market: Market, buy_bps: float = 5.0,
             if not market.can_buy_at_open(inst, t):
                 continue
             px = market.open_price(inst, t)
+            # --- mask_contract.md §7: the assertions must really be live ---
+            assert_not_suspended(inst, t, market, "buy")
+            assert_not_limit_up(inst, t, market, "buy")
+            assert_price_available(inst, t, market, px, "buy")
             amount = min(tgt, cash / (1.0 + buy_cost))
             if amount <= 0:
                 break
@@ -279,7 +348,8 @@ def backtest(pred: pd.DataFrame, market: Market, buy_bps: float = 5.0,
         # candidates: the highest-scored names of the day, not held.  The
         # dropped names are still in `shares` here, so they cannot be picked
         # again the same day (no sell-then-rebuy round trip).
-        cand = sorted([s for s in universe if s not in shares],
+        cand = sorted([s for s in universe if s not in shares
+                       and market.can_buy_on_close(s, t)],
                       key=lambda s: (-score_map.get(s, -np.inf), s))
         target = list(remaining)
         for s in cand:
@@ -298,6 +368,9 @@ def backtest(pred: pd.DataFrame, market: Market, buy_bps: float = 5.0,
             px = market.close(s, t)
             if not np.isfinite(px):
                 continue
+            assert_not_suspended(s, t, market, "sell")
+            assert_not_limit_down(s, t, market, "sell")
+            assert_price_available(s, t, market, px, "sell")
             amt = shares[s] * px
             cash += amt * (1.0 - sell_cost)
             trades.append({"datetime": str(pd.Timestamp(d).date()),
@@ -485,6 +558,10 @@ def main():
             for nm, arr in bm.items():
                 r[f"alpha_{nm}"] = benchmark_stats(
                     daily["ret"].to_numpy(), arr)
+            pd.DataFrame({"datetime": sorted(daily["datetime"].unique()),
+                          "equal_weight": bm["equal_weight"],
+                          "cap_weighted": bm["cap_weighted"]}).to_parquet(
+                os.path.join(exp_dir, "preds", f"{key}_bench.parquet"))
             results[key] = r
             print(f"{key}: RankIC {r['rankic']:.4f} ICIR {r['rankicir']:.4f} "
                   f"AR {r['ar']:.4f} MDD {r['mdd']:.4f} SR {r['sr']:.4f} "

@@ -1,0 +1,32 @@
+{
+ "synthetic_s42": {
+  "rankic": -0.0016960561911206595,
+  "rankicir": -0.028843628104021336,
+  "ar": -0.2314698171564855,
+  "mdd": 0.5873413623722558,
+  "sr": -1.4414510078079408,
+  "turnover": 0.1671485477754603,
+  "turnover_both_sides": 0.3342970955509206,
+  "days": 725,
+  "mean_holdings": 29.82344827586207,
+  "mean_cash_weight": 0.025736027159031623,
+  "n_trades": 12295,
+  "violation": "",
+  "alpha_equal_weight": {
+   "n_days": 725,
+   "excess_annualized": -0.17661267538449757,
+   "information_ratio": -0.17751098157809148,
+   "tracking_error": 0.003948172353664575,
+   "bench_annualized": -0.06985867622518757,
+   "port_annualized": -0.2464713516096851
+  },
+  "alpha_cap_weighted": {
+   "n_days": 725,
+   "excess_annualized": -0.2927575830189231,
+   "information_ratio": -0.2416744692092787,
+   "tracking_error": 0.004807030069631696,
+   "bench_annualized": 0.04628623140923793,
+   "port_annualized": -0.2464713516096851
+  }
+ }
+}
