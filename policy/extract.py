@@ -170,7 +170,20 @@ def extract_effective_date(
         match = EFFECTIVE_PATTERNS[3].search(head)
         return _first_date(match) if match else None
     if EFFECTIVE_FROM_PUB_RE.search(head) and publish_date:
-        return publish_date
+        # "自公布之日起施行" refers to the signing/announcement date, which is
+        # often earlier than the website release date. Only accept the website
+        # publish_date when the same date appears verbatim in the document;
+        # otherwise the honest value is `unknown` (the spec forbids substituting
+        # publish_date).
+        year, month, day = publish_date.split("-")
+        forms = (
+            f"{year}年{int(month)}月{int(day)}日",
+            f"{year}-{month}-{day}",
+            f"{year}/{month}/{day}",
+        )
+        if any(form in head for form in forms):
+            return publish_date
+        return None
     for pattern in EFFECTIVE_PATTERNS:
         match = pattern.search(head)
         if match and (value := _first_date(match)):

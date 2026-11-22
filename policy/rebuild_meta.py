@@ -14,7 +14,7 @@ from pathlib import Path
 
 import yaml
 
-from extract import build_document
+from extract import build_document, extract_effective_date, extract_expiry_date
 
 HERE = Path(__file__).resolve().parent
 DEFAULT_ROOT = Path("/srv/share/quantdb/policy")
@@ -36,6 +36,21 @@ def main(argv: list[str] | None = None) -> int:
         if args.source != "all" and meta["source_id"] != args.source:
             continue
         if meta.get("text_source") == "html+pdf":
+            # PDF text is not reproducible offline; re-derive timeline fields
+            # from the stored merged text only.
+            text_path = args.root / meta["text_path"]
+            if not text_path.exists():
+                continue
+            text = text_path.read_text(encoding="utf-8")
+            scanned += 1
+            new_effective = extract_effective_date(text, meta["publish_date"]) or "unknown"
+            new_expiry = extract_expiry_date(text) or "unknown"
+            if (meta["effective_date"], meta["expiry_date"]) != (new_effective, new_expiry):
+                meta["effective_date"], meta["expiry_date"] = new_effective, new_expiry
+                meta_path.write_text(
+                    json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8"
+                )
+                changed += 1
             continue
         html_path = args.root / meta["html_gz_path"]
         if not html_path.exists():

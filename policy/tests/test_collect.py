@@ -70,8 +70,14 @@ def test_effective_date_never_inferred_from_publish_date():
 
 
 def test_effective_from_publication_clause():
-    text = "本办法自发布之日起施行。"
+    text = "本办法自发布之日起施行。\n2026年3月1日"
     assert extract_effective_date(text, "2026-03-01") == "2026-03-01"
+
+
+def test_publication_clause_without_matching_date_is_unknown():
+    # Website release date is not the signing date; do not substitute it.
+    text = "本办法自公布之日起施行。\n2025年12月20日"
+    assert extract_effective_date(text, "2026-01-05") is None
 
 
 def test_docno_and_title_cleanup():

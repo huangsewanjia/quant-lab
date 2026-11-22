@@ -111,7 +111,8 @@ $PY -m pytest policy/tests -q
 - 去重：同一 URL、同一正文 sha256、同一强文号（含年份的机关文号）只留一份；
   转载件写 `meta/duplicates.jsonl` 的 `duplicate_of`，规范件 `reprint_count` 累加。
 - `effective_date` 是硬口径：`unknown` 单独计数，回测按 `effective_date` 入样时
-  必须显式剔除 `unknown`。
+  必须显式剔除 `unknown`。「自公布/发布之日起施行」只在正文出现同一天的签署日期时
+  才落到该日，否则记 `unknown`——政府网发布日期常晚于签署/公布日，直接顶替会引入偏差。
 - **PDF 附件只抽正文，不存原件**：发改委令、部分部委通知的 HTML 只有封面页，正文在
   PDF 附件。采集器在 HTML 正文 < 400 字符时下载附件、用 `pypdf` 抽文本，正文标记
   `text_source=html+pdf`；PDF 文件本身不落盘。OFD 与扫描件（无文字层）仍会以
