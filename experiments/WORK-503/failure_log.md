@@ -159,6 +159,7 @@ TypeError: can't convert np.ndarray of type numpy.object_. ...
 | 1 | 拿 qlib 的 `GRU` **包装类**当 `nn.Module` 用 | `qlib.contrib.model.pytorch_gru_ts.GRU` 是 `Model` 的子类，**不是** `nn.Module`；真正的 torch 模块在 `self.GRU_model` 里，包装类没有 `.parameters()` / `.state_dict()` | 训练循环改用 `core_module(model)` 取真正的模块；优化器、梯度裁剪、`state_dict` 全部走 `core` |
 | 2 | 同一个构造调用里 `d_model=64, n_layers=1, dropout=0.1` **被静默吞掉** | qlib 的 `GRU` 签名是 `d_feat / hidden_size / num_layers / dropout / …`，`d_model` 与 `n_layers` 不在其中，被 `**kwargs` 吃掉 → 实际跑的是 **2 层、dropout=0.0** | 改用真实参数名 `hidden_size=64, num_layers=1, dropout=0.1`，并把 `seed=` 透传给 qlib（它在建模块前播种 RNG） |
 | 3 | 拼 batch 时取的是 `ds.rows[i]`（(instrument, datetime) **键对**）而不是 `ds[i]`（真正的 (T,174) 样本） | 键对是字符串/时间戳的元组，`np.stack` 得到 object 数组，torch 拒绝转换 | 改为 `np.stack([ds[i] for i in rows])`，与 `work503_run_arms.py` 的取样路径一致 |
+| 4 | 取标签时把**行号**当成键对用：`test_ds._load(r[0])[2][test_ds.cal_pos[r[1]]]` | `rows` 里存的是整数行号，`r[0]` 直接抛 `TypeError: 'int' object is not subscriptable`——而且是**训练全部跑完之后**才炸，前 6 个 epoch 白跑 | 改为 `test_ds.rows[r][0]` / `test_ds.rows[r][1]`；并新增 `--limit-days` 冒烟开关（只取前 N 个交易日，1 秒跑完整个 训练→推理→落盘 链路），先冒烟再跑全量 |
 
 ### 10.3 这算不算「事后改口径」
 

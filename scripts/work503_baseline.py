@@ -89,6 +89,11 @@ def main():
     ap.add_argument("--exp", default="WORK-503")
     ap.add_argument("--threads", type=int, default=8)
     ap.add_argument("--workers", type=int, default=2)
+    ap.add_argument(
+        "--limit-days", type=int, default=0,
+        help="smoke mode: keep only the first N trading days of every "
+             "segment.  0 = all.  Used to exercise the whole path (train -> "
+             "inference -> parquet) in ~1 minute before a full run.")
     args = ap.parse_args()
 
     torch.set_num_threads(args.threads)
@@ -109,7 +114,11 @@ def main():
     for seg in ("train", "valid", "test"):
         sub = sample_index[sample_index["segment"] == seg].copy()
         sub = sub.sort_values(["datetime", "instrument"], kind="mergesort")
+        if args.limit_days:
+            keep_days = sorted(sub["datetime"].unique())[: args.limit_days]
+            sub = sub[sub["datetime"].isin(keep_days)]
         segs[seg] = sub.set_index(["datetime", "instrument"], drop=True)
+        print(f"segment {seg}: {len(sub)} samples", flush=True)
 
     train_ds = Work503Dataset(ds_dir, segs["train"], True, cs_label=True)
     valid_ds = Work503Dataset(ds_dir, segs["valid"], True, cs_label=True)
@@ -192,8 +201,13 @@ def main():
     df = pd.DataFrame({"instrument": [test_ds.rows[i][0] for i in rows],
                        "datetime": [test_ds.rows[i][1] for i in rows],
                        "score": np.concatenate(scores)})
-    label = np.stack([test_ds._load(r[0])[2][test_ds.cal_pos[r[1]]]
-                       for r in rows])
+    # `rows` holds *indices* into the dataset, not (instrument, datetime) key
+    # pairs — the key pair has to be looked up through `test_ds.rows[i]`.
+    # (Bug fix 2026-11-22: this line used `r[0]`/`r[1]` on an int and crashed
+    # with "TypeError: 'int' object is not subscriptable" *after* the whole
+    # training had finished.)
+    label = np.stack([test_ds._load(test_ds.rows[r][0])[2][
+        test_ds.cal_pos[test_ds.rows[r][1]]] for r in rows])
     df["label"] = label[:, TARGET]
     df = df.sort_values(["datetime", "instrument"])
     out = os.path.join(out_dir, f"{args.kind}_s{args.seed}.parquet")
