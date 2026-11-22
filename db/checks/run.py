@@ -67,7 +67,12 @@ def main(argv: list[str] | None = None) -> int:
     common.ensure_layout()
     common.ensure_db()
     names = CHECKS if args.check == "all" else [args.check]
-    report = {"ts": common.utc_now(), "home": str(common.QDB_HOME), "checks": {}}
+    report = {
+        "ts": common.utc_now(),
+        "day": common.today_tag(),
+        "home": str(common.QDB_HOME),
+        "checks": {},
+    }
     any_failed = False
     con = common.duckdb_connect(read_only=True)
     try:

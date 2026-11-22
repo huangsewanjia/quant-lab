@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import shutil
 
 import pandas as pd
 
@@ -96,3 +97,31 @@ def test_manifest_null_rows_fails_without_exception(qdb):
     ok, detail = checks.check_manifest()
     assert not ok
     assert any("bytes/rows" in item for item in detail["bad"])
+
+
+def test_manifest_string_numbers_fail(qdb):
+    _write_one(qdb)
+    path = common.manifest_path("daily", "20200102")
+    meta = common.read_json(path)
+    meta["bytes"] = "123"
+    meta["rows"] = "1"
+    common.write_json_atomic(path, meta)
+    assert not common.manifest_ok("daily", "20200102")
+    ok, detail = checks.check_manifest()
+    assert not ok
+    assert any("非负整数" in item for item in detail["bad"])
+
+
+def test_manifest_file_outside_partition_fails(qdb):
+    _write_one(qdb)
+    source = common.partition_dir("daily", "20200102") / "data.parquet"
+    outside = qdb.QDB_HOME.parent / "outside.parquet"
+    shutil.copy(source, outside)
+    path = common.manifest_path("daily", "20200102")
+    meta = common.read_json(path)
+    meta["file"] = "../outside.parquet"
+    common.write_json_atomic(path, meta)
+    assert not common.manifest_ok("daily", "20200102")
+    ok, detail = checks.check_manifest()
+    assert not ok
+    assert any("路径不在分区目录" in item for item in detail["bad"])

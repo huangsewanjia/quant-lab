@@ -45,15 +45,17 @@ def check_manifest(verify_hash: bool = True) -> tuple[bool, dict[str, Any]]:
                 f"{dataset}/{partition}: identity={meta.get('dataset')}/{meta.get('partition')}"
             )
             continue
-        file_path = common.QDB_HOME / str(meta.get("file", ""))
+        file_path = common.manifest_file_path(dataset, partition, meta)
+        if file_path is None:
+            bad.append(f"{dataset}/{partition}: file 路径不在分区目录内")
+            continue
         if not file_path.exists():
             missing.append(f"{dataset}/{partition}: {file_path} 不存在")
             continue
-        try:
-            expected_bytes = int(meta.get("bytes", -1))
-            expected_rows = int(meta.get("rows", -1))
-        except (TypeError, ValueError):
-            bad.append(f"{dataset}/{partition}: bytes/rows 字段类型损坏")
+        expected_bytes = common.strict_nonneg_int(meta.get("bytes"))
+        expected_rows = common.strict_nonneg_int(meta.get("rows"))
+        if expected_bytes is None or expected_rows is None:
+            bad.append(f"{dataset}/{partition}: bytes/rows 不是非负整数")
             continue
         if file_path.stat().st_size != expected_bytes:
             bad.append(f"{dataset}/{partition}: 字节数不匹配")

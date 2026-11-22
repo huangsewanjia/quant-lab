@@ -31,7 +31,7 @@ WORK-513 issue 的 10 项验收全部有证据：
 | 6 | `ql sql/daily/fin`，只读，默认 200 行，三种格式 | `db/ql/`、`db/tests/test_ql_limit.py` |
 | 7 | 六源白名单、正文 txt + meta、双时间轴、去重 | `db/policy/`，实测 5 篇入库 |
 | 8 | 无 token 单股 20 年 + 1 交易日全链路 | `/srv/share/quantdb/meta/smoke-report.json` |
-| 9 | 四类单测全绿 | `pytest -q` 29 passed |
+| 9 | 四类单测全绿 | `pytest -q` 39 passed |
 | 10 | 独立审查 | `03-review.md` 与交付说明中的审查结论 |
 
 ## 范围

@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
-import re
 import sys
 from pathlib import Path
 
@@ -106,38 +105,21 @@ def _emit(df: pd.DataFrame, fmt: str, out: Path | None, overflow: bool, limit: i
 
 
 def run_sql(con, sql: str, *, limit: int | None, fmt: str, out: Path | None) -> None:
-    query = sql.strip().rstrip(";")
+    query = sql.strip().rstrip(";").lstrip("; \n\t")
     if not query:
         raise SystemExit("SQL 为空")
     overflow = False
-    probe_sql = _strip_leading_comments(query)
-    first_word = probe_sql.lstrip().split(None, 1)[0].lower() if probe_sql.strip() else ""
-    can_wrap = first_word in {"select", "with", "from", "describe", "show", "pragma"}
-    if limit is not None and out is None and can_wrap:
-        probe = f"SELECT * FROM ({query}) AS _q LIMIT {limit + 1}"
-        df = con.execute(probe).fetchdf()
+    result = con.execute(query)
+    if limit is not None and out is None:
+        columns = [str(item[0]) for item in (result.description or [])]
+        rows = result.fetchmany(limit + 1)
+        df = pd.DataFrame(rows, columns=columns)
         if len(df) > limit:
             overflow = True
             df = df.head(limit)
     else:
-        df = con.execute(query).fetchdf()
+        df = result.fetchdf()
     _emit(df, fmt, out, overflow, int(limit or 0))
-
-
-def _strip_leading_comments(sql: str) -> str:
-    """Remove any number of leading line/block comments before the first keyword."""
-    out = sql.lstrip()
-    while True:
-        new = re.sub(
-            r"^(?:--[^\n]*(?:\n|$)|/\*.*?\*/)",
-            "",
-            out,
-            count=1,
-            flags=re.S,
-        ).lstrip()
-        if new == out:
-            return out
-        out = new
 
 
 def build_parser() -> argparse.ArgumentParser:

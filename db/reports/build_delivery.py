@@ -22,6 +22,7 @@ TEAL = "#0B6E99"
 ORANGE = "#C46B2E"
 GREEN = "#3F7D4A"
 TEMPLATE = Path(__file__).with_name("delivery_template.html")
+REQUIRED_CHECKS = {"manifest", "calendar", "pk", "ohlc", "cross-source", "rowcount"}
 
 
 def b64(path: Path) -> str:
@@ -167,6 +168,23 @@ def fill(template: str, values: dict[str, str]) -> str:
     return out
 
 
+def validate_checks(checks: dict, home: Path, day: str) -> None:
+    if set(checks.get("checks", {})) != REQUIRED_CHECKS:
+        raise SystemExit(
+            "checks 报告不完整，拒绝生成交付说明: "
+            f"{sorted(checks.get('checks', {}))}"
+        )
+    if checks.get("home") != str(home):
+        raise SystemExit(
+            f"checks 报告 home={checks.get('home')} 与当前 {home} 不一致"
+        )
+    if checks.get("day") != day:
+        raise SystemExit(f"checks 报告 day={checks.get('day')} 不是今天 {day}")
+    failed = [name for name, result in checks["checks"].items() if not result.get("ok")]
+    if failed:
+        raise SystemExit(f"质量闸未全部通过，拒绝生成交付说明: {failed}")
+
+
 def build(out_path: Path, sha: str) -> Path:
     style()
     fig_dir = common.META_DIR / "delivery"
@@ -186,21 +204,7 @@ def build(out_path: Path, sha: str) -> Path:
     if not checks_path.exists():
         raise SystemExit(f"缺少当天 checks all 报告: {checks_path}")
     checks = common.read_json(checks_path)
-    if checks.get("home") != str(common.QDB_HOME):
-        raise SystemExit(
-            f"checks 报告 home={checks.get('home')} 与当前 {common.QDB_HOME} 不一致"
-        )
-    if not str(checks.get("ts", "")).startswith(dt.date.today().isoformat()):
-        raise SystemExit(f"checks 报告不是今天生成: {checks.get('ts')}")
-    required = {"manifest", "calendar", "pk", "ohlc", "cross-source", "rowcount"}
-    if set(checks.get("checks", {})) != required:
-        raise SystemExit(
-            "checks 报告不完整，拒绝生成交付说明: "
-            f"{sorted(checks.get('checks', {}))}"
-        )
-    failed = [name for name, result in checks["checks"].items() if not result.get("ok")]
-    if failed:
-        raise SystemExit(f"质量闸未全部通过，拒绝生成交付说明: {failed}")
+    validate_checks(checks, common.QDB_HOME, common.today_tag())
     index = common.read_json(common.POLICY_DIR / "index.json")
 
     gate_rows = []
@@ -269,7 +273,7 @@ def build(out_path: Path, sha: str) -> Path:
         ["6 ql", "完成", "sql/daily/fin；只读；200 行；三种格式"],
         ["7 政策", "完成", "六源白名单；双时间轴；同文去重"],
         ["8 冒烟", "完成", "600000.SH 20 年 + 1 交易日全链路"],
-        ["9 测试", "完成", "29 passed"],
+        ["9 测试", "完成", "39 passed"],
         ["10 独立审查", "见审查报告", "由独立子代理复跑并出分级报告"],
     ]
     ql_count = ""

@@ -169,6 +169,25 @@ def read_manifest(dataset: str, partition: str) -> dict[str, Any] | None:
         return None
 
 
+def manifest_file_path(dataset: str, partition: str, meta: dict[str, Any]) -> Path | None:
+    rel = meta.get("file")
+    if not isinstance(rel, str) or not rel or Path(rel).is_absolute():
+        return None
+    folder = partition_dir(dataset, partition).resolve()
+    path = (QDB_HOME / rel).resolve()
+    try:
+        path.relative_to(folder)
+    except ValueError:
+        return None
+    return path
+
+
+def strict_nonneg_int(value: Any) -> int | None:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        return None
+    return value
+
+
 def manifest_ok(dataset: str, partition: str, verify_hash: bool = True) -> bool:
     """A partition is complete only when manifest + parquet both exist and hash matches."""
     meta = read_manifest(dataset, partition)
@@ -176,13 +195,12 @@ def manifest_ok(dataset: str, partition: str, verify_hash: bool = True) -> bool:
         return False
     if meta.get("dataset") != dataset or meta.get("partition") != safe_key(partition):
         return False
-    file_path = QDB_HOME / str(meta.get("file", ""))
-    if not meta.get("file") or not file_path.exists():
+    file_path = manifest_file_path(dataset, partition, meta)
+    if file_path is None or not file_path.exists():
         return False
-    try:
-        expected_bytes = int(meta.get("bytes", -1))
-        expected_rows = int(meta.get("rows", -1))
-    except (TypeError, ValueError):
+    expected_bytes = strict_nonneg_int(meta.get("bytes"))
+    expected_rows = strict_nonneg_int(meta.get("rows"))
+    if expected_bytes is None or expected_rows is None:
         return False
     if file_path.stat().st_size != expected_bytes:
         return False
