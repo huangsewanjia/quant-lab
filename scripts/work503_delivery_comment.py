@@ -95,6 +95,7 @@ def main():
 
     # ---- H2 / H3 ---------------------------------------------------------
     h2_rows = []
+    h2_brief = []
     for s in seeds:
         p = h2.get("per_seed", {}).get(str(s))
         if not p:
@@ -103,6 +104,9 @@ def main():
             f"| {s} | {f4(p['mean_full'])} | {f4(p['mean_base'])} | "
             f"{f4(p['point'])} | [{f4(p['lo'])}, {f4(p['hi'])}] | "
             f"{'含 0（增量不可证）' if p['lo'] <= 0 <= p['hi'] else '不含 0'} |")
+        h2_brief.append(
+            f"种子 {s}：差值 {f4(p['point'])}，95% CI [{f4(p['lo'])}, {f4(p['hi'])}]"
+            f"（{'含 0 → 增量不可证，与论文自曝弱点一致' if p['lo'] <= 0 <= p['hi'] else '不含 0'}）")
     h3_rows = []
     for s in seeds:
         p = h3.get("per_seed", {}).get(str(s))
@@ -137,7 +141,7 @@ def main():
    逐种子 Δ_drop = {", ".join(f"{k}: {pct(x)}" for k, x in h1.get('delta_ic_per_seed', {}).items())}。
    论文 Table 2 同口径 = {pct(h1.get('paper_delta_ic'))}（字面式 Δ_formula = {pct(h1.get('paper_delta_formula'))}）。
 2. **H2（相对固定基线 GRU 的增量显著性，10000 次 block bootstrap，block=5 日）**：
-   逐种子 95% CI {"；".join(h2_rows) or "—"}。
+   {"；".join(h2_brief) or "—"}。
 3. **H3（可交易性）**：净 SR 中位数 **{f4(h3.get('sr_median'), 3)}**（论文 {f4(h3.get('paper_sr'))}），
    CI 下界最小值 {f4(h3.get('sr_ci_lower_bound_min'), 3)}，相对论文比值 {f4(h3.get('shrinkage_vs_paper'), 3)}（下限 {f4(h3.get('shrinkage_limit'), 2)}），
    判定为 **{'可交易性成立' if h3.get('tradicable') else '可交易性不成立'}**；净 SR < 0 直接判退一条{'命中' if h3.get('net_sr_negative') else '未命中'}。
