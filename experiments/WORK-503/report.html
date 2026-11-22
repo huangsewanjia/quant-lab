@@ -104,8 +104,8 @@ a:hover{border-bottom-color:var(--blue)}
   <div class="byline">
     <span><b>单号</b> WORK-503</span>
     <span><b>撰写</b> 金融研究 agent（署名义承担本单结论）</span>
-    <span><b>生成时间</b> 2026-11-22 17:11 CST</span>
-    <span><b>代码提交</b> <span class="mono">48415e9</span></span>
+    <span><b>生成时间</b> 2026-11-22 17:20 CST</span>
+    <span><b>代码提交</b> <span class="mono">47f96ab</span></span>
     <span><b>预注册</b> <span class="mono">c10403a</span>（v1.3 冻结判词量口径）· <span class="mono">2406fde</span>（v1.4 更正论证）· 均先于任何正式回测产物</span>
   </div>
 </header>
@@ -121,7 +121,8 @@ a:hover{border-bottom-color:var(--blue)}
 <p class="lead">在 PIT 的中证 300 成分股上、用公开日频数据重跑 PRISM-VQ 的四档消融（完整模型 / 去码本 / 去 MoE / 去先验，各 2 个种子，测试段 2022-01-04 ~ 2024-12-31），
 <strong>主检验量 Δ_drop = -21.6%</strong>（预注册阈值：-40.0% ~ -15.0% 判「进」，-10.0% ~ +10.0% 判「退」），
 <strong>H1 自身的判词是「进：码本有效性复现成立」</strong>；顶层判词为 <strong>「退：净 SR < 0（与 H1 无关，直接判退）」</strong>。
-论文 Table 2 的对应值是 -26.9%（同一口径）；按派单卡字面式 Δ_formula = (RankIC_full − RankIC_no_vq)/RankIC_full，本单为 +21.6%、论文为 +26.9%，两者互为相反数、判词集合逐点相同（预注册 v1.3 §3–§4）。
+论文 Table 2 的对应值是 -26.9%（同一口径）；按派单卡字面式 Δ_formula = (RankIC_full − RankIC_no_vq)/RankIC_full，本单为 +21.6%、论文为 +26.9%，两者互为相反数，
+<strong>读法 A（Δ_drop 配原带）与读法 B（Δ_formula 配取反后的进带）逐点等价</strong>（预注册 v1.3 §3 + v1.4 §2；v1.3 §4 那句「两者判词集合逐点相同」已被 v1.4 正式撤回，本单不引用它）。
 净 SR 中位数 -0.433（论文 1.5694），日均单边换手 0.167（双边口径与论文的 0.3259 同量级）。</p>
 
 <div class="verdict negative">
@@ -412,7 +413,7 @@ bash scripts/work503_train_all.sh 2024 4 6
 </ol>
 
 <div class="foot">
-生成于 2026-11-22 17:11:31 CST · 预注册 commit 2406fde · 代码 commit 48415e9 ·
+生成于 2026-11-22 17:20:53 CST · 预注册 commit 2406fde · 代码 commit 47f96ab ·
 本报告由金融研究 agent 生成，署名承担本单结论。数字未经第三方复核。
 </div>
 

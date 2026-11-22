@@ -1,15 +1,15 @@
 {
   "pdf": "figures/WORK-503/fig4.pdf",
   "auditable": true,
-  "verdict": "FIX BEFORE DELIVERY",
+  "verdict": "PASS",
   "page_count": 1,
   "visible_text_box_count": 21,
   "text_trace_count": 27,
-  "stroke_path_count": 28,
+  "stroke_path_count": 29,
   "filled_region_count": 139,
   "image_region_count": 0,
   "summary": {
-    "fail": 4,
+    "fail": 0,
     "warn": 0,
     "contained_fill_overlays": 0,
     "contained_image_overlays": 0
@@ -19,107 +19,5 @@
     "min_overlap_ratio": 0.05,
     "clipping_tolerance_pt": 0.5
   },
-  "findings": [
-    {
-      "severity": "FAIL",
-      "kind": "text-stroke",
-      "page": 1,
-      "message": "Text is crossed by 2 stroked path(s)",
-      "text": "seed 42 (10000 resamples)",
-      "text_bbox": [
-        299.45147705078125,
-        27.326982498168945,
-        395.5445861816406,
-        34.32698440551758
-      ],
-      "other_text": null,
-      "other_bbox": [
-        145.19915771484375,
-        20.797653198242188,
-        306.2153625488281,
-        187.11766052246094
-      ],
-      "object_count": 2,
-      "object_indexes": [
-        21,
-        22
-      ]
-    },
-    {
-      "severity": "FAIL",
-      "kind": "text-stroke",
-      "page": 1,
-      "message": "Text is crossed by 3 stroked path(s)",
-      "text": "seed 42: point +0.0030",
-      "text_bbox": [
-        299.45147705078125,
-        37.82698440551758,
-        382.2615051269531,
-        44.82698440551758
-      ],
-      "other_text": null,
-      "other_bbox": [
-        42.48711013793945,
-        20.797653198242188,
-        410.7671203613281,
-        187.11766052246094
-      ],
-      "object_count": 3,
-      "object_indexes": [
-        19,
-        21,
-        22
-      ]
-    },
-    {
-      "severity": "FAIL",
-      "kind": "text-stroke",
-      "page": 1,
-      "message": "Text is crossed by 2 stroked path(s)",
-      "text": "seed 2024 (10000 resamples)",
-      "text_bbox": [
-        299.45147705078125,
-        48.32698440551758,
-        404.4476318359375,
-        55.32698440551758
-      ],
-      "other_text": null,
-      "other_bbox": [
-        145.19915771484375,
-        20.797653198242188,
-        306.2153625488281,
-        187.11766052246094
-      ],
-      "object_count": 2,
-      "object_indexes": [
-        21,
-        22
-      ]
-    },
-    {
-      "severity": "FAIL",
-      "kind": "text-stroke",
-      "page": 1,
-      "message": "Text is crossed by 2 stroked path(s)",
-      "text": "seed 2024: point +0.0030",
-      "text_bbox": [
-        299.45147705078125,
-        58.82698440551758,
-        391.1645202636719,
-        65.82698059082031
-      ],
-      "other_text": null,
-      "other_bbox": [
-        145.19915771484375,
-        20.797653198242188,
-        306.2153625488281,
-        187.11766052246094
-      ],
-      "object_count": 2,
-      "object_indexes": [
-        21,
-        22
-      ]
-    }
-  ]
+  "findings": []
 }

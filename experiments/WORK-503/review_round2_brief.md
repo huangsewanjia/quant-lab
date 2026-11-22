@@ -35,7 +35,7 @@ cd /srv/data/multica/workspaces/workspace-c8faa36a018a/work-503-69b2057aa375/wor
 必须报告：
 - `n_mismatches`（相对差 ≤ 1e-6 的逐项对账）、`independence.modeling_imports_found`；
 - `verdict.json` 的 `H1.delta_drop`、`H1.delta_formula`、`H1.verdict`、顶层 `verdict`、`H3.net_sr_negative`、`H3.tradicable`；
-- 边界单测的通过数（应为 21 项全过）。
+- 边界单测的通过数（实测 **26 项全过**：T1 9 + T2 7 + T3 6 + T4 4；本契约初稿写的「21 项」是陈旧预期）。
 
 ## 三、终稿数字的自洽性检查（用自己的算式重算，不看现成结论）
 

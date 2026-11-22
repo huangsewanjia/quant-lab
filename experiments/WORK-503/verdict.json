@@ -640,7 +640,19 @@
   },
   "4_prereg_before_results": {
    "hit": false,
-   "note": "预注册 commit 06fd4a8 / v1.2 早于任何预测/回测产物；v1.3（符号口径修订）commit c10403a 亦早于正式回测产物"
+   "prereg_latest_commit": "2026-11-22T15:09:37+08:00",
+   "first_backtest_product_commit": "2026-11-22T17:12:24+08:00",
+   "rule": "预注册 commit 时间晚于第一个回测产物的 commit 时间 → 整单结论作废，重跑（preregistration.md §9 判据 4）",
+   "backtest_products_checked": [
+    "backtest_results.json",
+    "metrics_table.csv",
+    "metrics_by_arm.csv",
+    "verdict.json",
+    "audit_recompute.json",
+    "paper_comparison.csv"
+   ],
+   "smoke_prediction_commit": "2026-11-22T14:35:10+08:00",
+   "smoke_prediction_note": "1-epoch 冒烟预测 preds/no_vq_s42.json 的 commit 时间。它是**模型输出**而不是回测产物，且 10 秒后即被清理；当时生效的协议是 v1.2（早于它）。此处单列出来，是为了让读者自己判断。"
   },
   "5_recompute_agreement": {
    "n_mismatches": 0,

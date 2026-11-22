@@ -559,7 +559,8 @@ def build_html(d, repo, exp_dir, fig_dir):
 <p class="lead">在 PIT 的中证 300 成分股上、用公开日频数据重跑 PRISM-VQ 的四档消融（完整模型 / 去码本 / 去 MoE / 去先验，各 2 个种子，测试段 2022-01-04 ~ 2024-12-31），
 <strong>主检验量 Δ_drop = {pct(h1['delta_drop'])}</strong>（预注册阈值：{pct(-0.40)} ~ {pct(-0.15)} 判「进」，{pct(-0.10)} ~ {pct(+0.10)} 判「退」），
 <strong>H1 自身的判词是「{h1['verdict']}」</strong>；顶层判词为 <strong>「{v['verdict']}」</strong>。
-论文 Table 2 的对应值是 {pct(h1['paper_delta_ic'])}（同一口径）；按派单卡字面式 Δ_formula = (RankIC_full − RankIC_no_vq)/RankIC_full，本单为 {pct(h1.get('delta_formula'))}、论文为 {pct(h1.get('paper_delta_formula'))}，两者互为相反数、判词集合逐点相同（预注册 v1.3 §3–§4）。
+论文 Table 2 的对应值是 {pct(h1['paper_delta_ic'])}（同一口径）；按派单卡字面式 Δ_formula = (RankIC_full − RankIC_no_vq)/RankIC_full，本单为 {pct(h1.get('delta_formula'))}、论文为 {pct(h1.get('paper_delta_formula'))}，两者互为相反数，
+<strong>读法 A（Δ_drop 配原带）与读法 B（Δ_formula 配取反后的进带）逐点等价</strong>（预注册 v1.3 §3 + v1.4 §2；v1.3 §4 那句「两者判词集合逐点相同」已被 v1.4 正式撤回，本单不引用它）。
 净 SR 中位数 {fmt(h3['sr_median'], 3)}（论文 {fmt(h3['paper_sr'], 4)}），日均单边换手 {fmt(h3['per_seed'][str(v['seeds'][0])]['turnover'], 3) if h3['per_seed'] else '—'}（双边口径与论文的 {fmt(h3['paper_turnover'], 4)} 同量级）。</p>
 
 <div class="verdict {'negative' if neg else ''}">

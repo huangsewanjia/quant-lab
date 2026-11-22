@@ -118,7 +118,14 @@ def test_T3_sr_stat():
 
 def test_T4_failure_criteria():
     print("T4 · 失败判据接线")
-    src = open(os.path.abspath(__file__), encoding="utf-8").read()
+    # Scan the **verdict script**, not this test file: the needles below are
+    # string literals that also appear in this file, so scanning ourselves
+    # made the test tautological — deleting all four wirings from
+    # work503_verdict.py would still leave T4 green.
+    # (Bug fix 2026-11-22, found by the round-2 independent review.)
+    verdict_py = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "work503_verdict.py")
+    src = open(verdict_py, encoding="utf-8").read()
     for key, needle in [
         ("FC2 端点失败 → 判词改为停", '"2_endpoints" in hits'),
         ("FC3 两种子都平 → 判退", '"3_both_seeds_flat" in hits'),

@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 
 import numpy as np
@@ -109,6 +110,83 @@ def load_rankic(key: str):
     if not os.path.exists(p):
         return None
     return np.load(p)
+
+
+def git_commit_times(path: str, diff_filter: str = "A") -> list:
+    """All commit timestamps that touched `path` with the given diff filter.
+
+    Newest first (git's own order).  Empty list when git has no record of
+    the path (e.g. it is still untracked).
+    """
+    try:
+        out = subprocess.run(
+            ["git", "log", "--format=%cI", f"--diff-filter={diff_filter}",
+             "--", path],
+            cwd=REPO, capture_output=True, text=True, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    if out.returncode != 0:
+        return []
+    return [ln.strip() for ln in out.stdout.splitlines() if ln.strip()]
+
+
+def check_prereg_before_results(exp_name: str) -> dict:
+    """Pre-registered failure criterion 4 — computed, not asserted.
+
+    preregistration.md §9 criterion 4: "预注册 commit 时间晚于第一个回测产物的
+    commit 时间（`git log` 可查）→ 整单结论作废，重跑。"
+
+    Implemented literally:
+      * "回测产物" = the backtest/verdict products
+        (backtest_results.json, metrics_table.csv, metrics_by_arm.csv,
+        verdict.json, audit_recompute.json, paper_comparison.csv);
+      * "预注册 commit 时间" = the **latest** commit that touched any
+        preregistration file (the protocol in force);
+      * hit  <=>  prereg_ts > first_backtest_product_ts.
+
+    The one wrinkle that has to be disclosed rather than hidden: a 1-epoch
+    **smoke prediction** (`preds/no_vq_s42.json`, added 14:35:10, deleted 10
+    seconds later as a smoke artefact) predates prereg v1.3 / v1.4.  It is a
+    model output, not a backtest product, it was removed from the repo, and
+    at that moment the protocol in force was v1.2 (14:08:48).  Its timestamp
+    is reported separately below so a reader can judge for themselves.
+    """
+    exp_rel = f"experiments/{exp_name}"
+    products = ["backtest_results.json", "metrics_table.csv",
+                "metrics_by_arm.csv", "verdict.json", "audit_recompute.json",
+                "paper_comparison.csv"]
+    prod_times = []
+    for f in products:
+        ts = git_commit_times(f"{exp_rel}/{f}", "A")
+        if ts:
+            prod_times.append(ts[-1])          # oldest add
+    first_product = min(prod_times) if prod_times else None
+
+    prereg_times = []
+    for f in os.listdir(os.path.join(EXP)):
+        if f.startswith("preregistration") and f.endswith(".md"):
+            ts = git_commit_times(f"{exp_rel}/{f}")   # any touch
+            if ts:
+                prereg_times.append(ts[0])             # newest touch
+    prereg_latest = max(prereg_times) if prereg_times else None
+
+    smoke = git_commit_times(f"{exp_rel}/preds/no_vq_s42.json", "A")
+    smoke_first = smoke[-1] if smoke else None
+
+    hit = bool(prereg_latest and first_product and prereg_latest > first_product)
+    return {
+        "hit": hit,
+        "prereg_latest_commit": prereg_latest,
+        "first_backtest_product_commit": first_product,
+        "rule": "预注册 commit 时间晚于第一个回测产物的 commit 时间 → 整单结论作废，重跑"
+                "（preregistration.md §9 判据 4）",
+        "backtest_products_checked": products,
+        "smoke_prediction_commit": smoke_first,
+        "smoke_prediction_note": (
+            "1-epoch 冒烟预测 preds/no_vq_s42.json 的 commit 时间。"
+            "它是**模型输出**而不是回测产物，且 10 秒后即被清理；"
+            "当时生效的协议是 v1.2（早于它）。此处单列出来，是为了让读者自己判断。"),
+    }
 
 
 def load_rankic_dates(key: str):
@@ -328,10 +406,7 @@ def main():
     both_flat = all(abs(v) <= 0.10 for v in per_seed_delta.values()) and \
         len(per_seed_delta) >= 2
     fc["3_both_seeds_flat"] = {"per_seed_delta": per_seed_delta, "hit": both_flat}
-    fc["4_prereg_before_results"] = {
-        "hit": False,
-        "note": "预注册 commit 06fd4a8 / v1.2 早于任何预测/回测产物；"
-                "v1.3（符号口径修订）commit c10403a 亦早于正式回测产物"}
+    fc["4_prereg_before_results"] = check_prereg_before_results(args.exp)
     audit_path = os.path.join(exp_dir, "audit_recompute.json")
     audit_items = {}
     if os.path.exists(audit_path):

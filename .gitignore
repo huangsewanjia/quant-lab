@@ -4,6 +4,9 @@
 *.csv
 !data_contracts/*.csv
 !experiments/*/metrics_table.csv
+# WORK-503 的交付物清单里点名引用的两张人读表（按档聚合表 + 成本敏感性表）
+!experiments/*/metrics_by_arm.csv
+!experiments/*/cost_sensitivity.csv
 
 # ---- 图件产物（大图 + 对齐/碰撞审计 JSON），只保留生成脚本 ----
 /figures/*
