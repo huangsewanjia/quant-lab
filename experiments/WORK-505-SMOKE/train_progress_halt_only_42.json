@@ -3,10 +3,10 @@
  "seed": 42,
  "epoch": 2,
  "epochs": 3,
- "sec_train": 1.032,
- "sec_val": 0.051,
+ "sec_train": 1.035,
+ "sec_val": 0.046,
  "val_rankic": -0.004727730691610114,
  "best_epoch": 2,
  "best_rankic": -0.004727730691610114,
- "updated_at": "2026-11-22T15:22:19.729574+08:00"
+ "updated_at": "2026-11-22T15:44:02.533771+08:00"
 }

@@ -138,6 +138,13 @@ def merged_result(arms_by_seed, cost_key, seeds):
     net = {s: (np.array(arms_by_seed[s]["no_mask"][cost_key]["net_returns"]),
                np.array(arms_by_seed[s]["full_mask"][cost_key]["net_returns"]))
            for s in seeds}
+    # The merged bootstrap applies ONE set of block starts to every seed and
+    # both arms, so all series must have the same length; otherwise the
+    # resampling would silently mix different test windows.
+    lens = {s: len(net[s][0]) for s in seeds}
+    lens.update({f"{s}:full": len(net[s][1]) for s in seeds})
+    if len(set(lens.values())) != 1:
+        raise SystemExit(f"merged bootstrap needs equal-length series, got {lens}")
     meta = arms_by_seed[seeds[0]]["no_mask"][cost_key]
     n_trading = int(meta["test_days"])
     cal_days = calendar_days(meta["start"], meta["end"])
@@ -200,26 +207,28 @@ def merged_result(arms_by_seed, cost_key, seeds):
 def work449_signs(repo):
     """DeltaSharpe signs of WORK-449 (MLP), for the 'did the verdict flip?' question."""
     out = {}
+    missing = []
     for s in WORK449_SEEDS:
         p = os.path.join(repo, "experiments", "WORK-449",
                          "primary_test.json" if s == 42 else f"primary_test_s{s}.json")
         if not os.path.exists(p):
-            return None
+            missing.append(p)
+            continue
         d = json.load(open(p, encoding="utf-8"))
         m = d.get("main", d)
         out[s] = {"delta_sharpe": m.get("delta_sharpe"),
                   "delta_sharpe_ci95": m.get("delta_sharpe_ci95"),
                   "verdict": m.get("verdict")}
-    return out
+    if missing:
+        print("WARNING: WORK-449 comparison incomplete, missing:",
+              "; ".join(missing))
+    return out or None
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--exp", default="WORK-505")
     ap.add_argument("--seeds", default="42,43")
-    ap.add_argument("--tag-format", default="_{seed}",
-                    help="suffix of the metrics file names; default '_{seed}' "
-                         "matching prereg §0.3 (metrics_<arm>_<seed>.json)")
     args = ap.parse_args()
     repo = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     exp_dir = os.path.join(repo, "experiments", args.exp)
@@ -233,6 +242,11 @@ def main():
         "seeds": seeds,
         "primary_cost_bps": 8.0,
         "per_seed": {},
+        "rng_note": (
+            "同一个 seed 内，主成本档（8 bps）与 +5 bps 敏感性档**共用同一个 numpy "
+            "随机流（seed 42）**，因此两档抽到的 block 起点序列**不同**。这与 WORK-449 的 "
+            "work449_primary_test.py 是同款写法，不对任一档产生偏向（每档仍是 1000 次、"
+            "block 长度 20 的配对重采样给出的 95% 百分位区间），但两档的重采样集合并不相同。"),
     }
     for s in seeds:
         rng = np.random.default_rng(SEED)
@@ -259,7 +273,7 @@ def main():
             "work449_per_seed": {str(k): v for k, v in w449.items()},
             "work449_seeds_opposite_sign": w449_opposite,
             "work505_seeds_opposite_sign": bool(m["seeds_opposite_sign"]),
-            "verdict_flip": None,
+            "merged_verdict_vs_work449_seed_verdicts": None,
             "reading": None,
         }
         c = out["comparison_work449_mlp"]
@@ -276,13 +290,20 @@ def main():
                             "了符号不确定性，这是一条新的发现。")
         else:
             c["reading"] = "两单都是两 seed 同号 ⇒ 符号稳定性与模型无关。"
+        # NOTE on the口径 of this boolean: WORK-505's verdict is the MERGED
+        # two-seed verdict (prereg §2.1), while WORK-449's is a SINGLE-seed
+        # verdict.  The comparison is therefore indicative, not a like-for-like
+        # test; the rigorous statement is `reading` above, which compares the
+        # SIGN PATTERN of the two seeds.
         if w449_opposite and m["seeds_opposite_sign"]:
-            c["verdict_flip"] = False
+            c["merged_verdict_vs_work449_seed_verdicts"] = False
         elif m["verdict"] != "复现成立" and any(
                 v.get("verdict") == "复现成立" for v in w449.values()):
-            c["verdict_flip"] = True
+            c["merged_verdict_vs_work449_seed_verdicts"] = True
         else:
-            c["verdict_flip"] = None
+            c["merged_verdict_vs_work449_seed_verdicts"] = None
+        c["verdict_flip_note"] = ("本单是两 seed 合并判词，WORK-449 是单 seed 判词；"
+                                  "口径不同，此布尔值仅供定位，严谨结论看 reading。")
 
     path = os.path.join(exp_dir, "primary_test.json")
     json.dump(out, open(path, "w"), indent=1)

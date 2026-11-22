@@ -173,16 +173,48 @@ def main():
     data["fig3"] = fig_b64(fig, "fig3_snapshot_recovery.png")
 
     # ---------------- F4: transport channel matrix ------------------------
-    channels = [
-        ("SSH to Mo-server (192.168.9.104)", "OK", "680 files absent from all workspaces"),
-        ("Mo-server GNOME Trash (11,458 files scanned)", "PART", "6 files, sha256-verified"),
-        ("git objects (bare cache + trashed repos)", "OK", "0 matching blobs"),
-        ("SMB share Z: (\\\\192.168.9.104\\share)", "OK", "no WORK-449 data"),
-        ("GitHub remote (quant-lab)", "OK", "data/ is gitignored, not in history"),
-        ("Re-fetch EM push2his (this box / Mo-server / proxy)", "FAIL", "connection dropped by EM"),
-    ]
-    fig, ax = plt.subplots(figsize=(6.6, 3.0))
-    cmap = {"OK": TEAL, "PART": BLUE, "FAIL": RED}
+    # Seven channels, built from experiments/WORK-505/transport_evidence.json
+    # (the raw-output archive) so the figure can never drift from the evidence.
+    # The VERDICT LABEL is derived from each channel's recorded status -- an
+    # earlier version hard-coded "OK" for channels that had actually failed,
+    # which made the label contradict the reason printed next to it.
+    _te = json.load(open(os.path.join(EXP_DIR, "transport_evidence.json"),
+                         encoding="utf-8"))
+    _ch = {c["id"]: c for c in _te["channels"]}
+    _trash = _ch[2]["counters"]          # channel 2: GNOME trash
+    _git = _ch[3]["counters"]            # channel 3: git object stores
+    _em = _ch[6]["counters"]             # channel 6: re-fetch from EM
+    _STATUS_MAP = {"failed": "FAIL", "partial": "PART", "rejected": "REJECT"}
+    _names = {
+        1: "1  SSH to Mo-server (192.168.9.104)",
+        2: f"2  Mo-server GNOME Trash ({_trash['trash_files_total']:,} files)",
+        3: f"3  git objects ({_git['blobs_repo']:,} + {_git['blobs_trash_repo']:,} blobs)",
+        4: "4  SMB share Z: (\\\\192.168.9.104\\share)",
+        5: "5  GitHub remote (quant-lab)",
+        6: f"6  Re-fetch EM push2his ({_em['paths_tried']} paths)",
+        7: "7  Other candidate panels (Sina qfq/hfq)",
+    }
+    _notes = {
+        1: "target workspaces already cleaned",
+        2: f"{_trash['matched']} files, sha256-verified",
+        3: f"{_git['matched_codes']} matching blobs",
+        4: "no WORK-449 data",
+        5: "data/ is gitignored, not in history",
+        6: "connection dropped by EM",
+        7: "different source, not comparable",
+    }
+    channels = []
+    for _cid in sorted(_names):
+        _c = _ch[_cid]
+        _st = _STATUS_MAP[_c["status"]]
+        channels.append((_names[_cid], _st, _notes[_cid]))
+    # evidence checks: a channel that recovered nothing must NOT be labelled OK
+    assert _ch[2]["status"] == "partial" and _trash["matched"] == 6
+    for _cid in (1, 3, 4, 5, 6):
+        assert channels[[c[0] for c in channels].index(_names[_cid])][1] != "OK"
+    assert channels[[c[0] for c in channels].index(_names[2])][1] == "PART"
+    fig, ax = plt.subplots(figsize=(6.6, 3.2))
+    cmap = {"OK": TEAL, "PART": BLUE, "FAIL": RED, "REJECT": RED}
     for i, (name, st, note) in enumerate(channels):
         y = len(channels) - 1 - i
         ax.add_patch(plt.Rectangle((0, y - 0.34), 1.0, 0.68,
@@ -243,11 +275,19 @@ def main():
     axes[0].bar(groups, [med[g] for g in groups], color=colors, width=0.62)
     axes[0].set_ylabel("s / epoch")
     axes[0].set_title("f1  WORK-500 baseline throughput", loc="left", fontsize=8)
-    ext = {"A": 121.0, "B": 51.1, "C": 8.0, "D": 162.0}
+    # 60-epoch extrapolation and peak VRAM are read from the WORK-500
+    # reference table (report_data.json -> w500_bench_medians), never hardcoded
+    ext = {}
+    vram = {}
+    for r in w500:
+        g = r["group"]
+        e = float(r["epochs_60_total_s"])
+        v = float(r["peak_vram_mb"])
+        ext[g] = max(ext.get(g, 0.0), e)
+        vram[g] = max(vram.get(g, 0.0), v)
     axes[1].bar(groups, [ext[g] for g in groups], color=colors, width=0.62)
     axes[1].set_ylabel("60 epochs (s)")
     axes[1].set_title("f2  60-epoch extrapolation", loc="left", fontsize=8)
-    vram = {"A": 0.0, "B": 0.0, "C": 83.4, "D": 1031.5}
     axes[1].set_yscale("log")
     axes[2].bar(groups, [max(vram[g], 1.0) for g in groups], color=colors,
                 width=0.62)

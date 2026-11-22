@@ -23,7 +23,7 @@
    "cuda"
   ],
   "returncode": 0,
-  "seconds": 7.4
+  "seconds": 7.5
  },
  {
   "label": "backtest/no_mask/s42",
@@ -37,7 +37,7 @@
    "_42"
   ],
   "returncode": 0,
-  "seconds": 1.3
+  "seconds": 1.1
  },
  {
   "label": "transformer/no_mask/s43",
@@ -55,7 +55,7 @@
    "cuda"
   ],
   "returncode": 0,
-  "seconds": 7.5
+  "seconds": 7.4
  },
  {
   "label": "backtest/no_mask/s43",
@@ -87,7 +87,7 @@
    "cuda"
   ],
   "returncode": 0,
-  "seconds": 7.5
+  "seconds": 7.4
  },
  {
   "label": "backtest/halt_only/s42",
@@ -119,7 +119,7 @@
    "cuda"
   ],
   "returncode": 0,
-  "seconds": 7.5
+  "seconds": 7.4
  },
  {
   "label": "backtest/halt_only/s43",
@@ -151,7 +151,7 @@
    "cuda"
   ],
   "returncode": 0,
-  "seconds": 7.6
+  "seconds": 7.4
  },
  {
   "label": "backtest/full_mask/s42",
@@ -183,7 +183,7 @@
    "cuda"
   ],
   "returncode": 0,
-  "seconds": 7.7
+  "seconds": 7.4
  },
  {
   "label": "backtest/full_mask/s43",
@@ -197,7 +197,7 @@
    "_43"
   ],
   "returncode": 0,
-  "seconds": 1.2
+  "seconds": 1.1
  },
  {
   "label": "mlp/no_mask/s42",
@@ -213,7 +213,7 @@
    "_mlp42"
   ],
   "returncode": 0,
-  "seconds": 17.2
+  "seconds": 17.1
  },
  {
   "label": "backtest_mlp/no_mask/s42",
@@ -243,7 +243,7 @@
    "_mlp43"
   ],
   "returncode": 0,
-  "seconds": 17.0
+  "seconds": 18.0
  },
  {
   "label": "backtest_mlp/no_mask/s43",
@@ -257,7 +257,7 @@
    "_mlp43"
   ],
   "returncode": 0,
-  "seconds": 1.4
+  "seconds": 1.3
  },
  {
   "label": "mlp/halt_only/s42",
@@ -287,7 +287,7 @@
    "_mlp42"
   ],
   "returncode": 0,
-  "seconds": 1.3
+  "seconds": 1.4
  },
  {
   "label": "mlp/halt_only/s43",
@@ -303,7 +303,7 @@
    "_mlp43"
   ],
   "returncode": 0,
-  "seconds": 16.7
+  "seconds": 16.3
  },
  {
   "label": "backtest_mlp/halt_only/s43",
@@ -317,7 +317,7 @@
    "_mlp43"
   ],
   "returncode": 0,
-  "seconds": 1.3
+  "seconds": 1.4
  },
  {
   "label": "mlp/full_mask/s42",
@@ -347,7 +347,7 @@
    "_mlp42"
   ],
   "returncode": 0,
-  "seconds": 1.4
+  "seconds": 1.3
  },
  {
   "label": "mlp/full_mask/s43",
@@ -363,7 +363,7 @@
    "_mlp43"
   ],
   "returncode": 0,
-  "seconds": 16.4
+  "seconds": 16.0
  },
  {
   "label": "backtest_mlp/full_mask/s43",

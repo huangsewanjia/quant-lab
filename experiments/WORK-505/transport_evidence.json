@@ -1,0 +1,90 @@
+{
+ "experiment": "WORK-505",
+ "purpose": "WORK-449 冻结快照搬运的逐通道取证（原始输出留档）。本文件是 failure_log.md §2 的机器可读版；报告与 registry 行里的搬运类数字一律从这里读，不再手抄。",
+ "recorded_at": "2026-11-22",
+ "host": "moyongkai@192.168.9.104 (Mo-server)",
+ "snapshot_manifest": "experiments/WORK-449/snapshot_manifest.json",
+ "manifest_items": 680,
+ "manifest_rows_total": 1575502,
+ "channels": [
+  {
+   "id": 1,
+   "name": "SSH 进 Mo-server 直接取",
+   "status": "failed",
+   "reason": "目标工作区已被平台清理",
+   "raw": "$ ssh -o BatchMode=yes moyongkai@192.168.9.104 \"ls -d /srv/data/multica/workspaces/*/work-449-*/workdir\"\n（无输出）\n$ find /srv/data/multica/workspaces -maxdepth 9 -type f -name 'sh.600000.csv'\n/srv/data/multica/workspaces/workspace-c8faa36a018a/work-503-69b2057aa375/workdir/quant-lab/data/WORK-503/raw/sh.600000.csv\n/srv/data/multica/workspaces/workspace-c8faa36a018a/work-503-69b2057aa375/workdir/quant-lab/data/WORK-503/fundamentals/sh.600000.csv\n/srv/data/multica/workspaces/workspace-c8faa36a018a/work-503-69b2057aa375/workdir/quant-lab/data/WORK-503/sh.600000.csv\n/srv/data/multica/workspaces/workspace-c8faa36a018a/work-503-69b2057aa375/workdir/quant-lab/data/WORK-503/sina_hfq/sh.600000.csv\n/srv/data/multica/workspaces/workspace-c8faa36a018a/work-503-69b2057aa375/workdir/quant-lab/data/WORK-503/sina/sh.600000.csv"
+  },
+  {
+   "id": 2,
+   "name": "Mo-server GNOME 回收站",
+   "status": "partial",
+   "reason": "11,458 个文件里 1,370 个指向 WORK-449；逐条 sha256 只命中 6 个（全部在 hfq 代）",
+   "counters": {
+    "trash_files_total": 11458,
+    "trash_bytes_total": 1810000000,
+    "trashinfo_from_work449": 1370,
+    "csv_candidates": 1372,
+    "matched": 6,
+    "missing": 674,
+    "generations": [
+     {"name": "旧代", "mtime_window": "09:56-10:10", "feature": "价格 10 位小数、成交量整数股、稠密行数 2676", "sha256_matches": 0},
+     {"name": "qfq 代", "mtime_window": "10:12-10:13", "feature": "价格 2 位小数、成交量按手、行数与清单一致", "sha256_matches": 0},
+     {"name": "hfq 代", "mtime_window": "10:16", "feature": "价格 2 位小数、hfq 尺度（2014 年 50.41 元）", "sha256_matches": 6}
+    ],
+    "sha256_per_code": [
+     {"code": "sh.600000", "mtime": "09:56:48", "lines": 2677, "sha256_prefix": "1c105679fa5ab0e7", "match": false},
+     {"code": "sh.600000", "mtime": "09:57:29", "lines": 2677, "sha256_prefix": "deb66d79b06049cf", "match": false},
+     {"code": "sh.600000", "mtime": "10:12:00", "lines": 2644, "sha256_prefix": "9594f041c539c6cc", "match": false},
+     {"code": "sh.600000", "mtime": "10:12:06", "lines": 2644, "sha256_prefix": "9594f041c539c6cc", "match": false},
+     {"code": "sh.600000", "mtime": "10:16:37", "lines": 2644, "sha256_prefix": "9b973aa53bffdc33", "match": true}
+    ]
+   },
+   "raw": "manifest items ok=680\ntrash csv candidates=1372\nMATCHED 6/680\nMISSING 674"
+  },
+  {
+   "id": 3,
+   "name": "git 对象库",
+   "status": "failed",
+   "reason": "两个仓库的对象库里零命中",
+   "counters": {"blobs_repo": 266, "blobs_trash_repo": 8442, "matched_codes": 0},
+   "raw": "REPO: .../github.com+huangsewanjia+quant-lab.git\n  blobs=266\n  MATCHED CODES: 0\nREPO: /home/moyongkai/.local/share/Trash/files/.git\n  blobs=8442\n  MATCHED CODES: 0"
+  },
+  {
+   "id": 4,
+   "name": "SMB 共享 \\\\192.168.9.104\\share (Z:)",
+   "status": "failed",
+   "reason": "共享里没有 WORK-449 的行情数据",
+   "raw": "Z:\\agent-sessions-staging, lost+found, _lf-images.tar, ch.tar, langfuse.dump,\nminio.tar, multica_v2_final.dump, multica_v2.dump, multica-src-3a0fed5.tar.gz,\nweknora.dump"
+  },
+  {
+   "id": 5,
+   "name": "GitHub 远程历史",
+   "status": "failed",
+   "reason": "data_contracts 约定行情快照不入库（仓库为 public）",
+   "raw": "refs/heads/main: 1        # data/README.md"
+  },
+  {
+   "id": 6,
+   "name": "东方财富 push2his 重取（仅作可达性取证，未据此替换数据）",
+   "status": "failed",
+   "reason": "四条路径全部断连",
+   "counters": {"paths_tried": 4, "paths_connected": 0},
+   "raw": "本机直连 (akshare 1.20.40 / stock_zh_a_hist):\n  Push2RateLimitError 东方财富 push2 行情服务器断开了连接，通常是短时间内请求过多，\n  当前 IP 被临时限流。首次限流一般约 5 分钟后恢复，反复触发后可能需要 40 分钟以上\n\n本机经 127.0.0.1:7890 代理 (requests):\n  ProxyError ... RemoteDisconnected('Remote end closed connection without response')\n  同一代理下 https://push2his.eastmoney.com/ 根路径返回 404（可达），仅 kline API 被断\n\n本机经 127.0.0.1:7890 代理 (curl_cffi, impersonate='chrome'):\n  ConnectionError Failed to perform, curl: (56) Connection closed abruptly\n\nMo-server 直连 (akshare 同款参数 + ut=7eea3edcaed734bea9cbfc24409ed989):\n  ERR push2his.eastmoney.com hfq: RemoteDisconnected: Remote end closed connection without response\n  ERR push2his.eastmoney.com raw: RemoteDisconnected: Remote end closed connection without response\n\nMo-server curl -4 -v:\n  * TLSv1.3 handshake OK\n  * > GET /api/qt/stock/kline/get?... HTTP/1.1\n  * OpenSSL SSL_read: error:0A000126:SSL routines::unexpected eof while reading"
+  },
+  {
+   "id": 7,
+   "name": "其它候选面板（来源不同，不可替代）",
+   "status": "rejected",
+   "reason": "来源 / 股票池 / 复权 / 窗口全不同，数值不可与 WORK-449 对照",
+   "raw": "work-465/build/fulla/   47 GB；panel.pt 465 MB、Sina qfq、5317 只全 A、窗口 2015-2024\nwork-465/build/smoke/    panel.pt 8.4 MB 冒烟子集\nwork-503/data/WORK-503/sina_hfq/  724 只新浪 hfq"
+  }
+ ],
+ "landed": {
+  "data_dir_canonical": "<repo>/data/WORK-505",
+  "data_dir_mirror": "F:\\quant_work505\\data\\WORK-449",
+  "files": 6,
+  "bytes": 770855,
+  "codes": ["sh.600000", "sh.600004", "sh.600005", "sh.688506", "sh.688561", "sh.688981"],
+  "verification_artifact": "experiments/WORK-505/snapshot_verification.json"
+ }
+}

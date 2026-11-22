@@ -168,18 +168,24 @@ def build():
     art_rows = []
     for rel in ["experiments/WORK-505/preregistration.md",
                 "experiments/WORK-505/preregistration_errata.md",
+                "experiments/WORK-505/knowledge_cards.md",
                 "experiments/WORK-505/snapshot_verification.json",
                 "experiments/WORK-505/snapshot_verification.csv",
+                "experiments/WORK-505/snapshot_staging.json",
+                "experiments/WORK-505/transport_evidence.json",
+                "experiments/WORK-505/env_observation.json",
                 "experiments/WORK-505/report_data.json",
                 "experiments/WORK-505/failure_log.md",
                 "scripts/work505_train_transformer.py",
                 "scripts/work505_primary_test.py",
                 "audit/recompute_work505.py",
                 "scripts/work505_verify_snapshot.py",
+                "scripts/work505_stage_snapshot.py",
                 "scripts/work505_make_report_data.py",
                 "scripts/work505_make_figures.py",
                 "scripts/work505_make_report.py",
                 "scripts/work505_make_smoke_panel.py",
+                "scripts/work505_run_smoke_grid.py",
                 "scripts/work505_add_registry_row.py"]:
         p = os.path.join(REPO, rel.replace("/", os.sep))
         art_rows.append(f"<tr><td><code>{esc(rel)}</code></td>"
@@ -226,10 +232,118 @@ def build():
     smoke_t_days = int(len(_dates))
     smoke_pre_days = int((_dates < np.datetime64("2015-01-01")).sum())
 
+    # the smoke grid's own run log (steps, return codes, wall clock)
+    _grid_path = os.path.join(smoke_dir, "smoke_grid_log.json")
+    if os.path.exists(_grid_path):
+        _grid = json.load(open(_grid_path, encoding="utf-8"))
+        smoke_grid_steps = len(_grid)
+        smoke_grid_rcs = sorted({int(s["returncode"]) for s in _grid})
+        smoke_grid_seconds = round(sum(float(s["seconds"]) for s in _grid), 1)
+    else:
+        smoke_grid_steps, smoke_grid_rcs, smoke_grid_seconds = 0, [], 0.0
+
+    # environment self-check + GPU-contention observations (machine-readable twin
+    # of failure_log.md §3.1)
+    _eo = json.load(open(os.path.join(EXP_DIR, "env_observation.json"),
+                         encoding="utf-8"))
+    _ui = _eo["gpu_contention_observations_note"]["utilization_pct_index"]
+    _utils = sorted({int(o["smi_before"][_ui])
+                     for o in _eo["gpu_contention_observations"]}
+                    | {int(o["smi_after"][_ui])
+                       for o in _eo["gpu_contention_observations"]})
+    gpu_util_txt = " / ".join(str(u) for u in _utils)
+    self_check_text = _eo["self_check"]["stdout_verbatim"]
+
+    # ---------- table 6: WORK-449 (MLP) reference, READ from its artefacts ---
+    w449_dir = os.path.join(REPO, "experiments", "WORK-449")
+
+    def _w449_metrics(seed):
+        out = {}
+        for arm in ("no_mask", "halt_only", "full_mask"):
+            f = os.path.join(w449_dir, f"metrics_{arm}.json" if seed == 42
+                             else f"metrics_{arm}_s{seed}.json")
+            out[arm] = json.load(open(f, encoding="utf-8"))["main"]
+        return out
+
+    def _w449_primary(seed):
+        f = os.path.join(w449_dir, "primary_test.json" if seed == 42
+                         else f"primary_test_s{seed}.json")
+        d = json.load(open(f, encoding="utf-8"))
+        return d.get("main", d)
+
+    w42, w43 = _w449_metrics(42), _w449_metrics(43)
+    p42, p43 = _w449_primary(42), _w449_primary(43)
+    _bl = json.load(open(os.path.join(w449_dir, "baselines.json"), encoding="utf-8"))
+    _disp = _bl["mlp_prediction_dispersion"]
+    disp_ratio = (_disp["pred_xsec_std_median_all_test_days"] /
+                  _disp["label_xsec_std_median_all_test_days"])
+    _ARMS3 = ("no_mask", "halt_only", "full_mask")
+
+    def _tri(m, key, fmt="%0.6f"):
+        return " / ".join(fmt % m[a][key] for a in _ARMS3)
+
+    def _trip(m, key):
+        return " / ".join(f"{m[a][key]*100:.2f}%" for a in _ARMS3)
+
+    def _ds(p):
+        ci = p["delta_sharpe_ci95"]
+        return (f"{p['delta_sharpe']:+.6f}，CI [{ci[0]:+.4f}, {ci[1]:+.4f}]")
+
+    w449_rows = [
+        f"<tr><td>表观 IC（no_mask / halt_only / full_mask）</td>"
+        f"<td class='num'>{_tri(w42, 'apparent_ic_mean')}</td>"
+        f"<td class='num'>{_tri(w43, 'apparent_ic_mean')}</td>"
+        f"<td>未重算</td></tr>",
+        f"<tr><td>可实现 Sharpe（no / halt / full）</td>"
+        f"<td class='num'>{_tri(w42, 'sharpe_rf1.5', '%0.4f')}</td>"
+        f"<td class='num'>{_tri(w43, 'sharpe_rf1.5', '%0.4f')}</td>"
+        f"<td>未重算</td></tr>",
+        f"<tr><td>年化收益（no / halt / full）</td>"
+        f"<td class='num'>{_trip(w42, 'ann_return')}</td>"
+        f"<td class='num'>{_trip(w43, 'ann_return')}</td>"
+        f"<td>未重算</td></tr>",
+        f"<tr><td>最大回撤（no / halt / full）</td>"
+        f"<td class='num'>{_trip(w42, 'max_drawdown')}</td>"
+        f"<td class='num'>{_trip(w43, 'max_drawdown')}</td>"
+        f"<td>未重算</td></tr>",
+        f"<tr><td>双边换手累计（no / halt / full）</td>"
+        f"<td class='num'>{_tri(w42, 'turnover_two_sided_total', '%0.2f')}</td>"
+        f"<td class='num'>{_tri(w43, 'turnover_two_sided_total', '%0.2f')}</td>"
+        f"<td>未重算</td></tr>",
+        f"<tr><td>ΔSharpe（no − full）</td>"
+        f"<td class='num'>{_ds(p42)}</td>"
+        f"<td class='num'>{_ds(p43)}</td>"
+        f"<td>未重算</td></tr>",
+        f"<tr><td>ΔIC</td><td class='num'>{p42['delta_ic']:+.6f}</td>"
+        f"<td class='num'>{p43['delta_ic']:+.6f}</td>"
+        f"<td>未重算</td></tr>",
+        "<tr><td>模型</td><td class='num'>MLP 12→128→128→1</td>"
+        "<td class='num'>同上</td>"
+        "<td>横截面 Transformer（seq 680 / d 128 / 2 层 4 头）</td></tr>",
+        f"<tr><td>预测截面离散度 ÷ 标签截面离散度</td>"
+        f"<td class='num'>{disp_ratio*100:.2f}%</td>"
+        "<td class='num'>—（WORK-449 未按同一口径出 seed 43 的该指标）</td>"
+        "<td>未重算（预注册 §1.4 已写死口径）</td></tr>",
+        f"<tr><td>判词（§9.4 机械规则）</td>"
+        f"<td class='num'>{p42['verdict']}（退）</td>"
+        f"<td class='num'>{p43['verdict']}（进）</td>"
+        "<td><b>未重算（无数据）</b></td></tr>",
+        "<tr><td>是否翻面</td><td class='num'>—</td><td class='num'>—</td>"
+        "<td><b>无法回答</b></td></tr>",
+    ]
+    w449_table = "".join(w449_rows)
+
     # ---------- the two-seed merged primary test (synthetic panel) ---------
     _pt_path = os.path.join(smoke_dir, "primary_test.json")
     smoke_pt = json.load(open(_pt_path, encoding="utf-8")) \
         if os.path.exists(_pt_path) else None
+    if smoke_pt is None:
+        raise SystemExit("missing synthetic primary_test.json")
+    _merged = smoke_pt.get("merged", {})
+    for _k in ("main", "sensitivity_5bps"):
+        if _k not in _merged:
+            raise SystemExit(f"primary_test.json lacks merged.{_k}")
+    _pt_rng_note = smoke_pt.get("rng_note", "")
 
     html = f"""<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="utf-8">
@@ -283,13 +397,11 @@ Transformer + 与 WORK-449 逐字段一致的预测文件格式）已在合成�
 
 <h2>1 · 环境实测（自检原文）</h2>
 <h3>1.1 硬件与驱动</h3>
-<pre class="mono">NVIDIA-SMI 610.88   KMD Version: 610.88   CUDA UMD Version: 13.3
-GPU 0  NVIDIA GeForce RTX 3060   12288 MiB   driver 610.88
-torch 2.11.0+cu128   torch.cuda.is_available() = True
-device name: NVIDIA GeForce RTX 3060   logical CPUs: 12
-disk: C: 19.8 GB free | F: 187.4 GB free | Z: 1999.4 GB free (\\\\192.168.9.104\\share)</pre>
+<pre class="mono">{esc(self_check_text)}</pre>
 <p class="note">来源：本机 <code>nvidia-smi</code>、<code>python -c "import torch; ..."</code>、
-<code>$env:NUMBER_OF_PROCESSORS</code>、<code>Get-PSDrive</code>，2026-11-22 14:28 CST 实测。
+<code>$env:NUMBER_OF_PROCESSORS</code>、<code>Get-PSDrive</code>，2026-11-22 14:28 CST 实测；
+原文留档于 <code>experiments/WORK-505/env_observation.json</code> 的
+<code>self_check.stdout_verbatim</code>（本段为该字段的逐字输出）。
 工作目录与全部产物落在 <code>F:\\</code>（C: 仅剩 19.8 GB）。</p>
 
 <h3>1.2 环境复测（派单卡硬闸：C 组 s/epoch 0.13 s ±20%）</h3>
@@ -314,7 +426,7 @@ disk: C: 19.8 GB free | F: 187.4 GB free | Z: 1999.4 GB free (\\\\192.168.9.104\
 <tr><td>s/epoch 中位数（确认轮 {c['confirm_n']} 次）</td><td class="num">{num(c['confirm_median'])}</td><td>独立的一轮，外部争用读数已排除</td></tr>
 <tr><td>s/epoch 中位数（首轮 {c['first_n']} 次）</td><td class="num">{num(c['first_median'])}</td><td>含 2 次外部争用读数</td></tr>
 <tr><td>最小 / 最大</td><td class="num">{num(c['min'])} / {num(c['max'])}</td>
-<td>极差来自一次约 65 s 的外部 GPU 争用窗口（见 1.3）</td></tr>
+<td>极差来自首轮 seed 43 的两次外部争用读数（0.1830 / 0.1858 s，见 1.3）</td></tr>
 <tr><td>seed 42 / seed 43 中位数</td>
 <td class="num">{num(c['per_seed'].get('42'))} / {num(c['per_seed'].get('43'))}</td>
 <td>WORK-500 原测 0.1328 / 0.1309 → 偏差 {num(abs((c['per_seed'].get('42') or 0)-0.1328)/0.1328*100,1)}% / {num(abs((c['per_seed'].get('43') or 0)-0.1309)/0.1309*100,1)}%</td></tr>
@@ -338,7 +450,8 @@ disk: C: 19.8 GB free | F: 187.4 GB free | Z: 1999.4 GB free (\\\\192.168.9.104\
 <p>首轮复测中 seed 43 的第 2、3 次重复读数偏高（稳态中位数 0.1830 / 0.1858 s），单次看会触发
 「超 ±20% → 停手」。逐 epoch 原始秒数显示<b>同一次运行内单调变慢</b>（0.2672 → 0.1858 →
 0.1497 s），这是外部争用的特征，不是机器状态改变。确认轮在每次运行前后抓取
-<code>nvidia-smi</code>，在争用时刻直接读到别的进程占用 GPU（utilization 19% / 15%）。
+<code>nvidia-smi</code>，在争用时刻直接读到别的进程占用 GPU（utilization {gpu_util_txt} %；
+观测原文见 <code>experiments/WORK-505/env_observation.json</code>）。
 因此判定为<b>瞬时争用</b>，按确认轮的 {c['confirm_n']} 次运行中位数
 <b>{num(c['confirm_median'])} s</b> 定案（全部 {c['n']} 次的合并中位数
 {num(median_c)} s，首轮 {c['first_n']} 次 {num(c['first_median'])} s，
@@ -357,21 +470,26 @@ seed 43 = {num(rs['D']['per_seed'].get('43'),4)} s（差 {num(rs['D']['rel_diff_
 <code>bench_medians.csv</code>。结论：<b>不能说「D 组复现到 0.1% 以内」</b>——只有 seed 43 成立，
 seed 42 偏慢 {num(rs['D']['rel_diff_pct_vs_ref']['42'],1)}% 且<b>未查清</b>；本单也未做 D 组确认轮。
 因此正式跑数的 Transformer 耗时预估应按 {num(rs['D']['per_seed'].get('42'),3)} s/Epoch 估
-（60 epoch ≈ {num(rs['D']['per_seed'].get('42'),0)*60,0} s/臂），不能沿用 162 s。</span>
+（60 epoch ≈ {rs['D']['per_seed'].get('42', 0)*60:.0f} s/臂），不能沿用 162 s。</span>
 </figcaption></figure>
 
 <h2>2 · 快照搬运与逐股 sha256 校验（派单卡第 1 项）</h2>
-<p>WORK-449 的快照为 <code>data/WORK-449/*.csv</code>，680 只 CSI300 成分、1,575,502 行、
-156.9 MB，冻结清单在 <code>experiments/WORK-449/snapshot_manifest.json</code>（680 条逐股
-sha256）。本单按「不许重取数」的要求，先穷尽搬运通道。</p>
+<p>WORK-449 的快照为 <code>data/WORK-449/*.csv</code>，680 只 CSI300 成分、1,575,502 行
+（行数 = 冻结清单 <code>experiments/WORK-449/snapshot_manifest.json</code> 的 680 条
+<code>items[].rows</code> 之和；<b>清单本身不含字节字段，故本单不引用任何总字节数</b>），
+逐股 sha256 同在该清单里。本单按「不许重取数」的要求，先穷尽搬运通道；7 条通道的
+<b>原始输出留档</b>在 <code>experiments/WORK-505/transport_evidence.json</code>
+（本报告与 registry 行里的搬运类数字一律从该文件读）。</p>
 
 <figure><img alt="Transport channels tried" src="data:image/png;base64,{d['fig4']}">
-<figcaption><b>图 3 · 搬运通道逐条实测结果（七条通道）。</b>
-四条「通但无货」（SSH 进 Mo-server 的目标工作区已被清理 / git 对象库 266 blob 零命中 /
+<figcaption><b>图 3 · 搬运通道逐条实测结果（七条通道，标签取自取证文件记录的判定）。</b>
+四条<b>未命中</b>（FAIL：SSH 进 Mo-server 的目标工作区已被清理 / git 对象库 266 blob 零命中 /
 SMB 共享 <code>\\192.168.9.104\\share</code> / GitHub 远程历史 —— 契约规定 <code>data/</code> 不入库），
-一条「部分回收」（Mo-server GNOME 回收站，11,458 个 CSV 命中 6 个），
-一条直接失败（东方财富 <code>push2his</code> 对本机与 Mo-server 均断连），
-一条「来源不同、不可替代」（其它实验的异源面板）。
+一条<b>部分回收</b>（PART：Mo-server GNOME 回收站，11,458 个 CSV 命中 6 个），
+一条<b>直接失败</b>（FAIL：东方财富 <code>push2his</code> 对本机与 Mo-server 均断连），
+一条<b>来源不同、不可替代</b>（REJECT：其它实验的异源面板）。
+图中每条通道的判定标签由 <code>transport_evidence.json</code> 的 <code>status</code> 字段
+派生，生成脚本带断言：未命中任何文件的通道<b>不允许</b>标成 OK。
 <span class="src">来源：本单逐条实测命令与输出（见 §6 失败记录）。结论：冻结快照在本机与
 Mo-server 均已不可完整复原。</span>
 </figcaption></figure>
@@ -482,40 +600,27 @@ Transformer 的 <code>CrossSectionTransformer</code> 与 WORK-500 已交付的
 （WORK-449 门槛 6：权重口径 15/15 超阈），说明回测脚本在异构机器上行为不变；
 ③ 训练脚本写盘前会断言 <code>isfinite(pred) == sample_ok</code> 逐格成立，
 且产物名内嵌 seed（<code>pred_&lt;arm&gt;_&lt;seed&gt;.npz</code>），两个 seed 不会互相覆盖；
-④ 标签为 NaN 的样本格被<b>剔除并计数</b>（<code>n_label_nan_cells</code>），不会像 MLP 那样
-把伪造的 0.0 当真标签训练。</p>
+④ 标签为 NaN 的样本格被<b>剔除并计数</b>（<code>n_label_nan_cells</code>，按<b>不同的
+（交易日, 股票）格</b>去重计数，训练日志另附 <code>n_label_nan_cells_scope</code> 说明口径），
+不会像 MLP 那样把伪造的 0.0 当真标签训练；
+⑤ 跑批本身留档：<code>experiments/WORK-505-SMOKE/smoke_grid_log.json</code> 记录
+<b>{smoke_grid_steps} 个步骤</b>，返回码集合 = <code>{smoke_grid_rcs}</code>，
+墙钟合计 <b>{smoke_grid_seconds} s</b>（机器读出，非手写）；
+⑥ 两 seed 合并主检验也已在合成面板上执行（产物
+<code>experiments/WORK-505-SMOKE/primary_test.json</code>，含 <code>merged.main</code> 与
+<code>merged.sensitivity_5bps</code> 两段）。<b>它的数值来自合成数据，本报告刻意不列出</b>，
+以免被误读为研究结论 —— 本单的 ΔSharpe / CI / 判词<b>一个都没有产出</b>。<br>
+<b>口径脚注</b>（bootstrap 随机流）：{esc(_pt_rng_note)}</p>
 
 <h2>5 · 与 WORK-449（MLP）的逐项对照</h2>
 <table>
 <caption>表 6 · WORK-449（MLP，seed 42 / seed 43）对照本单（Transformer）——
-凡依赖冻结快照的行一律标「未重算」，不做任何外推</caption>
+WORK-449 侧的每一格都从 <code>experiments/WORK-449/</code> 的产物文件<b>读出</b>
+（<code>metrics_*.json</code> / <code>primary_test*.json</code> / <code>baselines.json</code>），
+凡依赖冻结快照的本单侧行一律标「未重算」，不做任何外推</caption>
 <thead><tr><th>项</th><th class="num">WORK-449 seed 42</th>
 <th class="num">WORK-449 seed 43</th><th>WORK-505（Transformer）</th></tr></thead>
-<tbody>
-<tr><td>表观 IC（no_mask / halt_only / full_mask）</td>
-<td class="num">0.007674 / 0.010639 / 0.012092</td><td class="num">—（WORK-449 未入库）</td>
-<td>未重算</td></tr>
-<tr><td>可实现 Sharpe（no / halt / full）</td>
-<td class="num">−0.5801 / −0.1698 / −1.1318</td><td class="num">—</td><td>未重算</td></tr>
-<tr><td>年化收益（no / halt / full）</td><td class="num">−4.40% / −0.20% / −11.50%</td>
-<td class="num">—</td><td>未重算</td></tr>
-<tr><td>最大回撤（no / halt / full）</td><td class="num">−25.10% / −16.62% / −39.58%</td>
-<td class="num">—</td><td>未重算</td></tr>
-<tr><td>双边换手累计（no / halt / full）</td><td class="num">186.05 / 95.39 / 407.86</td>
-<td class="num">—</td><td>未重算</td></tr>
-<tr><td>ΔSharpe（no − full）</td><td class="num">+0.551644，CI [+0.0780, +1.0342]</td>
-<td class="num">−0.551457，CI [−1.0867, −0.1381]</td><td>未重算</td></tr>
-<tr><td>ΔIC</td><td class="num">−0.004418</td><td class="num">−0.002063</td><td>未重算</td></tr>
-<tr><td>模型</td><td class="num">MLP 12→128→128→1</td><td class="num">同上</td>
-<td>横截面 Transformer（seq 680 / d 128 / 2 层 4 头）</td></tr>
-<tr><td>预测截面离散度 ÷ 标签截面离散度</td><td class="num">0.58%</td><td class="num">—</td>
-<td>未重算（预注册 §1.4 已写死口径）</td></tr>
-<tr><td>判词</td><td class="num">未复现（退）</td>
-<td class="num">按 §9.4 机械规则为「复现成立」</td>
-<td><b>未重算（无数据）</b></td></tr>
-<tr><td>是否翻面</td><td class="num">—</td><td class="num">—</td>
-<td><b>无法回答</b></td></tr>
-</tbody></table>
+<tbody>{w449_table}</tbody></table>
 
 <div class="verdict">
 <div class="lab">对「翻面了吗？」的正面回答</div>
@@ -575,11 +680,21 @@ qfq 代或别的实验数据</td><td>取出 6 只，其余标 MISSING</td></tr>
 <td>训练在第 1 个 epoch 后被 ⑪ 打断；修正 <code>numpy.busday_range</code>（numpy 3 已移除）
 与张量索引两处笔误后通过</td><td>已修；后按三档 × 两 seed × 两模型重跑全通</td></tr>
 <tr><td>⑬</td><td>独立代码审查第 1 轮（独立子代理，不改仓库）</td>
-<td>判定 <b>PARTIAL</b>：7 项 Major / 4 项 Minor；其中 4 项会让「数据补齐即可直接开跑」落空
+<td>判定 <b>PARTIAL</b>：<b>14 项</b>（7 Major / 5 Minor / 2 Nit）；其中 4 项会让「数据补齐即可直接开跑」落空
 （seed 产物互相覆盖 / 主检验与复算脚本缺失 / 预测网格与 <code>sample_ok</code> 不逐格等价 /
 NaN 标签被静默当 0.0 训练），另有 4 处交付文本的不实陈述</td>
 <td>已逐条修完并复跑全通；清单与逐条处置见 <code>failure_log.md</code> §6 与
 <code>preregistration_errata.md</code></td></tr>
+<tr><td>⑭</td><td>独立代码审查第 2 轮（独立子代理，不改仓库）</td>
+<td>判定 <b>FAIL</b>：<b>18 项</b>（3 Major / 12 Minor / 3 Nit）。3 项阻断：M1 报告里
+<code>{num(...)*60,0}</code> 渲染成乱码数字；M2 表 6 写「WORK-449 未入库」但 seed 43 指标其实已入库；
+M3 <code>work449_build_panel.py</code> 硬编码读 <code>&lt;repo&gt;/data/&lt;exp&gt;</code>，
+与 §4 步骤 0 的校验目录不一致，「数据补齐即可直接开跑」在第 1 步就会崩</td>
+<td>已全部返修：M1 改为 <code>:.0f</code> 格式；M2 表 6 改为从
+<code>experiments/WORK-449/metrics_*_s43.json</code> 等产物直读；M3 新增目录桥接脚本
+<code>scripts/work505_stage_snapshot.py</code>（只拷 sha256 相符的文件，<b>不改</b>
+<code>work449_build_panel.py</code>）并把<b>合并后的完整可复跑命令表</b>写进勘误第四节；
+12 项 Minor 与 3 项 Nit 逐条处置见 <code>failure_log.md</code> §7</td></tr>
 </tbody></table>
 
 <h2>7 · 缺口与不确定项</h2>
@@ -593,6 +708,11 @@ NaN 标签被静默当 0.0 训练），另有 4 处交付文本的不实陈述</
 <li><code>audit/recompute_work505.py</code> 在<b>真实快照上从未执行过</b>（依赖快照）。它的正确性
 来自「与 WORK-449 已过审的 <code>audit/recompute_work449.py</code> 逐字节同源，只加参数化与
 seed 循环」；在合成面板上它<b>不能</b>跑通（合成面板没有 CSV 源），这一点<b>没有</b>被证明。</li>
+<li><b>目录桥接（已补）</b>：<code>work449_build_panel.py</code> 把输入目录硬编码为
+<code>&lt;repo&gt;/data/&lt;exp&gt;</code>，而 §4 步骤 0 的校验命令指向别处 ⇒ 照抄原命令链会在第 1 步崩。
+本单新增 <code>scripts/work505_stage_snapshot.py</code>（只拷 sha256 与冻结清单<b>相符</b>的文件，
+不符者不拷不覆盖、缺失者记 MISSING），<b>不改</b> <code>work449_build_panel.py</code> 一个字；
+勘误 <b>E8</b> 与勘误<b>第四节的合并命令表</b>给出把 E1–E8 全部应用后的完整可复跑命令链。</li>
 <li>D 组（Transformer）seed 42 的 6 次运行<b>系统性偏慢 11.9%</b>（3 次全偏），<b>原因未查清</b>；
 本单也<b>没有</b>补做 D 组的确认轮复测。因此正式跑数的耗时预估应按
 {num(rs['D']['per_seed'].get('42'),3)} s/Epoch 估，不能沿用 162 s。</li>
@@ -601,6 +721,10 @@ seed 循环」；在合成面板上它<b>不能</b>跑通（合成面板没有 C
 <li>Mo-server 侧的搬运取证（回收站 11,458 文件、1,370 个 trashinfo、代际聚类、git blob 零命中、
 SMB 清单、<code>push2his</code> 四条路径断连原文）<b>无法在本机复核</b> —— 仓库内没有对应的
 原始输出文件，失败日志只有转述；唯一可复核的搬运结果是最终 6/680。</li>
+<li><b>知识卡未落 WeKnora</b>：本运行时没有 WeKnora 的工具 / CLI / skill（已核 tool_search、PATH
+与 skills 目录，均无入口），项目口径的「每单收口至少落 1 张卡」<b>本单无法执行</b>。
+可复用事实已写成可直接发布的卡片稿 <code>experiments/WORK-505/knowledge_cards.md</code>
+（3 张：OpenMP 双运行时冲突 / 快照不可复原取证 / git-data API 推送绕过），待有访问权者落库。</li>
 <li>GitHub 远程分支 <code>agent/work-505</code> 已推送（PR <code>#2</code>，仓库
 <code>github.com/huangsewanjia/quant-lab</code>）：
 预注册 commit <code>38fe864f3f81ddc8653faf62c8affccb6686c03f</code> 早于任何产物 commit；
@@ -614,7 +738,9 @@ SMB 清单、<code>push2his</code> 四条路径断连原文）<b>无法在本机
 <div class="box">
 <b>需要拍板的一件事（决策请求）</b>：下一步如何补数据，三选一 ——
 <b>(a) 等东方财富解封后在本机重取，并用冻结清单 680 条 sha256 逐条验证</b>（若能 680/680
-通过，则数据与冻结快照逐字节相同，判词链路可原样恢复；本单已准备好命令）；
+通过，则数据与冻结快照逐字节相同，判词链路可原样恢复；本单已准备好命令 ——
+<b>完整命令表见 <code>preregistration_errata.md</code> 第四节</b>，含第 0b 步的目录桥接
+<code>scripts/work505_stage_snapshot.py</code>）；
 <b>(b) 改派「金融研究」在 Mo-server 侧执行同一件事</b>（该机 2026-11-20 曾成功取到同源数据）；
 <b>(c) 接受数据源变更</b>（例如改用新浪 hfq 重建面板并在新预注册下重跑，结论与 WORK-449
 不可直接对照）。
@@ -648,24 +774,26 @@ A/B 组为 CPU 版，峰值显存记 0；D 组为 213 因子 Transformer，本�
 <thead><tr><th>路径</th><th>sha256</th></tr></thead>
 <tbody>{''.join(art_rows)}</tbody></table>
 <p class="foot">本报告为内部研究模拟，撰写方非持牌机构，不构成投资建议与收益承诺；
-本单不产出交易指令、仓位建议、评级或目标价。本报告的数字分三类来源，逐类标注：
+本单不产出交易指令、仓位建议、评级或目标价。本报告的数字分四类来源，逐类标注：
 ① <b>环境复测</b>（§1）—— 由 <code>scripts/work505_make_report_data.py</code> 从逐次原始 JSON
-现算，写入 <code>report_data.json</code>，报告只做格式化；② <b>合成面板</b>（表 5）——
-从 <code>experiments/WORK-505-SMOKE/</code> 的产物 JSON 直读；③ <b>WORK-449 的既有数值</b>（表 6）
-—— 引用自 <code>experiments/WORK-449/</code> 的产物文件，已逐格注明来源文件。
-凡未取到者一律标注「未取到 / 未重算」，不做任何外推。</p>
+现算，写入 <code>report_data.json</code>，报告只做格式化；
+② <b>合成面板</b>（表 5）—— 从 <code>experiments/WORK-505-SMOKE/</code> 的产物 JSON 直读；
+③ <b>WORK-449 的既有数值</b>（表 6）—— 从 <code>experiments/WORK-449/</code> 的产物文件读出
+（<code>metrics_*.json</code> / <code>primary_test*.json</code> / <code>baselines.json</code>）；
+④ <b>搬运取证</b>（§2）—— 从 <code>experiments/WORK-505/transport_evidence.json</code> 读出
+（该文件是 Mo-server 侧原始输出的留档）。
+§1.1 的硬件/软件自检原文是<b>命令输出</b>（<code>nvidia-smi</code> / <code>torch.cuda</code>），
+不是抄写产物。凡未取到者一律标注「未取到 / 未重算」，不做任何外推。</p>
 
 </div></body></html>
 """
 
-    out = os.path.join(EXP_DIR, "report.html")
-    with open(out, "w", encoding="utf-8") as fh:
-        fh.write(html)
-    print("report.html written:", os.path.getsize(out), "bytes")
-    # ---- self-check: ZERO external references (hard assertion, not a print) ----
+    # ---- self-check: ZERO external references (hard assertion, BEFORE write) ----
     # The previous version of this block computed `ext` and never used it, and
     # excluded "<script" from the check by construction, so the property it
-    # claims to verify was never enforced.  Now it fails the build.
+    # claims to verify was never enforced.  Now it fails the build -- and it
+    # runs BEFORE the file is written, so a failing build cannot leave a bad
+    # artefact behind.
     body = html.replace("https://api.github.com", "")
     ext = [t for t in ("http://", "https://", "<script", "<link", "@import",
                         "src=\"http", "href=\"http", "url(http")
@@ -673,8 +801,13 @@ A/B 组为 CPU 版，峰值显存记 0；D 组为 213 因子 Transformer，本�
     print("external <script> tags:", html.count("<script"))
     print("http(s) links:", html.count("http://") + html.count("https://"))
     print("external references found:", ext if ext else "none")
-    assert not ext, f"report.html contains external references: {ext}"
-    assert html.count("<script") == 0, "report.html contains a <script> tag"
+    assert not ext, f"report.html would contain external references: {ext}"
+    assert html.count("<script") == 0, "report.html would contain a <script> tag"
+
+    out = os.path.join(EXP_DIR, "report.html")
+    with open(out, "w", encoding="utf-8") as fh:
+        fh.write(html)
+    print("report.html written:", os.path.getsize(out), "bytes")
     return out
 
 

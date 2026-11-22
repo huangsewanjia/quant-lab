@@ -34,28 +34,29 @@
    "epoch": 0,
    "train_loss": 0.010119675042797307,
    "val_rankic": -0.01117844312310094,
-   "sec_train": 1.418,
+   "sec_train": 1.363,
    "sec_val": 0.066
   },
   {
    "epoch": 1,
    "train_loss": 0.001352605098886913,
    "val_rankic": -0.0030930548851532463,
-   "sec_train": 1.082,
-   "sec_val": 0.048
+   "sec_train": 1.025,
+   "sec_val": 0.049
   },
   {
    "epoch": 2,
    "train_loss": 0.000978861776365408,
    "val_rankic": -0.005368058225520984,
-   "sec_train": 1.07,
-   "sec_val": 0.052
+   "sec_train": 1.048,
+   "sec_val": 0.049
   }
  ],
  "pred_grid_matches_sample_ok": true,
+ "n_label_nan_cells_scope": "distinct (day, stock) cells in the TRAINING window whose label is not finite; counted once per cell (not once per epoch)",
  "best_epoch": 1,
  "val_rankic": -0.0030930548851532463,
- "finished_at": "2026-11-22T15:22:37.227562+08:00",
+ "finished_at": "2026-11-22T15:44:19.785211+08:00",
  "peak_vram_mb": 34.38134765625,
  "peak_vram_reserved_mb": 40.0
 }

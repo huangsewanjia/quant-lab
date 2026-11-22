@@ -172,6 +172,13 @@ def main():
     ap.add_argument("--epochs", type=int, default=EPOCHS)
     args = ap.parse_args()
     tag = args.tag if args.tag is not None else f"_{args.seed}"
+    # Guard: the file name carries the seed, so an explicitly given tag that
+    # disagrees with --seed would write one seed's model under another seed's
+    # name (the exact silent-overwrite failure mode of the first review round).
+    if args.tag is not None and args.tag != f"_{args.seed}":
+        raise SystemExit(f"--tag {args.tag!r} does not match --seed {args.seed}; "
+                         f"the file names carry the seed, so the tag must be "
+                         f"'_{args.seed}' (or omit --tag)")
 
     repo = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     exp_dir = os.path.join(repo, "experiments", args.exp)
@@ -280,7 +287,9 @@ def main():
         return xb, yb, vb, yb_raw
 
     best = {"rankic": -np.inf, "epoch": -1, "state": None}
-    nan_label_cells = 0
+    # distinct (day, stock) cells whose label is not finite - counted ONCE per
+    # cell, not once per epoch (a per-epoch tally would read "cells x epochs").
+    nan_label_cells = np.zeros((T - 1, N), dtype=bool)
     for ep in range(args.epochs):
         t_ep = time.time()
         model.train()
@@ -311,7 +320,10 @@ def main():
             # and counted (prereg §1.1 M9: invalid cells do not take part in
             # the loss).
             label_finite = torch.isfinite(yb_raw)
-            nan_label_cells += int((vb & ~label_finite).sum().item())
+            # write the flag back on the FULL day axis (the batch only carries
+            # BATCH_DAYS rows); `days_b` are indices into the same (T-1, N)
+            # grid that `nan_label_cells` lives on.
+            nan_label_cells[days_b] |= (vb & ~label_finite).cpu().numpy()
             sel_mask = vb & label_finite
             denom = sel_mask.sum().clamp(min=1)
             loss = (w * sq * sel_mask).sum() / denom
@@ -391,7 +403,10 @@ def main():
     # cells and nowhere else.
     grid_ok = bool(np.array_equal(np.isfinite(pred_from[:-1]), sample_ok))
     log["pred_grid_matches_sample_ok"] = grid_ok
-    log["n_label_nan_cells"] = int(nan_label_cells)
+    log["n_label_nan_cells"] = int(nan_label_cells.sum())
+    log["n_label_nan_cells_scope"] = (
+        "distinct (day, stock) cells in the TRAINING window whose label is not "
+        "finite; counted once per cell (not once per epoch)")
     if not grid_ok:
         raise SystemExit("prediction grid does not cover sample_ok exactly "
                          "(finite(pred) != sample_ok)")

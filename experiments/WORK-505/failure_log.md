@@ -296,7 +296,7 @@ PR #2 head     : daf61b38296bb841eb9884c49102b05bc2e76e53
 | A2 | Major | 预注册 §4 的主检验与独立复算两步**没有任何实现**，「完整链条」不成立 | **已修**：`scripts/work505_primary_test.py` + `audit/recompute_work505.py` 已实现；勘误 E3 |
 | A3 | Major | 训练段之外的日期（2014 段）`pred` 留下与 `sample_ok` 矛盾的 NaN，与 WORK-449 的 MLP 不逐格等价 | **已修**：预测改为全网格（所有含有效样本的交易日）+ 写盘前断言 `isfinite(pred)==sample_ok`；勘误 E6 |
 | A4 | Major | 标签为 NaN 时 `nan_to_num` 静默当 0.0 训练；MLP 会崩而 Transformer 会给出「看起来正常」的数 | **已修**：损失前剔除 NaN 标签格并计入 `n_label_nan_cells`；勘误 E7 |
-| A5 | Major | 报告与 registry 写「三档 × 两模型全绿」，实际只跑了 3/6 组合，`halt_only` 从未训练 | **已修**：合成面板重跑为**三档 × 两 seed × 两模型 = 12 次训练 + 12 次回测**，报告表格改为**从产物 JSON 直读**；上一轮的 9 个过时产物已删除 |
+| A5 | Major | 报告与 registry 写「三档 × 两模型全绿」，实际只跑了 3/6 组合，`halt_only` 从未训练 | **已修**：合成面板重跑为**三档 × 两 seed × 两模型 = 12 次训练 + 12 次回测**，报告表格改为**从产物 JSON 直读**；上一轮的 9 个过时产物已删除。<br>**补充（第 2 轮 M15 查证）**：目录里另有 3 个不带 seed 后缀的 `model_*.pt` —— 它们**不是**过时残留，而是 WORK-449 自带 MLP 训练器每次都会写的当前产物（见 §7 M15），故**保留不动**，并在此把「过时产物已删除」的范围限定为**上一轮那 9 个**（不含这 3 个） |
 | A6 | Major | registry 与失败日志把「确认轮 10 次」的中位数 0.1313 s 挂到 n=16 上（n=16 的中位数是 0.1343 s） | **已修**：registry 数字改为**从 `report_data.json` 读**（不再手写）；失败日志与报告逐处标注口径 |
 | A7 | Major | 「D 组复现到 2.6993 s/epoch 的 0.1% 以内」不成立（6 次中位数 2.8479 s，+5.51%；只有 seed 43 成立，seed 42 偏高 11.91%），且被用作「机器状态未变」的证据 | **已修**：报告摘要、图 2 标题、图注、失败日志 §3.1 全部改正；**撤回**「拿 D 组给 C 组背书」的推理 |
 | B1 | Minor | 「所有数字均来自机器写入的产物文件，未做人工抄写」不成立（表 5 与 registry 整行硬编码） | **已修**：新增 `scripts/work505_make_report_data.py`（数字的唯一机器来源，从原始 JSON 现算）；报告表格改为读产物；页脚按三类来源分别标注 |
@@ -319,7 +319,72 @@ PR #2 head     : daf61b38296bb841eb9884c49102b05bc2e76e53
 
 ---
 
-## §7 边界
+## §7 独立代码审查第 2 轮：发现与处置（**主循环不自审**）
+
+> 审查方：**独立子代理**（`verifier` 角色，同一《code-review-and-quality》流程，全程只读）。
+> 审查对象 = 已提交范围 `c93286a`（tree `97ddd6878406ab38076b99e6fa35b802a3b6dbee`）。
+> 判定：**FAIL** —— 3 项阻断合并（Major），另 12 项 Minor、3 项 Nit。
+> 审查方独立复算并逐位相符的项：C 组三口径中位数、D 组 6 次中位数与分 seed 偏差、
+> 快照 6 PASS / 0 FAIL / 674 MISSING 与 770,855 字节、预注册 sha256 `e542ccfe…`、
+> 两 seed 合并 ΔSharpe 与 CI95（1000×block20×seed42 同步重采样，**逐位相同**）、
+> 表 5 十二行逐格 vs `metrics_*.json`、`report.html` 的 0 外链 / 6 张 base64 内嵌图。
+> 判词（进 / 退）不在审查方职责内；审查方确认本单**未伪造任何研究结论**。
+
+### 7.1 阻断项（Major）
+
+| # | 发现 | 处置 |
+|---|---|---|
+| M1 | 报告里出现乱码数字：`work505_make_report.py` 的 `{num(rs['D']['per_seed'].get('42'),0)*60,0}` 里 `num()` 返回**字符串**，`"3"*60` 渲染成 60 个 `3` 的元组 | **已修**：改为 `{...*60:.0f}`，渲染为 `181`；报告与 PDF 已重新生成并逐处核对 |
+| M2 | 表 6 断言「WORK-449 未入库」，但 `experiments/WORK-449/metrics_{no_mask,halt_only,full_mask}_s43.json` **已入库**（81,486 / 81,475 / 81,233 字节），且同表的 ΔSharpe / ΔIC 行本就引用了 seed 43 的 `primary_test_s43.json` | **已修**：表 6 的 seed 43 列改为从 `experiments/WORK-449/metrics_*_s43.json` / `primary_test_s43.json` / `baselines.json` **直读**，不再写「未入库」 |
+| M3 | 「数据补齐即可直接开跑」的链条断在第 1 步：`work449_build_panel.py:96-97` 把输入目录**硬编码**为 `<repo>/data/<exp>`（无 `--data-dir`），而 §4 步骤 0 的校验命令指向 `F:\quant_work505\data\WORK-449` ⇒ 照抄 §4 会在第 1 步 `FileNotFoundError`；步骤 5 的独立复算脚本默认 `--data-dir` 同为 `<repo>/data/<exp>`，勘误 E3 未给修正命令 | **已修**：新增**目录桥接脚本** `scripts/work505_stage_snapshot.py`（只把 sha256 **等于**冻结清单的文件拷进 `<repo>/data/<exp>/`；不符者不拷不覆盖、缺失者记 MISSING、绝不造占位行；输出 `snapshot_staging.json` 带 `complete` 标志），**`work449_build_panel.py` 一个字未改**；勘误新增 **E8**，并在勘误**第四节**补上「把 E1–E8 全部应用后」的**完整可复跑命令表**。本单已实测：桥接后 `work449_build_panel.load_repo(repo,'WORK-505')` 正常返回已落地的 6 只代码（`sh.600000 / 600004 / 600005 / 688506 / 688561 / 688981`），桥接脚本二次运行报 `already=6`（幂等） |
+
+### 7.2 次要项（Minor）
+
+| # | 发现 | 处置 |
+|---|---|---|
+| M4 | 两个无源数字：「约 65 s 外部 GPU 争用窗口」「156.9 MB」 | **已修**：两个数字已从报告正文删除（前者本就无观测支撑，后者因冻结清单**没有字节字段**而无法引用）；页脚「数字分三类来源」的表述改为按**实际来源逐处标注** |
+| M5 | 严重度统计与处置表对不上：处置表实为 14 行（7 Major / 5 Minor / 2 Nit），而正文与 registry 写「7 Major / 4 Minor」 | **已修**：报告、失败日志、勘误、registry 四处统一为 **14 项（7 Major / 5 Minor / 2 Nit）** |
+| M6 | `--tag` 与 `--seed` 无一致性护栏，显式 `--seed 43 --tag _42` 仍会覆盖 seed 42 产物 | **已修**：训练脚本加断言，显式 `--tag` 与 `_<seed>` 不一致即报错退出 |
+| M7 | `work505_primary_test.py` 的 `--tag-format` 是死参数（声明了但从不引用） | **已修**：死参数已删除 |
+| M8 | 「0 外链」断言在**写盘之后**，构建失败时坏产物已落盘 | **已修**：断言前移到写盘之前（含 `<script` / `<link` / `@import` / `src="http` / `href="http` / `url(http`） |
+| M9 | `work500_bench.py` 不在本机也不在仓库 ⇒ 报告 §1.2 的 C 组复测命令**无法从仓库复跑** | **不可修，如实记录**：该脚本属 WORK-500 交付物，不在本仓库；原始 22 次运行的 `epoch_seconds` 已完整嵌入 `report_data.json`，**数字可复算、命令不可复跑**，已在报告与本表写明 |
+| M10 | 图 4 只画 6 条通道，图注却写「七条通道」并描述了图中没有的第 7 条 | **已修**：`make_figures.py` 改为从 `transport_evidence.json` 读全部 **7** 条，PNG 已重新生成 |
+| M11 | `make_figures.py` 硬编码 `ext=` / `vram=` 的数值（虽与产物一致） | **已修**：改为从 `report_data.json` 的 `w500_bench_medians` 读 `epochs_60_total_s` / `peak_vram_mb` |
+| M12 | `work505_add_registry_row.py` 硬编码叙述常量（11,458 文件 / 8,708 blob / 2.6993 s / 0.1313 s / 19、15、68% / 0.58%） | **已修**：registry 脚本改为**全部从产物读** —— 搬运计数读 `transport_evidence.json`，GPU 争用观测读新建的 `env_observation.json`，WORK-500 参考值读 `report_data.json` 的 `w500_bench_medians`，预测离散度读 `experiments/WORK-449/baselines.json`；脚本内不再有这些字面量 |
+| M13 | `merged_result` 假定两 seed 序列等长，未做长度校验 | **已修**：加长度校验，不等即报错退出 |
+| M14 | `verdict_flip` 用 WORK-505 的**两 seed 合并**判词去比 WORK-449 的**单 seed** 判词，字段名易被误读 | **已修**：字段改名并加口径注释，明确它**不是**判词、只作对照参考，判词本身在 `reading` 字段且带 `scope_note` 限用 |
+| M15 | 合成面板残留 3 个无 seed 后缀的 `model_*.pt`（`model_{no_mask,halt_only,full_mask}.pt`），与「第 1 轮 9 个过时产物已删除」的说法不齐 | **已查明并改正说法（本条审查判断与实情不符）**：这 3 个文件**不是**过时残留，而是 **WORK-449 自带的 MLP 训练器** `scripts/work449_train.py:275` 每次运行都会写的**当前产物** —— 该脚本把模型权重写成 `model_{arm}.pt`（**不带 tag**），只把预测文件写成 `pred_{arm}{tag}.npz`（**带 tag**）。本单不动该脚本，于是 MLP 参考臂的 3 个权重文件在每次冒烟跑批时被 seed 43 覆盖（seed 42 的权重不保留），而**逐 seed 的预测文件 `pred_*_mlp42/43.npz` 都在**，回测读的就是逐 seed 的预测文件 ⇒ **逐 seed 的 metrics 互不污染**。本单 Transformer 臂的模型文件带 seed 后缀（`model_{arm}_{seed}.pt`），无此问题。处置：改正 A5 相关的表述（见 §6 A5 行与本表），并在此写明该命名差异；<br>**执行过程中的处置**：曾把这 3 个文件按「过时残留」用可恢复方式移出，**随后重跑冒烟网格时它们被 MLP 臂重新生成** —— 这恰好反证了它们是当前产物、不是残留 |
+
+### 7.3 Nit
+
+| # | 发现 | 处置 |
+|---|---|---|
+| N1 | `n_label_nan_cells` 按 epoch 累加（实为「epoch × 格数」），读者按「格数」理解会偏差 | **已修**：改为**去重计数**（不同的 (交易日, 股票) 格各计一次），并在训练日志加 `n_label_nan_cells_scope` 说明口径 |
+| N2 | 主检验里 `rng` 在 main 与敏感性之间共用同一流，两个成本档的 bootstrap 起点序列不同 | **已修（口径披露）**：与 WORK-449 同款写法，未引入新偏差；已在脚本与报告脚注写明该事实 |
+| N3 | `work449_signs()` 遇任一文件缺失即整体返回 `None`，对照段会静默消失 | **已修**：缺文件时打印告警，不再静默 |
+
+### 7.4 本轮返修过程中**新发现并已修**的问题（执行方自查，非审查方提出）
+
+| 项 | 现象 | 处置 |
+|---|---|---|
+| R1 | N1 的去重计数改动**从未跑过**：冒烟网格第 1 步即 `ValueError: operands could not be broadcast together with shapes (2215,40) (12,40)` —— 批次掩码 `(B,N)` 与全网格 `(T-1,N)` 混用 | **已修**：按 `days_b` 写回全日轴；冒烟网格重跑 26 步全绿 |
+| R2 | 同上，改用 `days_b.numpy()` 但 `days_b` 本就是 numpy 数组 ⇒ `AttributeError` | **已修**：改为 `nan_label_cells[days_b] |= ...`；重跑通过 |
+| R3 | **图 4 的通道判定标签与图注自相矛盾**：`make_figures.py` 把 7 条搬运通道的标签**硬编码**为 `OK / PART / FAIL`，其中 SSH、git 对象库、SMB、GitHub 历史这 4 条**实际全部是「未命中」**，却被标成 OK（图上写着 OK，旁边却写着「no WORK-449 data」这类原因） | **已修**：标签改为**从 `transport_evidence.json` 的 `status` 字段派生**（failed→FAIL / partial→PART / rejected→REJECT），并加断言：未命中任何文件的通道**不允许**标成 OK；图注同步改成与标签一致的表述；PNG 已重新生成 |
+
+---
+
+### 7.5 本轮新增的机器可读产物（供数字溯源）
+
+| 文件 | 内容 | 谁读它 |
+|---|---|---|
+| `experiments/WORK-505/env_observation.json` | 环境自检原文（`self_check.stdout_verbatim` + 字段化）与确认轮的 `nvidia-smi` 争用观测（`gpu_contention_observations`，含 `utilization_pct_index`） | 报告 §1.1 / §1.3、registry 行 |
+| `experiments/WORK-505/snapshot_staging.json` | 目录桥接的逐股结果（680 行：期望 sha256 / 实际 sha256 / 来源路径 / 落盘路径 / 判定），含 `complete` 标志 | 勘误 E8 的门槛检查 |
+| `experiments/WORK-505/transport_evidence.json` | 7 条搬运通道的原始输出留档（上一轮已有） | 图 4、报告 §2、registry 行 |
+| `scripts/work505_stage_snapshot.py` | 目录桥接脚本（只拷 sha256 相符的文件） | 勘误 E8 / 勘误第四节命令表 |
+
+---
+
+## §8 边界
 
 本单未产出任何交易指令、仓位建议、评级或目标价；未写入对外研报；未改动
 `data_contracts/`；未改动 WORK-449 的任何产物；未改动平台配置。
