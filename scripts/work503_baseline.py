@@ -59,6 +59,7 @@ def main():
     ap.add_argument("--lr", type=float, default=1e-3)
     ap.add_argument("--exp", default="WORK-503")
     ap.add_argument("--threads", type=int, default=8)
+    ap.add_argument("--workers", type=int, default=2)
     args = ap.parse_args()
 
     torch.set_num_threads(args.threads)
@@ -77,11 +78,8 @@ def main():
     segs = {}
     for seg in ("train", "valid", "test"):
         sub = sample_index[sample_index["segment"] == seg].copy()
-        sub = sub.sort_values(["datetime", "instrument"])
-        idx = pd.MultiIndex.from_arrays(
-            [sub["datetime"].to_numpy(), sub["instrument"].to_numpy()],
-            names=["datetime", "instrument"])
-        segs[seg] = sub.set_index(idx)
+        sub = sub.sort_values(["datetime", "instrument"], kind="mergesort")
+        segs[seg] = sub.set_index(["datetime", "instrument"], drop=True)
 
     train_ds = Work503Dataset(ds_dir, segs["train"], True, cs_label=True)
     valid_ds = Work503Dataset(ds_dir, segs["valid"], True, cs_label=True)

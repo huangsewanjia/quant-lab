@@ -174,7 +174,7 @@ def build_config(arm: str, seed: int, epochs: int, ckpt_name: str) -> dict:
     cfg["train"]["device"] = "cpu"
     cfg["train"]["accelerator"] = "cpu"
     cfg["train"]["gpu_counts"] = 1
-    cfg["train"]["num_workers"] = 2
+    cfg["train"]["num_workers"] = 1
     cfg["train"]["num_epochs"] = epochs
     cfg["train"]["precision"] = 32
     cfg["train"]["gradient_clip_val"] = 1
@@ -195,6 +195,7 @@ def main():
     ap.add_argument("--epochs", type=int, default=6)
     ap.add_argument("--exp", default="WORK-503")
     ap.add_argument("--threads", type=int, default=8)
+    ap.add_argument("--workers", type=int, default=2)
     args = ap.parse_args()
 
     torch.set_num_threads(args.threads)
@@ -216,12 +217,8 @@ def main():
     segs = {}
     for seg in ("train", "valid", "test"):
         sub = sample_index[sample_index["segment"] == seg].copy()
-        sub = sub.sort_values(["datetime", "instrument"])
-        idx = pd.MultiIndex.from_arrays(
-            [sub["datetime"].to_numpy(), sub["instrument"].to_numpy()],
-            names=["datetime", "instrument"])
-        sub = sub.set_index(idx)
-        segs[seg] = sub
+        sub = sub.sort_values(["datetime", "instrument"], kind="mergesort")
+        segs[seg] = sub.set_index(["datetime", "instrument"], drop=True)
         print(f"segment {seg}: {len(sub)} samples")
 
     use_prior = args.arm != "no_prior"
@@ -231,7 +228,7 @@ def main():
                               dropna_label=False)
 
     train_loader, n_batches = init_data_loader(train_ds, shuffle=True,
-                                                num_workers=2)
+                                                num_workers=args.workers)
     valid_loader, _ = init_data_loader(valid_ds, shuffle=False, num_workers=0)
     test_loader, _ = init_data_loader(test_ds, shuffle=False, num_workers=0)
     print(f"train batches/epoch: {n_batches}")
