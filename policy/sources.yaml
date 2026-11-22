@@ -1,0 +1,156 @@
+# Policy whitelist. Only official publishers; no full-site mirroring.
+#
+# list.type:
+#   gov_api  - gov.cn 政策文件库 JSON search API (per-collection totals)
+#   html     - static HTML list pages with index_<n>.html pagination
+#
+# Every source must declare content selectors. `exclude_regex` drops official
+# commentary pages (解读/答记者问) which are not policy documents.
+
+defaults:
+  since: "2016-01-01"
+  workers: 3
+  rpm: 180
+  retries: 2
+  timeout: 25
+
+sources:
+  - id: gov_gw
+    name: 中国政府网·国务院政策文件库
+    agency: 国务院
+    industries: [all]
+    list:
+      type: gov_api
+      collection: zhengcelibrary_gw
+      page_size: 50
+      max_pages: 60
+    content_selectors:
+      - "#UCAP-CONTENT"
+      - ".pages_content"
+      - ".trs_editor_view"
+
+  - id: gov_bm
+    name: 中国政府网·部门政策文件库
+    agency: 国务院部门
+    industries: [all]
+    # 部门库按“发布主体”再过滤一次白名单；联合发文命中任一机关即保留。
+    agency_aliases:
+      - 国务院
+      - 中共中央
+      - 财政部
+      - 中国人民银行
+      - 证监会
+      - 证券监督管理委员会
+      - 发展改革委
+      - 发展和改革委员会
+      - 工业和信息化部
+      - 国家能源局
+      - 药监局
+      - 药品监督管理局
+      - 卫生健康委
+      - 卫生健康委员会
+      - 医保局
+      - 医疗保障局
+      - 自然资源部
+    list:
+      type: gov_api
+      collection: zhengcelibrary_bm
+      page_size: 50
+      max_pages: 300
+    content_selectors:
+      - "#UCAP-CONTENT"
+      - ".pages_content"
+      - ".trs_editor_view"
+
+  - id: ndrc
+    name: 国家发展改革委
+    agency: 国家发展改革委
+    industries: [all]
+    list:
+      type: html
+      max_pages: 10
+      sections:
+        - name: 发展改革委令
+          url: https://www.ndrc.gov.cn/xxgk/zcfb/fzggwl/index.html
+          page_url: https://www.ndrc.gov.cn/xxgk/zcfb/fzggwl/index_{page}.html
+        - name: 通知
+          url: https://www.ndrc.gov.cn/xxgk/zcfb/tz/index.html
+          page_url: https://www.ndrc.gov.cn/xxgk/zcfb/tz/index_{page}.html
+        - name: 公告
+          url: https://www.ndrc.gov.cn/xxgk/zcfb/gg/index.html
+          page_url: https://www.ndrc.gov.cn/xxgk/zcfb/gg/index_{page}.html
+        - name: 规划文本
+          url: https://www.ndrc.gov.cn/xxgk/zcfb/ghwb/index.html
+          page_url: https://www.ndrc.gov.cn/xxgk/zcfb/ghwb/index_{page}.html
+      link_regex: "t20\\d{6}_\\d+\\.html$"
+      exclude_regex: "/jd/"
+      exclude_title_regex: "解读|答记者问|一图读懂|图解|新闻发布会"
+    content_selectors:
+      - ".article_con"
+      - ".article"
+      - ".article_l"
+      - ".TRS_Editor"
+      - ".content"
+
+  - id: mof
+    name: 财政部
+    agency: 财政部
+    industries: [all]
+    list:
+      type: html
+      max_pages: 20
+      sections:
+        - name: 政策发布
+          url: https://www.mof.gov.cn/zhengwuxinxi/zhengcefabu/index.htm
+          page_url: https://www.mof.gov.cn/zhengwuxinxi/zhengcefabu/index_{page}.htm
+      link_regex: "t20\\d{6}_\\d+\\.htm$"
+      exclude_regex: "/jd/|/jiedu/"
+      exclude_title_regex: "解读|答记者问|一图读懂|图解"
+    content_selectors:
+      - ".TRS_Editor"
+      - ".my_doccontent"
+      - ".box_content"
+
+  - id: pbc
+    name: 中国人民银行
+    agency: 中国人民银行
+    industries: [all]
+    list:
+      type: html
+      max_pages: 40
+      sections:
+        - name: 规章
+          url: https://www.pbc.gov.cn/tiaofasi/144941/144957/index.html
+          page_url: https://www.pbc.gov.cn/tiaofasi/144941/144957/index_{page}.html
+        - name: 公告
+          url: https://www.pbc.gov.cn/tiaofasi/144941/3581332/index.html
+          page_url: https://www.pbc.gov.cn/tiaofasi/144941/3581332/index_{page}.html
+      link_regex: "/tiaofasi/144941/(?:144957|3581332)/\\d+/index\\.html$"
+      exclude_title_regex: "解读|答记者问|工作要点|工作计划|法治政府建设"
+    content_selectors:
+      - "td.content"
+      - "#zoom"
+      - ".TRS_Editor"
+      - ".content"
+
+  - id: mnr
+    name: 自然资源部
+    agency: 自然资源部
+    industries: [all]
+    list:
+      type: html
+      max_pages: 35
+      sections:
+        - name: 通知公告
+          url: https://www.mnr.gov.cn/gk/tzgg/index.html
+          page_url: https://www.mnr.gov.cn/gk/tzgg/index_{page}.html
+      link_regex: "t20\\d{6}_\\d+\\.html$"
+      include_title_regex: "通知|办法|规定|意见|决定|公告|规则|细则|指引|标准|规划|方案|条例|目录"
+      exclude_regex: "/jd/|/zqyj/"
+      exclude_title_regex: "公示|名单|任免|免职|任职|退休|同志|招聘|招收|遴选|面试|考试|录取|结果|报告|预算|决算|统计|答复|解读|图解|新闻|征求意见"
+    content_selectors:
+      - "#content"
+      - ".article"
+      - ".TRS_Editor"
+      - "#content_body"
+      - ".content"
