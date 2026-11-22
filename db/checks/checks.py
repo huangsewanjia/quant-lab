@@ -4,7 +4,9 @@ Six machine-checkable gates; the runner exits non-zero when any of them fails:
 
   G1  every open trading day in trade_cal has a daily partition, and the row
       count of each trading day is reconciled against the rolling median of
-      its neighbours (deviations above +-5% are listed individually);
+      its neighbours (deviations above +-5% are listed individually; a shortfall
+      that is not bigger than the number of stocks suspended that day is
+      reported as an evidence-backed exception instead of a data defect);
   G2  primary keys are unique in the Parquet layer, and every DuckDB table has
       exactly as many rows as its Parquet partitions (a mismatch means the
       primary key silently dropped rows on load);
@@ -76,6 +78,31 @@ def _iso_date(day: str) -> str | None:
 # --------------------------------------------------------------------------- #
 
 
+def _suspension_counts(con) -> dict[str, dict[str, int]]:
+    """Suspended stocks per trading day, split by suspend_type.
+
+    ``suspend_d`` holds one row per (ts_code, trade_date). ``S`` marks a stock
+    that was suspended, ``R`` one that resumed. A suspended stock has no daily
+    row, so the count is the upper bound of how many daily rows a day may be
+    missing. A day without any suspension record is not excused.
+    """
+    counts: dict[str, dict[str, int]] = {}
+    try:
+        rows = con.execute(
+            "SELECT trade_date, suspend_type, count(*) FROM suspend_d GROUP BY 1, 2"
+        ).fetchall()
+    except Exception:  # noqa: BLE001 - the table may not be loaded yet
+        return counts
+    for day, suspend_type, count in rows:
+        bucket = counts.setdefault(str(day), {"total": 0, "suspended": 0, "resumed": 0})
+        bucket["total"] += int(count)
+        if str(suspend_type).upper() == "S":
+            bucket["suspended"] += int(count)
+        elif str(suspend_type).upper() == "R":
+            bucket["resumed"] += int(count)
+    return counts
+
+
 def check_trading_days(con, tolerance: float = 0.05) -> tuple[bool, dict[str, Any]]:
     # SSE and SZSE carry the same calendar; DISTINCT keeps one row per day.
     calendar = con.execute(
@@ -86,6 +113,7 @@ def check_trading_days(con, tolerance: float = 0.05) -> tuple[bool, dict[str, An
         "SELECT trade_date, count(*) FROM daily GROUP BY 1 ORDER BY 1"
     ).fetchall()
     by_day = {str(row[0]): int(row[1]) for row in counts}
+    suspensions = _suspension_counts(con)
 
     missing = [day for day in open_days if day not in by_day]
     empty = [day for day in open_days if by_day.get(day) == 0]
@@ -102,17 +130,39 @@ def check_trading_days(con, tolerance: float = 0.05) -> tuple[bool, dict[str, An
         if count is None or median is None or median == 0:
             continue
         deviation = abs(count - median) / median
-        if deviation > tolerance:
-            anomalies.append(
-                {
-                    "trade_date": day,
-                    "rows": count,
-                    "rolling_median": float(median),
-                    "deviation": round(float(deviation), 4),
-                }
-            )
+        if deviation <= tolerance:
+            continue
+        # The deviation is kept as an anomaly either way. Whether it is a data
+        # defect or a market-wide suspension is decided by the evidence: a
+        # suspended stock has no daily row, so a shortfall that is not bigger
+        # than the number of stocks suspended that day cannot be missing data.
+        shortfall = max(0.0, float(median) - float(count))
+        suspension = suspensions.get(day, {"total": 0, "suspended": 0, "resumed": 0})
+        explained = shortfall <= suspension["suspended"]
+        anomalies.append(
+            {
+                "trade_date": day,
+                "rows": count,
+                "rolling_median": float(median),
+                "deviation": round(float(deviation), 4),
+                "shortfall_rows": int(round(shortfall)),
+                "suspend_rows": suspension["total"],
+                "suspend_rows_s": suspension["suspended"],
+                "suspend_rows_r": suspension["resumed"],
+                "judgement": "explained_by_suspensions" if explained else "unexplained",
+            }
+        )
     anomalies.sort(key=lambda item: -item["deviation"])
-    ok = not missing and not empty and not extra and not anomalies and bool(open_days) and bool(by_day)
+    exceptions = [item for item in anomalies if item["judgement"] == "explained_by_suspensions"]
+    unexplained = [item for item in anomalies if item["judgement"] == "unexplained"]
+    ok = (
+        not missing
+        and not empty
+        and not extra
+        and not unexplained
+        and bool(open_days)
+        and bool(by_day)
+    )
     return ok, {
         "open_trading_days": len(open_days),
         "days_with_rows": len(by_day),
@@ -126,6 +176,20 @@ def check_trading_days(con, tolerance: float = 0.05) -> tuple[bool, dict[str, An
         "deviation_tolerance": tolerance,
         "anomaly_count": len(anomalies),
         "anomalies": anomalies[:50],
+        "exception_count": len(exceptions),
+        "exceptions": exceptions[:50],
+        "unexplained_count": len(unexplained),
+        "unexplained_anomalies": unexplained[:50],
+        "judgement_rule": (
+            "偏差日先按 11 日居中滚动中位数记为 anomaly；缺口行数 <= 当日 suspend_d 中 "
+            "suspend_type='S' 的停牌家数，判为停牌可解释例外（PASS-with-exceptions），"
+            "否则判为未解释异常，闸门 FAIL。阈值 5% 不放宽，anomaly 记录全部保留。"
+        ),
+        "suspension_source": "suspend_d 表按 trade_date 统计（S=停牌，R=复牌）",
+        "days_with_suspension_records": len(suspensions),
+        "conclusion": "PASS_WITH_EXCEPTIONS" if exceptions and not unexplained else (
+            "PASS" if ok else "FAIL"
+        ),
     }
 
 
@@ -151,7 +215,7 @@ def check_primary_keys(con) -> tuple[bool, dict[str, Any]]:
         pk = [c for c in common.TABLE_PK[dataset] if c in common.canonical_columns(dataset)]
         parquet_rows = int(
             con.execute(
-                "SELECT count(*) FROM read_parquet(?, hive_partitioning=false)", [glob]
+                f"SELECT count(*) FROM {common.PARQUET_SCAN}", [glob]
             ).fetchone()[0]
         )
         if pk:
@@ -160,7 +224,7 @@ def check_primary_keys(con) -> tuple[bool, dict[str, Any]]:
                 con.execute(
                     "SELECT count(*) FROM ("
                     f"SELECT {', '.join(chr(34) + c + chr(34) for c in pk)}, count(*) AS c "
-                    f"FROM read_parquet(?, hive_partitioning=false) GROUP BY {group} HAVING c > 1)",
+                    f"FROM {common.PARQUET_SCAN} GROUP BY {group} HAVING c > 1)",
                     [glob],
                 ).fetchone()[0]
             )

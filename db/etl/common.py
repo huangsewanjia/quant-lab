@@ -27,6 +27,9 @@ from pathlib import Path
 from typing import Any, Callable, Iterable
 
 import pandas as pd
+import pyarrow as pa
+import pyarrow.compute as pc
+import pyarrow.parquet as pq
 
 QDB_HOME = Path(os.environ.get("QUANTDB_HOME", "/srv/share/quantdb")).resolve()
 RAW_DIR = QDB_HOME / "raw"
@@ -156,6 +159,26 @@ DATE_COLUMNS: dict[str, set[str]] = {
     },
     "namechange": {"start_date", "end_date", "ann_date"},
 }
+
+# Declared SQL type -> Arrow type. Only the types schema.sql actually uses are
+# listed; an unknown type falls back to the Parquet null type, i.e. the column
+# keeps whatever pandas inferred.
+_ARROW_TYPES: dict[str, pa.DataType] = {
+    "DATE": pa.date32(),
+    "VARCHAR": pa.string(),
+    "DOUBLE": pa.float64(),
+    "INTEGER": pa.int32(),
+    "BIGINT": pa.int64(),
+    "BOOLEAN": pa.bool_(),
+    "TIMESTAMP": pa.timestamp("us"),
+}
+
+# DuckDB needs union_by_name when one Parquet file in a batch carries a column
+# of a different type than the others (an empty partition used to be written
+# with Parquet's `null` type). Without it DuckDB takes the schema of the first
+# file and casts the rest, which fails on `failed to cast column "trade_date"
+# from type DATE to "NULL"`.
+PARQUET_SCAN = "read_parquet(?, hive_partitioning=false, union_by_name=true)"
 
 
 def ensure_layout() -> None:
@@ -327,7 +350,7 @@ def write_partition(
     target_dir.mkdir(parents=True, exist_ok=True)
     target = target_dir / PART_FILE
     tmp = target_dir / f".{PART_FILE}.tmp.{os.getpid()}.{threading.get_ident()}"
-    work.to_parquet(tmp, index=False, compression="zstd")
+    column_types = write_typed_parquet(work, dataset, tmp)
     os.replace(tmp, target)
     digest = sha256_file(target)
     meta = {
@@ -340,12 +363,49 @@ def write_partition(
         "source": source,
         "fetched_at": utc_now(),
         "columns": list(work.columns),
+        "column_types": column_types,
         "primary_key": list(key),
     }
     if extra_meta:
         meta.update(extra_meta)
     write_json_atomic(manifest_path(dataset, partition), meta)
     return meta
+
+
+def write_typed_parquet(df: pd.DataFrame, dataset: str, path: Path) -> dict[str, str]:
+    """Write one partition and give every column an explicit type.
+
+    pandas/pyarrow infer the Parquet type from the values. A frame without rows
+    - or a frame whose column holds nothing but ``None`` - is therefore written
+    with Parquet's ``null`` type, and DuckDB cannot combine such a file with a
+    file that carries a real type: it takes the schema of the first file and
+    casts the rest, which fails with ``failed to cast column "trade_date" from
+    type DATE to "NULL"``.
+
+    The declared schema (``db/schema.sql``) supplies the missing type, so an
+    empty partition keeps the same column types as a populated one. A date
+    column whose values are all missing lands as TIMESTAMP (pandas keeps the
+    datetime dtype); it is cast back to DATE so that the raw layer stays
+    uniform per dataset. Columns the schema does not declare keep the type
+    pandas inferred.
+
+    Returns the column -> Parquet type map that was written.
+    """
+    table = pa.Table.from_pandas(df, preserve_index=False)
+    declared = declared_arrow_types(dataset)
+    for index, field in enumerate(table.schema):
+        target = declared.get(field.name)
+        if target is None:
+            continue
+        if pa.types.is_null(field.type):
+            column = pa.array([None] * table.num_rows, type=target)
+        elif pa.types.is_date32(target) and pa.types.is_timestamp(field.type):
+            column = pc.cast(table.column(index), target)
+        else:
+            continue
+        table = table.set_column(index, field.with_type(target), column)
+    pq.write_table(table, path, compression="zstd")
+    return {field.name: str(field.type) for field in table.schema}
 
 
 def drop_null_pk_rows(df: pd.DataFrame, dataset: str) -> tuple[pd.DataFrame, int]:
@@ -601,6 +661,13 @@ def load_partitions(
 
     hive_partitioning=false is critical: the directory name trade_date=YYYYMMDD
     would otherwise override the Parquet DATE column with a BIGINT partition key.
+
+    union_by_name=true is critical for the same reason from the other side: an
+    empty partition that was written without rows carries Parquet's ``null``
+    type, and DuckDB's default behaviour is to take the schema of the first
+    file in the batch and cast every other file to it - which fails as soon as
+    a later file has a real ``DATE`` column. union_by_name merges the schemas
+    by column name and promotes the null type to the real one.
     """
     if dataset not in TABLE_PK:
         raise ValueError(f"未知数据集: {dataset}")
@@ -624,14 +691,18 @@ def load_partitions(
         chunk = files[start : start + batch_size]
         con.execute(
             "CREATE OR REPLACE TEMP TABLE _batch AS "
-            "SELECT * FROM read_parquet(?, hive_partitioning=false)",
+            f"SELECT * FROM {PARQUET_SCAN}",
             [chunk],
         )
-        batch_columns = {row[0] for row in con.execute("DESCRIBE _batch").fetchall()}
+        batch_types = {
+            str(row[0]): str(row[1]) for row in con.execute("DESCRIBE _batch").fetchall()
+        }
         select_cols = ", ".join(
-            _select_expression(column, types.get(column, "VARCHAR"))
+            _select_expression(
+                column, types.get(column, "VARCHAR"), batch_types.get(column)
+            )
             for column in cols
-            if column in batch_columns
+            if column in batch_types
         )
         # BY NAME tolerates Parquet columns that the schema does not declare.
         con.execute(
@@ -642,15 +713,33 @@ def load_partitions(
     return loaded
 
 
-def _select_expression(column: str, dtype: str) -> str:
-    """SQL projection that coerces one raw Parquet column to the schema type."""
-    if dtype == "DATE":
-        text = f'CAST("{column}" AS VARCHAR)'
+def _select_expression(column: str, dtype: str, source_type: str | None = None) -> str:
+    """SQL projection that coerces one raw Parquet column to the schema type.
+
+    The Parquet layer keeps the upstream types and those are not uniform: a
+    date column is DATE in one partition and TIMESTAMP in the next one (a
+    partition whose date column holds nothing but missing values). When the
+    schemas of a batch are merged, DuckDB promotes the mixed column to
+    TIMESTAMP, so the projection has to accept a date, a timestamp and a
+    YYYYMMDD string - otherwise the dates of the timestamp partitions would
+    silently become NULL.
+    """
+    if dtype != "DATE":
+        return f'CAST("{column}" AS {dtype}) AS "{column}"'
+    source = (source_type or "").upper()
+    if source == "DATE" or source.startswith("TIMESTAMP"):
+        return f'CAST("{column}" AS DATE) AS "{column}"'
+    text = f'CAST("{column}" AS VARCHAR)'
+    if source == "VARCHAR":
         return (
-            f'CAST(COALESCE(try_strptime({text}, \'%Y%m%d\'), '
+            f'CAST(COALESCE(try_cast("{column}" AS DATE), '
+            f"try_strptime({text}, '%Y%m%d'), "
             f"try_strptime({text}, '%Y-%m-%d')) AS DATE) AS \"{column}\""
         )
-    return f'CAST("{column}" AS {dtype}) AS "{column}"'
+    return (
+        f"CAST(COALESCE(try_strptime({text}, '%Y%m%d'), "
+        f"try_strptime({text}, '%Y-%m-%d')) AS DATE) AS \"{column}\""
+    )
 
 
 def schema_types(con, table: str) -> dict[str, str]:
@@ -659,17 +748,41 @@ def schema_types(con, table: str) -> dict[str, str]:
 
 
 _SCHEMA_COLUMNS: dict[str, list[str]] = {}
+_SCHEMA_TYPES: dict[str, dict[str, str]] = {}
+
+
+def _parse_schema() -> None:
+    """Parse schema.sql once: column names and declared types per table."""
+    import re
+
+    if _SCHEMA_COLUMNS:
+        return
+    text = SCHEMA_SQL.read_text(encoding="utf-8")
+    for match in re.finditer(
+        r"CREATE TABLE (?:IF NOT EXISTS )?(\w+) \((.*?)\n\);", text, re.S
+    ):
+        table, body = match.group(1), match.group(2)
+        columns = re.findall(r'^\s*"([^"]+)"\s+(\w+)', body, re.M)
+        _SCHEMA_COLUMNS[table] = [name for name, _ in columns]
+        _SCHEMA_TYPES[table] = {name: sql_type for name, sql_type in columns}
 
 
 def canonical_columns(dataset: str) -> list[str]:
     """Column list of a dataset, parsed from schema.sql (no DB connection needed)."""
-    if not _SCHEMA_COLUMNS:
-        import re
-
-        text = SCHEMA_SQL.read_text(encoding="utf-8")
-        for match in re.finditer(
-            r"CREATE TABLE (?:IF NOT EXISTS )?(\w+) \((.*?)\n\);", text, re.S
-        ):
-            body = match.group(2)
-            _SCHEMA_COLUMNS[match.group(1)] = re.findall(r'^\s*"([^"]+)"\s+\w+', body, re.M)
+    _parse_schema()
     return list(_SCHEMA_COLUMNS.get(dataset, []))
+
+
+def declared_types(dataset: str) -> dict[str, str]:
+    """Declared SQL type per column, parsed from schema.sql."""
+    _parse_schema()
+    return dict(_SCHEMA_TYPES.get(dataset, {}))
+
+
+def declared_arrow_types(dataset: str) -> dict[str, pa.DataType]:
+    """Declared Arrow type per column, parsed from schema.sql."""
+    return {
+        column: _ARROW_TYPES[sql_type]
+        for column, sql_type in declared_types(dataset).items()
+        if sql_type in _ARROW_TYPES
+    }

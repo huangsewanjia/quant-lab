@@ -1170,7 +1170,11 @@ class Fetcher:
             end_year, end_month = int(self.end[:4]), int(self.end[4:6])
             while (year, month) <= (end_year, end_month):
                 lo = max(f"{year:04d}{month:02d}01", self.start)
-                hi = min(f"{year:04d}{month:02d}{_month_end(year, month)}", self.end)
+                # _month_end() already returns the full YYYYMMDD of the last
+                # day of the month. Prefixing it with the year and month again
+                # produced "20260920260930", an invalid date that made the
+                # upstream answer with zero rows for every window.
+                hi = min(_month_end(year, month), self.end)
                 if lo > hi:
                     year, month = _next_month(year, month)
                     continue

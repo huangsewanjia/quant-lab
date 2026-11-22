@@ -54,6 +54,32 @@ token 只从 `TUSHARE_TOKEN` 或 `/home/moyongkai/.config/quantdb/tushare.token`
 **写入顺序**：先写 `.part.parquet.tmp.<pid>.<tid>` → `os.replace` 原子改名 → 再写 manifest（manifest 本身也是临时文件 + 原子改名）。
 因此：manifest 存在 ⇒ parquet 一定存在且完整；中断最多留下一个 `.tmp` 残留（下次启动清理），**不会**出现「manifest 指向不存在的文件」。
 
+### 2.1 空分区的类型策略（WORK-518 修）
+
+pandas/pyarrow 是**按值**推断 Parquet 列类型的，所以：
+
+- 没有行的分区 → 所有列写成 Parquet `null` 类型；
+- 有行但整列为 `None` 的分区 → 该列同样是 `null` 类型；
+- 整列缺失的日期列 → pandas 保留 datetime dtype，写成 `timestamp[ms]` 而不是 `date32`。
+
+这三种都会打穿 DuckDB 的多文件读取：`read_parquet()` 默认取**批内第一个文件**的 schema，再把其余文件往那个 schema 上转，
+遇到 `null` 目标类型就抛 `failed to cast column "trade_date" from type DATE to "NULL"`（2026-11-22 实测：`stk_limit` 241 个、
+`suspend_d` 2,541 个、财务四表各 5,924 个、`dividend` 4,663 个、`fina_indicator` 1,742 个、`index_weight` 8 个分区带 `null` 类型列）。
+
+**两侧同时修**（只修一侧不够：库里的旧分区不能重写）：
+
+| 侧 | 做法 | 为什么 |
+|---|---|---|
+| 落盘 `write_partition` | 用 `db/schema.sql` 声明的类型显式写 Parquet：列类型是 `null` → 换成声明类型；声明为 `DATE` 而推断成 timestamp → 转回 `date32`；其余列保留上游推断类型 | 新分区从一开始就和同数据集的其他分区同类型，manifest 另存 `column_types` 便于事后审计。**不改**有值列的上游类型，避免把上游的字符串/浮点语义改掉 |
+| 装载 `load_partitions` | `read_parquet(?, hive_partitioning=false, union_by_name=true)` + 按**批内实际类型**做显式 CAST | `union_by_name=true` 让 DuckDB 按列名合并 schema 并把 `null` 提升为真实类型，不再取「第一个文件的 schema」。不重写库里的旧分区也能装进来 |
+
+**取舍**：
+
+- `union_by_name=true` 每批要做一次 schema 合并，比默认模式慢（实测全量装载 128 批，耗时见 §9）；换来的是**装载结果与批内文件顺序无关**。默认模式下只要批首文件是空分区就会炸，报错文件名每次都不同。
+- 没有选「逐文件统一 schema 再合并」：那要打开 50,917 个文件的元数据，比 128 批的合并贵得多，而且解决不了「同一列在不同文件里类型不同」（`dividend.div_listdate` 实测 4,161 个 `date32` + 1,709 个 `timestamp[ms]` + 54 个 `null`）。
+- DATE 列的投影按批内实际类型分三种：`DATE`/`TIMESTAMP` 直接 `CAST(... AS DATE)`（**这一步很关键**：合并后混合列被提升成 `TIMESTAMP`，如果只按字符串解析，这些分区的日期会被静默变成 NULL）；`VARCHAR` 走 `try_cast` + `try_strptime('%Y%m%d')` + `try_strptime('%Y-%m-%d')`；数值类型只走字符串解析（避免被当成儒略日）。
+- 库里的旧分区**不重写**（`raw/` 只追加），所以旧分区仍然带 `null`/`timestamp` 类型列，由装载器兜住。
+
 ---
 
 ## 3. 数据集与拉法（13 类 + 1 个辅助）
@@ -183,7 +209,7 @@ $PY -m pytest db/tests -q
 
 | 闸 | 内容 | 判定 |
 |---|---|---|
-| G1 | 每个开市日都有 `daily` 分区；逐日行数与 ±5 日滚动中位数对比，偏差 >5% 逐日列出 | 缺失/空/日历外日期 = 0 且异常 = 0 |
+| G1 | 每个开市日都有 `daily` 分区；逐日行数与 ±5 日滚动中位数对比，偏差 >5% 逐日列出；**缺口行数 ≤ 当日停牌家数的偏差判为「停牌可解释例外」**（见下） | 缺失/空/日历外日期 = 0 且**未解释**异常 = 0；可解释例外单列，不影响闸门结论 |
 | G2 | Parquet 层主键唯一；**每张 DuckDB 表行数 = 其 Parquet 行数**（主键冲突会在装载时静默丢行，所以行数勾稽才是真检查） | 重复组 = 0 且行数差 = 0 |
 | G3 | `high ≥ max(open, close)`、`low ≤ min(open, close)` | 违例 = 0 |
 | G4 | `adj_factor` 无 0/负值/缺失 | 违例 = 0 |
@@ -194,6 +220,25 @@ G5 的新浪源用 `stock_zh_a_hist_sina`（新浪），一次请求取回个股
 交叉校验方向是「tushare 服务端 ↔ 本机源」，符合数据源路由纪律。
 
 **空数据不判通过**：G1/G2/G3/G4/G6 在「表是空的」或「数据集一个分区都没有」时一律判 FAIL——缺数据不是数据干净。
+
+### 5.1 G1 的停牌口径（WORK-518 修）
+
+原规则只看 `daily` 逐日行数与 11 日居中滚动中位数的偏差，>5% 就记异常并把闸门判 FAIL。
+2015-07-08/09/10/13 这四天日线行数比中位数少 13%~33%，但同日 `suspend_d` 有 1,027~1,439 只股票停牌——
+这是**真实市况**（千股停牌），不是数据缺失。规则没看停牌数，也没有例外清单，所以只能判 FAIL。
+
+现在的判定（`db/checks/checks.py`）：
+
+1. 偏差 >5% 的日子**一律记为 anomaly**，一条都不删；
+2. 再用 `suspend_d` 的当日停牌家数判它是「可解释例外」还是「未解释异常」：
+   `缺口行数 = 滚动中位数 - 当日行数`，`缺口行数 ≤ 当日 suspend_type='S' 的停牌家数` → 可解释例外；
+   否则 → 未解释异常，闸门 FAIL；
+3. 停牌家数只认 `suspend_type='S'`（真正停牌的），`R`（复牌）另计，不用来开脱；
+4. 没有停牌记录 → 没有例外可讲 → 判 FAIL。
+
+闸门报告里每一天都给出 `rows / rolling_median / deviation / shortfall_rows / suspend_rows / suspend_rows_s / suspend_rows_r / judgement`，
+可解释例外另列在 `exceptions`，未解释异常在 `unexplained_anomalies`，结论字段 `conclusion` 取
+`PASS` / `PASS_WITH_EXCEPTIONS` / `FAIL`。**阈值仍是 5%，没有放宽**。
 
 ### 本轮闸门实测结果
 
@@ -248,6 +293,13 @@ G5 的新浪源用 `stock_zh_a_hist_sina`（新浪），一次请求取回个股
 7. **`stock_basic` 没有 `delist_date` 字段**（上游该接口返回 10 列，不含退市日），所以退市股票的财务窗口右端只能取到研究窗口末端，多出的查询返回 0 行。
 8. **前一轮同单运行留下的新浪单股冒烟数据已移出**：`/srv/share/quantdb/_superseded/20261122-sina-smoke/`（`move` 而非删除，数据保留），避免与本轮 `part.parquet` 布局混读。
 9. **`db/policy/` 是另一单（政策采集）的代码**，不在本单范围，本次未运行也未验收。
+10. **空分区是数据形态，不是缺陷**：上游窗口完整取回但没有数据的交易日，会落成 0 行空分区（manifest 标 `empty_upstream: true`）。
+    这类分区在 Parquet 里**也带完整列结构**（声明类型，不是 `null` 类型），见 §2.1。
+    库里的旧空分区仍是旧类型（`null` / `timestamp`），由装载器的 `union_by_name` 兜住，**不重写**（`raw/` 只追加）。
+11. **`stk_limit` 2006 年整年 0 行**：上游 2007-01-04 起才有涨跌停价历史，2006-01-04~2006-12-29 的 241 个交易日是**真实上游缺口**，不是漏抓。
+12. **G1 的 5% 阈值没有放宽**，但闸门现在把「千股停牌」和「数据缺失」分开判（见 §5.1）：可解释例外仍然逐日列出证据，未解释异常照样 FAIL。
+    如果下游需要「只看硬失败」，读报告里的 `unexplained_anomalies`；如果要「一条异常都没有」，读 `anomaly_count`。
+13. **`index_weight` 只到 2026-11-21**：月度窗口的上游数据本身有滞后，最近几个月的成分权重可能还没发布。
 
 ---
 
