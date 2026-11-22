@@ -3,15 +3,13 @@
 
 Nature-style: white background, no shadows/gradients, one restrained palette
 (primary blue / teal / warning red from the WORK-505 style contract), English
-labels inside the figures, every number taken from a machine-written artefact
-(never hand-copied).  This script also dumps report_data.json, the single
-source of truth the HTML builder reads.
+labels inside the figures.  Every number comes from report_data.json, which is
+written by scripts/work505_make_report_data.py from the raw per-run JSON; this
+script only renders and never recomputes.
 """
 from __future__ import annotations
 
 import base64
-import csv
-import glob
 import json
 import os
 import statistics
@@ -58,34 +56,6 @@ mpl.rcParams.update({
 })
 
 
-def steady_median(path):
-    d = json.load(open(path, encoding="utf-8"))
-    secs = d["epoch_seconds"]
-    return {"file": os.path.basename(path),
-            "epoch_seconds": secs,
-            "steady_median": statistics.median(secs[1:4]),
-            "peak_vram_mb": d.get("peak_vram_mb"),
-            "n_params": d.get("n_params"),
-            "torch_version": d.get("torch_version")}
-
-
-def collect_retest(dirs):
-    rows = []
-    for d in dirs:
-        for f in sorted(glob.glob(os.path.join(d, "*.json"))):
-            if f.endswith(("retest_rows.json", "confirm_rows.json",
-                           "retest_summary.json")):
-                continue
-            base = os.path.basename(f)
-            if base.startswith(("C_mlp", "D_transformer")):
-                r = steady_median(f)
-                r["group"] = "C" if base.startswith("C_") else "D"
-                r["seed"] = 43 if "_s43" in base else 42
-                r["phase"] = ("confirm" if "confirm" in d else "first")
-                rows.append(r)
-    return rows
-
-
 def fig_b64(fig, name):
     path = os.path.join(FIG_DIR, name)
     fig.savefig(path, dpi=300, bbox_inches="tight")
@@ -94,25 +64,19 @@ def fig_b64(fig, name):
 
 
 def main():
-    data = {}
-
     # ---------------- inputs -----------------------------------------------
-    w500 = list(csv.DictReader(open(os.path.join(
-        REPO, "..", "attachments", "bench_medians.csv"), encoding="utf-8"))) \
-        if os.path.exists(os.path.join(REPO, "..", "attachments",
-                                       "bench_medians.csv")) else []
-    if not w500:
-        w500 = list(csv.DictReader(open(
-            r"C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a"
-            r"\work-505-75a3e7a2ae4d\workdir\attachments\bench_medians.csv",
-            encoding="utf-8")))
-    data["w500_bench_medians"] = w500
+    # report_data.json is written by scripts/work505_make_report_data.py, which
+    # is the single machine source of every number (raw per-run JSON -> the
+    # summary statistics).  This script only renders; it never recomputes and
+    # never rewrites the data file.
+    dp = os.path.join(EXP_DIR, "report_data.json")
+    if not os.path.exists(dp):
+        raise SystemExit("report_data.json missing - run "
+                         "scripts/work505_make_report_data.py first")
+    data = json.load(open(dp, encoding="utf-8"))
 
-    retest = collect_retest([
-        r"F:\quant_work500\bench\raw_work505",
-        r"F:\quant_work500\bench\raw_work505_confirm",
-    ])
-    data["retest_runs"] = retest
+    w500 = data["w500_bench_medians"]
+    retest = data["retest_runs"]
 
     # WORK-500 reference values used for the +/-20 % band
     c_ref = {r["seed"]: float(r["sec_per_epoch_median"])
@@ -125,34 +89,9 @@ def main():
     d_rows = [r for r in retest if r["group"] == "D"]
     c_all = [r["steady_median"] for r in c_rows]
     d_all = [r["steady_median"] for r in d_rows]
-    data["retest_summary"] = {
-        "C": {"n": len(c_all),
-              "median": statistics.median(c_all) if c_all else None,
-              "min": min(c_all) if c_all else None,
-              "max": max(c_all) if c_all else None,
-              "per_seed": {str(s): statistics.median(
-                  [r["steady_median"] for r in c_rows if r["seed"] == s])
-                  for s in (42, 43) if any(r["seed"] == s for r in c_rows)},
-              "work500_ref": c_ref, "band": [band_lo, band_hi]},
-        "D": {"n": len(d_all),
-              "median": statistics.median(d_all) if d_all else None,
-              "min": min(d_all) if d_all else None,
-              "max": max(d_all) if d_all else None,
-              "work500_ref": d_ref},
-    }
-    data["retest_summary"]["C"]["verdict_in_band"] = bool(
-        band_lo <= data["retest_summary"]["C"]["median"] <= band_hi)
 
     # ---------------- snapshot verification -------------------------------
-    sv = json.load(open(os.path.join(EXP_DIR, "snapshot_verification.json"),
-                        encoding="utf-8"))
-    data["snapshot"] = {"counts": sv["counts"],
-                        "landed_bytes": sv["landed_bytes"],
-                        "data_dir": sv["data_dir"],
-                        "missing_codes": [r["code"] for r in sv["rows"]
-                                          if r["verdict"] == "MISSING"],
-                        "pass_rows": [r for r in sv["rows"]
-                                      if r["verdict"] == "PASS"]}
+    sv = data["snapshot"]
 
     # ---------------- F1: C-group environment re-test ---------------------
     fig, ax = plt.subplots(figsize=(6.6, 2.9))
@@ -186,23 +125,33 @@ def main():
     data["fig1"] = fig_b64(fig, "fig1_env_retest_C.png")
 
     # ---------------- F2: D-group re-test --------------------------------
-    fig, ax = plt.subplots(figsize=(6.6, 2.6))
+    fig, ax = plt.subplots(figsize=(6.6, 2.9))
     xs = list(range(len(d_rows)))
     ys = [r["steady_median"] for r in d_rows]
-    ax.scatter(xs, ys, s=26, c=TEAL, zorder=3, edgecolors="white",
+    cols = [BLUE if r["seed"] == 42 else TEAL for r in d_rows]
+    ax.scatter(xs, ys, s=26, c=cols, zorder=3, edgecolors="white",
                linewidths=0.6)
     ref = d_ref.get("42")
     if ref:
         ax.axhline(ref, color=RED, lw=1.0, ls="--")
         ax.text(len(xs) - 0.4, ref, f"  WORK-500 D median {ref:.4f} s",
                 color=RED, va="center", fontsize=7.5)
+    # per-seed medians: the gap to the reference is seed dependent
+    for s, col in ((42, BLUE), (43, TEAL)):
+        vals = [r["steady_median"] for r in d_rows if r["seed"] == s]
+        if not vals:
+            continue
+        m = statistics.median(vals)
+        ax.axhline(m, color=col, lw=0.8, ls=":", alpha=0.9)
+        ax.text(-0.75, m, f" seed {s} median {m:.4f} s", color=col,
+                va="bottom", fontsize=7)
     ax.set_xticks(xs)
     ax.set_xticklabels([f"s{r['seed']}" for r in d_rows], rotation=90,
                        fontsize=6)
     ax.set_ylabel("steady s / epoch")
     ax.set_xlabel("D group runs (Transformer / GPU / 1 thread)")
-    ax.set_title("b  Transformer reference point reproduces to within 0.1%",
-                 loc="left", color=FG)
+    ax.set_title("b  Transformer re-test: seed 43 matches the reference, "
+                 "seed 42 is slower", loc="left", color=FG)
     data["fig2"] = fig_b64(fig, "fig2_env_retest_D.png")
 
     # ---------------- F3: snapshot recovery -------------------------------
@@ -310,11 +259,11 @@ def main():
         a.spines["top"].set_visible(False)
     data["fig6"] = fig_b64(fig, "fig6_w500_baseline.png")
 
-    json.dump(data, open(os.path.join(EXP_DIR, "report_data.json"), "w"),
-              ensure_ascii=False, indent=1)
-    print("report_data.json written;",
-          "C median", data["retest_summary"]["C"]["median"],
+    print("figures written from", dp)
+    print("C median", data["retest_summary"]["C"]["median"],
           "| in band:", data["retest_summary"]["C"]["verdict_in_band"])
+    print("D median", data["retest_summary"]["D"]["median"],
+          "| per seed:", data["retest_summary"]["D"].get("per_seed"))
     print("snapshot:", sv["counts"])
 
 

@@ -1,4 +1,6 @@
 {
+ "generated_at": "2026-11-22T15:24:43.454826+08:00",
+ "generator": "scripts/work505_make_report_data.py",
  "w500_bench_medians": [
   {
    "group": "A",
@@ -501,6 +503,10 @@
     "42": 0.13434109999798238,
     "43": 0.13497305000782944
    },
+   "confirm_median": 0.1312774500111118,
+   "confirm_n": 10,
+   "first_median": 0.14153839999926277,
+   "first_n": 6,
    "work500_ref": {
     "42": 0.1328,
     "43": 0.1309
@@ -509,17 +515,33 @@
     0.10400000000000001,
     0.156
    ],
-   "verdict_in_band": true
+   "verdict_in_band": true,
+   "verdict_in_band_by_aggregate": {
+    "all16": true,
+    "confirm10": true,
+    "first6": true
+   },
+   "median_definition": "per run: median of the steady-state epochs (warm-up epoch dropped); per aggregate: median over the runs"
   },
   "D": {
    "n": 6,
    "median": 2.8479338500183076,
    "min": 2.6849316000007093,
    "max": 3.1198681999812834,
+   "per_seed": {
+    "42": 3.020805999985896,
+    "43": 2.697187200014014
+   },
    "work500_ref": {
     "42": 2.6993,
     "43": 2.6993
-   }
+   },
+   "rel_diff_pct_vs_ref": {
+    "overall": 5.506384989379007,
+    "42": 11.910717592927648,
+    "43": -0.07827214411092637
+   },
+   "median_definition": "per run: median of the steady-state epochs; per aggregate: median over the runs"
   }
  },
  "snapshot": {
@@ -530,6 +552,7 @@
    "missing": 674
   },
   "landed_bytes": 770855,
+  "landed_bytes_declared": 770855,
   "data_dir": "F:\\quant_work505\\data\\WORK-449",
   "missing_codes": [
    "sh.600008",
@@ -1207,6 +1230,7 @@
    "sz.300999",
    "sz.301269"
   ],
+  "failed_codes": [],
   "pass_rows": [
    {
     "code": "sh.600000",
@@ -1292,7 +1316,8 @@
     "size_bytes": 97533,
     "local_path": "F:\\quant_work505\\data\\WORK-449\\sh.688981.csv"
    }
-  ]
+  ],
+  "sha256_convention": "sha256(file bytes) — same convention as scripts/work449_fetch.py:sha256_of()"
  },
  "fig1": "figures/fig1_env_retest_C.png",
  "fig2": "figures/fig2_env_retest_D.png",

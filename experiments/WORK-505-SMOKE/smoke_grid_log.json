@@ -1,0 +1,394 @@
+[
+ {
+  "label": "panel",
+  "args": [
+   "scripts\\work505_make_smoke_panel.py"
+  ],
+  "returncode": 0,
+  "seconds": 1.3
+ },
+ {
+  "label": "transformer/no_mask/s42",
+  "args": [
+   "scripts\\work505_train_transformer.py",
+   "--exp",
+   "WORK-505-SMOKE",
+   "--arm",
+   "no_mask",
+   "--seed",
+   "42",
+   "--epochs",
+   "3",
+   "--device",
+   "cuda"
+  ],
+  "returncode": 0,
+  "seconds": 7.4
+ },
+ {
+  "label": "backtest/no_mask/s42",
+  "args": [
+   "scripts\\work449_backtest.py",
+   "--exp",
+   "WORK-505-SMOKE",
+   "--arm",
+   "no_mask",
+   "--tag",
+   "_42"
+  ],
+  "returncode": 0,
+  "seconds": 1.3
+ },
+ {
+  "label": "transformer/no_mask/s43",
+  "args": [
+   "scripts\\work505_train_transformer.py",
+   "--exp",
+   "WORK-505-SMOKE",
+   "--arm",
+   "no_mask",
+   "--seed",
+   "43",
+   "--epochs",
+   "3",
+   "--device",
+   "cuda"
+  ],
+  "returncode": 0,
+  "seconds": 7.5
+ },
+ {
+  "label": "backtest/no_mask/s43",
+  "args": [
+   "scripts\\work449_backtest.py",
+   "--exp",
+   "WORK-505-SMOKE",
+   "--arm",
+   "no_mask",
+   "--tag",
+   "_43"
+  ],
+  "returncode": 0,
+  "seconds": 1.1
+ },
+ {
+  "label": "transformer/halt_only/s42",
+  "args": [
+   "scripts\\work505_train_transformer.py",
+   "--exp",
+   "WORK-505-SMOKE",
+   "--arm",
+   "halt_only",
+   "--seed",
+   "42",
+   "--epochs",
+   "3",
+   "--device",
+   "cuda"
+  ],
+  "returncode": 0,
+  "seconds": 7.5
+ },
+ {
+  "label": "backtest/halt_only/s42",
+  "args": [
+   "scripts\\work449_backtest.py",
+   "--exp",
+   "WORK-505-SMOKE",
+   "--arm",
+   "halt_only",
+   "--tag",
+   "_42"
+  ],
+  "returncode": 0,
+  "seconds": 1.1
+ },
+ {
+  "label": "transformer/halt_only/s43",
+  "args": [
+   "scripts\\work505_train_transformer.py",
+   "--exp",
+   "WORK-505-SMOKE",
+   "--arm",
+   "halt_only",
+   "--seed",
+   "43",
+   "--epochs",
+   "3",
+   "--device",
+   "cuda"
+  ],
+  "returncode": 0,
+  "seconds": 7.5
+ },
+ {
+  "label": "backtest/halt_only/s43",
+  "args": [
+   "scripts\\work449_backtest.py",
+   "--exp",
+   "WORK-505-SMOKE",
+   "--arm",
+   "halt_only",
+   "--tag",
+   "_43"
+  ],
+  "returncode": 0,
+  "seconds": 1.1
+ },
+ {
+  "label": "transformer/full_mask/s42",
+  "args": [
+   "scripts\\work505_train_transformer.py",
+   "--exp",
+   "WORK-505-SMOKE",
+   "--arm",
+   "full_mask",
+   "--seed",
+   "42",
+   "--epochs",
+   "3",
+   "--device",
+   "cuda"
+  ],
+  "returncode": 0,
+  "seconds": 7.6
+ },
+ {
+  "label": "backtest/full_mask/s42",
+  "args": [
+   "scripts\\work449_backtest.py",
+   "--exp",
+   "WORK-505-SMOKE",
+   "--arm",
+   "full_mask",
+   "--tag",
+   "_42"
+  ],
+  "returncode": 0,
+  "seconds": 1.1
+ },
+ {
+  "label": "transformer/full_mask/s43",
+  "args": [
+   "scripts\\work505_train_transformer.py",
+   "--exp",
+   "WORK-505-SMOKE",
+   "--arm",
+   "full_mask",
+   "--seed",
+   "43",
+   "--epochs",
+   "3",
+   "--device",
+   "cuda"
+  ],
+  "returncode": 0,
+  "seconds": 7.7
+ },
+ {
+  "label": "backtest/full_mask/s43",
+  "args": [
+   "scripts\\work449_backtest.py",
+   "--exp",
+   "WORK-505-SMOKE",
+   "--arm",
+   "full_mask",
+   "--tag",
+   "_43"
+  ],
+  "returncode": 0,
+  "seconds": 1.2
+ },
+ {
+  "label": "mlp/no_mask/s42",
+  "args": [
+   "scripts\\work449_train.py",
+   "--exp",
+   "WORK-505-SMOKE",
+   "--arm",
+   "no_mask",
+   "--seed",
+   "42",
+   "--tag",
+   "_mlp42"
+  ],
+  "returncode": 0,
+  "seconds": 17.2
+ },
+ {
+  "label": "backtest_mlp/no_mask/s42",
+  "args": [
+   "scripts\\work449_backtest.py",
+   "--exp",
+   "WORK-505-SMOKE",
+   "--arm",
+   "no_mask",
+   "--tag",
+   "_mlp42"
+  ],
+  "returncode": 0,
+  "seconds": 1.3
+ },
+ {
+  "label": "mlp/no_mask/s43",
+  "args": [
+   "scripts\\work449_train.py",
+   "--exp",
+   "WORK-505-SMOKE",
+   "--arm",
+   "no_mask",
+   "--seed",
+   "43",
+   "--tag",
+   "_mlp43"
+  ],
+  "returncode": 0,
+  "seconds": 17.0
+ },
+ {
+  "label": "backtest_mlp/no_mask/s43",
+  "args": [
+   "scripts\\work449_backtest.py",
+   "--exp",
+   "WORK-505-SMOKE",
+   "--arm",
+   "no_mask",
+   "--tag",
+   "_mlp43"
+  ],
+  "returncode": 0,
+  "seconds": 1.4
+ },
+ {
+  "label": "mlp/halt_only/s42",
+  "args": [
+   "scripts\\work449_train.py",
+   "--exp",
+   "WORK-505-SMOKE",
+   "--arm",
+   "halt_only",
+   "--seed",
+   "42",
+   "--tag",
+   "_mlp42"
+  ],
+  "returncode": 0,
+  "seconds": 16.3
+ },
+ {
+  "label": "backtest_mlp/halt_only/s42",
+  "args": [
+   "scripts\\work449_backtest.py",
+   "--exp",
+   "WORK-505-SMOKE",
+   "--arm",
+   "halt_only",
+   "--tag",
+   "_mlp42"
+  ],
+  "returncode": 0,
+  "seconds": 1.3
+ },
+ {
+  "label": "mlp/halt_only/s43",
+  "args": [
+   "scripts\\work449_train.py",
+   "--exp",
+   "WORK-505-SMOKE",
+   "--arm",
+   "halt_only",
+   "--seed",
+   "43",
+   "--tag",
+   "_mlp43"
+  ],
+  "returncode": 0,
+  "seconds": 16.7
+ },
+ {
+  "label": "backtest_mlp/halt_only/s43",
+  "args": [
+   "scripts\\work449_backtest.py",
+   "--exp",
+   "WORK-505-SMOKE",
+   "--arm",
+   "halt_only",
+   "--tag",
+   "_mlp43"
+  ],
+  "returncode": 0,
+  "seconds": 1.3
+ },
+ {
+  "label": "mlp/full_mask/s42",
+  "args": [
+   "scripts\\work449_train.py",
+   "--exp",
+   "WORK-505-SMOKE",
+   "--arm",
+   "full_mask",
+   "--seed",
+   "42",
+   "--tag",
+   "_mlp42"
+  ],
+  "returncode": 0,
+  "seconds": 16.3
+ },
+ {
+  "label": "backtest_mlp/full_mask/s42",
+  "args": [
+   "scripts\\work449_backtest.py",
+   "--exp",
+   "WORK-505-SMOKE",
+   "--arm",
+   "full_mask",
+   "--tag",
+   "_mlp42"
+  ],
+  "returncode": 0,
+  "seconds": 1.4
+ },
+ {
+  "label": "mlp/full_mask/s43",
+  "args": [
+   "scripts\\work449_train.py",
+   "--exp",
+   "WORK-505-SMOKE",
+   "--arm",
+   "full_mask",
+   "--seed",
+   "43",
+   "--tag",
+   "_mlp43"
+  ],
+  "returncode": 0,
+  "seconds": 16.4
+ },
+ {
+  "label": "backtest_mlp/full_mask/s43",
+  "args": [
+   "scripts\\work449_backtest.py",
+   "--exp",
+   "WORK-505-SMOKE",
+   "--arm",
+   "full_mask",
+   "--tag",
+   "_mlp43"
+  ],
+  "returncode": 0,
+  "seconds": 1.4
+ },
+ {
+  "label": "primary_test",
+  "args": [
+   "scripts\\work505_primary_test.py",
+   "--exp",
+   "WORK-505-SMOKE",
+   "--seeds",
+   "42,43"
+  ],
+  "returncode": 0,
+  "seconds": 0.5
+ }
+]

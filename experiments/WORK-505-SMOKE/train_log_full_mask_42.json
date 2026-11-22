@@ -1,0 +1,61 @@
+{
+ "arm": "full_mask",
+ "seed": 42,
+ "tag": "_42",
+ "epochs": 3,
+ "batch_days": 12,
+ "lr": 0.0005,
+ "weight_decay": 1e-05,
+ "grad_clip": 1.0,
+ "gamma": 0.1,
+ "hidden": 128,
+ "nhead": 4,
+ "n_layers": 2,
+ "ffn": 512,
+ "dropout": 0.1,
+ "optimizer": "AdamW",
+ "model": "CrossSectionTransformer",
+ "device": "cuda",
+ "torch_version": "2.11.0+cu128",
+ "torch_threads": 2,
+ "n_params": 398593,
+ "n_train_days": 1566,
+ "n_val_days": 261,
+ "n_test_days": 128,
+ "n_stocks": 40,
+ "n_features": 12,
+ "n_train_days_skipped": 0,
+ "n_val_days_skipped": 0,
+ "n_test_days_skipped": 0,
+ "n_pred_days": 2215,
+ "n_label_nan_cells": 0,
+ "history": [
+  {
+   "epoch": 0,
+   "train_loss": 0.010119675042797307,
+   "val_rankic": -0.01117844312310094,
+   "sec_train": 1.418,
+   "sec_val": 0.066
+  },
+  {
+   "epoch": 1,
+   "train_loss": 0.001352605098886913,
+   "val_rankic": -0.0030930548851532463,
+   "sec_train": 1.082,
+   "sec_val": 0.048
+  },
+  {
+   "epoch": 2,
+   "train_loss": 0.000978861776365408,
+   "val_rankic": -0.005368058225520984,
+   "sec_train": 1.07,
+   "sec_val": 0.052
+  }
+ ],
+ "pred_grid_matches_sample_ok": true,
+ "best_epoch": 1,
+ "val_rankic": -0.0030930548851532463,
+ "finished_at": "2026-11-22T15:22:37.227562+08:00",
+ "peak_vram_mb": 34.38134765625,
+ "peak_vram_reserved_mb": 40.0
+}

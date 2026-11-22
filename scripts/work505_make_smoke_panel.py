@@ -26,10 +26,10 @@ os.makedirs(EXP_DIR, exist_ok=True)
 
 rng = np.random.default_rng(SEED)
 try:                                            # numpy < 3
-    _bd = np.busday_range("2015-01-05", "2022-06-30")
+    _bd = np.busday_range("2014-01-02", "2022-06-30")
 except AttributeError:                          # numpy >= 3 dropped busday_range
     import pandas as pd
-    _bd = pd.bdate_range("2015-01-05", "2022-06-30").values
+    _bd = pd.bdate_range("2014-01-02", "2022-06-30").values
 dates = np.array(_bd, dtype="datetime64[D]")
 T, N = len(dates), N_STOCKS
 codes = np.array([f"smk.{i:06d}" for i in range(N)])
@@ -90,12 +90,14 @@ for arm in ("no_mask", "halt_only", "full_mask"):
                         names=np.array([f"f{k}" for k in range(N_FEAT)]))
 
 # ---- pool membership ------------------------------------------------------
-lists = {"2015-01-05": [[str(c), "smoke"] for c in codes]}
+lists = {"2014-01-02": [[str(c), "smoke"] for c in codes]}
 json.dump(lists, open(os.path.join(EXP_DIR, "pool_membership.json"), "w"),
           indent=1)
 
 print(f"smoke panel written to {EXP_DIR}")
 print(f"  dates {dates[0]}..{dates[-1]} (T={T})  codes={N}  features={N_FEAT}")
+print(f"  pre-training days (before 2015-01-01): "
+      f"{int(((dates < np.datetime64('2015-01-01'))).sum())}")
 print(f"  test-window days (2022-01-01..2024-12-31): "
       f"{int(((dates >= np.datetime64('2022-01-01'))).sum())}")
 print(f"  mask rates: no={m_no.mean():.4f} halt={m_halt.mean():.4f} "

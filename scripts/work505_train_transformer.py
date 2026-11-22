@@ -164,10 +164,14 @@ def main():
     ap.add_argument("--arm", required=True,
                     choices=["no_mask", "halt_only", "full_mask"])
     ap.add_argument("--seed", type=int, default=SEED)
-    ap.add_argument("--tag", default="")
+    ap.add_argument("--tag", default=None,
+                    help="suffix of the output file names; default = '_<seed>' "
+                         "so that the two seeds can never overwrite each other "
+                         "(prereg §0.3 naming: pred_<arm>_<seed>.npz)")
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--epochs", type=int, default=EPOCHS)
     args = ap.parse_args()
+    tag = args.tag if args.tag is not None else f"_{args.seed}"
 
     repo = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     exp_dir = os.path.join(repo, "experiments", args.exp)
@@ -233,14 +237,24 @@ def main():
     tr_idx = np.array([t for t in tr_days if day_ok[t]], dtype=np.int64)
     va_idx = np.array([t for t in va_days if day_ok[t]], dtype=np.int64)
     te_idx = np.array([t for t in te_days if day_ok[t]], dtype=np.int64)
+    # every day that carries at least one valid sample, **including days
+    # outside TRAIN/VAL/TEST** (the 2014 pre-training segment).  The MLP of
+    # WORK-449 writes a prediction for *every* sample_ok cell, so the
+    # prediction grid has to cover the same cells (see the full-grid block
+    # below); restricting it to the three windows would leave sample_ok=True
+    # cells with NaN predictions.
+    pred_days = np.nonzero(V_day.any(axis=1))[0]
     print(f"{args.arm}: train_days={len(tr_idx)} val_days={len(va_idx)} "
-          f"test_days={len(te_idx)} | stocks={N} features={K}", flush=True)
+          f"test_days={len(te_idx)} | stocks={N} features={K} | "
+          f"pred_days={len(pred_days)} "
+          f"(skipped tr/va/te = {len(tr_days) - len(tr_idx)}/"
+          f"{len(va_days) - len(va_idx)}/{len(te_days) - len(te_idx)})", flush=True)
 
     model = CrossSectionTransformer(K).to(dev)
     opt = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WD)
     gen = torch.Generator().manual_seed(args.seed)
 
-    log = {"arm": args.arm, "seed": args.seed, "epochs": args.epochs,
+    log = {"arm": args.arm, "seed": args.seed, "tag": tag, "epochs": args.epochs,
            "batch_days": BATCH_DAYS, "lr": LR, "weight_decay": WD,
            "grad_clip": GRAD_CLIP, "gamma": GAMMA, "hidden": HIDDEN,
            "nhead": NHEAD, "n_layers": NLAYERS, "ffn": FFN,
@@ -251,16 +265,22 @@ def main():
            "n_params": int(sum(p.numel() for p in model.parameters())),
            "n_train_days": int(len(tr_idx)), "n_val_days": int(len(va_idx)),
            "n_test_days": int(len(te_idx)), "n_stocks": int(N),
-           "n_features": int(K), "history": []}
+           "n_features": int(K),
+           "n_train_days_skipped": int(len(tr_days) - len(tr_idx)),
+           "n_val_days_skipped": int(len(va_days) - len(va_idx)),
+           "n_test_days_skipped": int(len(te_days) - len(te_idx)),
+           "n_pred_days": int(len(pred_days)),
+           "n_label_nan_cells": 0, "history": []}
 
     def make_batch(days_idx):
         xb = torch.from_numpy(X_day[days_idx])                  # (B, N, K)
-        yb = torch.from_numpy(np.nan_to_num(Y_day[days_idx],
-                                             nan=0.0))         # (B, N)
+        yb_raw = torch.from_numpy(Y_day[days_idx])               # (B, N) NaN kept
+        yb = torch.nan_to_num(yb_raw, nan=0.0)                   # (B, N)
         vb = torch.from_numpy(V_day[days_idx])                   # (B, N)
-        return xb, yb, vb
+        return xb, yb, vb, yb_raw
 
     best = {"rankic": -np.inf, "epoch": -1, "state": None}
+    nan_label_cells = 0
     for ep in range(args.epochs):
         t_ep = time.time()
         model.train()
@@ -269,10 +289,11 @@ def main():
         for i in range(0, len(perm), BATCH_DAYS):
             sel = perm[i:i + BATCH_DAYS]
             days_b = tr_idx[sel.numpy()]
-            xb, yb, vb = make_batch(days_b)
+            xb, yb, vb, yb_raw = make_batch(days_b)
             xb = xb.to(dev, non_blocking=True)
             yb = yb.to(dev, non_blocking=True)
             vb = vb.to(dev, non_blocking=True)
+            yb_raw = yb_raw.to(dev, non_blocking=True)
             # key_padding_mask: True = ignore.  A valid query attends to every
             # valid stock; invalid stocks are excluded from the keys and their
             # outputs are dropped from the loss (prereg §1.1 M9).
@@ -281,7 +302,17 @@ def main():
             sq = (pred - yb) ** 2
             w = torch.where(same, torch.full_like(sq, GAMMA),
                             torch.full_like(sq, 1.0 + GAMMA))
-            sel_mask = vb
+            # A valid sample cell may still carry a non-finite label (the
+            # label row t+1 can be corrupt while row t is not).  Such a cell
+            # must NOT enter the loss: training on a fabricated 0.0 would
+            # silently corrupt the model while the loss curve still looks
+            # healthy.  The MLP of WORK-449 turns the whole batch into NaN
+            # in that case, i.e. it fails loudly; here the cells are dropped
+            # and counted (prereg §1.1 M9: invalid cells do not take part in
+            # the loss).
+            label_finite = torch.isfinite(yb_raw)
+            nan_label_cells += int((vb & ~label_finite).sum().item())
+            sel_mask = vb & label_finite
             denom = sel_mask.sum().clamp(min=1)
             loss = (w * sq * sel_mask).sum() / denom
             opt.zero_grad(set_to_none=True)
@@ -299,7 +330,7 @@ def main():
         with torch.no_grad():
             for i in range(0, len(va_idx), BATCH_DAYS):
                 days_b = va_idx[i:i + BATCH_DAYS]
-                xb, _yb, vb = make_batch(days_b)
+                xb, _yb, vb, _ybr = make_batch(days_b)
                 pv = model(xb.to(dev), key_padding_mask=~vb.to(dev)).cpu().numpy()
                 for j, t in enumerate(days_b):
                     good = vb.numpy()[j]
@@ -327,7 +358,7 @@ def main():
                    "best_epoch": best["epoch"], "best_rankic": best["rankic"],
                    "updated_at": datetime.now().astimezone().isoformat()},
                   open(os.path.join(exp_dir,
-                                    f"train_progress_{args.arm}{args.tag}.json"), "w"),
+                                    f"train_progress_{args.arm}{tag}.json"), "w"),
                   indent=1)
 
     if best["state"] is None:
@@ -338,31 +369,36 @@ def main():
     model.eval()
 
     # ---- full-grid prediction (same layout as WORK-449) -------------------
+    # Every day that carries at least one valid sample is predicted, NOT only
+    # the TRAIN/VAL/TEST windows: WORK-449's MLP writes a prediction for every
+    # sample_ok cell, so a grid restricted to the three windows would leave
+    # sample_ok=True cells (the 2014 pre-training segment) with NaN and break
+    # the `isfinite(pred) == sample_ok` invariant that downstream diagnostics
+    # rely on.
     pred_from = np.full((T, N), np.nan, dtype=np.float32)
     with torch.no_grad():
-        for i in range(0, len(tr_idx), BATCH_DAYS):
-            days_b = tr_idx[i:i + BATCH_DAYS]
-            xb, _yb, vb = make_batch(days_b)
+        for i in range(0, len(pred_days), BATCH_DAYS):
+            days_b = pred_days[i:i + BATCH_DAYS]
+            xb, _yb, vb, _ybr = make_batch(days_b)
             pv = model(xb.to(dev), key_padding_mask=~vb.to(dev)).cpu().numpy()
             for j, t in enumerate(days_b):
                 good = vb.numpy()[j]
                 row = np.full(N, np.nan)
                 row[good] = pv[j][good]
                 pred_from[t] = row
-        for group, idx in (("val", va_idx), ("test", te_idx)):
-            for i in range(0, len(idx), BATCH_DAYS):
-                days_b = idx[i:i + BATCH_DAYS]
-                xb, _yb, vb = make_batch(days_b)
-                pv = model(xb.to(dev), key_padding_mask=~vb.to(dev)).cpu().numpy()
-                for j, t in enumerate(days_b):
-                    good = vb.numpy()[j]
-                    row = np.full(N, np.nan)
-                    row[good] = pv[j][good]
-                    pred_from[t] = row
+
+    # invariant (prereg §1.3): a prediction exists exactly on the sample_ok
+    # cells and nowhere else.
+    grid_ok = bool(np.array_equal(np.isfinite(pred_from[:-1]), sample_ok))
+    log["pred_grid_matches_sample_ok"] = grid_ok
+    log["n_label_nan_cells"] = int(nan_label_cells)
+    if not grid_ok:
+        raise SystemExit("prediction grid does not cover sample_ok exactly "
+                         "(finite(pred) != sample_ok)")
 
     print(f"best epoch {best['epoch']} valRankIC {best['rankic']}")
 
-    np.savez_compressed(os.path.join(exp_dir, f"pred_{args.arm}{args.tag}.npz"),
+    np.savez_compressed(os.path.join(exp_dir, f"pred_{args.arm}{tag}.npz"),
                         pred=pred_from, sample_ok=sample_full,
                         dates=dates, codes=panel["codes"])
     torch.save({"state_dict": model.state_dict(), "mu": mu, "sd": sd,
@@ -371,7 +407,7 @@ def main():
                 "config": {"hidden": HIDDEN, "nhead": NHEAD,
                            "n_layers": NLAYERS, "ffn": FFN,
                            "dropout": DROPOUT}},
-               os.path.join(exp_dir, f"model_{args.arm}{args.tag}.pt"))
+               os.path.join(exp_dir, f"model_{args.arm}{tag}.pt"))
     log["best_epoch"] = best["epoch"]
     log["val_rankic"] = best["rankic"]
     log["finished_at"] = datetime.now().astimezone().isoformat()
@@ -379,9 +415,9 @@ def main():
         log["peak_vram_mb"] = torch.cuda.max_memory_allocated(dev) / 1024 ** 2
         log["peak_vram_reserved_mb"] = torch.cuda.max_memory_reserved(dev) / 1024 ** 2
     json.dump(log, open(os.path.join(exp_dir,
-                                     f"train_log_{args.arm}{args.tag}.json"), "w"),
+                                     f"train_log_{args.arm}{tag}.json"), "w"),
               indent=1)
-    print(f"saved model_{args.arm}{args.tag}.pt / pred_{args.arm}{args.tag}.npz")
+    print(f"saved model_{args.arm}{tag}.pt / pred_{args.arm}{tag}.npz")
 
 
 if __name__ == "__main__":
