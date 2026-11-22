@@ -235,6 +235,7 @@ def main():
             "mean_holdings": rec.get("mean_holdings"),
             "alpha_ew": rec.get("alpha_equal_weight"),
             "alpha_cw": rec.get("alpha_cap_weighted"),
+            "alpha_idx": rec.get("alpha_index"),
         }
     sr_med = med("full", "sr")
     # 可交易性规则（派单卡原文）：净 SR 的 95% CI 下界 > 0 且相对论文缩水 ≤60%

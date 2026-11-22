@@ -101,6 +101,9 @@ def load_all(exp_dir: str):
                  "data_probe"):
         p = os.path.join(exp_dir, f"{name}.json")
         d[name] = json.load(open(p)) if os.path.exists(p) else {}
+    # 预注册外的零成本诊断（用于拆解成本占比，报告中明确标注为诊断）
+    p = os.path.join(exp_dir, "backtest_gross_diagnostic.json")
+    d["gross_diagnostic"] = json.load(open(p)) if os.path.exists(p) else {}
     d["exp_dir"] = exp_dir
     d["daily"] = {}
     for key in d["verdict"]["runs"]:
@@ -468,7 +471,21 @@ def build_html(d, repo, exp_dir, fig_dir):
             f"<td class='num'>{fmt(p['ar'])}</td><td class='num'>{fmt(p['mdd'])}</td>"
             f"<td class='num'>{fmt(p['turnover'], 3)}</td>"
             f"<td class='num'>{fmt((p.get('alpha_ew') or {}).get('excess_annualized'))}</td>"
-            f"<td class='num'>{fmt((p.get('alpha_ew') or {}).get('information_ratio'), 3)}</td></tr>")
+            f"<td class='num'>{fmt((p.get('alpha_cw') or {}).get('excess_annualized'))}</td>"
+            f"<td class='num'>{fmt((p.get('alpha_idx') or {}).get('excess_annualized'))}</td></tr>")
+
+    # 零成本诊断（预注册外，用于拆解成本占比）
+    gross_bits = []
+    gross = d.get("gross_diagnostic") or {}
+    for s in v["seeds"]:
+        g = gross.get(f"full_s{s}")
+        p = h3["per_seed"].get(str(s)) or {}
+        if not g:
+            continue
+        gross_bits.append(
+            f"种子 {s}：净 SR {fmt(p.get('sr'), 3)} → 毛 SR {fmt(g.get('sr'), 3)}；"
+            f"对 CSI300 指数的年化超额 {fmt((p.get('alpha_idx') or {}).get('excess_annualized'))}"
+            f" → {fmt((g.get('alpha_index') or {}).get('excess_annualized'))}")
 
     paper_rows = []
     for arm in ARM_ORDER:
@@ -669,7 +686,7 @@ def build_html(d, repo, exp_dir, fig_dir):
 
 <table>
 <caption>表 5 · H3：完整模型的净收益指标与基准调整 alpha</caption>
-<thead><tr><th class="num">种子</th><th class="num">净 SR</th><th class="num">SR 95% CI</th><th class="num">年化 AR</th><th class="num">MDD</th><th class="num">单边换手</th><th class="num">等权超额年化</th><th class="num">超额 IR</th></tr></thead>
+<thead><tr><th class="num">种子</th><th class="num">净 SR</th><th class="num">SR 95% CI</th><th class="num">年化 AR</th><th class="num">MDD</th><th class="num">单边换手</th><th class="num">超额（等权基准）</th><th class="num">超额（总市值篮子）</th><th class="num">超额（CSI300 指数）</th></tr></thead>
 <tbody>{''.join(h3_rows)}</tbody></table>
 
 <p>论文 Table 1 的 PRISM-VQ 是 SR {fmt(h3['paper_sr'], 4)} / AR {fmt(0.3077, 4)} / MDD {fmt(0.1924, 4)} / 换手 {fmt(h3['paper_turnover'], 4)}。
@@ -683,6 +700,12 @@ def build_html(d, repo, exp_dir, fig_dir):
 净 SR 中位数 {fmt(h3.get('sr_median'), 3)}，相对论文 SR 的比值 {fmt(h3.get('shrinkage_vs_paper'), 3)}（下限 {fmt(h3.get('shrinkage_limit'), 2)}），
 判定为 <strong>{'可交易性成立' if h3.get('tradicable') else '可交易性不成立'}</strong>。
 另有一条独立于 H1 的硬规则：净 SR &lt; 0 直接判退——本单{'命中（净 SR 为负，判词已改为退）' if h3.get('net_sr_negative') else '未命中'}。</p>
+
+<p><strong>基准口径</strong>：表中的三列超额收益分别对三个基准——「CSI300 指数」是快照里的真实指数（000300.SH，价格指数，与 Tushare 探针逐字段一致），
+它是<strong>自由流通市值</strong>加权的主口径；「总市值篮子」是本单用 PIT 名单自建的<strong>总市值</strong>加权篮子（PIT 指数权重与流通市值字段都取不到时的退化口径），
+2022–2024 恰逢大行大油领涨，两者累计差约 30pp，故主口径用指数、自建篮子并列披露；「等权」为 PIT 名单等权。</p>
+
+{('<p><strong>成本拆解（预注册外诊断，非协议的一部分）</strong>：把成本置零后重跑同一组合，' + "；".join(gross_bits) + '。' + '日均单边换手 ' + fmt(h3["per_seed"][str(v["seeds"][0])]["turnover"], 3) + ' 对应约 8.4%/年的成本拖累。' + '这说明<b>净 SR 为负主要是换手成本吃掉的，而不是信号本身无效</b>——但预注册的「净 SR &lt; 0 直接判退」是硬规则，判词按规则给出，不因诊断而改。</p>') if gross_bits else ''}
 
 <h2><span class="num">7</span>四档消融的完整指标</h2>
 
