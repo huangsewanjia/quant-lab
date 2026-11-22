@@ -94,9 +94,15 @@ $PY policy/indexer.py --retag --sample 30
 # 同步到 WeKnora「政策原文库」
 $PY policy/sync_weknora.py --limit 0
 
+# 收尾跨源去重（并发跑多个源之后跑一次）
+$PY policy/dedupe.py
+
 # 测试
 $PY -m pytest policy/tests -q
 ```
+
+> 不同源并发跑时，各自的去重集合是启动时的快照，可能漏掉同一时段另一源的转载；
+> 收尾跑 `dedupe.py` 会按 sha256 合并并写 `duplicate_of`。生产调度建议按源串行。
 
 ## 5. 质量门与已知缺口
 
