@@ -1,0 +1,214 @@
+factor,family,theme,module,def_line,requires_fields,n_fields,reads_panel_amount,bucket,newlib_sources
+add_001,add_*,复合补充,src/mlquant/features/_factors_add.py,19,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+add_002,add_*,复合补充,src/mlquant/features/_factors_add.py,30,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+add_003,add_*,复合补充,src/mlquant/features/_factors_add.py,40,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+add_004,add_*,复合补充,src/mlquant/features/_factors_add.py,52,high+low+close+volume,4,N,OHLCV,daily.high; daily.low; daily.close; daily.vol(手→股)
+add_005,add_*,复合补充,src/mlquant/features/_factors_add.py,62,close,1,N,OHLCV,daily.close
+add_006,add_*,复合补充,src/mlquant/features/_factors_add.py,74,close,1,N,OHLCV,daily.close
+add_007,add_*,复合补充,src/mlquant/features/_factors_add.py,86,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+add_008,add_*,复合补充,src/mlquant/features/_factors_add.py,95,close,1,N,OHLCV,daily.close
+add_009,add_*,复合补充,src/mlquant/features/_factors_add.py,103,high+low,2,N,OHLCV,daily.high; daily.low
+add_010,add_*,复合补充,src/mlquant/features/_factors_add.py,111,high+low+close,3,N,OHLCV,daily.high; daily.low; daily.close
+add_011,add_*,复合补充,src/mlquant/features/_factors_add.py,121,volume+vwap,2,N,VWAP,daily.vol(手→股); daily.amount÷daily.vol(派生)
+add_012,add_*,复合补充,src/mlquant/features/_factors_add.py,127,open+close+vwap,3,N,VWAP,daily.open; daily.close; daily.amount÷daily.vol(派生)
+add_013,add_*,复合补充,src/mlquant/features/_factors_add.py,138,high+low+vwap,3,N,VWAP,daily.high; daily.low; daily.amount÷daily.vol(派生)
+add_014,add_*,复合补充,src/mlquant/features/_factors_add.py,145,close,1,N,OHLCV,daily.close
+add_015,add_*,复合补充,src/mlquant/features/_factors_add.py,153,open+close,2,N,OHLCV,daily.open; daily.close
+add_016,add_*,复合补充,src/mlquant/features/_factors_add.py,161,vwap,1,N,VWAP,daily.amount÷daily.vol(派生)
+add_017,add_*,复合补充,src/mlquant/features/_factors_add.py,169,vwap,1,N,VWAP,daily.amount÷daily.vol(派生)
+add_018,add_*,复合补充,src/mlquant/features/_factors_add.py,177,open+high+low+close,4,N,OHLCV,daily.open; daily.high; daily.low; daily.close
+add_019,add_*,复合补充,src/mlquant/features/_factors_add.py,184,open+close,2,N,OHLCV,daily.open; daily.close
+add_020,add_*,复合补充,src/mlquant/features/_factors_add.py,192,close,1,N,OHLCV,daily.close
+add_021,add_*,复合补充,src/mlquant/features/_factors_add.py,202,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+add_022,add_*,复合补充,src/mlquant/features/_factors_add.py,209,volume,1,N,OHLCV,daily.vol(手→股)
+add_023,add_*,复合补充,src/mlquant/features/_factors_add.py,219,close,1,N,OHLCV,daily.close
+add_024,add_*,复合补充,src/mlquant/features/_factors_add.py,227,close,1,N,OHLCV,daily.close
+add_025,add_*,复合补充,src/mlquant/features/_factors_add.py,235,close,1,N,OHLCV,daily.close
+add_026,add_*,复合补充,src/mlquant/features/_factors_add.py,245,volume,1,N,OHLCV,daily.vol(手→股)
+add_027,add_*,复合补充,src/mlquant/features/_factors_add.py,255,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+add_028,add_*,复合补充,src/mlquant/features/_factors_add.py,265,open+high+low+close,4,N,OHLCV,daily.open; daily.high; daily.low; daily.close
+add_029,add_*,复合补充,src/mlquant/features/_factors_add.py,272,open+high+low+close,4,N,OHLCV,daily.open; daily.high; daily.low; daily.close
+add_030,add_*,复合补充,src/mlquant/features/_factors_add.py,279,close,1,N,OHLCV,daily.close
+alpha_001,alpha_*,Alpha101 子集,src/mlquant/features/_factors_alpha101.py,21,close,1,N,OHLCV,daily.close
+alpha_002,alpha_*,Alpha101 子集,src/mlquant/features/_factors_alpha101.py,29,open+close+volume,3,N,OHLCV,daily.open; daily.close; daily.vol(手→股)
+alpha_003,alpha_*,Alpha101 子集,src/mlquant/features/_factors_alpha101.py,44,open+volume,2,N,OHLCV,daily.open; daily.vol(手→股)
+alpha_004,alpha_*,Alpha101 子集,src/mlquant/features/_factors_alpha101.py,53,low,1,N,OHLCV,daily.low
+alpha_006,alpha_*,Alpha101 子集,src/mlquant/features/_factors_alpha101.py,61,open+volume,2,N,OHLCV,daily.open; daily.vol(手→股)
+alpha_007,alpha_*,Alpha101 子集,src/mlquant/features/_factors_alpha101.py,68,close,1,N,OHLCV,daily.close
+alpha_012,alpha_*,Alpha101 子集,src/mlquant/features/_factors_alpha101.py,78,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+alpha_053,alpha_*,Alpha101 子集,src/mlquant/features/_factors_alpha101.py,87,high+low+close,3,N,OHLCV,daily.high; daily.low; daily.close
+alpha_101,alpha_*,Alpha101 子集,src/mlquant/features/_factors_alpha101.py,95,open+high+low+close,4,N,OHLCV,daily.open; daily.high; daily.low; daily.close
+best_001,best_*,收盘位置动量,src/mlquant/features/_factors_best.py,19,high+low+close,3,N,OHLCV,daily.high; daily.low; daily.close
+best_002,best_*,收盘位置动量,src/mlquant/features/_factors_best.py,26,high+low+close,3,N,OHLCV,daily.high; daily.low; daily.close
+best_003,best_*,收盘位置动量,src/mlquant/features/_factors_best.py,33,high+low+close,3,N,OHLCV,daily.high; daily.low; daily.close
+best_004,best_*,收盘位置动量,src/mlquant/features/_factors_best.py,40,high+low+close,3,N,OHLCV,daily.high; daily.low; daily.close
+best_005,best_*,收盘位置动量,src/mlquant/features/_factors_best.py,47,high+low+close,3,N,OHLCV,daily.high; daily.low; daily.close
+best_006,best_*,收盘位置动量,src/mlquant/features/_factors_best.py,54,high+low+close,3,N,OHLCV,daily.high; daily.low; daily.close
+best_007,best_*,收盘位置动量,src/mlquant/features/_factors_best.py,61,high+low+close,3,N,OHLCV,daily.high; daily.low; daily.close
+best_008,best_*,收盘位置动量,src/mlquant/features/_factors_best.py,68,close+vwap,2,N,VWAP,daily.close; daily.amount÷daily.vol(派生)
+best_009,best_*,收盘位置动量,src/mlquant/features/_factors_best.py,75,close+vwap,2,N,VWAP,daily.close; daily.amount÷daily.vol(派生)
+best_010,best_*,收盘位置动量,src/mlquant/features/_factors_best.py,85,close+volume+vwap,3,N,VWAP,daily.close; daily.vol(手→股); daily.amount÷daily.vol(派生)
+best_011,best_*,收盘位置动量,src/mlquant/features/_factors_best.py,92,open+close,2,N,OHLCV,daily.open; daily.close
+best_012,best_*,收盘位置动量,src/mlquant/features/_factors_best.py,100,open+close,2,N,OHLCV,daily.open; daily.close
+best_013,best_*,收盘位置动量,src/mlquant/features/_factors_best.py,108,open+close,2,N,OHLCV,daily.open; daily.close
+best_014,best_*,收盘位置动量,src/mlquant/features/_factors_best.py,116,high+low+close+volume,4,N,OHLCV,daily.high; daily.low; daily.close; daily.vol(手→股)
+best_015,best_*,收盘位置动量,src/mlquant/features/_factors_best.py,126,high+low+close,3,N,OHLCV,daily.high; daily.low; daily.close
+best_016,best_*,收盘位置动量,src/mlquant/features/_factors_best.py,133,high+low+close+volume,4,N,OHLCV,daily.high; daily.low; daily.close; daily.vol(手→股)
+best_017,best_*,收盘位置动量,src/mlquant/features/_factors_best.py,141,close,1,N,OHLCV,daily.close
+best_018,best_*,收盘位置动量,src/mlquant/features/_factors_best.py,148,close,1,N,OHLCV,daily.close
+best_019,best_*,收盘位置动量,src/mlquant/features/_factors_best.py,155,close,1,N,OHLCV,daily.close
+best_020,best_*,收盘位置动量,src/mlquant/features/_factors_best.py,162,close+volume+vwap,3,N,VWAP,daily.close; daily.vol(手→股); daily.amount÷daily.vol(派生)
+best_021,best_*,收盘位置动量,src/mlquant/features/_factors_best.py,169,close+volume+vwap,3,N,VWAP,daily.close; daily.vol(手→股); daily.amount÷daily.vol(派生)
+better_001,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,21,open+close+volume,3,N,OHLCV,daily.open; daily.close; daily.vol(手→股)
+better_002,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,31,open+close+volume,3,N,OHLCV,daily.open; daily.close; daily.vol(手→股)
+better_003,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,42,open+high+low+close+vwap,5,N,VWAP,daily.open; daily.high; daily.low; daily.close; daily.amount÷daily.vol(派生)
+better_004,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,52,high+low+vwap,3,N,VWAP,daily.high; daily.low; daily.amount÷daily.vol(派生)
+better_005,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,62,high+low+vwap,3,N,VWAP,daily.high; daily.low; daily.amount÷daily.vol(派生)
+better_006,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,72,high+low+vwap,3,N,VWAP,daily.high; daily.low; daily.amount÷daily.vol(派生)
+better_007,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,80,high+low+close+volume,4,N,OHLCV,daily.high; daily.low; daily.close; daily.vol(手→股)
+better_008,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,89,high+low+close+volume,4,N,OHLCV,daily.high; daily.low; daily.close; daily.vol(手→股)
+better_009,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,97,volume+vwap,2,Y,VWAP+成交额,daily.vol(手→股); daily.amount÷daily.vol(派生); daily.amount(千元→元)
+better_010,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,113,volume+vwap,2,Y,VWAP+成交额,daily.vol(手→股); daily.amount÷daily.vol(派生); daily.amount(千元→元)
+better_011,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,129,high+low+close,3,N,OHLCV,daily.high; daily.low; daily.close
+better_012,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,149,high+low+vwap,3,N,VWAP,daily.high; daily.low; daily.amount÷daily.vol(派生)
+better_013,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,166,close+volume+vwap,3,Y,VWAP+成交额,daily.close; daily.vol(手→股); daily.amount÷daily.vol(派生); daily.amount(千元→元)
+better_014,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,174,close+volume+vwap,3,Y,VWAP+成交额,daily.close; daily.vol(手→股); daily.amount÷daily.vol(派生); daily.amount(千元→元)
+better_015,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,182,vwap,1,N,VWAP,daily.amount÷daily.vol(派生)
+better_016,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,204,vwap,1,N,VWAP,daily.amount÷daily.vol(派生)
+better_017,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,224,volume+vwap,2,Y,VWAP+成交额,daily.vol(手→股); daily.amount÷daily.vol(派生); daily.amount(千元→元)
+better_018,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,245,volume+vwap,2,Y,VWAP+成交额,daily.vol(手→股); daily.amount÷daily.vol(派生); daily.amount(千元→元)
+better_019,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,266,volume,1,N,OHLCV,daily.vol(手→股)
+better_020,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,280,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+better_021,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,293,close+vwap,2,N,VWAP,daily.close; daily.amount÷daily.vol(派生)
+better_022,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,301,close+volume+vwap,3,Y,VWAP+成交额,daily.close; daily.vol(手→股); daily.amount÷daily.vol(派生); daily.amount(千元→元)
+better_023,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,312,close+volume+vwap,3,Y,VWAP+成交额,daily.close; daily.vol(手→股); daily.amount÷daily.vol(派生); daily.amount(千元→元)
+better_024,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,323,close+volume+vwap,3,N,VWAP,daily.close; daily.vol(手→股); daily.amount÷daily.vol(派生)
+better_025,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,335,close+volume+vwap,3,N,VWAP,daily.close; daily.vol(手→股); daily.amount÷daily.vol(派生)
+better_026,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,347,high+low+close,3,N,OHLCV,daily.high; daily.low; daily.close
+better_027,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,358,close+volume+vwap,3,Y,VWAP+成交额,daily.close; daily.vol(手→股); daily.amount÷daily.vol(派生); daily.amount(千元→元)
+better_028,better_*,VWAP 偏离 / 量价动量,src/mlquant/features/_factors_better.py,374,close+volume+vwap,3,Y,VWAP+成交额,daily.close; daily.vol(手→股); daily.amount÷daily.vol(派生); daily.amount(千元→元)
+change_001,change_*,短窗加速度,src/mlquant/features/_factors_change.py,14,close,1,N,OHLCV,daily.close
+change_002,change_*,短窗加速度,src/mlquant/features/_factors_change.py,24,close,1,N,OHLCV,daily.close
+change_003,change_*,短窗加速度,src/mlquant/features/_factors_change.py,32,volume,1,N,OHLCV,daily.vol(手→股)
+change_004,change_*,短窗加速度,src/mlquant/features/_factors_change.py,40,high+low,2,N,OHLCV,daily.high; daily.low
+change_005,change_*,短窗加速度,src/mlquant/features/_factors_change.py,49,close,1,N,OHLCV,daily.close
+cs_rank_amount,cs_rank_*,截面市场宽度,src/mlquant/features/_factors_market.py,58,volume+vwap,2,Y,VWAP+成交额,daily.vol(手→股); daily.amount÷daily.vol(派生); daily.amount(千元→元)
+cs_rank_avg,cs_rank_*,截面市场宽度,src/mlquant/features/_factors_market.py,50,close+vwap,2,N,VWAP,daily.close; daily.amount÷daily.vol(派生)
+cs_rank_close,cs_rank_*,截面市场宽度,src/mlquant/features/_factors_market.py,18,close,1,N,OHLCV,daily.close
+cs_rank_high,cs_rank_*,截面市场宽度,src/mlquant/features/_factors_market.py,34,high+close,2,N,OHLCV,daily.high; daily.close
+cs_rank_low,cs_rank_*,截面市场宽度,src/mlquant/features/_factors_market.py,42,low+close,2,N,OHLCV,daily.low; daily.close
+cs_rank_open,cs_rank_*,截面市场宽度,src/mlquant/features/_factors_market.py,26,open+close,2,N,OHLCV,daily.open; daily.close
+extra_001,extra_*,换手与成交额,src/mlquant/features/_factors_extra.py,19,high+low+close,3,N,OHLCV,daily.high; daily.low; daily.close
+extra_002,extra_*,换手与成交额,src/mlquant/features/_factors_extra.py,26,close+volume+vwap,3,N,VWAP,daily.close; daily.vol(手→股); daily.amount÷daily.vol(派生)
+extra_003,extra_*,换手与成交额,src/mlquant/features/_factors_extra.py,41,open+close,2,N,OHLCV,daily.open; daily.close
+extra_004,extra_*,换手与成交额,src/mlquant/features/_factors_extra.py,49,high+low+close+volume,4,N,OHLCV,daily.high; daily.low; daily.close; daily.vol(手→股)
+extra_005,extra_*,换手与成交额,src/mlquant/features/_factors_extra.py,60,volume+vwap,2,Y,VWAP+成交额,daily.vol(手→股); daily.amount÷daily.vol(派生); daily.amount(千元→元)
+extra_006,extra_*,换手与成交额,src/mlquant/features/_factors_extra.py,69,volume,1,N,OHLCV,daily.vol(手→股)
+extra_007,extra_*,换手与成交额,src/mlquant/features/_factors_extra.py,77,high+low,2,N,OHLCV,daily.high; daily.low
+extra_008,extra_*,换手与成交额,src/mlquant/features/_factors_extra.py,88,high+low+close,3,N,OHLCV,daily.high; daily.low; daily.close
+extra_009,extra_*,换手与成交额,src/mlquant/features/_factors_extra.py,101,close,1,N,OHLCV,daily.close
+extra_010,extra_*,换手与成交额,src/mlquant/features/_factors_extra.py,115,close,1,N,OHLCV,daily.close
+extra_011,extra_*,换手与成交额,src/mlquant/features/_factors_extra.py,123,volume+vwap,2,Y,VWAP+成交额,daily.vol(手→股); daily.amount÷daily.vol(派生); daily.amount(千元→元)
+extra_012,extra_*,换手与成交额,src/mlquant/features/_factors_extra.py,130,open+high,2,N,OHLCV,daily.open; daily.high
+extra_013,extra_*,换手与成交额,src/mlquant/features/_factors_extra.py,137,close+vwap,2,N,VWAP,daily.close; daily.amount÷daily.vol(派生)
+extra_014,extra_*,换手与成交额,src/mlquant/features/_factors_extra.py,144,high+low+close,3,N,OHLCV,daily.high; daily.low; daily.close
+old_027,old_*,秩相关复合,src/mlquant/features/_factors_old.py,19,close+volume+vwap,3,N,VWAP,daily.close; daily.vol(手→股); daily.amount÷daily.vol(派生)
+old_028,old_*,秩相关复合,src/mlquant/features/_factors_old.py,29,open+volume,2,N,OHLCV,daily.open; daily.vol(手→股)
+old_029,old_*,秩相关复合,src/mlquant/features/_factors_old.py,38,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+old_030,old_*,秩相关复合,src/mlquant/features/_factors_old.py,46,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+old_031,old_*,秩相关复合,src/mlquant/features/_factors_old.py,57,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+old_032,old_*,秩相关复合,src/mlquant/features/_factors_old.py,69,close+vwap,2,N,VWAP,daily.close; daily.amount÷daily.vol(派生)
+old_033,old_*,秩相关复合,src/mlquant/features/_factors_old.py,81,open+close,2,N,OHLCV,daily.open; daily.close
+old_034,old_*,秩相关复合,src/mlquant/features/_factors_old.py,88,close,1,N,OHLCV,daily.close
+old_035,old_*,秩相关复合,src/mlquant/features/_factors_old.py,105,high+low+close+volume,4,N,OHLCV,daily.high; daily.low; daily.close; daily.vol(手→股)
+old_036,old_*,秩相关复合,src/mlquant/features/_factors_old.py,116,open+close,2,N,OHLCV,daily.open; daily.close
+old_037,old_*,秩相关复合,src/mlquant/features/_factors_old.py,128,open+high+low+close,4,N,OHLCV,daily.open; daily.high; daily.low; daily.close
+old_038,old_*,秩相关复合,src/mlquant/features/_factors_old.py,142,open+close+vwap,3,N,VWAP,daily.open; daily.close; daily.amount÷daily.vol(派生)
+old_039,old_*,秩相关复合,src/mlquant/features/_factors_old.py,153,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+old_040,old_*,秩相关复合,src/mlquant/features/_factors_old.py,168,high+volume,2,N,OHLCV,daily.high; daily.vol(手→股)
+old_041,old_*,秩相关复合,src/mlquant/features/_factors_old.py,179,high+low+vwap,3,N,VWAP,daily.high; daily.low; daily.amount÷daily.vol(派生)
+old_042,old_*,秩相关复合,src/mlquant/features/_factors_old.py,186,close+vwap,2,N,VWAP,daily.close; daily.amount÷daily.vol(派生)
+old_043,old_*,秩相关复合,src/mlquant/features/_factors_old.py,196,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+old_044,old_*,秩相关复合,src/mlquant/features/_factors_old.py,208,high+volume,2,N,OHLCV,daily.high; daily.vol(手→股)
+old_045,old_*,秩相关复合,src/mlquant/features/_factors_old.py,216,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+old_046,old_*,秩相关复合,src/mlquant/features/_factors_old.py,227,close,1,N,OHLCV,daily.close
+old_047,old_*,秩相关复合,src/mlquant/features/_factors_old.py,239,high+low+close,3,N,OHLCV,daily.high; daily.low; daily.close
+old_048,old_*,秩相关复合,src/mlquant/features/_factors_old.py,250,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+old_049,old_*,秩相关复合,src/mlquant/features/_factors_old.py,260,close,1,N,OHLCV,daily.close
+old_050,old_*,秩相关复合,src/mlquant/features/_factors_old.py,269,volume+vwap,2,N,VWAP,daily.vol(手→股); daily.amount÷daily.vol(派生)
+old_051,old_*,秩相关复合,src/mlquant/features/_factors_old.py,281,close,1,N,OHLCV,daily.close
+old_052,old_*,秩相关复合,src/mlquant/features/_factors_old.py,290,high+low+close,3,N,OHLCV,daily.high; daily.low; daily.close
+old_053,old_*,秩相关复合,src/mlquant/features/_factors_old.py,303,close,1,N,OHLCV,daily.close
+old_054,old_*,秩相关复合,src/mlquant/features/_factors_old.py,312,open+close,2,N,OHLCV,daily.open; daily.close
+old_055,old_*,秩相关复合,src/mlquant/features/_factors_old.py,326,high+low+close+volume,4,N,OHLCV,daily.high; daily.low; daily.close; daily.vol(手→股)
+old_056,old_*,秩相关复合,src/mlquant/features/_factors_old.py,340,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+old_057,old_*,秩相关复合,src/mlquant/features/_factors_old.py,356,close,1,N,OHLCV,daily.close
+old_058,old_*,秩相关复合,src/mlquant/features/_factors_old.py,364,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+old_059,old_*,秩相关复合,src/mlquant/features/_factors_old.py,372,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+old_060,old_*,秩相关复合,src/mlquant/features/_factors_old.py,382,open+close,2,N,OHLCV,daily.open; daily.close
+old_061,old_*,秩相关复合,src/mlquant/features/_factors_old.py,397,vwap,1,N,VWAP,daily.amount÷daily.vol(派生)
+old_062,old_*,秩相关复合,src/mlquant/features/_factors_old.py,405,volume+vwap,2,N,VWAP,daily.vol(手→股); daily.amount÷daily.vol(派生)
+old_063,old_*,秩相关复合,src/mlquant/features/_factors_old.py,414,volume+vwap,2,N,VWAP,daily.vol(手→股); daily.amount÷daily.vol(派生)
+old_064,old_*,秩相关复合,src/mlquant/features/_factors_old.py,425,open+low+volume,3,N,OHLCV,daily.open; daily.low; daily.vol(手→股)
+old_065,old_*,秩相关复合,src/mlquant/features/_factors_old.py,437,open+volume+vwap,3,N,VWAP,daily.open; daily.vol(手→股); daily.amount÷daily.vol(派生)
+old_066,old_*,秩相关复合,src/mlquant/features/_factors_old.py,448,vwap,1,N,VWAP,daily.amount÷daily.vol(派生)
+old_067,old_*,秩相关复合,src/mlquant/features/_factors_old.py,455,high+volume+vwap,3,N,VWAP,daily.high; daily.vol(手→股); daily.amount÷daily.vol(派生)
+old_068,old_*,秩相关复合,src/mlquant/features/_factors_old.py,468,high+close+volume,3,N,OHLCV,daily.high; daily.close; daily.vol(手→股)
+old_069,old_*,秩相关复合,src/mlquant/features/_factors_old.py,480,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+old_070,old_*,秩相关复合,src/mlquant/features/_factors_old.py,492,vwap,1,N,VWAP,daily.amount÷daily.vol(派生)
+old_071,old_*,秩相关复合,src/mlquant/features/_factors_old.py,499,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+old_072,old_*,秩相关复合,src/mlquant/features/_factors_old.py,509,low+volume+vwap,3,N,VWAP,daily.low; daily.vol(手→股); daily.amount÷daily.vol(派生)
+old_073,old_*,秩相关复合,src/mlquant/features/_factors_old.py,526,vwap,1,N,VWAP,daily.amount÷daily.vol(派生)
+old_074,old_*,秩相关复合,src/mlquant/features/_factors_old.py,535,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+old_075,old_*,秩相关复合,src/mlquant/features/_factors_old.py,544,close+volume+vwap,3,N,VWAP,daily.close; daily.vol(手→股); daily.amount÷daily.vol(派生)
+old_076,old_*,秩相关复合,src/mlquant/features/_factors_old.py,559,volume+vwap,2,N,VWAP,daily.vol(手→股); daily.amount÷daily.vol(派生)
+original_001,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,16,close,1,N,OHLCV,daily.close
+original_002,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,25,close,1,N,OHLCV,daily.close
+original_003,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,33,close,1,N,OHLCV,daily.close
+original_004,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,41,close,1,N,OHLCV,daily.close
+original_005,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,47,volume,1,N,OHLCV,daily.vol(手→股)
+original_006,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,53,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+original_007,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,59,close,1,N,OHLCV,daily.close
+original_008,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,65,volume,1,N,OHLCV,daily.vol(手→股)
+original_009,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,71,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+original_010,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,77,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+original_011,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,83,close,1,N,OHLCV,daily.close
+original_012,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,89,volume,1,N,OHLCV,daily.vol(手→股)
+original_013,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,95,close,1,N,OHLCV,daily.close
+original_014,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,101,volume,1,N,OHLCV,daily.vol(手→股)
+original_015,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,107,close,1,N,OHLCV,daily.close
+original_016,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,115,close,1,N,OHLCV,daily.close
+original_017,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,123,close,1,N,OHLCV,daily.close
+original_018,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,131,close,1,N,OHLCV,daily.close
+original_019,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,139,close,1,N,OHLCV,daily.close
+original_020,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,147,close,1,N,OHLCV,daily.close
+original_021,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,155,close,1,N,OHLCV,daily.close
+original_022,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,163,close,1,N,OHLCV,daily.close
+original_023,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,171,close,1,N,OHLCV,daily.close
+original_024,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,179,close,1,N,OHLCV,daily.close
+original_025,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,187,close,1,N,OHLCV,daily.close
+original_026,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,195,close,1,N,OHLCV,daily.close
+original_027,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,203,close,1,N,OHLCV,daily.close
+original_028,original_*,收盘/量直接统计,src/mlquant/features/_factors_original.py,211,close,1,N,OHLCV,daily.close
+stock_001,stock_*,个股派生 (波动/CCI/区间),src/mlquant/features/_factors_stock.py,19,open+close+volume,3,N,OHLCV,daily.open; daily.close; daily.vol(手→股)
+stock_002,stock_*,个股派生 (波动/CCI/区间),src/mlquant/features/_factors_stock.py,29,open+close+volume,3,N,OHLCV,daily.open; daily.close; daily.vol(手→股)
+stock_003,stock_*,个股派生 (波动/CCI/区间),src/mlquant/features/_factors_stock.py,39,close+vwap,2,N,VWAP,daily.close; daily.amount÷daily.vol(派生)
+stock_004,stock_*,个股派生 (波动/CCI/区间),src/mlquant/features/_factors_stock.py,53,close,1,N,OHLCV,daily.close
+stock_005,stock_*,个股派生 (波动/CCI/区间),src/mlquant/features/_factors_stock.py,63,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+stock_006,stock_*,个股派生 (波动/CCI/区间),src/mlquant/features/_factors_stock.py,71,close,1,N,OHLCV,daily.close
+stock_007,stock_*,个股派生 (波动/CCI/区间),src/mlquant/features/_factors_stock.py,79,low+close+volume,3,N,OHLCV,daily.low; daily.close; daily.vol(手→股)
+stock_008,stock_*,个股派生 (波动/CCI/区间),src/mlquant/features/_factors_stock.py,96,open+close,2,N,OHLCV,daily.open; daily.close
+stock_009,stock_*,个股派生 (波动/CCI/区间),src/mlquant/features/_factors_stock.py,112,close,1,N,OHLCV,daily.close
+stock_010,stock_*,个股派生 (波动/CCI/区间),src/mlquant/features/_factors_stock.py,124,volume+vwap,2,Y,VWAP+成交额,daily.vol(手→股); daily.amount÷daily.vol(派生); daily.amount(千元→元)
+stock_011,stock_*,个股派生 (波动/CCI/区间),src/mlquant/features/_factors_stock.py,132,high+low+close,3,N,OHLCV,daily.high; daily.low; daily.close
+stock_012,stock_*,个股派生 (波动/CCI/区间),src/mlquant/features/_factors_stock.py,144,volume,1,N,OHLCV,daily.vol(手→股)
+stock_013,stock_*,个股派生 (波动/CCI/区间),src/mlquant/features/_factors_stock.py,157,close+vwap,2,N,VWAP,daily.close; daily.amount÷daily.vol(派生)
+stock_014,stock_*,个股派生 (波动/CCI/区间),src/mlquant/features/_factors_stock.py,169,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+stock_015,stock_*,个股派生 (波动/CCI/区间),src/mlquant/features/_factors_stock.py,177,close+volume+vwap,3,Y,VWAP+成交额,daily.close; daily.vol(手→股); daily.amount÷daily.vol(派生); daily.amount(千元→元)
+stock_016,stock_*,个股派生 (波动/CCI/区间),src/mlquant/features/_factors_stock.py,193,high+low+close,3,N,OHLCV,daily.high; daily.low; daily.close
+stock_017,stock_*,个股派生 (波动/CCI/区间),src/mlquant/features/_factors_stock.py,216,high+close+volume+vwap,4,N,VWAP,daily.high; daily.close; daily.vol(手→股); daily.amount÷daily.vol(派生)
+stock_018,stock_*,个股派生 (波动/CCI/区间),src/mlquant/features/_factors_stock.py,227,close,1,N,OHLCV,daily.close
+stock_019,stock_*,个股派生 (波动/CCI/区间),src/mlquant/features/_factors_stock.py,238,open+high+low+close,4,N,OHLCV,daily.open; daily.high; daily.low; daily.close
+stock_020,stock_*,个股派生 (波动/CCI/区间),src/mlquant/features/_factors_stock.py,247,close+volume,2,N,OHLCV,daily.close; daily.vol(手→股)
+stock_021,stock_*,个股派生 (波动/CCI/区间),src/mlquant/features/_factors_stock.py,255,high+low,2,N,OHLCV,daily.high; daily.low
+stock_022,stock_*,个股派生 (波动/CCI/区间),src/mlquant/features/_factors_stock.py,264,high+low+close+volume,4,N,OHLCV,daily.high; daily.low; daily.close; daily.vol(手→股)

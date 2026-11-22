@@ -27,6 +27,10 @@ report.html
 !/figures/WORK-449/
 !/figures/WORK-449/*.png
 
+# ---- WORK-516 例外：213 因子字段需求清单的机器可读版必须入库 ----
+# 由 scripts/enumerate_mlquant_factors.py 生成，是主交付的可核验附件
+!docs/mlquant_factor_fields.csv
+
 # ---- 复跑产物（probe 脚本默认输出目录）：不入库，避免覆盖已入库的实测证据 ----
 experiments/*/rerun/
 
