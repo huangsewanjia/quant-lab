@@ -41,6 +41,7 @@ ROW_CAPS: dict[str, int] = {
     "index_daily": 20000,
     "namechange": 10000,
     "dividend": 2000,
+    "index_weight": 7000,
     "income": 170,
     "balancesheet": 100,
     "cashflow": 100,

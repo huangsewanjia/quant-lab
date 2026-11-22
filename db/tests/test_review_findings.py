@@ -121,3 +121,32 @@ def test_schema_has_no_drop_statements():
     sql = common.SCHEMA_SQL.read_text(encoding="utf-8")
     assert "DROP TABLE" not in sql
     assert sql.count("CREATE TABLE IF NOT EXISTS") == len(common.TABLE_PK)
+
+
+def test_an_exhausted_slice_budget_does_not_write_empty_partitions(qdb):
+    """A slice that runs out of budget has NOT checked the remaining days.
+
+    Writing them as empty partitions would mark them complete and every later
+    run would skip them for good - the days that the upstream actually has
+    data for would be lost silently.
+    """
+    import time
+
+    days = ["20200102", "20200103"]
+    _seed_calendar(qdb, days)
+
+    class _OkClient:
+        def call(self, api, params, **kwargs):
+            return (
+                ["ts_code", "trade_date", "close"],
+                [["600000.SH", day, 10.5] for day in days],
+            )
+
+    fetcher = fetch.Fetcher(
+        _OkClient(), "20200101", "20200131", resume=True, deadline=time.monotonic() - 1
+    )
+    done, failures = fetcher.fetch_range(fetch.DATASETS["daily"], concurrency=1)
+    assert done == 0
+    for day in days:
+        assert not qdb.manifest_ok("daily", day), f"{day} must not be marked complete"
+        assert not qdb.partition_file("daily", day).exists()

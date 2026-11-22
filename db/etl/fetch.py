@@ -505,6 +505,9 @@ class Fetcher:
                 "[slice] 时间预算用尽，未取完的窗口留给下一次续跑",
                 flush=True,
             )
+        # False means the window tree was NOT exhausted: the caller must not
+        # treat the untouched trading days as "checked and empty".
+        return not stopped
 
     # -- calendar -------------------------------------------------------- #
 
@@ -649,13 +652,23 @@ class Fetcher:
             if self.expired():
                 print("[slice] 时间预算用尽，剩余分区留给下一次续跑", flush=True)
                 break
-            self._windows(
+            complete = self._windows(
                 spec,
                 {"start_date": run[0], "end_date": run[-1]},
                 ROW_CAPS.get(spec.api),
                 on_complete,
                 on_failure,
             )
+            if not complete:
+                # The slice budget ran out mid-tree. The days that were never
+                # requested must NOT be written as empty partitions: they were
+                # not checked, they were skipped, and an empty partition would
+                # make every later run skip them for good.
+                print(
+                    f"[slice] {spec.name} {run[0]}..{run[-1]} 未取完，留给下一次续跑",
+                    flush=True,
+                )
+                continue
             # A trading day that returns no rows still gets an explicit (empty)
             # partition, so "checked and empty" is distinguishable from
             # "never fetched".
@@ -1010,6 +1023,8 @@ class Fetcher:
                 done += 1
                 continue
             frames = []
+            months_requested = 0
+            months_with_rows = 0
             year, month = int(self.start[:4]), int(self.start[4:6])
             end_year, end_month = int(self.end[:4]), int(self.end[4:6])
             while (year, month) <= (end_year, end_month):
@@ -1019,6 +1034,7 @@ class Fetcher:
                     year, month = _next_month(year, month)
                     continue
                 try:
+                    months_requested += 1
                     frame = self.client.fetch_window(
                         spec.api,
                         {"index_code": index_code, "start_date": lo, "end_date": hi},
@@ -1027,6 +1043,7 @@ class Fetcher:
                         cap=ROW_CAPS.get(spec.api),
                     )
                     if not frame.empty:
+                        months_with_rows += 1
                         frames.append(frame)
                 except Exception as exc:  # noqa: BLE001
                     failures.append(
@@ -1058,7 +1075,9 @@ class Fetcher:
                         "freq": "monthly",
                         "start_date": self.start,
                         "end_date": self.end,
-                    }
+                    },
+                    "months_requested": months_requested,
+                    "months_with_rows": months_with_rows,
                 },
             )
             done += 1
