@@ -90,6 +90,7 @@ def main():
     ap.add_argument("--exp", default="WORK-503")
     ap.add_argument("--sleep", type=float, default=0.05)
     ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--workers", type=int, default=3)
     args = ap.parse_args()
 
     repo = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -116,14 +117,15 @@ def main():
     print(f"{len(codes)} codes, {len(todo)} to fetch", flush=True)
 
     t0 = time.time()
-    for i, code in enumerate(todo, 1):
-        results.append(fetch_one(code, out_dir))
-        if i % 50 == 0 or i == len(todo):
-            bad = sum(1 for r in results if not r["ok"])
-            el = time.time() - t0
-            print(f"{i}/{len(todo)} fail={bad} {el:.0f}s "
-                  f"eta={el / i * (len(todo) - i):.0f}s", flush=True)
-        time.sleep(args.sleep)
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=args.workers) as ex:
+        for i, rec in enumerate(ex.map(lambda c: fetch_one(c, out_dir), todo), 1):
+            results.append(rec)
+            if i % 50 == 0 or i == len(todo):
+                bad = sum(1 for r in results if not r["ok"])
+                el = time.time() - t0
+                print(f"{i}/{len(todo)} fail={bad} {el:.0f}s "
+                      f"eta={el / i * (len(todo) - i):.0f}s", flush=True)
 
     results.sort(key=lambda r: r["code"])
     manifest = {
