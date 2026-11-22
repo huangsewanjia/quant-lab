@@ -168,12 +168,34 @@ def main():
     in_pit = pit_test.T.reshape(-1)
     rows_with_bar = float(np.mean(~st["close_raw"].isna().to_numpy()[in_pit]))
     tradable = float(np.mean(trad_test[in_pit]))
+
+    # PIT 成分覆盖率（预注册 v1.0 §9 失败判据 1 的另一半；口径见 v1.3 §6）：
+    # 测试段内「按 PIT 名单应持有的 (交易日, 股票) 对」中，**同时**存在于样本
+    # 索引与行情快照（当天确实有 bar）的比例。名字进了名单却既没有样本行、
+    # 又没有行情，就说明这块数据不可用。
+    samples = pd.read_parquet(os.path.join(DATA, "ds", "sample_index.parquet"))
+    samples["datetime"] = pd.to_datetime(samples["datetime"])
+    test_samples = samples[samples["segment"] == "test"]
+    n_days, n_inst = len(cal[test_mask]), len(pit.columns)
+    sample_idx = pd.MultiIndex.from_frame(
+        test_samples[["datetime", "instrument"]].drop_duplicates())
+    pit_idx = pd.MultiIndex.from_product([cal[test_mask], pit.columns],
+                                         names=["datetime", "instrument"])
+    in_sample = np.asarray(pit_idx.isin(sample_idx), dtype=bool)
+    has_bar = (~st["close_raw"].isna().to_numpy()
+               .reshape(n_inst, n_days).T)
+    pit_cov = float(np.mean(in_sample & has_bar & pit_test))
     out["I5_test_coverage"] = {
         "test_days": int(test_mask.sum()),
         "pit_pairs": int(pit_test.sum()),
         "rows_with_bar": rows_with_bar, "tradable_share": tradable,
+        "pit_coverage": pit_cov,
+        "pit_coverage_threshold": 0.90,
         "threshold": 0.85,
-        "passed": tradable >= 0.85 and rows_with_bar >= 0.85,
+        "pit_coverage_definition": "测试段内 PIT (交易日, 股票) 对中，"
+                                   "同时存在于样本索引与行情快照的比例",
+        "passed": bool(tradable >= 0.85 and rows_with_bar >= 0.85
+                       and pit_cov >= 0.90),
     }
 
     out["all_passed"] = all(v.get("passed", False) for k, v in out.items()

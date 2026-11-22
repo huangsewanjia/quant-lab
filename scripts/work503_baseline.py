@@ -93,12 +93,18 @@ def main():
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(
         opt, T_max=max(1, args.epochs))
 
+    # ONE generator for the whole run.  Re-seeding it inside `batches()`
+    # would make every epoch see exactly the same day order — reproducible,
+    # but the shuffling degenerates and the baseline trains worse than it
+    # should.  With a single generator the run is still bit-reproducible from
+    # the seed (the state advances deterministically).
+    rng = np.random.default_rng(args.seed)
+
     def batches(ds, shuffle):
         idx = ds.index.reset_index()
         idx["date"] = idx["datetime"]
         groups = list(idx.groupby("date", sort=True).groups.values())
         if shuffle:
-            rng = np.random.default_rng(args.seed)
             rng.shuffle(groups)
         for g in groups:
             rows = [i for i in g]

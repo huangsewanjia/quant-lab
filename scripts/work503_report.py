@@ -181,7 +181,7 @@ def fig_delta(d, path):
     ax.set_xlim(-0.75, max(0.25, paper + 0.06, delta + 0.06))
     ax.set_ylim(0, 1.0)
     ax.set_yticks([])
-    ax.set_xlabel("delta_ic = (RankIC_full - RankIC_no_vq) / RankIC_full")
+    ax.set_xlabel("delta_drop = (RankIC_no_vq - RankIC_full) / RankIC_full")
     ax.set_title("The pre-registered decision bands and where this study lands")
     for s_ in ("left", "right", "top"):
         ax.spines[s_].set_visible(False)
@@ -381,6 +381,16 @@ def fmt(v, nd=4, dash="—"):
         return str(v)
 
 
+def _finite(v) -> bool:
+    """True only for a usable number (not None / NaN / inf)."""
+    if v is None:
+        return False
+    try:
+        return bool(np.isfinite(float(v)))
+    except Exception:
+        return False
+
+
 def pct(v, nd=1):
     if v is None or (isinstance(v, float) and np.isnan(v)):
         return "—"
@@ -515,15 +525,15 @@ def build_html(d, repo, exp_dir, fig_dir):
 <h2><span class="num">摘要</span>一句话结论</h2>
 
 <p class="lead">在 PIT 的中证 300 成分股上、用公开日频数据重跑 PRISM-VQ 的四档消融（完整模型 / 去码本 / 去 MoE / 去先验，各 2 个种子，测试段 2022-01-04 ~ 2024-12-31），
-<strong>主检验量 Δ_ic = {pct(h1['delta_ic'])}</strong>（预注册阈值：{pct(-0.40)} ~ {pct(-0.15)} 判「进」，{pct(-0.10)} ~ {pct(+0.10)} 判「退」），
+<strong>主检验量 Δ_drop = {pct(h1['delta_drop'])}</strong>（预注册阈值：{pct(-0.40)} ~ {pct(-0.15)} 判「进」，{pct(-0.10)} ~ {pct(+0.10)} 判「退」），
 判词为 <strong>「{v['verdict']}」</strong>。
-论文 Table 2 的对应值是 {pct(h1['paper_delta_ic'])}。
+论文 Table 2 的对应值是 {pct(h1['paper_delta_ic'])}（同一口径）；按派单卡字面式 Δ_formula = (RankIC_full − RankIC_no_vq)/RankIC_full，本单为 {pct(h1.get('delta_formula'))}、论文为 {pct(h1.get('paper_delta_formula'))}，两者互为相反数、判词集合逐点相同（预注册 v1.3 §3–§4）。
 净 SR 中位数 {fmt(h3['sr_median'], 3)}（论文 {fmt(h3['paper_sr'], 4)}），日均单边换手 {fmt(h3['per_seed'][str(v['seeds'][0])]['turnover'], 3) if h3['per_seed'] else '—'}（双边口径与论文的 {fmt(h3['paper_turnover'], 4)} 同量级）。</p>
 
 <div class="verdict {'negative' if neg else ''}">
   <h3>判词</h3>
   <div class="word">{v['verdict']}</div>
-  <div class="caveat">判词只由主检验量 H1 决定（Δ_ic）；H2（相对固定基线 GRU 的增量显著性）与 H3（可交易性）并列报告，不单独决定进退。
+  <div class="caveat">判词只由主检验量 H1 决定（Δ_drop）；H2（相对固定基线 GRU 的增量显著性）与 H3（可交易性）并列报告，不单独决定进退。
   失败判据命中：{('、'.join(v['failure_criteria_hit']) if v['failure_criteria_hit'] else '无')}。</div>
 </div>
 
@@ -630,10 +640,10 @@ def build_html(d, repo, exp_dir, fig_dir):
 <thead><tr><th>档</th><th class="num">本单 RankIC（2 种子中位数）</th><th class="num">论文 RankIC</th><th class="num">相对论文</th></tr></thead>
 <tbody>{''.join(paper_rows)}</tbody></table>
 
-<p class="lead">判词落在 <strong>{pct(h1['delta_ic'])}</strong> 这一格：
-{'落在「进」区间 [−40%, −15%]，即论文关于码本有效性的结论在本单的数据与协议下<strong>复现成立</strong>。' if -0.40 <= h1['delta_ic'] <= -0.15 else ''}
-{'落在「退」区间 [−10%, +10%]，即在本单的 A 股数据与自建先验下，<strong>码本没有带来可测量的增量</strong>。' if -0.10 <= h1['delta_ic'] <= 0.10 else ''}
-{'落在中间区间，判「部分复现」：必须同时说明偏差来源与翻案条件。' if not (-0.40 <= h1['delta_ic'] <= -0.15 or -0.10 <= h1['delta_ic'] <= 0.10) else ''}</p>
+<p class="lead">判词落在 <strong>{pct(h1['delta_drop'])}</strong> 这一格：
+{('落在「进」区间 [−40%, −15%]，即论文关于码本有效性的结论在本单的数据与协议下<strong>复现成立</strong>。' if (-0.40 <= h1['delta_drop'] <= -0.15) else '') if _finite(h1.get('delta_drop')) else '<strong>Δ_drop 尚不可计算</strong>（缺少 full 或 no_vq 的指标），本节不给出判词。'}
+{('落在「退」区间 [−10%, +10%]，即在本单的 A 股数据与自建先验下，<strong>码本没有带来可测量的增量</strong>。' if (-0.10 <= h1['delta_drop'] <= 0.10) else '') if _finite(h1.get('delta_drop')) else ''}
+{('落在中间区间，判「部分复现」：必须同时说明偏差来源与翻案条件。' if not (-0.40 <= h1['delta_drop'] <= -0.15 or -0.10 <= h1['delta_drop'] <= 0.10) else '') if _finite(h1.get('delta_drop')) else ''}</p>
 
 <h2><span class="num">5</span>并列检验 H2：相对固定基线 GRU 的增量</h2>
 

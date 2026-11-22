@@ -253,7 +253,9 @@ def backtest(pred: pd.DataFrame, market: Market, buy_bps: float = 5.0,
         # --- mask_contract.md §7: the assertions have to fire for real.
         # WORK503_ASSERT_VIOLATION=1 makes the engine attempt one trade the
         # mask forbids; the assertion must then raise.
-        if violation and not violation_fired:
+        # WORK503_ASSERT_VIOLATION=weight removes the cash cap of one buy so
+        # that the weight/ledger invariant (assertion 4) can be triggered.
+        if violation and not violation_fired and violation != "weight":
             g0 = by_date[d]
             for cand in g0["instrument"]:
                 j = market.inst_pos[cand]
@@ -275,6 +277,11 @@ def backtest(pred: pd.DataFrame, market: Market, buy_bps: float = 5.0,
             assert_not_limit_up(inst, t, market, "buy")
             assert_price_available(inst, t, market, px, "buy")
             amount = min(tgt, cash / (1.0 + buy_cost))
+            if violation == "weight" and not violation_fired:
+                # deliberately break the cash cap so that the weight/ledger
+                # invariant below fires (mask_contract §7 assertion 4)
+                violation_fired = True
+                amount = tgt
             if amount <= 0:
                 break
             n_sh = amount / (px * (1.0 + buy_cost))
@@ -288,7 +295,25 @@ def backtest(pred: pd.DataFrame, market: Market, buy_bps: float = 5.0,
         pending = []
 
         # ---- 2. mark to market at the close -------------------------------
-        value = cash + sum(sh * market.close(inst, t) for inst, sh in shares.items())
+        pos_value = sum(sh * market.close(inst, t) for inst, sh in shares.items())
+        value = cash + pos_value
+        # --- mask_contract.md §7 assertion 4 (the real version) -----------
+        # The literal form `sum([1/n]*n) == 1` is a tautology: it can never
+        # fail, so it detects nothing.  What is actually checkable is the
+        # ledger: the invested weight must not exceed 1 (no leverage / no
+        # negative cash) and the cash share must stay non-negative.  A buggy
+        # order sizing (e.g. buying more than the cash allows) breaks it.
+        if value > 0:
+            invested = pos_value / value
+            if invested > 1.0 + 1e-9:
+                raise MaskAssertionError(
+                    f"assert_weight_sum: invested weight {invested!r} > 1 on "
+                    f"{pd.Timestamp(d).date()} (positions {pos_value!r} vs "
+                    f"value {value!r})")
+            if cash < -1e-9 * max(value, 1.0):
+                raise MaskAssertionError(
+                    f"assert_weight_sum: negative cash {cash!r} on "
+                    f"{pd.Timestamp(d).date()} (value {value!r})")
         if prev_value is not None and prev_value > 0:
             r = value / prev_value - 1.0
             daily.append({"datetime": d, "value": value, "ret": r,
@@ -359,8 +384,24 @@ def backtest(pred: pd.DataFrame, market: Market, buy_bps: float = 5.0,
         if not target:
             continue
         w = 1.0 / len(target)
-        # mask_contract.md §7 断言 4：组合权重和必须为 1。
-        # 用 raise 而不是裸 assert —— 裸 assert 会被 `python -O` 关掉。
+        # mask_contract.md §7 断言 4 的**目标构造**侧检查（可失败的版本）：
+        # 目标名单必须只由「存续股 + 当日可买候选」构成、规模不超过 K、
+        # 且不重复；权重之和由 w = 1/len(target) 构造性保证，此处只做防守性
+        # 复核。真正的账本侧检查在每日收盘盯市处（invested ≤ 1、现金非负）。
+        if len(set(target)) != len(target):
+            raise MaskAssertionError(
+                f"assert_weight_sum: duplicated name in the target set on "
+                f"{pd.Timestamp(d).date()}")
+        if len(target) > min(k, len(universe)):
+            raise MaskAssertionError(
+                f"assert_weight_sum: target holds {len(target)} names > K on "
+                f"{pd.Timestamp(d).date()}")
+        bad_target = [s for s in target
+                      if s not in universe and s not in shares]
+        if bad_target:
+            raise MaskAssertionError(
+                f"assert_weight_sum: target names {bad_target[:3]} are neither "
+                f"in the PIT universe nor held on {pd.Timestamp(d).date()}")
         if abs(sum([w] * len(target)) - 1.0) >= 1e-9:
             raise MaskAssertionError(
                 f"assert_weight_sum: weights sum to "

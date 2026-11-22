@@ -77,14 +77,22 @@ def block_bootstrap_ci(diff: np.ndarray, stat=np.mean, n_boot=BOOT,
             "n_boot": int(n_boot), "block": block}
 
 
-def sr_stat(x: np.ndarray) -> float:
-    """Annualised Sharpe ratio of a daily log-return vector."""
-    if len(x) < 2:
-        return np.nan
-    sd = float(np.std(x, ddof=0))
-    if sd == 0:
-        return np.nan
-    return float(np.sqrt(252.0) * float(np.mean(x)) / sd)
+def sr_stat(x, axis=-1):
+    """Annualised Sharpe ratio of a daily log-return vector.
+
+    `axis` makes it usable on the bootstrap matrix: block_bootstrap_ci calls
+    `stat(x)` for the point estimate (1-D) and `stat(samples, axis=1)` for the
+    resampled matrix (2-D), so the SR must be computed **row-wise** —
+    taking the mean/std of the whole matrix would collapse all 10000
+    resamples to one constant and produce a zero-width CI.
+    """
+    x = np.asarray(x, dtype="float64")
+    mean = np.mean(x, axis=axis)
+    sd = np.std(x, axis=axis, ddof=0)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        sr = np.sqrt(252.0) * mean / sd
+    sr = np.asarray(sr, dtype="float64")
+    return float(sr) if sr.ndim == 0 else sr
 
 
 def load_daily(key: str):
@@ -135,33 +143,46 @@ def main():
            "runs": per_run}
 
     # ---- H1 -------------------------------------------------------------
+    # 预注册 v1.3 §3：判词量取 Δ_drop = (RankIC_no_vq − RankIC_full)/RankIC_full，
+    # 判词带逐字不动（进 [−40%,−15%] / 退 [−10%,+10%]）；同时并列报告派单卡
+    # 字面式 Δ_formula = (RankIC_full − RankIC_no_vq)/RankIC_full = −Δ_drop。
+    # 两种口径的判词集合逐点相同（v1.3 §4）。
     ric_full, ric_full_all = med("full", "rankic")
     ric_novq, ric_novq_all = med("no_vq", "rankic")
-    delta_ic = (ric_full - ric_novq) / ric_full if ric_full else np.nan
+    delta_drop = (ric_novq - ric_full) / ric_full if ric_full else np.nan
+    delta_formula = (ric_full - ric_novq) / ric_full if ric_full else np.nan
     per_seed_delta = {}
     for s in seeds:
         a = per_run.get(f"full_s{s}", {}).get("rankic")
         b = per_run.get(f"no_vq_s{s}", {}).get("rankic")
         if a is not None and b is not None and a != 0:
-            per_seed_delta[str(s)] = (a - b) / a
-    if np.isnan(delta_ic):
+            per_seed_delta[str(s)] = (b - a) / a
+    if np.isnan(delta_drop):
         verdict = "无法判定（缺少 full / no_vq 指标）"
-    elif -0.40 <= delta_ic <= -0.15:
+    elif -0.40 <= delta_drop <= -0.15:
         verdict = "进：码本有效性复现成立"
-    elif -0.10 <= delta_ic <= 0.10:
+    elif -0.10 <= delta_drop <= 0.10:
         verdict = "退：未复现（码本无增量）"
     else:
         verdict = "部分复现（必须写清偏差来源与翻案条件）"
     out["H1"] = {
+        "delta_ic": delta_drop,            # 判词用（= Δ_drop，预注册 v1.3）
+        "delta_drop": delta_drop,
+        "delta_formula": delta_formula,    # 派单卡字面式，= −Δ_drop
+        "convention": "判词量 Δ_drop = (RankIC_no_vq − RankIC_full) / RankIC_full；"
+                      "同时报告 Δ_formula = (RankIC_full − RankIC_no_vq) / RankIC_full "
+                      "= −Δ_drop（预注册 v1.3 §3）",
         "rankic_full_median": ric_full, "rankic_full_per_seed": ric_full_all,
         "rankic_no_vq_median": ric_novq, "rankic_no_vq_per_seed": ric_novq_all,
-        "delta_ic": delta_ic, "delta_ic_per_seed": per_seed_delta,
-        "paper_delta_ic": (PAPER_ABLATION["full"] - PAPER_ABLATION["no_vq"]) /
+        "delta_ic_per_seed": per_seed_delta,
+        "paper_delta_ic": (PAPER_ABLATION["no_vq"] - PAPER_ABLATION["full"]) /
                           PAPER_ABLATION["full"],
+        "paper_delta_formula": (PAPER_ABLATION["full"] - PAPER_ABLATION["no_vq"]) /
+                               PAPER_ABLATION["full"],
         "bands": {"进": [-0.40, -0.15], "退": [-0.10, 0.10]},
         "verdict": verdict,
         "sign_note": (
-            "RankIC_full 为负时，Δ_ic 的符号会随分母翻转、不可按原阈值直接读；"
+            "RankIC_full 为负时，Δ_drop 的符号会随分母翻转、不可按原阈值直接读；"
             f"本单 RankIC_full 中位数 = {ric_full:.4f}"
             + ("（为负，需按符号翻转口径另作判断，判词须写明）。"
                if ric_full < 0 else "（为正，阈值按原口径直接读）。")),
@@ -197,22 +218,23 @@ def main():
     h3 = {}
     for s in seeds:
         d = load_daily(f"full_s{s}")
-        if d is None:
+        rec = per_run.get(f"full_s{s}")
+        if d is None or rec is None:
             continue
         lg = np.log1p(d["ret"].to_numpy())
         ci = block_bootstrap_ci(
             lg, stat=sr_stat,
             keep=os.path.join(EXP, "preds", f"h3_sr_bootstrap_s{s}.npy"))
         h3[str(s)] = {
-            "sr": per_run[f"full_s{s}"]["sr"],
-            "ar": per_run[f"full_s{s}"]["ar"],
-            "mdd": per_run[f"full_s{s}"]["mdd"],
-            "turnover": per_run[f"full_s{s}"]["turnover"],
-            "turnover_both_sides": per_run[f"full_s{s}"].get("turnover_both_sides"),
+            "sr": rec.get("sr"),
+            "ar": rec.get("ar"),
+            "mdd": rec.get("mdd"),
+            "turnover": rec.get("turnover"),
+            "turnover_both_sides": rec.get("turnover_both_sides"),
             "sr_ci": ci,
-            "mean_holdings": per_run[f"full_s{s}"].get("mean_holdings"),
-            "alpha_ew": per_run[f"full_s{s}"].get("alpha_equal_weight"),
-            "alpha_cw": per_run[f"full_s{s}"].get("alpha_cap_weighted"),
+            "mean_holdings": rec.get("mean_holdings"),
+            "alpha_ew": rec.get("alpha_equal_weight"),
+            "alpha_cw": rec.get("alpha_cap_weighted"),
         }
     sr_med = med("full", "sr")
     # 可交易性规则（派单卡原文）：净 SR 的 95% CI 下界 > 0 且相对论文缩水 ≤60%
@@ -247,12 +269,22 @@ def main():
     # ---- the five pre-registered failure criteria ----------------------
     fc = {}
     ic = json.load(open(os.path.join(exp_dir, "integrity_check.json")))
+    i5 = ic["I5_test_coverage"]
+    # 预注册 v1.0 §9 判据 1 有两个触发条件：PIT 成分覆盖率 <90%，或日频有效
+    # bar <85%。v1.3 §6 明确了前者的测量口径（由 check_integrity.py 计算）。
+    pit_cov = i5.get("pit_coverage")
     fc["1_data_usable"] = {
-        "tradable_share_test": ic["I5_test_coverage"]["tradable_share"],
-        "rows_with_bar_test": ic["I5_test_coverage"]["rows_with_bar"],
-        "threshold": 0.85,
-        "hit": not (ic["I5_test_coverage"]["tradable_share"] >= 0.85 and
-                    ic["I5_test_coverage"]["rows_with_bar"] >= 0.85),
+        "tradable_share_test": i5["tradable_share"],
+        "rows_with_bar_test": i5["rows_with_bar"],
+        "bar_threshold": 0.85,
+        "pit_coverage_test": pit_cov,
+        "pit_coverage_threshold": 0.90,
+        "hit": bool((i5["tradable_share"] < 0.85 or
+                     i5["rows_with_bar"] < 0.85 or
+                     (pit_cov is not None and pit_cov < 0.90))),
+        "note": ("PIT 覆盖率未测得（integrity_check.json 无 pit_coverage 字段）——"
+                 "按 v1.3 §6 的口径补测后再判"
+                 if pit_cov is None else ""),
     }
     probe = json.load(open(os.path.join(exp_dir, "data_probe.json")))
     bad = [e for e in probe.get("endpoints", []) if e.get("status") not in
@@ -262,10 +294,14 @@ def main():
         len(per_seed_delta) >= 2
     fc["3_both_seeds_flat"] = {"per_seed_delta": per_seed_delta, "hit": both_flat}
     fc["4_prereg_before_results"] = {
-        "hit": False, "note": "预注册 commit 06fd4a8 / v1.2 早于任何预测/回测产物"}
+        "hit": False,
+        "note": "预注册 commit 06fd4a8 / v1.2 早于任何预测/回测产物；"
+                "v1.3（符号口径修订）commit c10403a 亦早于正式回测产物"}
     audit_path = os.path.join(exp_dir, "audit_recompute.json")
+    audit_items = {}
     if os.path.exists(audit_path):
         a = json.load(open(audit_path))
+        audit_items = a.get("items", {})
         fc["5_recompute_agreement"] = {"n_mismatches": a["n_mismatches"],
                                        "tolerance": a["tolerance"],
                                        "hit": a["n_mismatches"] > 0}
@@ -277,11 +313,41 @@ def main():
     out["failure_criteria_hit"] = hits
     out["verdict"] = verdict
     if "3_both_seeds_flat" in hits:
-        out["verdict"] = "退：未复现（两个种子的 Δ_ic 都落在 [−10%, +10%]）"
+        out["verdict"] = "退：未复现（两个种子的 Δ_drop 都落在 [−10%, +10%]）"
     if sr_med[0] is not None and not np.isnan(sr_med[0]) and sr_med[0] < 0:
         out["verdict"] = "退：净 SR < 0（与 H1 无关，直接判退）"
     if "1_data_usable" in hits:
         out["verdict"] = "数据不可用：停手（失败判据 1）"
+    if "2_endpoints" in hits:
+        out["verdict"] = "停：失败判据 2（必需端点不可用且无合规替代）"
+    if fc["5_recompute_agreement"].get("hit"):
+        # 预注册 §9 判据 5：独立复算与建模侧相对差 > 1e-6 → **以复算值重出判定**，
+        # 并在报告里列出全部不一致项。
+        def _med(items, arm):
+            vals = [items[f"{arm}_s{s}"]["rankic"] for s in seeds
+                    if f"{arm}_s{s}" in items]
+            return float(np.median(vals)) if vals else np.nan
+
+        rf, rn = _med(audit_items, "full"), _med(audit_items, "no_vq")
+        mism = fc["5_recompute_agreement"]["n_mismatches"]
+        if rf:
+            dd = (rn - rf) / rf
+            if -0.40 <= dd <= -0.15:
+                v2 = "进：码本有效性复现成立"
+            elif -0.10 <= dd <= 0.10:
+                v2 = "退：未复现（码本无增量）"
+            else:
+                v2 = "部分复现（必须写清偏差来源与翻案条件）"
+            out["H1"]["delta_drop_recompute"] = dd
+            out["verdict"] = (f"以独立复算值重出判定（失败判据 5，{mism} 处不一致）："
+                              f"{v2}")
+        else:
+            out["verdict"] = (f"以独立复算值重出判定（失败判据 5，{mism} 处不一致）"
+                              f"——复算侧缺 full/no_vq，无法重出")
+        out["failure_criteria_5_detail"] = {
+            "n_mismatches": mism,
+            "rule": "以复算值重出判定，并在报告里列出全部不一致项",
+        }
 
     # ---- the human readable tables -------------------------------------
     rows = []
