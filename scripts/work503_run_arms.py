@@ -201,6 +201,21 @@ def main():
     torch.set_num_threads(args.threads)
     os.environ.setdefault("WANDB_MODE", "disabled")
     os.environ.setdefault("HYDRA_FULL_ERROR", "1")
+
+    # The upstream trainers log the codebook utilisation with
+    # `wandb.log({"Codebook Utilization": wandb.Image(plt)})` at the end of
+    # every epoch (trainer/train_vqvae.py:98).  Upstream runs them under a
+    # WandbLogger, which calls wandb.init() implicitly; our runner disables
+    # the logger, so the initialisation is done here instead (no network:
+    # WANDB_MODE=disabled).  Without it the stage-1 run dies at the end of
+    # the first epoch with "You must call wandb.init() before log()".
+    import wandb
+    try:
+        wandb.init(mode="disabled", project="WORK-503-PRISM-VQ",
+                   dir=os.path.join(REPO, "data", args.exp, "logs"))
+    except Exception as exc:                       # pragma: no cover
+        print(f"wandb.init failed ({exc}); stubbing wandb.log")
+        wandb.log = lambda *a, **k: None
     os.chdir(VENDOR)          # get_root_dir() / checkpoint paths
 
     exp_dir = os.path.join(REPO, "experiments", args.exp)
@@ -299,6 +314,10 @@ def main():
     if best2:
         m2 = type(m2).load_from_checkpoint(best2, config=cfg,
                                            T_max=n_batches * args.epochs)
+    # upstream stage2.py freezes the VQ-VAE before the inference
+    if hasattr(m2, "freeze_vqvae"):
+        m2.freeze_vqvae()
+    m2.eval()
     log["stage2_seconds"] = round(time.time() - t0, 1)
 
     # ---- inference ------------------------------------------------------

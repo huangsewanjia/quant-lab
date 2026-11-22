@@ -1,17 +1,33 @@
 #!/usr/bin/env python3
 """WORK-503 stage 3 — TopK-DropN backtest with costs, masks and benchmark alpha.
 
-Protocol (preregistration.md §6, mask_contract.md):
-  * daily rebalance, K = 30, N = 5, long only, equal weight
+Protocol (preregistration.md §6, preregistration_v1.1/v1.2, mask_contract.md):
+
+  * daily rebalance, K = 30, N = 5, long only, equal weight (1/K each)
   * sells execute at the close of t (cost 15 bps), buys at the open of t+1
     (cost 5 bps) — the Qlib TopkDropoutStrategy timing the paper cites
   * limit-up / suspended names cannot be bought, limit-down names cannot be
-    sold, delisted names are liquidated on their last traded day
+    sold, names that leave the PIT roster are liquidated at their last close
   * RankIC / RankICIR from the daily Spearman correlation of score vs the
     5-day forward return (paper appendix C)
   * AR / MDD / SR from daily log returns net of costs (paper appendix C)
   * benchmark-adjusted alpha against CSI 300 equal-weight and float-cap
     weighted, both built from the PIT roster
+
+Accounting
+----------
+The portfolio is simulated with **shares and cash**, which reproduces the
+preregistration's return convention exactly:
+
+    value(t)  = cash(t) + sum_i shares_i(t) * close_i(t)
+
+  * a name held from before earns close(t-1) -> close(t);
+  * a name bought at open(t) earns open(t) -> close(t);
+  * a name sold at close(t-1) earns nothing over (t-1, t];
+  * cash earns nothing (the proceeds of the t-1 sales wait for the t open).
+
+The daily log return is log(value(t) / value(t-1)) and already contains both
+the market move and the two cost legs.
 
 Assertions are live (mask_contract.md §7).  Set WORK503_ASSERT_VIOLATION=1 to
 deliberately violate one of them and capture the traceback text.
@@ -19,6 +35,7 @@ deliberately violate one of them and capture the traceback text.
 from __future__ import annotations
 
 import argparse
+import glob
 import json
 import os
 import sys
@@ -31,128 +48,331 @@ N_DROP = 5
 
 
 class MaskAssertionError(AssertionError):
-    pass
+    """Raised by the mask_contract.md §7 assertions."""
 
 
-def backtest(pred: pd.DataFrame, panel_dir: str, data_dir: str, exp_dir: str,
-              buy_bps: float = 5.0, sell_bps: float = 15.0,
-              k: int = K, n_drop: int = N_DROP, violation: str = "") -> dict:
-    """pred: datetime, instrument, score, label (test period)."""
+# ---------------------------------------------------------------------------
+# price / state tables
+# ---------------------------------------------------------------------------
+def _band_for(symbol: str) -> list[float]:
+    """Candidate daily price-limit bands for a stock (percent).
+
+    Same rule as scripts/work503_build_panel.py: the board limit plus the
+    conservative ST 5% band (mask_contract.md §3.2).
+    """
+    num = symbol[-6:]
+    if num.startswith("688") or num.startswith("689"):
+        return [0.20, 0.05]
+    if num.startswith("30"):
+        return [0.20, 0.05]
+    if num.startswith("8") or num.startswith("4"):
+        return [0.30, 0.05]
+    return [0.10, 0.05]
+
+
+class Market:
+    """Dense calendar x instrument tables for prices, shares and mask flags."""
+
+    def __init__(self, data_dir: str, panel_dir: str):
+        cal = [l.strip() for l in open(
+            os.path.join(data_dir, "qlib_cn", "calendars", "day.txt"),
+            encoding="utf-8") if l.strip()]
+        self.cal = pd.DatetimeIndex(cal)
+        self.cal_pos = {d: i for i, d in enumerate(self.cal)}
+
+        state = pd.read_parquet(os.path.join(panel_dir, "trade_state.parquet"))
+        state = state.reset_index()
+        state["datetime"] = pd.to_datetime(state["datetime"])
+        self.instruments = sorted(state["instrument"].unique())
+        self.inst_pos = {s: i for i, s in enumerate(self.instruments)}
+        n_d, n_i = len(self.cal), len(self.instruments)
+
+        def mat(col, dtype):
+            m = np.zeros((n_d, n_i), dtype=dtype)
+            m[:] = np.nan if dtype is np.float64 else False
+            d_idx = state["datetime"].map(self.cal_pos)
+            i_idx = state["instrument"].map(self.inst_pos)
+            ok = d_idx.notna() & i_idx.notna()
+            m[d_idx[ok].to_numpy(), i_idx[ok].to_numpy()] = \
+                state.loc[ok, col].to_numpy()
+            return m
+
+        self.suspended = mat("suspended", bool)
+        self.limit_up = mat("limit_up", bool)
+        self.limit_down = mat("limit_down", bool)
+        self.tradable = mat("tradable", bool)
+        self.prev_close_raw = mat("prev_close_raw", np.float64)
+
+        # ---- dense price table from the raw (unadjusted) Sina csvs --------
+        n = len(self.instruments)
+        self.open_m = np.full((n_d, n), np.nan)
+        self.close_m = np.full((n_d, n), np.nan)
+        self.shares_m = np.full((n_d, n), np.nan)
+        for path in sorted(glob.glob(os.path.join(data_dir, "sina", "*.csv"))):
+            code = os.path.basename(path)[:-4]
+            sym = code.replace(".", "")          # sh.600436 -> sh600436
+            if sym not in self.inst_pos:
+                continue
+            df = pd.read_csv(path, usecols=["date", "open", "close",
+                                            "outstanding_share"])
+            df["date"] = pd.to_datetime(df["date"].astype(str).str[:10])
+            df = df.set_index("date").reindex(self.cal)
+            j = self.inst_pos[sym]
+            self.open_m[:, j] = df["open"].to_numpy("float64")
+            self.close_m[:, j] = df["close"].to_numpy("float64")
+            self.shares_m[:, j] = df["outstanding_share"].to_numpy("float64")
+        # forward fill: suspended days keep the last close (mask_contract §2.2)
+        self.close_ff = pd.DataFrame(self.close_m).ffill().to_numpy()
+        self.shares_ff = pd.DataFrame(self.shares_m).ffill().to_numpy()
+        # the previous *traded* close (preregistration_v1.2.md §D)
+        traded = np.isfinite(self.close_m)
+        self.traded = traded
+        self.prev_close_ff = pd.DataFrame(
+            np.where(traded, self.close_m, np.nan)).ffill().shift(1).to_numpy()
+
+    # -- helpers ---------------------------------------------------------
+    def close(self, inst: str, t: int) -> float:
+        return float(self.close_ff[t, self.inst_pos[inst]])
+
+    def open_price(self, inst: str, t: int) -> float:
+        return float(self.open_m[t, self.inst_pos[inst]])
+
+    def limit_up_at_open(self, inst: str, t: int) -> bool:
+        """The stock opens locked at the upper limit -> it cannot be bought.
+
+        Known at the open, so this is an execution constraint, not a signal
+        input (no look-ahead into the close).
+        """
+        pc = self.prev_close_ff[t, self.inst_pos[inst]]
+        op = self.open_m[t, self.inst_pos[inst]]
+        if not np.isfinite(pc) or not np.isfinite(op) or pc <= 0:
+            return False
+        for b in _band_for(inst):
+            if op >= pc * (1.0 + b) - 0.005:
+                return True
+        return False
+
+    def can_sell_at_close(self, inst: str, t: int) -> bool:
+        j = self.inst_pos[inst]
+        if bool(self.suspended[t, j]):
+            return False
+        if bool(self.limit_down[t, j]):
+            return False
+        return np.isfinite(self.close_m[t, j])
+
+    def can_buy_at_open(self, inst: str, t: int) -> bool:
+        j = self.inst_pos[inst]
+        if bool(self.suspended[t, j]):
+            return False
+        if self.limit_up_at_open(inst, t):
+            return False
+        return np.isfinite(self.open_m[t, j])
+
+
+# ---------------------------------------------------------------------------
+# the simulation
+# ---------------------------------------------------------------------------
+def backtest(pred: pd.DataFrame, market: Market, buy_bps: float = 5.0,
+             sell_bps: float = 15.0, k: int = K, n_drop: int = N_DROP,
+             violation: str = "") -> dict:
+    """pred: columns datetime, instrument, score, label (test period)."""
     pred = pred.copy()
     pred["datetime"] = pd.to_datetime(pred["datetime"])
-    state = pd.read_parquet(os.path.join(panel_dir, "trade_state.parquet"))
-    state = state.reset_index()
-    state["datetime"] = pd.to_datetime(state["datetime"])
-    state = state.set_index(["instrument", "datetime"])
-
     dates = sorted(pred["datetime"].unique())
-    by_date = {d: g.sort_values("score", ascending=False) for d, g in
-               pred.groupby("datetime")}
+    by_date = {d: g.sort_values("score", ascending=False)
+               for d, g in pred.groupby("datetime")}
 
-    holdings: list[str] = []
-    weights = np.array([])
+    buy_cost = buy_bps / 1e4
+    sell_cost = sell_bps / 1e4
+
+    cash = 1.0
+    shares: dict[str, float] = {}
+    pending: list[tuple[str, float]] = []      # (instrument, target value)
     daily = []
-    turnover_list = []
     trades = []
+    violations = []
 
-    # raw prices for the execution prices
-    prices = _load_prices(data_dir)
-
+    prev_value = None
     for di, d in enumerate(dates):
-        if di + 1 >= len(dates):
-            break
-        d_next = dates[di + 1]
-        g = by_date[d]
-        universe = list(g["instrument"])
-        score_map = dict(zip(g["instrument"], g["score"]))
-
-        # ---- 1. decide the target portfolio (TopK-DropN) ----------------
-        cand = [s for s in universe if _can_buy(s, d, state)]
-        held = [s for s in holdings if s in universe]
-        # sell up to n_drop of the lowest-scored holdings that can be sold
-        held_sorted = sorted(held, key=lambda s: score_map.get(s, -np.inf))
-        to_sell = []
-        for s in held_sorted:
-            if len(to_sell) >= n_drop:
-                break
-            if _can_sell(s, d, state):
-                to_sell.append(s)
-        remaining = [s for s in held if s not in to_sell]
-        # buy the same number of higher-ranked candidates not already held
-        to_buy = []
-        for s in cand:
-            if len(to_buy) >= len(to_sell):
-                break
-            if s not in remaining and s not in to_buy:
-                to_buy.append(s)
-        target = remaining + to_buy
-        # top-up if the universe is small
-        if len(target) < min(k, len(universe)):
-            for s in cand:
-                if len(target) >= min(k, len(universe)):
-                    break
-                if s not in target:
-                    target.append(s)
-        if not target:
+        t = market.cal_pos.get(pd.Timestamp(d))
+        if t is None:
             continue
 
-        w = 1.0 / len(target)
-        # ---- 2. execution prices and the day's return -------------------
-        # retained names run close(t) -> close(t+1); new names open(t+1) -> close(t+1)
-        ret = 0.0
-        for s in target:
-            p_open_next = prices.get((s, d_next), (np.nan, np.nan))[0]
-            p_close_next = prices.get((s, d_next), (np.nan, np.nan))[1]
-            if s in to_buy:
-                base = p_open_next
-            else:
-                base = prices.get((s, d), (np.nan, np.nan))[1]   # close(t)
-            if np.isnan(base) or np.isnan(p_close_next) or base <= 0:
+        # ---- 1. execute the orders decided at the previous close ---------
+        for inst, tgt, dec_date, dec_value in pending:
+            if inst in shares:
                 continue
-            ret += w * (p_close_next / base - 1.0)
-        sell_w = len(to_sell) * w
-        buy_w = len(to_buy) * w
-        cost = sell_w * sell_bps / 1e4 + buy_w * buy_bps / 1e4
-        net_ret = ret - cost
-        turnover_list.append(sell_w + buy_w)
-        if to_sell:
+            if not market.can_buy_at_open(inst, t):
+                continue
+            px = market.open_price(inst, t)
+            amount = min(tgt, cash / (1.0 + buy_cost))
+            if amount <= 0:
+                break
+            n_sh = amount / (px * (1.0 + buy_cost))
+            shares[inst] = n_sh
+            cash -= n_sh * px * (1.0 + buy_cost)
+            trades.append({"datetime": str(dec_date), "exec_date":
+                           str(pd.Timestamp(d).date()),
+                           "side": "buy", "instrument": inst,
+                           "price": px, "amount": amount,
+                           "weight": amount / max(dec_value, 1e-12)})
+        pending = []
+
+        # ---- 2. mark to market at the close -------------------------------
+        value = cash + sum(sh * market.close(inst, t) for inst, sh in shares.items())
+        if prev_value is not None and prev_value > 0:
+            r = value / prev_value - 1.0
+            daily.append({"datetime": d, "value": value, "ret": r,
+                          "n_hold": len(shares), "cash_weight": cash / value
+                          if value > 0 else np.nan,
+                          "cash": cash,
+                          "positions": "|".join(sorted(shares))})
+        prev_value = value
+
+        if di == len(dates) - 1:
+            break
+
+        # ---- 3. decide the rebalance at the close ------------------------
+        g = by_date[d]
+        universe = list(g["instrument"])
+        score_map = dict(zip(g["instrument"], g["score"].to_numpy()))
+        held = [s for s in shares]
+
+        # names that left the PIT roster are liquidated (mask_contract §4.3)
+        for inst in list(held):
+            if inst in universe:
+                continue
+            if market.can_sell_at_close(inst, t):
+                px = market.close(inst, t)
+                proceeds = shares[inst] * px * (1.0 - sell_cost)
+                cash += proceeds
+                trades.append({"datetime": str(pd.Timestamp(d).date()),
+                               "side": "liquidate", "instrument": inst,
+                               "price": px, "amount": shares[inst] * px,
+                               "weight": shares[inst] * px / max(value, 1e-12)})
+                del shares[inst]
+            elif not np.isfinite(market.close_m[t, market.inst_pos[inst]]):
+                # delisted with no price left: liquidate at the last known close
+                px = float(market.close_ff[t, market.inst_pos[inst]])
+                if np.isfinite(px):
+                    proceeds = shares[inst] * px * (1.0 - sell_cost)
+                    cash += proceeds
+                    trades.append({"datetime": str(pd.Timestamp(d).date()),
+                                   "side": "liquidate_delisted",
+                                   "instrument": inst, "price": px,
+                                   "amount": shares[inst] * px,
+                                   "weight": shares[inst] * px / max(value, 1e-12)})
+                    del shares[inst]
+            # else: suspended -> the sale is deferred to the next tradable day
+
+        held = [s for s in shares]
+        # sell up to n_drop of the lowest-scored holdings that can be sold
+        held_sorted = sorted(held, key=lambda s: (score_map.get(s, -np.inf), s))
+        dropped = []
+        for s in held_sorted:
+            if len(dropped) >= n_drop:
+                break
+            if market.can_sell_at_close(s, t):
+                dropped.append(s)
+        remaining = [s for s in held if s not in dropped]
+
+        # candidates: the highest-scored names of the day, not held.  The
+        # dropped names are still in `shares` here, so they cannot be picked
+        # again the same day (no sell-then-rebuy round trip).
+        cand = sorted([s for s in universe if s not in shares],
+                      key=lambda s: (-score_map.get(s, -np.inf), s))
+        target = list(remaining)
+        for s in cand:
+            if len(target) >= min(k, len(universe)):
+                break
+            target.append(s)
+        if not target:
+            continue
+        w = 1.0 / len(target)
+        assert abs(sum([w] * len(target)) - 1.0) < 1e-9, "assert_weight_sum"
+
+        # ---- 4. the weight changes: sells at close(d), buys at open(d+1) --
+        # the target value of every name is fixed at the close of d
+        tgt_value = {s: w * value for s in target}
+        for s in dropped:
+            px = market.close(s, t)
+            if not np.isfinite(px):
+                continue
+            amt = shares[s] * px
+            cash += amt * (1.0 - sell_cost)
             trades.append({"datetime": str(pd.Timestamp(d).date()),
-                           "side": "sell", "n": len(to_sell)})
-        if to_buy:
+                           "side": "sell", "instrument": s, "price": px,
+                           "amount": amt, "weight": amt / max(value, 1e-12)})
+            del shares[s]
+        # reduce the over-weight survivors to their target weight
+        for s in list(shares):
+            if s not in tgt_value:
+                continue
+            cur = shares[s] * market.close(s, t)
+            if cur <= tgt_value[s] + 1e-12:
+                continue
+            px = market.close(s, t)
+            if not market.can_sell_at_close(s, t):
+                continue
+            amt = cur - tgt_value[s]
+            n_sh = amt / px
+            shares[s] -= n_sh
+            cash += n_sh * px * (1.0 - sell_cost)
             trades.append({"datetime": str(pd.Timestamp(d).date()),
-                           "side": "buy", "n": len(to_buy)})
-        daily.append({"datetime": d, "gross_ret": ret, "net_ret": net_ret,
-                      "cost": cost, "n_hold": len(target),
-                      "n_sell": len(to_sell), "n_buy": len(to_buy)})
-        holdings = target
-        weights = np.full(len(target), w)
+                           "side": "rebalance_sell", "instrument": s,
+                           "price": px, "amount": amt,
+                           "weight": amt / max(value, 1e-12)})
+        # the buys happen at the next open
+        for s in target:
+            if s in shares:
+                continue
+            pending.append((s, tgt_value[s] - 0.0,
+                            str(pd.Timestamp(d).date()), value))
+        # under-weight survivors are topped up at the next open as well
+        for s in list(shares):
+            cur = shares[s] * market.close(s, t)
+            gap = tgt_value[s] - cur
+            if gap > 1e-12:
+                pending.append((s, gap, str(pd.Timestamp(d).date()), value))
+        pending.sort(key=lambda x: (-score_map.get(x[0], -np.inf), x[0]))
 
     daily = pd.DataFrame(daily)
     if daily.empty:
         return {"error": "no trading days"}
 
     # ---- metrics (paper appendix C) -------------------------------------
-    g = np.log1p(daily["net_ret"].to_numpy())
-    ar = float(np.exp(252 * g.mean()) - 1)
-    wealth = np.exp(np.cumsum(g))
-    mdd = float(np.max(1 - wealth / np.maximum.accumulate(wealth)))
-    sr = float(np.sqrt(252) * g.mean() / g.std(ddof=0)) if g.std(ddof=0) else np.nan
-    turnover = float(np.mean(turnover_list))
+    g_log = np.log1p(daily["ret"].to_numpy())
+    ar = float(np.exp(252 * g_log.mean()) - 1.0)
+    wealth = np.exp(np.cumsum(g_log))
+    mdd = float(np.max(1.0 - wealth / np.maximum.accumulate(wealth)))
+    std = float(g_log.std(ddof=0))
+    sr = float(np.sqrt(252) * g_log.mean() / std) if std > 0 else np.nan
+    # turnover: daily single-side turnover (prereg §5.2) = (buy + sell) / 2
+    td = pd.DataFrame(trades)
+    all_dates = pd.Index(daily["datetime"].dt.strftime("%Y-%m-%d"))
+    if not td.empty:
+        per_day = td.groupby("datetime")["weight"].sum() / 2.0
+        per_day = per_day.reindex(all_dates).fillna(0.0)
+        turnover = float(per_day.mean())
+        turnover_sum_side = float(per_day.mean() * 2.0)
+    else:
+        turnover, turnover_sum_side = 0.0, 0.0
 
-    # ---- RankIC ---------------------------------------------------------
     ric = _daily_rankic(pred)
     rankic = float(np.nanmean(ric))
-    rankicir = float(np.nanmean(ric) / np.nanstd(ric)) if np.nanstd(ric) else np.nan
+    ric_std = float(np.nanstd(ric))
+    rankicir = float(rankic / ric_std) if ric_std > 0 else np.nan
 
     return {
         "rankic": rankic, "rankicir": rankicir,
-        "ar": ar, "mdd": mdd, "sr": sr, "turnover": turnover,
-        "mean_cost": float(daily["cost"].mean()),
+        "ar": ar, "mdd": mdd, "sr": sr,
+        "turnover": turnover, "turnover_both_sides": turnover_sum_side,
         "days": int(len(daily)),
         "mean_holdings": float(daily["n_hold"].mean()),
-        "daily": daily,
-        "rankic_series": ric,
-        "violation": violation,
+        "mean_cash_weight": float(daily["cash_weight"].mean()),
+        "n_trades": int(len(td)) if not td.empty else 0,
+        "daily": daily, "rankic_series": ric,
+        "trades": td, "violation": violation,
     }
 
 
@@ -169,91 +389,59 @@ def _daily_rankic(pred: pd.DataFrame) -> np.ndarray:
     return np.asarray(out, dtype="float64")
 
 
-def _can_buy(inst, d, state) -> bool:
-    try:
-        row = state.loc[(inst, d)]
-    except KeyError:
-        return False
-    if bool(row["suspended"]):
-        return False
-    if bool(row["limit_up"]):
-        return False
-    return True
-
-
-def _can_sell(inst, d, state) -> bool:
-    try:
-        row = state.loc[(inst, d)]
-    except KeyError:
-        return False
-    if bool(row["suspended"]):
-        return False
-    if bool(row["limit_down"]):
-        return False
-    return True
-
-
-def _load_prices(data_dir: str):
-    """(instrument, datetime) -> (open, close) from the raw (unadjusted) csv."""
-    import glob
-    prices = {}
-    for path in glob.glob(os.path.join(data_dir, "sina", "*.csv")):
-        code = os.path.basename(path)[:-4]
-        sym = code.replace(".", "").upper()
-        df = pd.read_csv(path, usecols=["date", "open", "close"])
-        df["date"] = pd.to_datetime(df["date"].astype(str).str[:10])
-        for d, o, c in zip(df["date"], df["open"], df["close"]):
-            prices[(sym, d)] = (o, c)
-    return prices
-
-
-def benchmark_series(panel_dir: str, data_dir: str, test_dates) -> dict:
-    """CSI300 equal-weight and float-cap-weighted daily returns from the PIT roster."""
-    pit = pd.read_parquet(os.path.join(panel_dir, "pit.parquet"))
-    state = pd.read_parquet(os.path.join(panel_dir, "trade_state.parquet"))
-    state = state.reset_index()
-    state["datetime"] = pd.to_datetime(state["datetime"])
-    state = state.set_index(["instrument", "datetime"])
-    pit = pit.reindex(index=pd.DatetimeIndex(sorted(pit.index)))
-    idx = pd.read_csv(os.path.join(data_dir, "index_sh000300.csv"))
-    idx["date"] = pd.to_datetime(idx["date"].astype(str).str[:10])
-    idx = idx.set_index("date")
-    closes = idx["close"]
-
+# ---------------------------------------------------------------------------
+# benchmark
+# ---------------------------------------------------------------------------
+def benchmark_series(market: Market, pit: pd.DataFrame, test_dates) -> dict:
+    """CSI300 equal-weight and float-cap-weighted daily returns (PIT roster)."""
+    pit = pit.reindex(index=market.cal)
     ew, cw = [], []
     for d in test_dates:
-        if d not in closes.index:
+        t = market.cal_pos.get(pd.Timestamp(d))
+        if t is None:
             continue
-        cols = [c for c in pit.columns if bool(pit.loc[d, c])]
-        rows = []
+        cols = [c for c in pit.columns if bool(pit.iloc[t][c])]
+        rets, caps = [], []
         for c in cols:
-            try:
-                st = state.loc[(c, d)]
-            except KeyError:
+            j = market.inst_pos[c]
+            pc = market.prev_close_ff[t, j]
+            cc = market.close_ff[t, j]
+            if not np.isfinite(pc) or not np.isfinite(cc) or pc <= 0:
                 continue
-            pc = st.get("prev_close_raw")
-            cc = st.get("close_raw")
-            if pd.isna(pc) or pd.isna(cc) or pc <= 0:
-                continue
-            rows.append((c, cc / pc - 1.0, st.get("close_raw")))
-        if not rows:
+            rets.append(cc / pc - 1.0)
+            cap = market.shares_ff[t, j] * cc
+            caps.append(cap if np.isfinite(cap) and cap > 0 else np.nan)
+        if not rets:
             continue
-        ew.append(float(np.mean([r[1] for r in rows])))
-        caps = np.array([r[2] for r in rows], dtype="float64")
-        caps = np.where(np.isfinite(caps) & (caps > 0), caps, np.nan)
+        ew.append(float(np.mean(rets)))
+        caps = np.asarray(caps, dtype="float64")
         if np.isnan(caps).all():
             cw.append(ew[-1])
         else:
-            wts = np.nan_to_num(caps)
-            cw.append(float(np.sum(wts * np.array([r[1] for r in rows])) /
-                           wts.sum()))
-    return {"equal_weight": np.array(ew), "cap_weighted": np.array(cw)}
+            caps = np.nan_to_num(caps)
+            cw.append(float(np.sum(caps * np.asarray(rets)) / caps.sum()))
+    return {"equal_weight": np.asarray(ew), "cap_weighted": np.asarray(cw)}
 
 
+def benchmark_stats(port: np.ndarray, bench: np.ndarray) -> dict:
+    """Excess return / IR / tracking error between a portfolio and a benchmark."""
+    n = min(len(port), len(bench))
+    p, b = port[:n], bench[:n]
+    ex = p - b
+    te = float(np.std(ex, ddof=1)) if n > 1 else np.nan
+    ir = float(np.mean(ex) / te) if te and te > 0 else np.nan
+    ann_ex = float(np.mean(ex) * 252)
+    return {"n_days": int(n), "excess_annualized": ann_ex,
+            "information_ratio": ir, "tracking_error": te,
+            "bench_annualized": float(np.mean(b) * 252),
+            "port_annualized": float(np.mean(p) * 252)}
+
+
+# ---------------------------------------------------------------------------
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--exp", default="WORK-503")
-    ap.add_argument("--arms", default="full,no_vq,no_moe,no_prior")
+    ap.add_argument("--arms", default="full,no_vq,no_moe,no_prior,gru")
     ap.add_argument("--seeds", default="42,2024")
     ap.add_argument("--buy-bps", type=float, default=5.0)
     ap.add_argument("--sell-bps", type=float, default=15.0)
@@ -266,6 +454,10 @@ def main():
     panel_dir = os.path.join(data_dir, "panel")
     violation = os.environ.get("WORK503_ASSERT_VIOLATION", "")
 
+    market = Market(data_dir, panel_dir)
+    pit = pd.read_parquet(os.path.join(panel_dir, "pit.parquet"))
+    pit.index = pd.to_datetime(pit.index)
+
     results = {}
     for arm in args.arms.split(","):
         for seed in [int(s) for s in args.seeds.split(",")]:
@@ -274,19 +466,29 @@ def main():
                 print(f"missing {p} — skipped")
                 continue
             pred = pd.read_parquet(p)
-            r = backtest(pred, panel_dir, data_dir, exp_dir,
-                         buy_bps=args.buy_bps, sell_bps=args.sell_bps,
-                         violation=violation)
+            r = backtest(pred, market, buy_bps=args.buy_bps,
+                         sell_bps=args.sell_bps, violation=violation)
+            if "error" in r:
+                print(f"{arm}_s{seed}: {r['error']}")
+                continue
             daily = r.pop("daily")
             ric = r.pop("rankic_series")
+            td = r.pop("trades")
             key = f"{arm}_s{seed}"
-            results[key] = r
-            daily.to_parquet(os.path.join(exp_dir, "preds",
-                                          f"{key}_daily.parquet"))
+            daily["net_log_ret"] = np.log1p(daily["ret"].to_numpy())
+            daily.to_parquet(os.path.join(exp_dir, "preds", f"{key}_daily.parquet"))
             np.save(os.path.join(exp_dir, "preds", f"{key}_rankic.npy"), ric)
+            if not td.empty:
+                td.to_parquet(os.path.join(exp_dir, "preds", f"{key}_trades.parquet"))
+            # benchmark-adjusted alpha
+            bm = benchmark_series(market, pit, sorted(daily["datetime"].unique()))
+            for nm, arr in bm.items():
+                r[f"alpha_{nm}"] = benchmark_stats(
+                    daily["ret"].to_numpy(), arr)
+            results[key] = r
             print(f"{key}: RankIC {r['rankic']:.4f} ICIR {r['rankicir']:.4f} "
                   f"AR {r['ar']:.4f} MDD {r['mdd']:.4f} SR {r['sr']:.4f} "
-                  f"turn {r['turnover']:.4f}")
+                  f"turn {r['turnover']:.4f} hold {r['mean_holdings']:.1f}")
 
     out_path = os.path.join(exp_dir, args.out)
     json.dump(results, open(out_path, "w"), ensure_ascii=False, indent=1)
