@@ -139,7 +139,7 @@ flowchart TD
 
 附带：`cost_sensitivity.csv`（三档预注册成本 + 零成本诊断）、`reproducibility_check.json`（同种子 sha256）、`lookahead_check.json`（三轴前视抽查）。
 
-代码提交：HEAD `52f0111`（52f01119dd5726990641326aefcf223f89858fff）。
+代码提交：HEAD `7b5b97a`（7b5b97a0ccddee8a812028c87b737da6fcf37bb7）。
 
 ### 第二轮独立代码审查（子代理 verifier）
 
@@ -156,6 +156,22 @@ flowchart TD
   ⑤ 历史「71/121 点」与 commit message 的不精确 → **两个数并列披露**，不替历史挑版本。
 - 审查方明确列为**未验证**的项（训练侧正确性、逐位复现性的本轮实跑、论文换手口径、I1/I2/I4 抽样充分性等），
   本单照原样标「未验证」，**不写成「通过」**。
+
+### 掩码口径：是否并入 `data_contracts/` 字段字典（**请大管家转用户定**）
+
+- 本单**没有改** `data_contracts/` 的任何既有规则；掩码口径另起 `experiments/WORK-503/mask_contract.md`。
+- 该文件覆盖三类：涨跌停（涨停不可买 / 跌停不可卖）、停牌（持仓保留并前向填充、卖出顺延到下一个可交易日）、退市（清算到最后有价交易日）。
+- **要不要把它并进 `data_contracts/field_dictionary.md` 的 §3 时点规则 / §5 停牌与退市处理 / §7 字段级质量门，需要用户定**——
+  本单不擅自并入。口径全文见 `experiments/WORK-503/mask_contract.md`，断言实跑触发原文见同目录两个 `assertion_violation*.txt`。
+
+### 上游改动记账（复用官方实现的改动清单）
+
+- 上游 commit **`7d02635d0cdeec2f4e7278a9e73acd0eb67a8fa6`**，vendored 在 `vendor/PRISM-VQ/`（60 个文件）。
+- **上游一行未改**：`git log -- vendor/PRISM-VQ/` 只有导入那一次 commit，`git diff <导入commit> HEAD -- vendor/PRISM-VQ/` 为空。
+- 本单只调用上游的 `trainer/train_vqvae.py`、`trainer/train_ypred{,_wo_moe,_wo_prior,_wo_stage1}.py`、`utils/test.py`、`utils/metric.py`、
+  `utils/__init__.py`，**没有一处 monkey-patch**；全部适配落在自有层 `scripts/work503_*.py`（17 个文件）。
+- 完整改动清单（数据加载 / 先验替换 / 掩码 / 成本 四类 + 种子 + 判定复算 + GRU 基线）+ 与上游的口径差异（AR 年化、换手单双边、长/多空假设）逐条列在
+  `experiments/WORK-503/upstream_change_log.md`。
 
 ### 失败项与已知限制（不藏）
 

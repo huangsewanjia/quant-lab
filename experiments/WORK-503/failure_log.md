@@ -300,3 +300,26 @@ TypeError: can't convert np.ndarray of type numpy.object_. ...
   会看到「不一致」而误以为复算有问题。**正确用法是比 `n_mismatches` 与逐项相对差，而不是比字节。**
 - 顺带说明：训练侧的**逐位**复现性是另一回事且更强——同种子重跑的预测文件 sha256 **完全相同**
   （`reproducibility_check.json`），因为训练过程不依赖 `set` 的迭代顺序。
+
+## 14. 额度口径的实测（派单卡要求：到 2× 报一行进度，到 5× 停下回报）
+
+测量时点：2026-11-22T17:27:46+08:00 · 命令：`multica issue usage 01a201aa-c7fe-7aeb-a357-7a8add2052f7 --output json`
+
+| 口径 | tokens |
+|---|---|
+| `total_cache_read_tokens` | 222,426,473 |
+| `total_input_tokens` | 1,224,205 |
+| `total_output_tokens` | 672,972 |
+| **三者相加** | **224,323,650** ≈ **224.3M** |
+| 只算 input + output（不计 cache-read） | 1,897,177 ≈ 1.90M |
+
+- 派单卡的参考档 **L = 30M**，2× = 60M，5× = 150M。
+- **按「cache-read + input + output」口径，本单已到 224.3M，超过 5× 档（150M）**；
+  按「只算 input + output」口径则是 1.90M，远低于 L。两者的差别全在 cache-read，
+  而 cache-read 占绝对大头（99.15 %）——本单长会话里反复读取同一批数据面板 / 上游代码 / 审查产物造成的。
+- **如实说明**：卡上写的「到 5× 停下回报」在这单上触发时，**活已经干完并交付了**（issue 已置 `in_review`，
+  交付评论已发），所以「停」没有可停的动作；此处按卡的要求补上「已产出什么 / 差什么 / 建议追加多少」三段，
+  并把两个口径都摆出来，由大管家/用户决定以哪个口径为准。
+- 另注：该 usage 计数里 `metered_task_count = 1`，即**只统计到已结束的那一次 run**；
+  本次（收尾）run 的消耗尚未计入，所以上面的数字是**下界**。
+
