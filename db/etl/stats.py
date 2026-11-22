@@ -83,22 +83,26 @@ def dataset_stats() -> list[dict[str, Any]]:
 
 def markdown(rows: list[dict[str, Any]]) -> str:
     header = (
-        "| 数据集 | 接口 | 拉法 | 分区键 | 分区数 | manifest | 行数 | 字节 | 空分区 | 上游调用 | 调用报错 |"
+        "| 数据集 | 接口 | 拉法 | 分区键 | 分区数 | manifest | 行数 | 字节 | 空分区 | 上游调用 | "
+        "调用报错 | 上游耗时 |"
     )
-    divider = "|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|"
+    divider = "|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|"
     lines = [header, divider]
     for row in rows:
         lines.append(
             "| {dataset} | `{api}` | {strategy} | {partition_kind}= | {partitions} | {manifests} | "
-            "{rows:,} | {bytes:,} | {empty_partitions} | {calls:,} | {call_errors} |".format(**row)
+            "{rows:,} | {bytes:,} | {empty_partitions} | {calls:,} | {call_errors} | {upstream_s:.0f} s |".format(
+                upstream_s=row["upstream_ms"] / 1000.0, **row
+            )
         )
     total_rows = sum(r["rows"] for r in rows)
     total_bytes = sum(r["bytes"] for r in rows)
     total_parts = sum(r["partitions"] for r in rows)
     total_calls = sum(r["calls"] for r in rows)
+    total_ms = sum(r["upstream_ms"] for r in rows)
     lines.append(
         f"| **合计** | | | | **{total_parts:,}** | | **{total_rows:,}** | **{total_bytes:,}** | | "
-        f"**{total_calls:,}** | **{sum(r['call_errors'] for r in rows)}** |"
+        f"**{total_calls:,}** | **{sum(r['call_errors'] for r in rows)}** | **{total_ms / 1000.0:.0f} s** |"
     )
     return "\n".join(lines)
 

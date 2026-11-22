@@ -241,7 +241,8 @@ CREATE TABLE IF NOT EXISTS income (
     "capit_comstock_div" DOUBLE,
     "continued_net_profit" DOUBLE,
     "update_flag" VARCHAR,
-    PRIMARY KEY ("ts_code", "end_date", "report_type", "ann_date")
+    "dup_seq" INTEGER,
+    PRIMARY KEY ("ts_code", "end_date", "report_type", "ann_date", "dup_seq")
 );
 
 CREATE TABLE IF NOT EXISTS balancesheet (
@@ -397,7 +398,8 @@ CREATE TABLE IF NOT EXISTS balancesheet (
     "debt_invest" DOUBLE,
     "oth_debt_invest" DOUBLE,
     "update_flag" VARCHAR,
-    PRIMARY KEY ("ts_code", "end_date", "report_type", "ann_date")
+    "dup_seq" INTEGER,
+    PRIMARY KEY ("ts_code", "end_date", "report_type", "ann_date", "dup_seq")
 );
 
 CREATE TABLE IF NOT EXISTS cashflow (
@@ -498,7 +500,8 @@ CREATE TABLE IF NOT EXISTS cashflow (
     "end_bal_cash_equ" DOUBLE,
     "beg_bal_cash_equ" DOUBLE,
     "update_flag" VARCHAR,
-    PRIMARY KEY ("ts_code", "end_date", "report_type", "ann_date")
+    "dup_seq" INTEGER,
+    PRIMARY KEY ("ts_code", "end_date", "report_type", "ann_date", "dup_seq")
 );
 
 CREATE TABLE IF NOT EXISTS fina_indicator (
@@ -610,7 +613,8 @@ CREATE TABLE IF NOT EXISTS fina_indicator (
     "q_sales_yoy" DOUBLE,
     "q_op_qoq" DOUBLE,
     "equity_yoy" DOUBLE,
-    PRIMARY KEY ("ts_code", "end_date", "ann_date")
+    "dup_seq" INTEGER,
+    PRIMARY KEY ("ts_code", "end_date", "ann_date", "dup_seq")
 );
 
 CREATE TABLE IF NOT EXISTS dividend (
@@ -628,7 +632,8 @@ CREATE TABLE IF NOT EXISTS dividend (
     "pay_date" DATE,
     "div_listdate" DATE,
     "imp_ann_date" DATE,
-    PRIMARY KEY ("ts_code", "end_date", "div_proc", "ann_date")
+    "dup_seq" INTEGER,
+    PRIMARY KEY ("ts_code", "end_date", "div_proc", "ann_date", "dup_seq")
 );
 
 CREATE TABLE IF NOT EXISTS namechange (

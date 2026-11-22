@@ -82,13 +82,36 @@ TABLE_PK: dict[str, tuple[str, ...]] = {
     "index_daily": ("ts_code", "trade_date"),
     "index_weight": ("index_code", "con_code", "trade_date"),
     "index_classify": ("index_code", "level"),
+    "income": ("ts_code", "end_date", "report_type", "ann_date", "dup_seq"),
+    "balancesheet": ("ts_code", "end_date", "report_type", "ann_date", "dup_seq"),
+    "cashflow": ("ts_code", "end_date", "report_type", "ann_date", "dup_seq"),
+    "fina_indicator": ("ts_code", "end_date", "ann_date", "dup_seq"),
+    "dividend": ("ts_code", "end_date", "div_proc", "ann_date", "dup_seq"),
+    "namechange": ("ts_code", "name", "start_date"),
+}
+
+# Natural key of the datasets whose upstream key is NOT unique.
+#
+# Measured 2026-11-22 against the live API: the financial statements return
+# two versions of the same report (the original filing and the restatement,
+# distinguished by `update_flag`) under the same (ts_code, end_date,
+# report_type, ann_date), and for a few codes the restatement actually
+# changed the numbers (ebit, ebitda, total_share, free_cashflow).
+# `fina_indicator` returns two computation passes of the same report that
+# differ in the cash-flow-derived fields (fcff, fcfe, bps, ...), and
+# `dividend` can report the same plan twice. Dropping one of those rows
+# would silently discard ~25-30% of the financial data, so every row is kept
+# and numbered inside its group by `dup_seq`.
+BASE_PK: dict[str, tuple[str, ...]] = {
     "income": ("ts_code", "end_date", "report_type", "ann_date"),
     "balancesheet": ("ts_code", "end_date", "report_type", "ann_date"),
     "cashflow": ("ts_code", "end_date", "report_type", "ann_date"),
     "fina_indicator": ("ts_code", "end_date", "ann_date"),
     "dividend": ("ts_code", "end_date", "div_proc", "ann_date"),
-    "namechange": ("ts_code", "name", "start_date"),
 }
+
+# Datasets that carry the synthetic `dup_seq` discriminator.
+DUP_SEQ_DATASETS = frozenset(BASE_PK)
 
 # Columns that must be read as DATE in DuckDB.
 DATE_COLUMNS: dict[str, set[str]] = {
@@ -229,6 +252,38 @@ def normalize_date_columns(df: pd.DataFrame, dataset: str) -> pd.DataFrame:
     return work
 
 
+def assign_dup_seq(df: pd.DataFrame, base_key: list[str]) -> pd.DataFrame:
+    """Number the rows inside each base-key group deterministically.
+
+    The upstream returns the same report twice (the original filing and the
+    restatement). Both rows are kept: the restatement changed the reported
+    numbers for a few codes, so dropping one of them would silently discard
+    a third of the financial data. ``dup_seq`` makes the primary key unique
+    and stays reproducible - the rows inside a group are ordered by their own
+    content, not by the order the API happened to return them in.
+    """
+    work = df.copy()
+    if work.empty:
+        work["dup_seq"] = pd.Series([], dtype="int64")
+        return work
+    colliding = work.duplicated(subset=base_key, keep=False)
+    work["dup_seq"] = 0
+    if not colliding.any():
+        return work
+    subset = work.loc[colliding]
+    # astype(str) is not enough: object columns can hold floats, dates and
+    # None at the same time, so the row is serialised cell by cell.
+    content = pd.Series(
+        ["\x1f".join(map(str, values)) for values in subset.to_numpy()],
+        index=subset.index,
+    )
+    subset = subset.assign(_content=content)
+    subset = subset.sort_values(base_key + ["_content"], kind="mergesort")
+    subset["dup_seq"] = subset.groupby(base_key, sort=False).cumcount()
+    work.loc[subset.index, "dup_seq"] = subset["dup_seq"].astype("int64")
+    return work
+
+
 def write_partition(
     df: pd.DataFrame,
     dataset: str,
@@ -246,6 +301,9 @@ def write_partition(
     key = tuple(pk or TABLE_PK.get(dataset, ()))
     work = df.copy()
     work = normalize_date_columns(work, dataset)
+    base_key = [column for column in BASE_PK.get(dataset, ()) if column in work.columns]
+    if base_key:
+        work = assign_dup_seq(work, base_key)
     if key and all(col in work.columns for col in key):
         work = work.drop_duplicates(subset=list(key), keep="last")
         work = work.sort_values(list(key)).reset_index(drop=True)

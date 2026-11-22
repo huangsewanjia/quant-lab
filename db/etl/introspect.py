@@ -141,24 +141,29 @@ def render(tables: dict[str, dict[str, Any]]) -> str:
     for table in DDL_ORDER:
         info = tables[table]
         pk = common.TABLE_PK[table]
+        columns = list(info["columns"])
+        if table in common.DUP_SEQ_DATASETS:
+            # Synthetic discriminator: the upstream returns two versions of the
+            # same report, so both are kept and numbered inside their group.
+            columns.append(("dup_seq", "INTEGER"))
         # No DROP here: re-running the schema must never empty a table that the
         # caller is not about to reload (finding: a partial --load-only wiped
         # every other table). Use --full-refresh (DELETE + INSERT) to rebuild.
         lines.append(f"CREATE TABLE IF NOT EXISTS {table} (")
         parts = []
-        for name, dtype in info["columns"]:
+        for name, dtype in columns:
             parts.append(f'    "{name}" {dtype}')
-        pk_cols = ", ".join(f'"{c}"' for c in pk if c in {n for n, _ in info["columns"]})
+        pk_cols = ", ".join(f'"{c}"' for c in pk if c in {n for n, _ in columns})
         if pk_cols:
             parts.append(f"    PRIMARY KEY ({pk_cols})")
         lines.append(",\n".join(parts))
         lines.append(");")
         lines.append("")
-        for name, _dtype in info["columns"]:
+        for name, _dtype in columns:
             comment = UNIT_COMMENTS.get((table, name))
             if comment:
                 lines.append(f"COMMENT ON COLUMN {table}.\"{name}\" IS '{comment}';")
-        if any(UNIT_COMMENTS.get((table, name)) for name, _ in info["columns"]):
+        if any(UNIT_COMMENTS.get((table, name)) for name, _ in columns):
             lines.append("")
 
     lines += [

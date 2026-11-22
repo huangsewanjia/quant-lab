@@ -79,6 +79,33 @@ token 只从 `TUSHARE_TOKEN` 或 `/home/moyongkai/.config/quantdb/tushare.token`
 
 > 编号沿用 issue 的「13 类」口径（第 13 项是财务四表 + 指标）。
 
+### 3.0 财务表主键里的 `dup_seq`：同一份报表会有两个版本
+
+上游对**同一份报表**会返回两行——原始披露版（`update_flag=1`）和更正版（`update_flag=0`），
+两行的 `ann_date` 相同但**数值可能不同**（实测：`ebit`、`ebitda`、`total_share`、`free_cashflow` 被更正过）。
+`fina_indicator` 没有 `update_flag`，同一个 `(ts_code, end_date, ann_date)` 会返回两次计算口径不同的行
+（`fcff`、`fcfe`、`bps` 等现金流派生字段有差异）；`dividend` 也可能对同一方案返回两行。
+
+如果按 `(ts_code, end_date, report_type, ann_date)` 做主键去重，这些行会被**静默丢掉**：
+
+| 数据集 | 上游行数 | 旧主键保留 | 丢失 | 丢失率 |
+|---|---:|---:|---:|---:|
+| `income` | 58 | 40 | 18 | 31% |
+| `balancesheet` | 67 | 40 | 27 | 40% |
+| `cashflow` | 66 | 40 | 26 | 39% |
+| `fina_indicator` | 53 | 40 | 13 | 25% |
+
+（样本：10 只股票 2023 年报，实测 2026-11-22。`600000.SH` 全部 `income` 历史：上游 150 行，旧主键只留 84 行。）
+
+因此这 5 张表的主键在自然键后面加了合成列 **`dup_seq`**：
+
+- 自然键：`income`/`balancesheet`/`cashflow` = `(ts_code, end_date, report_type, ann_date)`，
+  `fina_indicator` = `(ts_code, end_date, ann_date)`，`dividend` = `(ts_code, end_date, div_proc, ann_date)`；
+- `dup_seq`：同一自然键组内的行号（0、1、…），**按行内容排序后编号**，所以与上游返回顺序无关、可复现；
+- 组内只有一行时 `dup_seq = 0`；上游真给不出区别的完全重复行也会保留（不静默丢数据）。
+
+查财务表时通常取 `dup_seq = 0`（内容序最前的那一版），要两版都看就不要加这个过滤。
+
 ### 3.1 为什么行情用日期窗口而不是按日一次
 
 issue 口径是「按 `trade_date`」，**分区**仍然是按日；但**取数**用日期窗口，原因是服务端单次返回有行数上限
@@ -195,18 +222,20 @@ G5 的新浪源用 `stock_zh_a_hist_sina`（新浪），一次请求取回个股
 | 横截面财务查询 | `50101 必填参数 ts_code` | 只能逐股 |
 | 多代码 `ts_code` 批量化 | 返回 0 行（不支持） | 不能批量化 |
 | `index_daily` 日期窗口 | `参数校验失败` | 只能逐日取 |
-| `stk_limit` 早期年份 | 2006 年整年返回 0 行（上游无历史） | 对应分区记为 0 行空分区（manifest 带 `empty: true`） |
+| `stk_limit` 早期年份 | 2006 年整年返回 0 行（上游无历史） | 对应分区记为 0 行空分区（manifest 带 `empty_upstream: true`） |
 
 ---
 
 ## 8. 已知缺口与限制
 
-1. **`stk_limit` / `suspend_d` 的早年数据上游就没有**：`stk_limit` 2006 年整年为 0 行；这类交易日会落成 0 行空分区（manifest 标 `empty: true`），**不是漏抓**。
+1. **`stk_limit` / `suspend_d` 的早年数据上游就没有**：`stk_limit` 2006 年整年为 0 行；这类交易日会落成 0 行空分区（manifest 标 `empty_upstream: true`），**不是漏抓**。
+   - 空分区是**已完整取到、确认无数据**的记录，和「没取到」严格区分：上游窗口失败时**不写任何分区**（manifest 缺失 → 下轮重试），只有完整取回的窗口里没有数据的交易日才落空分区。否则这些交易日会被当成「还没取过」在每一轮切片里重拉一遍，回填永远跑不完。
 2. **`index_daily` 是全量指数横截面**（单日 9,345 个指数），体量最大（约 4,700 万行 / 数 GB），装载 DuckDB 耗时最长。
 3. **`index_weight` 只覆盖 8 只宽基指数**，申万行业指数成分上游不返回（`801010.SI` 实测 0 行），所以**没有行业指数成分**。
 4. **`index_classify` 只取 `src=SW2021`**（511 行）；`src=SW` 实测返回 0 行。
 5. **财务四表只到 2015/2016 两段窗口**：靠 `stock_basic.list_date` 切段，理论上 `ann_date` 落在两段之间的行不会丢（两段连续覆盖 2006-01-01 ~ 2026-11-21），但如果某只股票的 `list_date` 缺失，切段会退化成整窗 → 命中 100 行上限 → 由兜底拆分处理。
 6. **上游是持续修订的**：历史财务数据会被上市公司更正，本库是**抓取时点的快照**，manifest 里的 `fetched_at` 是取数时刻。要做 PIT 回测必须按 `ann_date` 过滤，而不是假设今天的数据就是当年可见的数据。
+   - 同一份报表的原始版与更正版都在库里，用 `dup_seq` 区分（见 3.0 节）；要复现「当时可见的数」，按 `ann_date` + `dup_seq` 一起过滤。
 7. **`stock_basic` 没有 `delist_date` 字段**（上游该接口返回 10 列，不含退市日），所以退市股票的财务窗口右端只能取到研究窗口末端，多出的查询返回 0 行。
 8. **前一轮同单运行留下的新浪单股冒烟数据已移出**：`/srv/share/quantdb/_superseded/20261122-sina-smoke/`（`move` 而非删除，数据保留），避免与本轮 `part.parquet` 布局混读。
 9. **`db/policy/` 是另一单（政策采集）的代码**，不在本单范围，本次未运行也未验收。
