@@ -764,6 +764,11 @@ def build_html(d, repo, exp_dir, fig_dir):
 这一点写进了产物 <span class="mono">audit_recompute.json</span> 的 <span class="mono">independence</span> 字段，不靠口头声明。</li>
 <li><strong>独立性自检是弱自检</strong>：<span class="mono">independence_selfcheck()</span> 用 ast 扫本文件的 import，能证明「没有 import 建模函数」，
 但证明不了「没有把建模逻辑抄一遍」——后者靠人工代码走查与两套实现的人工对照。</li>
+<li><strong>复算脚本跨进程只到 ~1e-14，不是逐位一致</strong>：审计脚本按 Python <span class="mono">set</span> 的迭代顺序做浮点累加，
+而字符串 hash 默认按进程随机化，所以两次独立复算的 <span class="mono">sr / ar / mdd / turnover</span> 会有最后 1–2 个 ULP 的差别
+（实测最大相对差 2.5e-14；只改 <span class="mono">PYTHONHASHSEED</span> 再跑两次为 6.4e-14）。
+<b>复核时请比 <span class="mono">n_mismatches</span> 与逐项相对差，不要直接 diff 字节</b>；H1 用的 RankIC 相对差是 0（秩相关不涉及浮点累加次序）。
+训练侧的逐位复现性是另一回事且更强：同种子重跑的预测文件 sha256 完全相同。</li>
 </ul>
 
 <h3>8.2 失败实验与被排除的路径</h3>
