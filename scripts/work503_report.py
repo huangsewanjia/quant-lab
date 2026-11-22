@@ -261,16 +261,18 @@ def fig_bootstrap(d, path):
         ax.axvline(per["point"], color=col, lw=1.4, ls="-", zorder=3,
                    label=f"seed {s}: point {per['point']:+.4f}")
         ax.axvspan(per["lo"], per["hi"], color=col, alpha=0.10, zorder=1)
-    ax.axvline(0, color=INK, lw=1.0, ls="--", zorder=4)
-    ax.annotate("no difference", (0, ax.get_ylim()[1] * 0.92),
-                textcoords="offset points", xytext=(4, 0), fontsize=7.5,
-                color=INK2)
+    # The zero line carries its own legend entry instead of an in-plot text
+    # label: the annotation used to sit right on the line and the line
+    # crossed the text (figure collision audit: "Text is crossed by 1
+    # stroked path(s)" -> FIX BEFORE DELIVERY).
+    ax.axvline(0, color=INK, lw=1.0, ls="--", zorder=4,
+               label="no difference (0)")
     ax.set_xlabel("Mean daily RankIC(full) - RankIC(GRU)")
     ax.set_ylabel("Bootstrap draws")
     ax.set_title("H2: incremental RankIC over the fixed GRU baseline "
                  "(block = 5 days)")
     _clean(ax, grid_axis="y")
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.15), ncol=2,
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.15), ncol=3,
               fontsize=7)
     _save(fig, path)
 
@@ -746,7 +748,7 @@ def build_html(d, repo, exp_dir, fig_dir):
 <h3>8.1 已知限制</h3>
 <ul>
 <li><strong>算力约束</strong>：本机无 GPU，训练段缩到 2015–2019（论文 2009–2019）、每阶段 ≤6 轮（论文 ≤50）。
-这会让<strong>所有档的绝对指标</strong>系统性低于论文，但对四档之间的<strong>相对差</strong>（Δ_ic）影响较小，因为四档共享同一协议与种子。</li>
+这会让<strong>所有档的绝对指标</strong>系统性低于论文，但对四档之间的<strong>相对差</strong>（Δ_drop）影响较小，因为四档共享同一协议与种子。</li>
 <li><strong>先验因子替换</strong>：JKP 13 个全球因子没有 A 股个股级对应值，本单自建 6 个先验，因此 <span class="mono">no_prior</span> 档的降幅大概率小于论文的 −15.2%，
 这一项<strong>不能</strong>用来支持「码本有效」的结论。</li>
 <li><strong>数据底座</strong>：Qlib 官方 cn_data 只到 2020-09-25 且无 <span class="mono">$vwap</span>，覆盖不到测试期，故自建快照（新浪 + baostock PIT 名单）。</li>

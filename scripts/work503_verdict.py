@@ -111,6 +111,29 @@ def load_rankic(key: str):
     return np.load(p)
 
 
+def load_rankic_dates(key: str):
+    """The calendar the per-day RankIC series is indexed by.
+
+    `work503_backtest._daily_rankic()` walks `pred.groupby("datetime")`,
+    i.e. the array order is the **sorted unique prediction dates** — one
+    entry per date, including dates with fewer than three valid stocks
+    (those are NaN).  The series is therefore *not* aligned with the
+    portfolio daily frame: the daily frame starts one day later (the first
+    prediction day has no portfolio return yet).  Reconstructing the dates
+    from the prediction parquet is what makes the H2 join well defined.
+
+    (Bug fix 2026-11-22: the H2 block used to zip `daily.datetime` with the
+    RankIC array and then merge it against the baseline again, which crashed
+    with "array length 726 does not match index length 725" as soon as the
+    two series stopped having the same length.)
+    """
+    p = os.path.join(EXP, "preds", f"{key}.parquet")
+    if not os.path.exists(p):
+        return None
+    df = pd.read_parquet(p, columns=["datetime"])
+    return pd.DatetimeIndex(sorted(pd.to_datetime(df["datetime"]).unique()))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--exp", default="WORK-503")
@@ -197,21 +220,32 @@ def main():
             continue
         rf = load_rankic(f"full_s{s}")
         rb = load_rankic(f"{BASELINE}_s{s}")
-        if rf is None or rb is None:
+        cal_full = load_rankic_dates(f"full_s{s}")
+        cal_base = load_rankic_dates(f"{BASELINE}_s{s}")
+        if rf is None or rb is None or cal_full is None or cal_base is None:
             continue
-        j = pd.DataFrame({"date": dfull["datetime"], "full": rf,
-                          "base": rb}).merge(
-            pd.DataFrame({"date": dbase["datetime"], "base2": rb}),
-            on="date", how="inner")
+        # the RankIC arrays are indexed by their own calendar; the lengths
+        # must agree with it or the join below is silently wrong.
+        assert len(cal_full) == len(rf), (
+            f"full_s{s}: RankIC series has {len(rf)} entries but the "
+            f"prediction calendar has {len(cal_full)} dates")
+        assert len(cal_base) == len(rb), (
+            f"{BASELINE}_s{s}: RankIC series has {len(rb)} entries but the "
+            f"prediction calendar has {len(cal_base)} dates")
+        j = (pd.DataFrame({"date": cal_full, "full": rf})
+             .merge(pd.DataFrame({"date": cal_base, "base": rb}),
+                    on="date", how="inner"))
         diff = (j["full"] - j["base"]).to_numpy()
         h2[str(s)] = block_bootstrap_ci(
             diff, keep=os.path.join(EXP, "preds", f"h2_bootstrap_s{s}.npy"))
         h2[str(s)]["mean_full"] = float(np.nanmean(j["full"]))
         h2[str(s)]["mean_base"] = float(np.nanmean(j["base"]))
+        h2[str(s)]["n_joined_days"] = int(len(j))
     out["H2"] = {
         "baseline": BASELINE, "per_seed": h2,
         "note": "论文自曝对 DTML/GRU 未达显著；CI 含 0 判「与论文自曝弱点一致」，"
                 "不算失败，但必须写明本方法的增量在统计上不可证",
+        "join": "按日期 inner join 两档的逐日 RankIC 序列后再做 block bootstrap",
     }
 
     # ---- H3 -------------------------------------------------------------

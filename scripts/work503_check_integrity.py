@@ -181,19 +181,29 @@ def main():
         test_samples[["datetime", "instrument"]].drop_duplicates())
     pit_idx = pd.MultiIndex.from_product([cal[test_mask], pit.columns],
                                          names=["datetime", "instrument"])
-    in_sample = np.asarray(pit_idx.isin(sample_idx), dtype=bool)
+    in_sample = np.asarray(pit_idx.isin(sample_idx),
+                           dtype=bool).reshape(n_days, n_inst)
     has_bar = (~st["close_raw"].isna().to_numpy()
                .reshape(n_inst, n_days).T)
-    pit_cov = float(np.mean(in_sample & has_bar & pit_test))
+    # 预注册 v1.3 §6 的定义：「按 PIT 名单应持有的 (交易日, 股票) 对」中，
+    # **在样本索引与行情快照中同时存在**的比例 —— 分母是 PIT 对的个数，
+    # 不是「全部 (日期 × 全部 724 只股票) 的笛卡尔积」。
+    # (Bug fix 2026-11-22: 早先写成 np.mean(...)，分母是 726×724 = 526,104
+    #  的全体格子，算出来 0.414 是「宇宙里的 PIT 格子占比」，不是覆盖率。)
+    n_pit_pairs = int(pit_test.sum())
+    n_cov = int(np.sum(in_sample & has_bar & pit_test))
+    pit_cov = float(n_cov / n_pit_pairs) if n_pit_pairs else float("nan")
     out["I5_test_coverage"] = {
         "test_days": int(test_mask.sum()),
-        "pit_pairs": int(pit_test.sum()),
+        "pit_pairs": n_pit_pairs,
+        "pit_pairs_covered": n_cov,
         "rows_with_bar": rows_with_bar, "tradable_share": tradable,
         "pit_coverage": pit_cov,
         "pit_coverage_threshold": 0.90,
         "threshold": 0.85,
         "pit_coverage_definition": "测试段内 PIT (交易日, 股票) 对中，"
-                                   "同时存在于样本索引与行情快照的比例",
+                                   "同时存在于样本索引与行情快照的比例"
+                                   "（分母 = PIT 对总数，预注册 v1.3 §6）",
         "passed": bool(tradable >= 0.85 and rows_with_bar >= 0.85
                        and pit_cov >= 0.90),
     }

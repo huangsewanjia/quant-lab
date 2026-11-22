@@ -464,7 +464,16 @@ def backtest(pred: pd.DataFrame, market: Market, buy_bps: float = 5.0,
     g_log = np.log1p(daily["ret"].to_numpy())
     ar = float(np.exp(252 * g_log.mean()) - 1.0)
     wealth = np.exp(np.cumsum(g_log))
-    mdd = float(np.max(1.0 - wealth / np.maximum.accumulate(wealth)))
+    # MDD: the running peak has to start at the **initial capital (1.0)**.
+    # `np.maximum.accumulate(wealth)` alone starts the peak at wealth[0],
+    # which makes the first day's loss invisible to the drawdown — the
+    # independent audit (audit/recompute_work503.py) caught this: it
+    # initialises `peak = 1.0` and therefore reported a systematically
+    # LARGER MDD (rel. diff 1.3 % ~ 3.3 % on every arm).  Prepending 1.0 to
+    # the running peak reconciles the two implementations to ~5e-15
+    # (float noise).  See failure_log.md §11.
+    peak = np.maximum.accumulate(np.concatenate([[1.0], wealth]))[1:]
+    mdd = float(np.max(1.0 - wealth / peak))
     std = float(g_log.std(ddof=0))
     sr = float(np.sqrt(252) * g_log.mean() / std) if std > 0 else np.nan
     # turnover: daily single-side turnover (prereg §5.2) = (buy + sell) / 2
