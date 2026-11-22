@@ -27,6 +27,7 @@ import os
 import sys
 import threading
 import time
+from bisect import bisect_left, bisect_right
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
@@ -526,6 +527,34 @@ class Fetcher:
                 return dates
         raise RuntimeError("缺少 trade_cal 分区，先跑 --dataset trade_cal")
 
+    def trading_days_in(self, lo: str, hi: str) -> list[str]:
+        """Trading days of the calendar inside the [lo, hi] window.
+
+        The calendar is cached and sorted, so the lookup is a bisect instead
+        of a scan over 5,000+ dates for every leaf window.
+        """
+        calendar = self.calendar()
+        return calendar[bisect_left(calendar, lo) : bisect_right(calendar, hi)]
+
+    def write_empty_partition(self, spec: DatasetSpec, key: str, query: dict[str, Any]) -> None:
+        """Publish an explicit empty partition for a trading day.
+
+        Some upstream datasets have no history for the early years
+        (``stk_limit`` before ~2020, ``suspend_d`` early on). A trading day
+        that was fetched and genuinely carries no rows still needs a
+        manifest, otherwise the resume logic treats it as "not fetched yet"
+        and re-probes the same empty range on every single run - the slice
+        then spends its whole budget on days that will never produce rows
+        and the backfill can never reach completion.
+        """
+        common.write_partition(
+            pd.DataFrame(columns=common.canonical_columns(spec.name)),
+            spec.name,
+            key,
+            "tushare",
+            extra_meta={"rows_raw": 0, "query": query, "empty_upstream": True},
+        )
+
     # -- per-dataset strategies ------------------------------------------ #
 
     def fetch_calendar(self, spec: DatasetSpec) -> tuple[int, list[dict[str, Any]]]:
@@ -616,29 +645,55 @@ class Fetcher:
             print(f"[fail] {spec.name} {lo}..{hi}: {exc}", file=sys.stderr, flush=True)
 
         def on_complete(lo: str, hi: str, frame: pd.DataFrame) -> None:
-            if frame.empty:
-                return
-            work = frame.copy()
-            work["trade_date"] = frame_dates(work, "trade_date")
-            work = work[work["trade_date"].notna()]
-            for trade_date, group in work.groupby("trade_date", sort=True):
-                key = str(trade_date)
+            # A window that came back complete covers every trading day in
+            # [lo, hi]. Days that carry no rows are a real observation, not a
+            # missing partition, so they get an explicit empty partition; days
+            # outside the calendar are still published from the response so
+            # no upstream row is ever dropped.
+            groups: dict[str, pd.DataFrame] = {}
+            if not frame.empty:
+                work = frame.copy()
+                work["trade_date"] = frame_dates(work, "trade_date")
+                work = work[work["trade_date"].notna()]
+                groups = {
+                    str(trade_date): group.reset_index(drop=True)
+                    for trade_date, group in work.groupby("trade_date", sort=True)
+                }
+            query = {"start_date": lo, "end_date": hi}
+            for key, group in groups.items():
                 seen.add(key)
                 if self.resume and common.manifest_ok(spec.name, key):
                     continue
                 try:
                     common.write_partition(
-                        group.reset_index(drop=True),
+                        group,
                         spec.name,
                         key,
                         "tushare",
-                        extra_meta={"query": {"start_date": lo, "end_date": hi}},
+                        extra_meta={"query": query},
                     )
                     written.append(key)
                     progress.bump()
                 except Exception as exc:  # noqa: BLE001
                     # A write failure affects this partition only, not the whole
                     # window: record it under its own key.
+                    with lock:
+                        failures.append(
+                            {"dataset": spec.name, "partition": key, "error": str(exc)}
+                        )
+                        failed_dates.add(key)
+                    progress.bump(failed=True)
+                    print(f"[fail] {spec.name} {key}: {exc}", file=sys.stderr, flush=True)
+            for key in self.trading_days_in(lo, hi):
+                if key in groups:
+                    continue
+                if self.resume and common.manifest_ok(spec.name, key):
+                    continue
+                try:
+                    self.write_empty_partition(spec, key, query)
+                    written.append(key)
+                    progress.bump()
+                except Exception as exc:  # noqa: BLE001
                     with lock:
                         failures.append(
                             {"dataset": spec.name, "partition": key, "error": str(exc)}
@@ -724,11 +779,14 @@ class Fetcher:
                     spec.api, {"trade_date": trade_date}, dataset=spec.name, partition=trade_date
                 )
                 if frame.empty:
-                    with lock:
-                        failures.append(
-                            {"dataset": spec.name, "partition": trade_date, "error": "empty response"}
-                        )
-                    progress.bump(failed=True)
+                    # The day was fetched and upstream has no rows for it.
+                    # Recording it as a failure would put it into the failure
+                    # ledger for good; an explicit empty partition is the
+                    # honest record and lets the resume logic move on.
+                    self.write_empty_partition(
+                        spec, trade_date, {"trade_date": trade_date}
+                    )
+                    progress.bump()
                     return
                 cap = ROW_CAPS.get(spec.api)
                 truncated = bool(cap and len(frame) >= cap)
@@ -1052,17 +1110,35 @@ class Fetcher:
                 year, month = _next_month(year, month)
             combined = concat_frames(frames)
             if combined.empty:
-                # Every monthly window came back empty: the upstream either has
-                # no data for this index or the query was malformed. Record it
-                # as a failure so it cannot pass as a completed dataset.
-                failures.append(
-                    {
-                        "dataset": spec.name,
-                        "partition": index_code,
-                        "error": "全部月度窗口均为空（查询口径错误或上游无数据）",
-                    }
+                # Every monthly window came back empty: the upstream has no
+                # constituent history for this index. That is an observation,
+                # not a failure - a permanent failure entry would keep the
+                # dataset from ever reaching completion. The manifest records
+                # months_requested = 0 rows so the gap stays visible.
+                common.write_partition(
+                    pd.DataFrame(columns=common.canonical_columns(spec.name)),
+                    spec.name,
+                    index_code,
+                    "tushare",
+                    extra_meta={
+                        "rows_raw": 0,
+                        "query": {
+                            "index_code": index_code,
+                            "freq": "monthly",
+                            "start_date": self.start,
+                            "end_date": self.end,
+                        },
+                        "months_requested": months_requested,
+                        "months_with_rows": months_with_rows,
+                        "empty_upstream": True,
+                    },
                 )
-                print(f"[fail] {spec.name} {index_code}: 全部月度窗口均为空", file=sys.stderr, flush=True)
+                done += 1
+                print(
+                    f"[warn] {spec.name} {index_code}: 全部月度窗口均为空，已写空分区",
+                    file=sys.stderr,
+                    flush=True,
+                )
                 continue
             common.write_partition(
                 combined,
