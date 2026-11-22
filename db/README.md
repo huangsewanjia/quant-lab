@@ -49,7 +49,7 @@ token 只从 `TUSHARE_TOKEN` 或 `/home/moyongkai/.config/quantdb/tushare.token`
 /srv/share/quantdb/staging/tmp                                      # DuckDB 溢写
 ```
 
-**manifest 字段**：`dataset` / `partition` / `rows` / `bytes` / `sha256` / `file` / `source` / `fetched_at` / `columns` / `primary_key` / `query`（本次取数用的参数）/ `empty`（该交易日确无数据）/ `possible_truncation`。
+**manifest 字段**：`dataset` / `partition` / `rows` / `bytes` / `sha256` / `file` / `source` / `fetched_at` / `columns` / `primary_key` / `query`（本次取数用的参数）/ `empty_upstream`（该交易日确无数据）/ `rows_raw`（上游返回的原始行数）/ `rows_dropped_null_pk`（主键含 NULL 被丢的行数）/ `possible_truncation`（响应触到上游行数上限）/ `months_requested` + `months_with_rows`（`index_weight` 用）。
 
 **写入顺序**：先写 `.part.parquet.tmp.<pid>.<tid>` → `os.replace` 原子改名 → 再写 manifest（manifest 本身也是临时文件 + 原子改名）。
 因此：manifest 存在 ⇒ parquet 一定存在且完整；中断最多留下一个 `.tmp` 残留（下次启动清理），**不会**出现「manifest 指向不存在的文件」。
@@ -158,8 +158,9 @@ $PY -m db.etl.fetch --status
 $PY -m db.etl.stats                       # 台账统计（分区/行数/字节/调用数）
 
 # 装入 DuckDB（L1）
-$PY -m db.etl.fetch --dataset all --load-only
-$PY -m db.etl.fetch --dataset daily --load-only --full-refresh
+$PY -m db.etl.fetch --dataset all --load-only --full-refresh   # 全量重建（推荐）
+$PY -m db.etl.fetch --dataset all --load-only                   # 增量追加
+$PY -m db.etl.fetch --dataset daily --load-only --full-refresh # 单数据集重建
 
 # 质量闸（退出码非 0 即不通过）
 $PY -m db.checks.run all
