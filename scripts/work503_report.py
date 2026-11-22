@@ -707,6 +707,15 @@ def build_html(d, repo, exp_dir, fig_dir):
 <li><strong>数据底座</strong>：Qlib 官方 cn_data 只到 2020-09-25 且无 <span class="mono">$vwap</span>，覆盖不到测试期，故自建快照（新浪 + baostock PIT 名单）。</li>
 <li><strong>涨跌停口径</strong>：没有逐日历史 ST 标记，本单按「板块限 ∪ ST 5%」的保守并集判定，代价是非 ST 股当日恰好 ±5% 会被误掩码（只会削弱收益，不会虚增）。</li>
 <li><strong>标签口径冲突</strong>：论文正文写 <span class="mono">open(t+1)→close(t+k)</span>，上游仓库的 yaml 用 <span class="mono">close→close</span>；本单以正文为准，两份都写在预注册 §1.1 D3。</li>
+<li><strong>主检验量的符号口径</strong>：派单卡写 <span class="mono">Δ_ic=(RankIC_full−RankIC_no_vq)/RankIC_full</span>，但同时写「论文基准 −26.9%」与进带 [−40%,−15%]——这三句互相矛盾（按字面公式代入论文数字得 +26.9%，落不进进带）。
+本单按预注册 <strong>v1.4</strong> 冻结：判词量取 <span class="mono">Δ_drop=(RankIC_no_vq−RankIC_full)/RankIC_full</span>，判词带逐字不动，并列报告字面式的 <span class="mono">Δ_formula</span>。
+这个修订在正式结果产生之前完成（当时正式训练尚未跑完），且进/退两带的数字一次都没变过；单测 <span class="mono">scripts/work503_test_verdict.py</span> 固化了两种自洽读法等价、与字面读法的分歧区间。
+详见预注册 v1.3 / v1.4 与失败记录 §7.2。</li>
+<li><strong>独立复算脚本不是纯标准库</strong>：<span class="mono">audit/README.md</span> 规则 2 要求只用标准库，但预测快照是 parquet，标准库没有 parquet 读取器，
+因此用了 numpy / pandas / scipy（仅用于读快照与算 spearman）；组合与指标全部由该脚本自己的字典 + 显式账本实现重算，与建模侧不共用任何函数。
+这一点写进了产物 <span class="mono">audit_recompute.json</span> 的 <span class="mono">independence</span> 字段，不靠口头声明。</li>
+<li><strong>独立性自检是弱自检</strong>：<span class="mono">independence_selfcheck()</span> 用 ast 扫本文件的 import，能证明「没有 import 建模函数」，
+但证明不了「没有把建模逻辑抄一遍」——后者靠人工代码走查与两套实现的人工对照。</li>
 </ul>
 
 <h3>8.2 失败实验与被排除的路径</h3>
@@ -714,6 +723,10 @@ def build_html(d, repo, exp_dir, fig_dir):
 <li>训练前的数据完整性审计发现并修复了 5 处数据构造层缺陷（Qlib 二进制日历错位、样本索引日历错位、新股规则未落地、复牌日涨跌停漏判、元数据年份错写）；
 修复前的一切产物已作废，不进本报告。</li>
 <li>第一轮 stage-1 训练因上游 <span class="mono">wandb.log</span> 未初始化而崩溃，改为显式初始化后重跑（见交付评论的训练日志）。</li>
+<li>第二轮 stage-1 作废：<strong>训练没按种子初始化全局 RNG</strong>，模型初始化与批次打乱用的是未播种的随机源，「种子 42 / 2024」只是给两次抽样贴标签；改为按上游 <span class="mono">stage2.py</span> 的做法在建模前播种。</li>
+<li>独立代码审查（子代理，按《代码审查规范》分级）报出 <strong>2 条 blocking</strong>：判词带与公式的符号矛盾（→ 预注册 v1.3 / v1.4，见 §8.1）、判定脚本在 H3 处必崩（<span class="mono">sr_stat</span> 不接受 <span class="mono">axis</span>）。两条都在正式结果产生之前修完，并补了边界单测。</li>
+<li>审查同时暴露了<strong>本单自己的一处错误论证</strong>：预注册 v1.3 §4 声称「两种符号口径给出的判词逐点相同」，实际不相等（进带取负是 [15%,40%]，不是同一个集合）。
+该错误由落盘后立刻补的边界单测当场判红（121 个网格点只有 71 个成立），在正式训练未跑完、无任何正式结果可见的时点更正为 v1.4 的正确论证。</li>
 </ul>
 
 <h3>8.3 翻案条件</h3>
