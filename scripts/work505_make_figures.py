@@ -214,7 +214,7 @@ def main():
         assert channels[[c[0] for c in channels].index(_names[_cid])][1] != "OK"
     assert channels[[c[0] for c in channels].index(_names[2])][1] == "PART"
     fig, ax = plt.subplots(figsize=(6.6, 3.2))
-    cmap = {"OK": TEAL, "PART": BLUE, "FAIL": RED, "REJECT": RED}
+    cmap = {"PART": BLUE, "FAIL": RED, "REJECT": RED}
     for i, (name, st, note) in enumerate(channels):
         y = len(channels) - 1 - i
         ax.add_patch(plt.Rectangle((0, y - 0.34), 1.0, 0.68,

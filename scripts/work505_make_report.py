@@ -687,7 +687,7 @@ NaN 标签被静默当 0.0 训练），另有 4 处交付文本的不实陈述</
 <code>preregistration_errata.md</code></td></tr>
 <tr><td>⑭</td><td>独立代码审查第 2 轮（独立子代理，不改仓库）</td>
 <td>判定 <b>FAIL</b>：<b>18 项</b>（3 Major / 12 Minor / 3 Nit）。3 项阻断：M1 报告里
-<code>{num(...)*60,0}</code> 渲染成乱码数字；M2 表 6 写「WORK-449 未入库」但 seed 43 指标其实已入库；
+<code>{{num(...)*60,0}}</code> 渲染成乱码数字；M2 表 6 写「WORK-449 未入库」但 seed 43 指标其实已入库；
 M3 <code>work449_build_panel.py</code> 硬编码读 <code>&lt;repo&gt;/data/&lt;exp&gt;</code>，
 与 §4 步骤 0 的校验目录不一致，「数据补齐即可直接开跑」在第 1 步就会崩</td>
 <td>已全部返修：M1 改为 <code>:.0f</code> 格式；M2 表 6 改为从

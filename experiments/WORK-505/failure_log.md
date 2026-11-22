@@ -348,7 +348,7 @@ PR #2 head     : daf61b38296bb841eb9884c49102b05bc2e76e53
 | M7 | `work505_primary_test.py` 的 `--tag-format` 是死参数（声明了但从不引用） | **已修**：死参数已删除 |
 | M8 | 「0 外链」断言在**写盘之后**，构建失败时坏产物已落盘 | **已修**：断言前移到写盘之前（含 `<script` / `<link` / `@import` / `src="http` / `href="http` / `url(http`） |
 | M9 | `work500_bench.py` 不在本机也不在仓库 ⇒ 报告 §1.2 的 C 组复测命令**无法从仓库复跑** | **不可修，如实记录**：该脚本属 WORK-500 交付物，不在本仓库；原始 22 次运行的 `epoch_seconds` 已完整嵌入 `report_data.json`，**数字可复算、命令不可复跑**，已在报告与本表写明 |
-| M10 | 图 4 只画 6 条通道，图注却写「七条通道」并描述了图中没有的第 7 条 | **已修**：`make_figures.py` 改为从 `transport_evidence.json` 读全部 **7** 条，PNG 已重新生成 |
+| M10 | 搬运通道图（报告**图 3**，文件 `figures/fig4_transport_channels.png`）只画 6 条通道，图注却写「七条通道」并描述了图中没有的第 7 条 | **已修**：`make_figures.py` 改为从 `transport_evidence.json` 读全部 **7** 条，PNG 已重新生成。**（第 3 轮审查订正：本图在报告里编号是「图 3」，文件名里的 `fig4_` 是脚本内部序号，两者不一致，引用时以报告编号为准。）** |
 | M11 | `make_figures.py` 硬编码 `ext=` / `vram=` 的数值（虽与产物一致） | **已修**：改为从 `report_data.json` 的 `w500_bench_medians` 读 `epochs_60_total_s` / `peak_vram_mb` |
 | M12 | `work505_add_registry_row.py` 硬编码叙述常量（11,458 文件 / 8,708 blob / 2.6993 s / 0.1313 s / 19、15、68% / 0.58%） | **已修**：registry 脚本改为**全部从产物读** —— 搬运计数读 `transport_evidence.json`，GPU 争用观测读新建的 `env_observation.json`，WORK-500 参考值读 `report_data.json` 的 `w500_bench_medians`，预测离散度读 `experiments/WORK-449/baselines.json`；脚本内不再有这些字面量 |
 | M13 | `merged_result` 假定两 seed 序列等长，未做长度校验 | **已修**：加长度校验，不等即报错退出 |
@@ -369,7 +369,7 @@ PR #2 head     : daf61b38296bb841eb9884c49102b05bc2e76e53
 |---|---|---|
 | R1 | N1 的去重计数改动**从未跑过**：冒烟网格第 1 步即 `ValueError: operands could not be broadcast together with shapes (2215,40) (12,40)` —— 批次掩码 `(B,N)` 与全网格 `(T-1,N)` 混用 | **已修**：按 `days_b` 写回全日轴；冒烟网格重跑 26 步全绿 |
 | R2 | 同上，改用 `days_b.numpy()` 但 `days_b` 本就是 numpy 数组 ⇒ `AttributeError` | **已修**：改为 `nan_label_cells[days_b] |= ...`；重跑通过 |
-| R3 | **图 4 的通道判定标签与图注自相矛盾**：`make_figures.py` 把 7 条搬运通道的标签**硬编码**为 `OK / PART / FAIL`，其中 SSH、git 对象库、SMB、GitHub 历史这 4 条**实际全部是「未命中」**，却被标成 OK（图上写着 OK，旁边却写着「no WORK-449 data」这类原因） | **已修**：标签改为**从 `transport_evidence.json` 的 `status` 字段派生**（failed→FAIL / partial→PART / rejected→REJECT），并加断言：未命中任何文件的通道**不允许**标成 OK；图注同步改成与标签一致的表述；PNG 已重新生成 |
+| R3 | **搬运通道图（报告图 3）的通道判定标签与图注自相矛盾**：`make_figures.py` 把 7 条搬运通道的标签**硬编码**为 `OK / PART / FAIL`，其中 SSH、git 对象库、SMB、GitHub 历史这 4 条**实际全部是「未命中」**，却被标成 OK（图上写着 OK，旁边却写着「no WORK-449 data」这类原因） | **已修**：标签改为**从 `transport_evidence.json` 的 `status` 字段派生**（failed→FAIL / partial→PART / rejected→REJECT），并加断言：未命中任何文件的通道**不允许**标成 OK；图注同步改成与标签一致的表述；PNG 已重新生成 |
 
 ---
 
@@ -379,12 +379,53 @@ PR #2 head     : daf61b38296bb841eb9884c49102b05bc2e76e53
 |---|---|---|
 | `experiments/WORK-505/env_observation.json` | 环境自检原文（`self_check.stdout_verbatim` + 字段化）与确认轮的 `nvidia-smi` 争用观测（`gpu_contention_observations`，含 `utilization_pct_index`） | 报告 §1.1 / §1.3、registry 行 |
 | `experiments/WORK-505/snapshot_staging.json` | 目录桥接的逐股结果（680 行：期望 sha256 / 实际 sha256 / 来源路径 / 落盘路径 / 判定），含 `complete` 标志 | 勘误 E8 的门槛检查 |
-| `experiments/WORK-505/transport_evidence.json` | 7 条搬运通道的原始输出留档（上一轮已有） | 图 4、报告 §2、registry 行 |
+| `experiments/WORK-505/transport_evidence.json` | 7 条搬运通道的原始输出留档（上一轮已有） | 搬运通道图（报告图 3）、报告 §2、registry 行 |
 | `scripts/work505_stage_snapshot.py` | 目录桥接脚本（只拷 sha256 相符的文件） | 勘误 E8 / 勘误第四节命令表 |
 
 ---
 
-## §8 边界
+## §8 独立代码审查第 3 轮（窄范围，只验第 2 轮返修与回归）
+
+> 审查方：**独立子代理**（`verifier` 角色，同一《code-review-and-quality》流程，全程只读，
+> 临时脚本只写在 `%TEMP%`）。审查对象 = 已提交范围 `184c2a0`。
+> 判定：**FAIL（1 Major / 3 Minor / 1 Nit）** —— 第 2 轮的 21 项 + 执行方自查 3 项**全部核实为真**，
+> 但**第 2 轮那次提交自己引入了一处同类乱码**（见 F1）。审查方在 `%TEMP%` 沙箱里
+> **逐条执行了勘误第四节的 8 条命令，全部 RUNNABLE**，并实测 M3 的目录桥接**真的能建出面板**。
+
+| # | 级别 | 发现 | 处置 |
+|---|---|---|---|
+| F1 | **Major** | **第 2 轮提交在报告里引入了第二处 M1 同类乱码**：审查方在我写的审查说明那一行里，把示例表达式 `{num(...)*60,0}` 直接写进了 HTML f-string ⇒ Python **真的去求值**它（`num()` 对非 float 走 `str(v)`，`"Ellipsis"*60` 再逗号成元组），已发布的报告在「⑭ 独立代码审查第 2 轮」那一行渲染出 **508 个字符的垃圾元组** | **已修**：该行改为 `{{num(...)*60,0}}`（转义后按字面输出），报告与 PDF 已重新生成；并对 `report.html` 做全文垃圾扫描（元组 / `Ellipsis` / `None` / dict / list 模式）—— 当前**命中 0 处**。**这是同一类缺陷第二次出现**，已在 §8 末尾记下防复发措施 |
+| F2 | Minor | rng_note 脚注里 4 个 markdown 星号 `**` 被原样渲染进 HTML（该字段经 `esc()` 只转义 `& < >`，不解释 markdown） | **已修**：JSON 里的说明改成纯文本（去掉 `**`），脚注已重新生成 |
+| F3 | Minor | 审查期间工作树不干净：`scripts/work505_primary_test.py` 被改（F2 的修正）但未提交，导致「脚本重跑出的 report.html 与已发布的不一致」 | **已修**：本轮改动已全部提交并推送；审查方已独立验证**已提交状态可逐字节重建**已发布的 `report.html`（sha256 `250192bc…`） |
+| F4 | Minor | 交叉引用错号：失败日志称搬运通道图为「图 4」，而报告里它是**图 3**（文件名的 `fig4_` 是脚本内部序号） | **已修**：失败日志 §7 M10 / R3 / §7.5 的引用改为「搬运通道图（报告**图 3**，文件 `figures/fig4_transport_channels.png`）」并加注说明编号以报告为准 |
+| F5 | Nit | `make_figures.py` 的 `cmap` 保留了永远用不到的 `"OK"` 键（状态映射里没有 `ok`，且有断言禁止出现 OK） | **已修**：删除该键 |
+
+### 8.1 审查方**无法**在本机闭合的部分（如实列出）
+
+| 项 | 状态 |
+|---|---|
+| Mo-server 侧搬运取证的原始输出（11,458 文件 / 1,370 trashinfo / 代际聚类 / 266+8,442 blob / SMB 清单 / 4 条 `push2his` 断连原文） | **无法复核** —— 只存在于 Mo-server，仓库内是转述 |
+| `scripts/work500_bench.py` | **不在仓库、无法重跑** —— 审查方只能用 `report_data.json` 内嵌的 22 次运行重算 C/D 汇总，**不能**与原始 22 份 JSON 对照 |
+| 真实 680 只数据路径 | **按设计不可测**（674/680 不可复原）；`audit/recompute_work505.py` 从未在真实数据上执行过，正确性仅由「派生自已过审脚本」支撑 |
+| 15:59:28 那次 `work505_primary_test.py` 改动的作者 | 审查方**无法归因**（其自身写入全在 `%TEMP%`）；事实已记入 F3 |
+
+### 8.2 审查方**已核实为真**的清单（节选，可复核）
+
+M1 核心（`181 s/臂`，两种路径独立重算）、M2（表 6 seed-43 列 15 个指标格 + ΔSharpe/CI/ΔIC + 判词格逐格对上 WORK-449 产物）、
+M3（`work449_build_panel.py` 与 `38fe864` **逐字节相同**；桥接脚本「只拷 sha256 相符者 / 损坏即 exit 2 且不覆盖 / 缺失记 MISSING / 幂等」四项行为全部实测通过；勘误 8 条命令在沙箱里**逐条跑通**）、
+M5（14 项与 18 项的严重度计数在四份文件里一致）、M6/M7/M8/M13/M14、N1/R1/R2、N2/N3、
+M10/R3（6 张 PNG 与脚本当前输出**逐字节相同**，无假 OK）、M11、M12（registry 11 个 sha256 + 附录二 21 个 sha256 全部对上磁盘）、
+M4（无源数字已删、自检原文逐字）、预注册字节未动、报告 0 外链 / 6 图内嵌 / 6 图注、**无任何伪造研究数字**。
+
+### 8.3 防复发措施（同一类乱码已出现两次）
+
+1. 报告生成器里所有**要按字面展示的示例表达式**，一律用双花括号转义（`{{...}}`），不用 f-string 求值；
+2. 产物生成后跑**全文垃圾扫描**（元组 / `Ellipsis` / `None` / dict / list 模式）作为硬门禁 —— 当前命中 0 处；
+3. 审查每一轮都要独立重建报告并与已发布产物**逐字节比对**，任何不一致先查工作树是否漂移。
+
+---
+
+## §9 边界
 
 本单未产出任何交易指令、仓位建议、评级或目标价；未写入对外研报；未改动
 `data_contracts/`；未改动 WORK-449 的任何产物；未改动平台配置。

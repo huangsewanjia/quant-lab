@@ -243,8 +243,8 @@ def main():
         "primary_cost_bps": 8.0,
         "per_seed": {},
         "rng_note": (
-            "同一个 seed 内，主成本档（8 bps）与 +5 bps 敏感性档**共用同一个 numpy "
-            "随机流（seed 42）**，因此两档抽到的 block 起点序列**不同**。这与 WORK-449 的 "
+            "同一个 seed 内，主成本档（8 bps）与 +5 bps 敏感性档共用同一个 numpy "
+            "随机流（seed 42），因此两档抽到的 block 起点序列不同。这与 WORK-449 的 "
             "work449_primary_test.py 是同款写法，不对任一档产生偏向（每档仍是 1000 次、"
             "block 长度 20 的配对重采样给出的 95% 百分位区间），但两档的重采样集合并不相同。"),
     }
