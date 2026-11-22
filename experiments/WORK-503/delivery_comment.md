@@ -139,7 +139,7 @@ flowchart TD
 
 附带：`cost_sensitivity.csv`（三档预注册成本 + 零成本诊断）、`reproducibility_check.json`（同种子 sha256）、`lookahead_check.json`（三轴前视抽查）。
 
-代码提交：HEAD `d7747c9`（d7747c98e466aa2ccab589f889d3de580ca54822）。
+代码提交：HEAD `52f0111`（52f01119dd5726990641326aefcf223f89858fff）。
 
 ### 第二轮独立代码审查（子代理 verifier）
 
