@@ -359,7 +359,12 @@ def backtest(pred: pd.DataFrame, market: Market, buy_bps: float = 5.0,
         if not target:
             continue
         w = 1.0 / len(target)
-        assert abs(sum([w] * len(target)) - 1.0) < 1e-9, "assert_weight_sum"
+        # mask_contract.md §7 断言 4：组合权重和必须为 1。
+        # 用 raise 而不是裸 assert —— 裸 assert 会被 `python -O` 关掉。
+        if abs(sum([w] * len(target)) - 1.0) >= 1e-9:
+            raise MaskAssertionError(
+                f"assert_weight_sum: weights sum to "
+                f"{sum([w] * len(target))!r} on {d}, expected 1 within 1e-9")
 
         # ---- 4. the weight changes: sells at close(d), buys at open(d+1) --
         # the target value of every name is fixed at the close of d
