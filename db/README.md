@@ -241,7 +241,7 @@ $PY -m pytest db/tests -q
 
 | 闸 | 内容 | 判定 |
 |---|---|---|
-| G1 | 每个开市日都有 `daily` 分区；逐日行数与 ±5 日滚动中位数对比，偏差 >5% 逐日列出；**缺口行数 ≤ 当日停牌家数的偏差判为「停牌可解释例外」**（见下） | 缺失/空/日历外日期 = 0 且**未解释**异常 = 0；可解释例外单列，不影响闸门结论 |
+| G1 | 每个开市日都有 `daily` 分区；逐日行数与 ±5 日滚动中位数对比，偏差 >5% 逐日列出；偏差 **>5% 的日子一律记 anomaly**，再把当天预期行数按**超额停牌家数**下调（预期 = 滚动中位数 − 当日超额停牌家数），与调整后预期偏差仍 ≤5% 才判「停牌可解释例外」；行数**偏多永远不解释**（见 §5.1） | 缺失/空/日历外日期 = 0 且**未解释**异常 = 0；可解释例外单列，不影响闸门结论 |
 | G2 | Parquet 层主键唯一；**每张 DuckDB 表行数 = 其 Parquet 行数**（主键冲突会在装载时静默丢行，所以行数勾稽才是真检查） | 重复组 = 0 且行数差 = 0 |
 | G3 | `high ≥ max(open, close)`、`low ≤ min(open, close)` | 违例 = 0 |
 | G4 | `adj_factor` 无 0/负值/缺失 | 违例 = 0 |
@@ -283,7 +283,32 @@ G5 的新浪源用 `stock_zh_a_hist_sina`（新浪），一次请求取回个股
 ### 本轮闸门实测结果
 
 <!-- gates:begin -->
-（待跑：回填完成后由 `finalize.sh` 写入）
+实测于 2026-11-23 09:22，命令 `/home/moyongkai/.venvs/quantdb/bin/python -m db.checks.run all` → **EXIT_CODE=0**，
+报告 `/srv/share/quantdb/meta/checks/checks-20261123.json`，日志 `/srv/share/quantdb/logs/work518-checks.log`。
+
+| 闸 | 结论 | 实测值 |
+|---|---|---|
+| G1 交易日勾稽 | **PASS_WITH_EXCEPTIONS** | 开市日 5,072，有行天数 5,072，缺失日 0、空日 0、日历外日期 0；anomaly 6 → 可解释例外 6、**未解释异常 0**；偏差阈值仍是 5%（未放宽） |
+| G2 主键与行数勾稽 | **PASS** | 重复主键组 0；行数不一致的数据集 0（12 张表逐表 Parquet 行数 = DuckDB 行数） |
+| G3 OHLC 一致性 | **PASS** | 检查 15,966,167 行，违例 0，OHLC 有空值 0 |
+| G4 复权因子为正 | **PASS** | 检查 16,722,519 行，非正 0、空值 0 |
+| G5 新浪源交叉校验 | **PASS** | 抽样 20 个开市日 × 5 只股票：请求 100 对，实际比对 96 对（4 对新浪源缺失），容差 0.01 元，违例 0，最大绝对偏差 0.0 |
+| G6 manifest 完整性 | **PASS** | 坏分区/坏 manifest 合计 0 |
+
+G1 的 6 条可解释例外（未调整偏差 >5%，停牌调整后偏差 0.38%~1.37%，全部落在 5% 内）：
+2015-07-08、2015-07-09、2015-07-10、2015-07-13、2007-05-18、2006-06-30。逐日的
+`rows / rolling_median / deviation / shortfall_rows / surplus_rows / suspend_rows / suspend_baseline_median /
+excess_suspensions / expected_rows / adjusted_deviation / judgement` 都在报告的 `days` 里，可解释例外另列在 `exceptions`，
+未解释异常在 `unexplained_anomalies`（本次为空）。
+
+同轮交付的其他实测：
+
+- **全量装载**：`python -m db.etl.fetch --dataset all --load-only --full-refresh` → **EXIT_CODE=0**
+  （日志 `/srv/share/quantdb/logs/work518-final-load.log`，代码提交 `1010512`）。16 张表逐表「读入行数 = 表内行数」。
+- **16 表逐表 Parquet ↔ DuckDB 行数对照**：差值全为 0，`MISMATCH_TABLES=0`（日志 `/srv/share/quantdb/logs/work518-final-verify.log`）。
+- **复权视图**：`v_daily_qfq` 与 `v_daily_hfq` 各 15,964,248 行；600000.SH 抽查 `close_hfq = close × adj_factor / min(adj_factor)`
+  与 `close_qfq = close × adj_factor / max(adj_factor)` 的最大偏差 5.0e-05（视图按 4 位小数取整的舍入残差）。
+- **单测**：`python -m pytest db/tests -q` → **132 passed**（本轮新增 25 个用例，见 §10）。
 <!-- gates:end -->
 
 ---
@@ -340,6 +365,20 @@ G5 的新浪源用 `stock_zh_a_hist_sina`（新浪），一次请求取回个股
 12. **G1 的 5% 阈值没有放宽**，但闸门现在把「千股停牌」和「数据缺失」分开判（见 §5.1）：可解释例外仍然逐日列出证据，未解释异常照样 FAIL。
     如果下游需要「只看硬失败」，读报告里的 `unexplained_anomalies`；如果要「一条异常都没有」，读 `anomaly_count`。
 13. **`index_weight` 只到 2026-11-21**：月度窗口的上游数据本身有滞后，最近几个月的成分权重可能还没发布。
+14. **独立审查第 3 轮遗留 2 条 suggestion + 3 条 nit**（不影响本轮交付结论，均未阻塞）：
+    - **N-1（suggestion）**：`common.load_partitions()` 是公共函数，若调用方只装载某数据集的**部分**分区、而该表主键又过时，
+      重建后只会填回这部分分区 → 其余分区的行被清空。**CLI 路径不可达**（`load_duckdb` 总是装载该数据集的全部分区），
+      且这种状态会被 G2 的行数勾稽判 FAIL，不会静默。修复方向：只在本次装载覆盖该数据集全部分区时才重建。
+    - **N-2（suggestion）**：`rebuild_stale_table()` 自己开事务，无法在外层事务里运行（DuckDB 不支持嵌套事务），
+      所以「重建 + 回填」目前**不是一个原子单元**；崩在中间时表是空的、Parquet 层完好，重跑一次即恢复，G2 会判 FAIL。
+    - **N-3（nit）**：重建会打断引用了该表旧列的**外部视图**（本库自带的 `v_daily_qfq`/`v_daily_hfq` 会在同一事务里按 schema 重建，不受影响）。
+    - **N-4（nit）**：R-3 / R-4 / R-6 / R-8 四项修复和「范围外表未重建」的 stderr 警告**各自没有独立的回归测试**
+      （变异测试：把它们改回旧行为，132 个用例仍全绿）。
+    - **N-5（nit）**：`Fetcher.resumable()` 与 `common.manifest_resumable()` 逻辑重复，两处各自判断「分区能否跳过」，存在漂移风险。
+15. **上游调用报错 1 次（已自愈）**：`balancesheet` 2026-11-22T15:42:53Z 一次读超时（`Read timed out`，120.4 s），
+    重试后成功。最终 Parquet 行数 = DuckDB 行数（398,898 = 398,898），**无数据缺失**。全库 76,126 次上游调用中仅此 1 次报错。
+16. **`index_weight` 的 8 个分区是本轮删掉旧分区后重抓的**：旧分区因为参数拼接 bug（见 §10）全部 0 行，
+    已删除并重抓——本次 2,008 次上游调用、0 失败、618 s，合计 734,422 行。`raw/` 里其他数据集的历史分区**一个没动**。
 
 ---
 
@@ -354,18 +393,68 @@ G5 的新浪源用 `stock_zh_a_hist_sina`（新浪），一次请求取回个股
 | stock_basic | `stock_basic` | stock_basic | status= | 3 | 3 | 5,924 | 213,454 | 1 | 7 | 0 | 2 s |
 | daily | `daily` | range | trade_date= | 5072 | 5072 | 15,966,167 | 694,116,859 | 0 | 5,459 | 0 | 794 s |
 | daily_basic | `daily_basic` | range | trade_date= | 5072 | 5072 | 15,875,303 | 1,694,222,643 | 0 | 5,636 | 0 | 874 s |
-| adj_factor | `adj_factor` | range | trade_date= | 361 | 361 | 499,786 | 4,206,601 | 0 | 215 | 0 | 19 s |
-| index_daily | `index_daily` | trade_date | trade_date= | 0 | 0 | 0 | 0 | 0 | 4 | 0 | 1 s |
-| stk_limit | `stk_limit` | range | trade_date= | 0 | 0 | 0 | 0 | 0 | 4 | 0 | 0 s |
-| suspend_d | `suspend_d` | range | trade_date= | 0 | 0 | 0 | 0 | 0 | 4 | 0 | 0 s |
-| income | `income` | financial | ts_code= | 0 | 0 | 0 | 0 | 0 | 46 | 0 | 4 s |
-| balancesheet | `balancesheet` | financial | ts_code= | 0 | 0 | 0 | 0 | 0 | 45 | 0 | 4 s |
-| cashflow | `cashflow` | financial | ts_code= | 0 | 0 | 0 | 0 | 0 | 45 | 0 | 4 s |
-| fina_indicator | `fina_indicator` | financial | ts_code= | 0 | 0 | 0 | 0 | 0 | 46 | 0 | 5 s |
-| dividend | `dividend` | per_code | ts_code= | 0 | 0 | 0 | 0 | 0 | 8 | 0 | 1 s |
-| namechange | `namechange` | namechange | ts_code= | 0 | 0 | 0 | 0 | 0 | 8 | 0 | 0 s |
-| index_weight | `index_weight` | index_weight | index_code= | 0 | 0 | 0 | 0 | 0 | 4 | 0 | 0 s |
+| adj_factor | `adj_factor` | range | trade_date= | 5074 | 5074 | 16,722,519 | 136,773,507 | 0 | 5,712 | 0 | 587 s |
+| index_daily | `index_daily` | trade_date | trade_date= | 5072 | 5072 | 34,474,216 | 1,412,160,293 | 0 | 5,076 | 0 | 826 s |
+| stk_limit | `stk_limit` | range | trade_date= | 5072 | 5072 | 16,155,227 | 170,384,459 | 241 | 4,851 | 0 | 567 s |
+| suspend_d | `suspend_d` | range | trade_date= | 5072 | 5072 | 581,366 | 16,418,812 | 0 | 3,752 | 0 | 301 s |
+| income | `income` | financial | ts_code= | 5924 | 5924 | 353,491 | 359,478,005 | 15 | 8,901 | 0 | 786 s |
+| balancesheet | `balancesheet` | financial | ts_code= | 5924 | 5924 | 398,898 | 625,699,521 | 15 | 8,913 | 1 | 1171 s |
+| cashflow | `cashflow` | financial | ts_code= | 5924 | 5924 | 362,711 | 451,550,114 | 15 | 8,907 | 0 | 853 s |
+| fina_indicator | `fina_indicator` | financial | ts_code= | 5924 | 5924 | 484,520 | 648,971,737 | 24 | 8,909 | 0 | 819 s |
+| dividend | `dividend` | per_code | ts_code= | 5924 | 5924 | 248,990 | 56,667,441 | 54 | 5,932 | 0 | 415 s |
+| namechange | `namechange` | namechange | ts_code= | 5851 | 5851 | 11,542 | 22,969,491 | 0 | 38 | 0 | 4 s |
+| index_weight | `index_weight` | index_weight | index_code= | 8 | 8 | 734,422 | 1,122,384 | 0 | 4,022 | 0 | 265 s |
 | index_classify | `index_classify` | classify | src= | 1 | 1 | 511 | 12,753 | 0 | 5 | 0 | 1 s |
-| **合计** | | | | **10,511** | | **32,362,951** | **2,392,886,631** | | **11,542** | **0** | **1711 s** |
-
+| **合计** | | | | **65,919** | | **102,391,067** | **6,290,875,794** | | **76,126** | **1** | **8265 s** |
 <!-- stats:end -->
+
+---
+
+## 10. WORK-518 返工交付台账（2026-11-23）
+
+WORK-513 拆出的返工单：把「Parquet 齐但查不了库」修成「DuckDB 全表可查 + 六项闸 exit 0」。
+分支 `agent/work-518-fix`，基线 `agent/work-513-backfill`（`52090b5`）。
+
+### 10.1 阻塞项与修法
+
+| 编号 | 现象 | 修法 | 提交 |
+|---|---|---|---|
+| B1 | 空分区 / 整列全 `None` → Parquet 列类型是 `null` → 装载器崩（`failed to cast column "trade_date" from type DATE to "NULL"`） | 两侧同修：落盘按 `schema.sql` 声明类型显式写 Parquet；装载用 `read_parquet(?, hive_partitioning=false, union_by_name=true)` 并按批内实际类型投影（详见 §2.1） | `a1783de` |
+| B2 | `index_weight` 参数拼接 bug → 8 个分区全是 0 行 | `hi = min(_month_end(year, month), self.end)`，并删掉那 8 个 0 行分区重抓（2,008 次上游调用 / 0 失败 / 618 s / 734,422 行） | `a1783de` |
+| B3 | G2 随 B1 一起崩 | 装载器修好后 G2 自然可跑；G2 现在是「Parquet 行数 = DuckDB 行数」的勾稽闸 | `a1783de` |
+| B4 | G1 未纳入停牌口径 → 6 个交易日 >5% 判 FAIL | G1 改为「停牌调整后预期」口径（详见 §5.1），阈值仍是 5% | `a1783de` |
+| B5 | **装载实测新发现**：DuckDB 改不了已有表的主键，`INSERT OR REPLACE` 静默丢行（income −20.1%、balancesheet −30.8%、cashflow −22.2%、fina_indicator −43.6%、dividend −0.3%） | 装载该数据集**之前**比对库内主键与声明主键，不一致就重建该表（详见 §2.2） | `21cb6b7` |
+
+### 10.2 独立审查（主循环不参与审查，由独立子代理执行）
+
+| 轮次 | 结论 | 处置 |
+|---|---|---|
+| 第 1 轮 | **FAIL**：F1 blocking（G1 规则会让所有行数偏多的日子被无理由放行）+ 5 suggestion + 3 nit | F1–F9 全部修复 |
+| 第 2 轮 | **FAIL**：R-1 blocking（子集装载会把 5 张财务表抹空约 185 万行）+ R-2–R-8 | R-1–R-8 全部修复 |
+| 第 3 轮 | **PASS**：无 blocking；R-1–R-8 全部确认修复，「new regressions introduced: no」；遗留 2 suggestion + 3 nit | 见 §8 第 14 条 |
+
+第 3 轮审查用变异测试逐条确认「哪个修复有测试保护」：R-1 与重建顺序有测试保护，
+R-3 / R-4 / R-6 / R-8 与 stderr 警告**没有**独立测试（N-4）。
+
+### 10.3 回归用例
+
+`db/tests/test_work518_blockers.py` 新增 **25** 个用例（B1 写/装两侧、B2 窗口、B4 G1 口径、B5 主键重建、
+子集装载不抹表），单测总数 **106 → 132**，`python -m pytest db/tests -q` → **132 passed**。
+
+### 10.4 复跑命令
+
+```bash
+export QUANTDB_HOME=/srv/share/quantdb
+cd <repo>
+/home/moyongkai/.venvs/quantdb/bin/python -m pytest db/tests -q                      # 132 passed
+/home/moyongkai/.venvs/quantdb/bin/python -m db.etl.fetch --dataset all --load-only --full-refresh   # EXIT_CODE=0
+/home/moyongkai/.venvs/quantdb/bin/python -m db.checks.run all                      # 六项闸全 PASS，EXIT_CODE=0
+/home/moyongkai/.venvs/quantdb/bin/python -m db.etl.stats --out /tmp/stats.md
+/home/moyongkai/.venvs/quantdb/bin/python -m db.etl.delivery --out /tmp/delivery.json
+./db/bin/ql sql "SELECT count(*) FROM v_daily_qfq"                                # 15,964,248
+```
+
+### 10.5 数据处置说明
+
+本轮只删改过 **`index_weight` 的 8 个旧分区**（全是 0 行的坏分区，issue 明确授权），其余 `raw/` 分区**一个没动**；
+`raw/` 保持只追加语义。库里的旧空分区**没有重写**（仍是旧类型），由装载器的 `union_by_name` 兜住。
