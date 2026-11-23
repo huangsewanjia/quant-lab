@@ -37,21 +37,15 @@ AKSHARE_PYTHON = os.environ.get(
 # Long-listed, always-traded stocks used for the Sina cross-check.
 CROSSCHECK_SYMBOLS = ("sh600000", "sz000001", "sh600519", "sh601318", "sz000002")
 
-PK_DATASETS = (
-    "daily",
-    "daily_basic",
-    "adj_factor",
-    "stk_limit",
-    "suspend_d",
-    "index_daily",
-    "index_weight",
-    "income",
-    "balancesheet",
-    "cashflow",
-    "fina_indicator",
-    "dividend",
-    "namechange",
-)
+# Every dataset that lands in DuckDB has to be covered by G2 (primary key
+# uniqueness + Parquet/DuckDB row parity). The list is derived from the
+# schema instead of being written out by hand: the reference tables
+# (``trade_cal``, ``stock_basic``, ``index_classify``) were missing from the
+# hand-written list, so a 4-row drift of the calendar between the Parquet
+# layer and DuckDB (2026-11-23) passed every gate. Deriving the list makes
+# that class of blind spot impossible to reintroduce: a new table in
+# ``common.TABLE_PK`` is checked as soon as it is declared.
+PK_DATASETS = tuple(common.TABLE_PK)
 
 
 def _code_to_symbol(code: str) -> str:

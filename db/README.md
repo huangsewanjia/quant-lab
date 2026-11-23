@@ -242,7 +242,7 @@ $PY -m pytest db/tests -q
 | 闸 | 内容 | 判定 |
 |---|---|---|
 | G1 | 每个开市日都有 `daily` 分区；逐日行数与 ±5 日滚动中位数对比，偏差 >5% 逐日列出；偏差 **>5% 的日子一律记 anomaly**，再把当天预期行数按**超额停牌家数**下调（预期 = 滚动中位数 − 当日超额停牌家数），与调整后预期偏差仍 ≤5% 才判「停牌可解释例外」；行数**偏多永远不解释**（见 §5.1） | 缺失/空/日历外日期 = 0 且**未解释**异常 = 0；可解释例外单列，不影响闸门结论 |
-| G2 | Parquet 层主键唯一；**每张 DuckDB 表行数 = 其 Parquet 行数**（主键冲突会在装载时静默丢行，所以行数勾稽才是真检查） | 重复组 = 0 且行数差 = 0 |
+| G2 | Parquet 层主键唯一；**每张 DuckDB 表行数 = 其 Parquet 行数**（主键冲突会在装载时静默丢行，所以行数勾稽才是真检查）。**覆盖全部 16 张表**，参考表（`trade_cal`/`stock_basic`/`index_classify`）也不例外（名单由 `common.TABLE_PK` 派生，新增表自动纳入，见 §8 第 18 条） | 重复组 = 0 且行数差 = 0 |
 | G3 | `high ≥ max(open, close)`、`low ≤ min(open, close)` | 违例 = 0 |
 | G4 | `adj_factor` 无 0/负值/缺失 | 违例 = 0 |
 | G5 | 抽样 20 个开市日 × 5 只股票，与新浪源（akshare 1.20.65）比 `close`，容差 0.01 元 | 比对数 > 0 且违例 = 0 |
@@ -283,17 +283,40 @@ G5 的新浪源用 `stock_zh_a_hist_sina`（新浪），一次请求取回个股
 ### 本轮闸门实测结果
 
 <!-- gates:begin -->
-实测于 2026-11-23 09:22，命令 `/home/moyongkai/.venvs/quantdb/bin/python -m db.checks.run all` → **EXIT_CODE=0**，
-报告 `/srv/share/quantdb/meta/checks/checks-20261123.json`，日志 `/srv/share/quantdb/logs/work518-checks.log`。
+实测于 2026-11-23 11:05（2026-11-23T03:05:00Z），命令 `/home/moyongkai/.venvs/quantdb/bin/python -m db.checks.run all --out /srv/share/quantdb/meta/checks/checks-20261123-recheck.json` → **EXIT_CODE=0**，
+报告 `/srv/share/quantdb/meta/checks/checks-20261123-recheck.json`。
+（这一轮跑在 §8 第 18 条的修复之后：G2 的行数勾稽名单已从 13 张表扩到**全部 16 张表**，含三张参考表。）
 
 | 闸 | 结论 | 实测值 |
 |---|---|---|
 | G1 交易日勾稽 | **PASS_WITH_EXCEPTIONS** | 开市日 5,072，有行天数 5,072，缺失日 0、空日 0、日历外日期 0；anomaly 6 → 可解释例外 6、**未解释异常 0**；偏差阈值仍是 5%（未放宽） |
-| G2 主键与行数勾稽 | **PASS** | 重复主键组 0；行数不一致的数据集 0（12 张表逐表 Parquet 行数 = DuckDB 行数） |
+| G2 主键与行数勾稽 | **PASS** | 重复主键组 0（16 张表逐张查）；行数不一致的数据集 0（**16 张表**逐表 Parquet 行数 = DuckDB 行数，合计 102,391,068 = 102,391,068） |
 | G3 OHLC 一致性 | **PASS** | 检查 15,966,167 行，违例 0，OHLC 有空值 0 |
-| G4 复权因子为正 | **PASS** | 检查 16,722,519 行，非正 0、空值 0 |
+| G4 复权因子为正 | **PASS** | 检查 16,722,519 行，非正 0 |
 | G5 新浪源交叉校验 | **PASS** | 抽样 20 个开市日 × 5 只股票：请求 100 对，实际比对 96 对（4 对新浪源缺失），容差 0.01 元，违例 0，最大绝对偏差 0.0 |
-| G6 manifest 完整性 | **PASS** | 坏分区/坏 manifest 合计 0 |
+| G6 manifest 完整性 | **PASS** | 坏分区/坏 manifest 合计 0（16 个数据集） |
+
+G2 逐表行数勾稽（Parquet ↔ DuckDB，差异全为 0）：
+
+| 表 | 分区 | Parquet 行 | DuckDB 行 | 差 | 重复主键组 |
+|---|---:|---:|---:|---:|---:|
+| trade_cal | 2 | 15,260 | 15,260 | 0 | 0 |
+| stock_basic | 3 | 5,925 | 5,925 | 0 | 0 |
+| daily | 5,072 | 15,966,167 | 15,966,167 | 0 | 0 |
+| daily_basic | 5,072 | 15,875,303 | 15,875,303 | 0 | 0 |
+| adj_factor | 5,074 | 16,722,519 | 16,722,519 | 0 | 0 |
+| stk_limit | 5,072 | 16,155,227 | 16,155,227 | 0 | 0 |
+| suspend_d | 5,072 | 581,366 | 581,366 | 0 | 0 |
+| index_daily | 5,072 | 34,474,216 | 34,474,216 | 0 | 0 |
+| index_weight | 8 | 734,422 | 734,422 | 0 | 0 |
+| index_classify | 1 | 511 | 511 | 0 | 0 |
+| income | 5,924 | 353,491 | 353,491 | 0 | 0 |
+| balancesheet | 5,924 | 398,898 | 398,898 | 0 | 0 |
+| cashflow | 5,924 | 362,711 | 362,711 | 0 | 0 |
+| fina_indicator | 5,924 | 484,520 | 484,520 | 0 | 0 |
+| dividend | 5,924 | 248,990 | 248,990 | 0 | 0 |
+| namechange | 5,851 | 11,542 | 11,542 | 0 | 0 |
+| **合计** | **65,919** | **102,391,068** | **102,391,068** | **0** | **0** |
 
 G1 的 6 条可解释例外（未调整偏差 >5%，停牌调整后偏差 0.38%~1.37%，全部落在 5% 内）：
 2015-07-08、2015-07-09、2015-07-10、2015-07-13、2007-05-18、2006-06-30。逐日的
@@ -306,9 +329,8 @@ excess_suspensions / expected_rows / adjusted_deviation / judgement` 都在报�
 - **全量装载**：`python -m db.etl.fetch --dataset all --load-only --full-refresh` → **EXIT_CODE=0**
   （日志 `/srv/share/quantdb/logs/work518-final-load.log`，代码提交 `1010512`）。16 张表逐表「读入行数 = 表内行数」。
 - **16 表逐表 Parquet ↔ DuckDB 行数对照**：差值全为 0，`MISMATCH_TABLES=0`（日志 `/srv/share/quantdb/logs/work518-final-verify.log`）。
-- **复权视图**：`v_daily_qfq` 与 `v_daily_hfq` 各 15,964,248 行；600000.SH 抽查 `close_hfq = close × adj_factor / min(adj_factor)`
-  与 `close_qfq = close × adj_factor / max(adj_factor)` 的最大偏差 5.0e-05（视图按 4 位小数取整的舍入残差）。
-- **单测**：`python -m pytest db/tests -q` → **132 passed**（本轮新增 25 个用例，见 §10）。
+- **复权视图**：`v_daily_qfq` 与 `v_daily_hfq` 各 15,964,248 行 = `daily` 15,966,167 − **1,919** 行（上游 `adj_factor` 缺口，见 §8 第 17 条）。
+- **单测**：`python -m pytest db/tests -q` → **139 passed**（本轮新增 7 个用例，见 §11）。
 <!-- gates:end -->
 
 ---
@@ -379,18 +401,41 @@ excess_suspensions / expected_rows / adjusted_deviation / judgement` 都在报�
     重试后成功。最终 Parquet 行数 = DuckDB 行数（398,898 = 398,898），**无数据缺失**。全库 76,126 次上游调用中仅此 1 次报错。
 16. **`index_weight` 的 8 个分区是本轮删掉旧分区后重抓的**：旧分区因为参数拼接 bug（见 §10）全部 0 行，
     已删除并重抓——本次 2,008 次上游调用、0 失败、618 s，合计 734,422 行。`raw/` 里其他数据集的历史分区**一个没动**。
+17. **复权视图比 `daily` 少 1,919 行（上游缺口，不是抓漏）**：`v_daily_qfq` / `v_daily_hfq` 是 `daily ⋈ adj_factor` 的
+    **内连接**，所以没有 `adj_factor` 的 `daily` 行拿不到复权价——15,966,167 − 15,964,248 = **1,919 行**（占 0.012%）。
+    - **已核验是上游本身没有**（2026-11-23）：对这 1,919 对 `(ts_code, trade_date)` 随机抽 25 对直查上游 `adj_factor`，
+      **25/25 返回 0 行**；对照组 600000.SH 同日返回 1 行。缺口集中在北交所/NEEQ 代码（`920047.BJ` 732 行、
+      `920751.BJ` 411 行、`920145.BJ` 200 行、`920957.BJ` 102 行、`920339.BJ` 90 行）和 `600018.SH`（170 行）。
+    - 成因是**上游 `adj_factor` 的历史起点晚于 `daily`**：`600018.SH` 的 `adj_factor` 从 2006-10-26 起而 `daily` 从
+      2006-01-04 起；`920047.BJ` 从 2020-11-24 起而 `daily` 从 2009-06-17 起；`920751.BJ` 从 2023-07-17 起而 `daily`
+      从 2015-12-22 起。**不是本库的抓取窗口或切片漏了分区**（`adj_factor` 有 5,074 个分区，覆盖全部 5,072 个开市日）。
+    - **对使用者的影响**：算复权价时这 1,919 行会消失。做横截面或序列拼接时，要么用 `daily` 的原始价（不依赖复权），
+      要么显式 `LEFT JOIN adj_factor` 并对缺失单独设标记，**不要**直接用视图的行数当 `daily` 的行数。
+18. **参考表必须与研究窗口同口径，且 G2 现在覆盖参考表**（2026-11-23 复核发现并修复）：
+    - **事故**：`trade_cal` 曾用 `--end=20261123` 重抓（比研究窗口 2026-11-21 多一天），而 DuckDB 是 10 分钟前用旧版本装的，
+      于是 Parquet 层 15,264 行 vs DuckDB 层 15,260 行（**差 4 行**），且日历多出一个 `daily` 没有的交易日 → G1 判 FAIL。
+      **而这道漂移当时一道闸都没报**：G2 的行数勾稽名单是手写的 13 张表，`trade_cal` / `stock_basic` / `index_classify`
+      三张参考表**根本不在名单里**。
+    - **修法**：`checks.PK_DATASETS` 改为从 `common.TABLE_PK` 派生 → **16 张表全部纳入**行数勾稽与主键检查，
+      以后新增表自动纳入，名单再也不会和 schema 漂移。回归用例见 `db/tests/test_post_acceptance_defects.py`。
+    - **取数纪律**：参考表按**研究窗口**抓（`--start 20060101 --end 20261121`），**改窗口就要同步重装 DuckDB**；
+      `stock_basic` 是例外——它是上游在册主表，与窗口无关（当前 5,925 行，三个分区 L/D/P）。
+    - 复跑：`python -m db.etl.fetch --dataset trade_cal --start 20060101 --end 20261121 --no-resume`
+      然后 `python -m db.etl.fetch --dataset trade_cal --load-only --full-refresh`。
 
 ---
 
 ## 9. 交付统计
 
-由 `python -m db.etl.stats` 生成（分区数 / manifest 数 / 行数 / 字节 / 空分区 / 上游调用 / 上游耗时）：
+由 `python -m db.etl.stats` 生成（分区数 / manifest 数 / 行数 / 字节 / 空分区 / 上游调用 / 上游耗时）。
+下表为 2026-11-23 11:05 的重跑结果（`/srv/share/quantdb/meta/stats-20261123-recheck.md`）：
+**总行数 102,391,068**，与 DuckDB 层逐表相等；上游调用 76,135 次（较上一版多 9 次，是本次 `trade_cal` / `stock_basic` 重抓）。
 
 <!-- stats:begin -->
 | 数据集 | 接口 | 拉法 | 分区键 | 分区数 | manifest | 行数 | 字节 | 空分区 | 上游调用 | 调用报错 | 上游耗时 |
 |---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| trade_cal | `trade_cal` | calendar | exchange= | 2 | 2 | 15,260 | 114,321 | 0 | 6 | 0 | 2 s |
-| stock_basic | `stock_basic` | stock_basic | status= | 3 | 3 | 5,924 | 213,454 | 1 | 7 | 0 | 2 s |
+| trade_cal | `trade_cal` | calendar | exchange= | 2 | 2 | 15,260 | 114,321 | 0 | 12 | 0 | 4 s |
+| stock_basic | `stock_basic` | stock_basic | status= | 3 | 3 | 5,925 | 213,500 | 1 | 10 | 0 | 2 s |
 | daily | `daily` | range | trade_date= | 5072 | 5072 | 15,966,167 | 694,116,859 | 0 | 5,459 | 0 | 794 s |
 | daily_basic | `daily_basic` | range | trade_date= | 5072 | 5072 | 15,875,303 | 1,694,222,643 | 0 | 5,636 | 0 | 874 s |
 | adj_factor | `adj_factor` | range | trade_date= | 5074 | 5074 | 16,722,519 | 136,773,507 | 0 | 5,712 | 0 | 587 s |
@@ -405,7 +450,7 @@ excess_suspensions / expected_rows / adjusted_deviation / judgement` 都在报�
 | namechange | `namechange` | namechange | ts_code= | 5851 | 5851 | 11,542 | 22,969,491 | 0 | 38 | 0 | 4 s |
 | index_weight | `index_weight` | index_weight | index_code= | 8 | 8 | 734,422 | 1,122,384 | 0 | 4,022 | 0 | 265 s |
 | index_classify | `index_classify` | classify | src= | 1 | 1 | 511 | 12,753 | 0 | 5 | 0 | 1 s |
-| **合计** | | | | **65,919** | | **102,391,067** | **6,290,875,794** | | **76,126** | **1** | **8265 s** |
+| **合计** | | | | **65,919** | | **102,391,068** | **6,290,875,840** | | **76,135** | **1** | **8267 s** |
 <!-- stats:end -->
 
 ---
@@ -458,3 +503,52 @@ cd <repo>
 
 本轮只删改过 **`index_weight` 的 8 个旧分区**（全是 0 行的坏分区，issue 明确授权），其余 `raw/` 分区**一个没动**；
 `raw/` 保持只追加语义。库里的旧空分区**没有重写**（仍是旧类型），由装载器的 `union_by_name` 兜住。
+
+---
+
+## 11. WORK-513 唤醒复核（2026-11-23 11:05）
+
+平台在 2026-11-23 02:21:38Z 触发「子单已关闭」唤醒。**验收结论不当作既成事实**，本轮对交付态做了一次独立复跑，
+结果：发现 **1 个交付态缺陷**（含 1 个闸门盲区）+ 1 个上游缺口（不修），修复后六闸 **6/6 PASS、EXIT_CODE=0**。
+
+### 11.1 复核发现的交付态缺陷
+
+| 编号 | 现象 | 影响 | 处置 |
+|---|---|---|---|
+| C1 | `trade_cal` 曾用 `--end=20261123` 重抓（研究窗口是 2026-11-21），而 DuckDB 是 10 分钟前用旧版本装的 → Parquet 15,264 行 vs DuckDB 15,260 行，且日历多出一个 `daily` 没有的交易日 | G1 判 FAIL（缺交易日）；**当时六道闸一道都没报** | 按研究窗口重抓并重装：两层都是 15,260 行；G2 补上参考表（见 C2） |
+| C2 | **G2 的行数勾稽名单是手写的 13 张表**，`trade_cal` / `stock_basic` / `index_classify` 三张参考表**根本不在名单里** | C1 那类漂移对 G2 是隐形的——闸门看不见自己没查的表 | `checks.PK_DATASETS` 改为从 `common.TABLE_PK` 派生 → 16 张表全部纳入，名单不再可能与 schema 漂移 |
+
+C1 的空分区类型问题（Parquet 全列 `null` 类型 → 统一 schema 的读取器崩）已由 WORK-518 返工单独立修复
+（落盘按声明类型写 + 读取侧 `union_by_name=true`，见 §2.1），本轮复跑未再复现。
+
+### 11.2 不是缺陷、但必须写进台账的上游缺口
+
+- **1,919 行 `daily` 没有对应的 `adj_factor`**（`daily` 15,966,167 vs 复权视图 15,964,248）。已直查上游核验：
+  随机抽 25 对缺失的 `(ts_code, trade_date)`，上游 `adj_factor` **25/25 返回 0 行**，对照组 600000.SH 同日返回 1 行。
+  成因是上游 `adj_factor` 的历史起点晚于 `daily`（600018.SH 从 2006-10-26 起、920047.BJ 从 2020-11-24 起、
+  920751.BJ 从 2023-07-17 起），集中在北京证券交易所 / 新三板代码。详见 §8 第 17 条。**不可修，也不能靠编造补齐。**
+
+### 11.3 本轮改动
+
+| 文件 | 改动 |
+|---|---|
+| `db/checks/checks.py` | `PK_DATASETS` 改为 `tuple(common.TABLE_PK)`，覆盖全部 16 张表；注释写明事故与后果 |
+| `db/tests/test_post_acceptance_defects.py` | **新增 7 个用例**：名单覆盖全表、参考表无分区判缺、日历漂移判 FAIL、日历主键重复判 FAIL、写入层去重、复权视图不给无因子的行编价 |
+| `db/README.md` | §5 G2 口径、§8 第 17/18 条、§5 闸门实测表更新、§11 本节 |
+
+单测 **132 → 139**，`python -m pytest db/tests -q` → **139 passed**。
+
+### 11.4 复跑命令与实测值
+
+```bash
+export QUANTDB_HOME=/srv/share/quantdb
+cd <repo>
+/home/moyongkai/.venvs/quantdb/bin/python -m pytest db/tests -q                       # 139 passed
+/home/moyongkai/.venvs/quantdb/bin/python -m db.checks.run all \
+    --out /srv/share/quantdb/meta/checks/checks-20261123-recheck.json                 # EXIT_CODE=0
+/home/moyongkai/.venvs/quantdb/bin/python -m db.etl.stats --out /srv/share/quantdb/meta/stats-20261123-recheck.md
+/home/moyongkai/.venvs/quantdb/bin/python -m db.etl.delivery --out /srv/share/quantdb/meta/delivery-20261123-recheck.json
+```
+
+- 六闸结论：G1 `PASS_WITH_EXCEPTIONS`（6 条可解释例外、0 条未解释异常）、G2/G3/G4/G5/G6 全 `PASS`。
+- 16 张表逐表 Parquet 行数 = DuckDB 行数，合计 **102,391,068 = 102,391,068**，差异 0，重复主键组 0。
