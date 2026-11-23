@@ -57,3 +57,14 @@ experiments/WORK-449/void_run_*/
 *.parquet
 *.jsonl
 /db/runtime/
+
+# ---- WORK-537 外资研报公开层：渠道清单与实测证据需入库可核验 ----
+# （CSV 默认被 *.csv 规则忽略，此处显式放行交付物与机器证据表）
+!docs/foreign_research_channels.csv
+!docs/WORK-537/02-data.csv
+!docs/foreign_research_brief.html
+
+# ---- WORK-537 抓取正文：内部研究用，绝不入 public 仓库 ----
+# 实际落盘在仓库外：/srv/share/quantdb/raw/foreign_research/
+raw/foreign_research/
+**/raw/foreign_research/

@@ -1,0 +1,23 @@
+# WORK-537 快照校验值 · 生成于 2026-11-23 (UTC+8) · sha256sum -c 可直接校验
+7cc60aa2e57ae79c92ba83dc0ba18e42bf6fdeb2f00a489f04c469b0ab4ba6d6  docs/foreign_research_channels.csv
+8b4a9cf65fe683b229d0a62bd05deb49d901423dc484385c7a6982901552f1e4  docs/WORK-537/02-data.csv
+13af504291164c1a09c878769e891892a7aa402bb89f35875852d508dc5c94c9  /srv/share/quantdb/raw/foreign_research/_probe/probe_log.json
+999afa2fa3ff7268271e87c152306761220133cdf447f3d367c24ed62a15abd4  /srv/share/quantdb/raw/foreign_research/_probe/request_ledger.json
+2065719ffac8ab1c1734e91706d1b8f1b748e986bb3a4a1afbcb9288a65e17e8  /srv/share/quantdb/raw/foreign_research/citi/2026-06-01/Tokenization-2030/Tokenization-2030.md
+9ce7d9da8a1c088ebeb43216772b010d5916953c209fd0b4bbaa353a47e03b46  /srv/share/quantdb/raw/foreign_research/cnbc/2026-11-19/AMD-stock-dives-on-short-seller-report-of-alleged-China-expo/AMD-stock-dives-on-short-seller-report-of-alleged-China-expo.md
+250a37bcd38bf10fec718c53be5b6b0a3475a10d8ad11a614cb9a503112bef6b  /srv/share/quantdb/raw/foreign_research/db/2026-11-12/Sea-change-the-market-implications-of-the-threat-to-the-mari/Sea-change-the-market-implications-of-the-threat-to-the-mari.md
+ce799e73904786ce1417411c3ce50c16c0a9f2d66c769ae8cc968b935df6ddeb  /srv/share/quantdb/raw/foreign_research/fxbaogao/2026-11-16/艾奇在线广告研究院-2026中国教育行业GEO与SEO优化研究报告-五大教育赛道AI搜索获客策略-服务商选型与实战方法论/艾奇在线广告研究院-2026中国教育行业GEO与SEO优化研究报告-五大教育赛道AI搜索获客策略-服务商选型与实战方法论.md
+37966e636803b766218e5d0dcbb29486ac36de77f3d6c8ba94a644d12eab3c89  /srv/share/quantdb/raw/foreign_research/gelonghui/2026-11-19/研报掘金丨国盛证券-首予富特科技-买入-评级-800V-HVDC打开第二成长曲线-格隆汇/研报掘金丨国盛证券-首予富特科技-买入-评级-800V-HVDC打开第二成长曲线-格隆汇.md
+d0257d795ca1bf8a7f951551b448e0363bc76dacf312de79d3b8784be6908fa5  /srv/share/quantdb/raw/foreign_research/gs/2026-11-13/The-Global-Economy-Is-Forecast-to-Grow-2-8-in-2027-as-Oil-Pr/The-Global-Economy-Is-Forecast-to-Grow-2-8-in-2027-as-Oil-Pr.md
+453d41597fac39db0addb9a10d71274d77b08d43837d8ea1226eeaf196cef4d1  /srv/share/quantdb/raw/foreign_research/hsbc/2026-10-30/Financing-the-next-wave-of-electrification/Financing-the-next-wave-of-electrification.md
+bc638af32237ab138e69837969682721d01479cc9e95e2c43125c3aa94ee1d84  /srv/share/quantdb/raw/foreign_research/jpm/2026-11-03/Global-Government-Bond-Yields-Hit-Multi-Decade-Highs/Global-Government-Bond-Yields-Hit-Multi-Decade-Highs.md
+852b534348893de6bb863fc3c766dc90eabd36566c9763b41efb03b538a3c95a  /srv/share/quantdb/raw/foreign_research/ms/2026-10-05/Healthcare-Leaders-Discuss-the-Forces-Reshaping-the-Industry/Healthcare-Leaders-Discuss-the-Forces-Reshaping-the-Industry.md
+e733679e0af6c45d9461e3c90d2dc68f444587856a1812cfa8c0bf4ffe6db385  /srv/share/quantdb/raw/foreign_research/citi/2026-06-01/Tokenization-2030/meta.json
+231791270ee62b8c270551a1359d2f8223982b46d1f3a53d5415dff7670dd370  /srv/share/quantdb/raw/foreign_research/cnbc/2026-11-19/AMD-stock-dives-on-short-seller-report-of-alleged-China-expo/meta.json
+4bd2f695d8697862233e5de0cf768b3db8b7a0d81e47cfa39f8771c0cf0790ac  /srv/share/quantdb/raw/foreign_research/db/2026-11-12/Sea-change-the-market-implications-of-the-threat-to-the-mari/meta.json
+4047baada0aec6a71e98d4a5add678f135cb542def253fd04f01b853bd79d1ae  /srv/share/quantdb/raw/foreign_research/fxbaogao/2026-11-16/艾奇在线广告研究院-2026中国教育行业GEO与SEO优化研究报告-五大教育赛道AI搜索获客策略-服务商选型与实战方法论/meta.json
+93c67247d98ecbfbdfcb6618ce88e7c94ac9aeee39bb5bf802553b0d07271e1d  /srv/share/quantdb/raw/foreign_research/gelonghui/2026-11-19/研报掘金丨国盛证券-首予富特科技-买入-评级-800V-HVDC打开第二成长曲线-格隆汇/meta.json
+acea2db0019247ddc522d682602dd1316726956cb4f1edcfbcc9e11f59044c5e  /srv/share/quantdb/raw/foreign_research/gs/2026-11-13/The-Global-Economy-Is-Forecast-to-Grow-2-8-in-2027-as-Oil-Pr/meta.json
+b3ba2cb14a1a8d13ee9d4cb57e3f2b408daab8995e71423dc00fc3477cfaed34  /srv/share/quantdb/raw/foreign_research/hsbc/2026-10-30/Financing-the-next-wave-of-electrification/meta.json
+a79b2025f62136d760173bbb6385d1cffb5b95bd938eb5be1fc5d4301f3ecf0d  /srv/share/quantdb/raw/foreign_research/jpm/2026-11-03/Global-Government-Bond-Yields-Hit-Multi-Decade-Highs/meta.json
+f84eb1be05787473a8aa2e4ca2a658bc9fc032a967f935560f3391bf3f111cc6  /srv/share/quantdb/raw/foreign_research/ms/2026-10-05/Healthcare-Leaders-Discuss-the-Forces-Reshaping-the-Industry/meta.json
