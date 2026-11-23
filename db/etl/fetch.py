@@ -599,7 +599,7 @@ class Fetcher:
         and the backfill can never reach completion.
         """
         common.write_partition(
-            pd.DataFrame(columns=common.canonical_columns(spec.name)),
+            common.empty_frame(spec.name),
             spec.name,
             key,
             "tushare",

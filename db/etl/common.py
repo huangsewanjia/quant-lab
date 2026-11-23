@@ -327,7 +327,18 @@ def write_partition(
     target_dir.mkdir(parents=True, exist_ok=True)
     target = target_dir / PART_FILE
     tmp = target_dir / f".{PART_FILE}.tmp.{os.getpid()}.{threading.get_ident()}"
-    work.to_parquet(tmp, index=False, compression="zstd")
+    schema = arrow_schema(dataset) if work.empty else None
+    if schema is not None:
+        # An empty frame carries no values, so pyarrow would type every column
+        # as "null" and the partition would break any reader that unifies the
+        # schemas of a dataset's files. Write it with the real schema.
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        table = pa.Table.from_pandas(work, schema=schema)
+        pq.write_table(table, tmp, compression="zstd")
+    else:
+        work.to_parquet(tmp, index=False, compression="zstd")
     os.replace(tmp, target)
     digest = sha256_file(target)
     meta = {
@@ -624,7 +635,7 @@ def load_partitions(
         chunk = files[start : start + batch_size]
         con.execute(
             "CREATE OR REPLACE TEMP TABLE _batch AS "
-            "SELECT * FROM read_parquet(?, hive_partitioning=false)",
+            "SELECT * FROM read_parquet(?, hive_partitioning=false, union_by_name=true)",
             [chunk],
         )
         batch_columns = {row[0] for row in con.execute("DESCRIBE _batch").fetchall()}
@@ -661,15 +672,83 @@ def schema_types(con, table: str) -> dict[str, str]:
 _SCHEMA_COLUMNS: dict[str, list[str]] = {}
 
 
+_COLUMN_TYPES: dict[str, dict[str, str]] = {}
+
+
+def _parse_schema() -> None:
+    """Parse schema.sql into {table: {column: type}} (once per process)."""
+    if _COLUMN_TYPES:
+        return
+    import re
+
+    text = SCHEMA_SQL.read_text(encoding="utf-8")
+    for match in re.finditer(
+        r"CREATE TABLE (?:IF NOT EXISTS )?(\w+) \((.*?)\n\);", text, re.S
+    ):
+        body = match.group(2)
+        pairs = re.findall(r'^\s*"([^"]+)"\s+(\w+)', body, re.M)
+        _COLUMN_TYPES[match.group(1)] = {name: dtype for name, dtype in pairs}
+
+
 def canonical_columns(dataset: str) -> list[str]:
     """Column list of a dataset, parsed from schema.sql (no DB connection needed)."""
-    if not _SCHEMA_COLUMNS:
-        import re
+    _parse_schema()
+    return list(_COLUMN_TYPES.get(dataset, {}).keys())
 
-        text = SCHEMA_SQL.read_text(encoding="utf-8")
-        for match in re.finditer(
-            r"CREATE TABLE (?:IF NOT EXISTS )?(\w+) \((.*?)\n\);", text, re.S
-        ):
-            body = match.group(2)
-            _SCHEMA_COLUMNS[match.group(1)] = re.findall(r'^\s*"([^"]+)"\s+\w+', body, re.M)
-    return list(_SCHEMA_COLUMNS.get(dataset, []))
+
+def canonical_types(dataset: str) -> dict[str, str]:
+    """Column -> declared DuckDB type, parsed from schema.sql."""
+    _parse_schema()
+    return dict(_COLUMN_TYPES.get(dataset, {}))
+
+
+# DuckDB type -> the Arrow type the Parquet files must carry. The mapping has
+# to match what pandas produces for a NON-empty partition, otherwise a reader
+# that unifies the schemas of a dataset's files sees two different types.
+def _arrow_type(dtype: str):
+    import pyarrow as pa
+
+    return {
+        "DATE": pa.date32(),
+        "DOUBLE": pa.float64(),
+        "FLOAT": pa.float32(),
+        "REAL": pa.float32(),
+        "VARCHAR": pa.large_string(),
+        "TEXT": pa.large_string(),
+        "STRING": pa.large_string(),
+        "INTEGER": pa.int64(),
+        "BIGINT": pa.int64(),
+        "SMALLINT": pa.int64(),
+        "TINYINT": pa.int64(),
+        "BOOLEAN": pa.bool_(),
+    }.get(dtype.upper())
+
+
+def arrow_schema(dataset: str):
+    """The Parquet schema an (empty) partition of `dataset` must carry.
+
+    An empty pandas frame carries no values, so pyarrow cannot infer a type
+    and writes every column as ``null``. A file whose columns are all
+    ``null`` breaks every reader that unifies the schemas of a dataset's
+    files: DuckDB takes the schema of one file and then fails to cast the
+    others ("failed to cast column X from type DATE to NULL"). The empty
+    partition therefore has to be written with the real schema.
+    """
+    import pyarrow as pa
+
+    _parse_schema()
+    types = _COLUMN_TYPES.get(dataset, {})
+    if not types:
+        return None
+    fields = []
+    for name, dtype in types.items():
+        arrow_type = _arrow_type(dtype)
+        if arrow_type is None:
+            return None
+        fields.append(pa.field(name, arrow_type))
+    return pa.schema(fields)
+
+
+def empty_frame(dataset: str) -> pd.DataFrame:
+    """A zero-row frame with the declared columns of `dataset`."""
+    return pd.DataFrame({name: pd.Series([], dtype="object") for name in canonical_columns(dataset)})

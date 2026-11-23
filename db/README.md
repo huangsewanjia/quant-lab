@@ -248,6 +248,10 @@ G5 的新浪源用 `stock_zh_a_hist_sina`（新浪），一次请求取回个股
 7. **`stock_basic` 没有 `delist_date` 字段**（上游该接口返回 10 列，不含退市日），所以退市股票的财务窗口右端只能取到研究窗口末端，多出的查询返回 0 行。
 8. **前一轮同单运行留下的新浪单股冒烟数据已移出**：`/srv/share/quantdb/_superseded/20261122-sina-smoke/`（`move` 而非删除，数据保留），避免与本轮 `part.parquet` 布局混读。
 9. **`db/policy/` 是另一单（政策采集）的代码**，不在本单范围，本次未运行也未验收。
+10. **复权视图比 `daily` 少 1,919 行**：有 1,919 个「交易日 × 股票」在 `daily` 里有行情、但没有对应的 `adj_factor`，`v_daily_qfq` / `v_daily_hfq` 直接把它们丢掉（视图覆盖 15,964,248 / 15,966,167 行）。这是上游复权因子本身缺项，不是装载丢行。
+11. **参考表 `trade_cal` 必须与研究窗口一致**。它按 `--start/--end` 取数：如果用别的窗口重新抓过日历（例如 `--end` 取到今天），Parquet 层的日历会比 `daily` 多出研究窗口之外的交易日，DuckDB 层若不同步重装，G1 会报「缺交易日」、G2 会报行数不一致。**改了取数窗口就必须同步重装 DuckDB**（`--load-only --full-refresh`）。现在 G2 也把 `trade_cal` / `stock_basic` / `index_classify` 纳入行数勾稽，这类漂移不会再被漏掉。
+12. **空分区的 Parquet 类型**：早期版本的空分区所有列都写成 `null` 类型（空 DataFrame 没有值，pyarrow 推不出类型），会让「统一多个文件 schema」的读取器报 `failed to cast column X from type DATE to NULL`（实测 G2 在 `stk_limit` 上崩过）。现在空分区按 `schema.sql` 的声明类型写出（`date32[day]` / `large_string` / `double`），读取侧同时加 `union_by_name=true`，两层都不再依赖「扫描先碰到哪个文件」。
+    - 已落盘的旧空分区仍是 `null` 类型（27k 个文件量级，未批量重写），靠读取侧的 `union_by_name=true` 保证可读；下次重抓对应分区会自动写成正确类型。
 
 ---
 

@@ -49,6 +49,13 @@ PK_DATASETS = (
     "fina_indicator",
     "dividend",
     "namechange",
+    # The reference tables are checked too: a re-fetch with a different
+    # --start/--end window (or a newer upstream master list) changes the
+    # Parquet layer without touching DuckDB, and that drift used to be
+    # invisible to every gate.
+    "trade_cal",
+    "stock_basic",
+    "index_classify",
 )
 
 
@@ -151,7 +158,8 @@ def check_primary_keys(con) -> tuple[bool, dict[str, Any]]:
         pk = [c for c in common.TABLE_PK[dataset] if c in common.canonical_columns(dataset)]
         parquet_rows = int(
             con.execute(
-                "SELECT count(*) FROM read_parquet(?, hive_partitioning=false)", [glob]
+                "SELECT count(*) FROM read_parquet(?, hive_partitioning=false, union_by_name=true)",
+                [glob],
             ).fetchone()[0]
         )
         if pk:
@@ -160,7 +168,8 @@ def check_primary_keys(con) -> tuple[bool, dict[str, Any]]:
                 con.execute(
                     "SELECT count(*) FROM ("
                     f"SELECT {', '.join(chr(34) + c + chr(34) for c in pk)}, count(*) AS c "
-                    f"FROM read_parquet(?, hive_partitioning=false) GROUP BY {group} HAVING c > 1)",
+                    f"FROM read_parquet(?, hive_partitioning=false, union_by_name=true) "
+                    f"GROUP BY {group} HAVING c > 1)",
                     [glob],
                 ).fetchone()[0]
             )
