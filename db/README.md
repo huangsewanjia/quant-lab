@@ -49,7 +49,7 @@ token 只从 `TUSHARE_TOKEN` 或 `/home/moyongkai/.config/quantdb/tushare.token`
 /srv/share/quantdb/staging/tmp                                      # DuckDB 溢写
 ```
 
-**manifest 字段**：`dataset` / `partition` / `rows` / `bytes` / `sha256` / `file` / `source` / `fetched_at` / `columns` / `column_types`（每列的 Parquet 物理类型）/ `primary_key` / `query`（本次取数用的参数）/ `empty_upstream`（该交易日确无数据）/ `rows_raw`（上游返回的原始行数）/ `rows_dropped_null_pk`（主键含 NULL 被丢的行数）/ `possible_truncation`（响应触到上游行数上限）/ `months_requested` + `months_with_rows`（`index_weight` 用）。
+**manifest 字段**：`dataset` / `partition` / `rows` / `bytes` / `sha256` / `file` / `source` / `fetched_at` / `columns` / `column_types`（每列的 Parquet 物理类型）/ `primary_key` / `query`（本次取数用的参数）/ `empty_upstream`（该交易日确无数据）/ `provisional`（增量模式下 `stk_limit`/`suspend_d` 的空分区，等 `daily` 就绪后可重判）/ `rows_raw`（上游返回的原始行数）/ `rows_dropped_null_pk`（主键含 NULL 被丢的行数）/ `possible_truncation`（响应触到上游行数上限）/ `months_requested` + `months_with_rows`（`index_weight` 用）。
 
 **写入顺序**：先写 `.part.parquet.tmp.<pid>.<tid>` → `os.replace` 原子改名 → 再写 manifest（manifest 本身也是临时文件 + 原子改名）。
 因此：manifest 存在 ⇒ parquet 一定存在且完整；中断最多留下一个 `.tmp` 残留（下次启动清理），**不会**出现「manifest 指向不存在的文件」。

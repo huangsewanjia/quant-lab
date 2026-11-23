@@ -91,7 +91,7 @@
 
 | 项 | 命令 | 结果 |
 |---|---|---|
-| 单测 | `pytest db/tests -q` | 160 passed |
+| 单测 | `pytest db/tests -q` | 162 passed |
 | 数据闸门 | `python -m db.checks.run all --out .../checks-20261123-work529.json` | `ok: true`，G1–G6 全 PASS |
 | 台账 | `python -m db.etl.stats --json` | 16 个数据集 / 65,919 分区 / 102,391,068 行 / 6,290,875,840 字节 |
 | 手动 daily | `systemctl --user start quantdb-daily.service` | exit 0；2026-11-23 10:25；0 个新行情分区；日志 `logs/daily-20261123.log` |
@@ -151,3 +151,12 @@ systemctl --user daemon-reload
 |---|---|
 | R7 | `backup-nightly.sh` 用子 shell 隔离 `set -e`，失败后能进入 `alert_failure` |
 | R8 | `stk_limit` / `suspend_d` 的空分区先写 `provisional`；`daily` 未就绪时 `manifest_resumable=False`，下一轮重抓，`daily` 成功后才转永久空分区 |
+
+### 第四轮定向复核的 1 条 blocking（已修）
+
+| 编号 | 修复 |
+|---|---|
+| R9 | `market_plans()` 的 `_partition_present()` 不再把 `provisional` 当作 present；旧版合法空分区仍视为 present，避免历史全量重抓 |
+
+同时加固：日历校验改为精确覆盖 `[CAL_START, calendar_end]`；`fetch_calendar()` 复用同一校验；
+weekly 对账与 policy 日常抓取共享 `policy.lock`；冷备 `SHA256SUMS` 覆盖 `raw/db/meta/policy`。

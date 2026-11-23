@@ -745,6 +745,9 @@ class Fetcher:
                     dataset="trade_cal",
                     partition=exchange,
                 )
+                from .incremental import _validate_calendar_frame
+
+                _validate_calendar_frame(frame, exchange, CAL_START, CAL_END)
                 meta = common.write_partition(
                     frame,
                     "trade_cal",

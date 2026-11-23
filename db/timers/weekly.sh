@@ -13,12 +13,18 @@ acquire_task_lock weekly || exit 0
 code=0
 
 if [ ! -f "${RECON_MARKER}" ]; then
+  exec 7>"${STATE_DIR}/policy.lock"
+  if ! flock -n 7; then
+    log "policy 抓取正在运行，本次对账跳过，避免并发覆盖 index.json"
+    exit 0
+  fi
   log "weekly 06:00 policy reconcile"
   set +e
   run_py -m db.policy.fetch_policy \
     --reconcile --max-fetch 200 --rpm 60 >>"${LOG}" 2>&1
   code=$?
   set -e
+  exec 7>&-
   if [ "${code}" -eq 0 ]; then
     touch "${RECON_MARKER}"
   fi

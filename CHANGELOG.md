@@ -20,7 +20,7 @@
 
 实测：
 
-- `pytest db/tests -q` → 160 passed。
+- `pytest db/tests -q` → 162 passed。
 - 行情增量在收盘前 no-op；模拟收盘后无数据返回 75 且不写空分区。
 - 财务 2026-11-13 单日实测四次抓取 + dividend 21 个分区，重复跑行数不变。
 - 冷备 rsync + `SHA256SUMS` 155,640 个文件校验通过。

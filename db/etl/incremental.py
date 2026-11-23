@@ -223,7 +223,9 @@ def _market_start(dataset: str) -> str:
 
 def _partition_present(dataset: str, day: str) -> bool:
     meta = common.read_manifest(dataset, day) or {}
-    return bool(meta) and common.manifest_file_ok(meta, verify_hash=False)
+    if not meta or meta.get("provisional"):
+        return False
+    return common.manifest_file_ok(meta, verify_hash=False)
 
 
 def market_plans(
@@ -320,13 +322,12 @@ def _validate_calendar_frame(
             f"trade_cal {exchange} 覆盖 {min(dates)}..{max(dates)}，"
             f"不足 {start}..{end}，保留旧日历"
         )
-    start_day = dt.date(int(start[:4]), int(start[4:6]), int(start[6:]))
-    end_day = dt.date(int(end[:4]), int(end[4:6]), int(end[6:]))
-    expected_days = (end_day - start_day).days + 1
-    if len(set(dates)) < int(expected_days * 0.95):
+    expected = set(_date_range(start, end))
+    missing = expected - set(dates)
+    if missing:
         raise IncrementalError(
-            f"trade_cal {exchange} 只有 {len(set(dates))} 天，"
-            f"少于预期 {expected_days} 天的 95%，保留旧日历"
+            f"trade_cal {exchange} 缺 {len(missing)} 天（如 {sorted(missing)[:3]}），"
+            "保留旧日历"
         )
     try:
         flags = {int(value) for value in frame["is_open"].dropna().tolist()}

@@ -65,7 +65,7 @@
 
 | 命令 | 实测结果 |
 |---|---|
-| `pytest db/tests -q` | 160 passed（WORK-529 第三轮修复后实测；含增量区间、源端延迟、合并幂等、混合日期格式、假日直接退出、指数 runner、日历空响应、dividend 空主键回归） |
+| `pytest db/tests -q` | 162 passed（WORK-529 第四轮修复后实测；含增量区间、源端延迟、合并幂等、混合日期格式、假日直接退出、指数 runner、日历空响应、dividend 空主键回归） |
 | `python -m db.checks.run all` | 6 项闸，见 `meta/checks/checks-<date>.json`；空数据一律判 FAIL（缺数据 ≠ 数据干净） |
 | `python -m db.etl.stats` | 台账统计（分区/行数/字节/空分区/上游调用/上游耗时） |
 | `python -m db.etl.delivery` | 交付快照（环境版本、逐数据集行数与字节、调用与报错数） |

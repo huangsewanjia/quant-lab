@@ -446,3 +446,49 @@ def test_allow_empty_is_provisional_until_daily_is_ready(qdb):
     meta = qdb.read_manifest("suspend_d", "20200106")
     assert not meta.get("provisional")
     assert common.manifest_resumable("suspend_d", "20200106") is True
+
+
+def test_market_plan_refetches_a_provisional_allow_empty_partition(qdb):
+    _calendar(qdb, ["20200106"])
+    now = incremental.parse_now("2020-01-06T19:00:00+08:00")
+    fetcher = fetch.Fetcher(
+        EmptyClient(),
+        "20200106",
+        "20200106",
+        resume=True,
+        concurrency=1,
+        provisional_empty=True,
+    )
+    fetcher.fetch_range(fetch.DATASETS["suspend_d"], concurrency=1)
+    plan = incremental.market_plans(now)["suspend_d"]
+    assert plan.start == "20200106"
+    _daily(qdb, "20200106")
+    fetcher = fetch.Fetcher(
+        EmptyClient(),
+        "20200106",
+        "20200106",
+        resume=True,
+        concurrency=1,
+        provisional_empty=True,
+    )
+    fetcher.fetch_range(fetch.DATASETS["suspend_d"], concurrency=1)
+    plan = incremental.market_plans(now)["suspend_d"]
+    assert plan.is_noop
+
+
+def test_old_empty_partition_is_still_present_for_planning(qdb):
+    _calendar(qdb, ["20200102"])
+    qdb.write_partition(
+        pd.DataFrame(columns=common.canonical_columns("stk_limit")),
+        "stk_limit",
+        "20200102",
+        "test",
+        extra_meta={"empty_upstream": True},
+    )
+    meta = qdb.read_manifest("stk_limit", "20200102")
+    meta["fetch_impl"] = "old-window-bug"
+    qdb.write_json_atomic(qdb.manifest_path("stk_limit", "20200102"), meta)
+    plan = incremental.market_plans(
+        incremental.parse_now("2020-01-02T19:00:00+08:00")
+    )["stk_limit"]
+    assert plan.is_noop
