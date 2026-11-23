@@ -36,6 +36,11 @@ class FakeFetcher:
         return _html(url)
 
 
+class SameTextFetcher:
+    def get(self, url: str) -> str:
+        return _html("同一篇正文")
+
+
 def _items() -> list[dict]:
     return [
         {"title": "已入库", "url": "https://www.gov.cn/old", "publish_hint": "2026-11-09"},
@@ -78,3 +83,25 @@ def test_reconcile_is_bounded_and_records_remaining(qdb, monkeypatch):
     assert summary["total_fetched"] == 1
     assert summary["total_remaining"] == 2
     assert (qdb.POLICY_DIR / "meta").exists()
+
+
+def test_duplicate_text_url_is_persisted_as_alias(qdb):
+    index = {"generated_at": "2026-11-09T00:00:00Z", "documents": []}
+    by_sha: set[str] = set()
+    by_url: set[str] = set()
+    result = {"stored": 0, "duplicates": 0, "missing": 0, "errors": []}
+    first = {
+        "title": "原文",
+        "url": "https://www.gov.cn/a",
+        "publish_hint": "2026-11-10",
+    }
+    second = {
+        "title": "转载",
+        "url": "https://www.gov.cn/b",
+        "publish_hint": "2026-11-10",
+    }
+    fetcher = SameTextFetcher()
+    fetch_policy._store_item(first, SOURCE, fetcher, index, by_sha, by_url, result)
+    fetch_policy._store_item(second, SOURCE, fetcher, index, by_sha, by_url, result)
+    assert "https://www.gov.cn/b" in index["alias_urls"]
+    assert "https://www.gov.cn/b" in fetch_policy._known_urls(index)

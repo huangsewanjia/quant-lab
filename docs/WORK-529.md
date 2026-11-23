@@ -23,7 +23,7 @@
 | 任务 | 频率 | 时间 | 内容 |
 |---|---|---|---|
 | 行情 | 每交易日 | 18:30；19:30 / 20:30 重试 | `daily` `daily_basic` `adj_factor` `stk_limit` `suspend_d` `index_daily` + `stock_basic` |
-| 财务 | 报告期每交易日；其余周一 | 19:00 | `income` `balancesheet` `cashflow` `fina_indicator` `dividend` |
+| 财务 | 报告期每交易日；其余周一 | 19:00；其余周一 09:30（19:00 失败重试） | `income` `balancesheet` `cashflow` `fina_indicator` `dividend` |
 | 指数成分 | 每月首个交易日 | 19:30（daily 第二次触发） | `index_weight` |
 | 政策 | 每天 | 09:00 / 18:00 | 六源增量 → 入库 |
 | 政策对账 | 每周一 | 06:00 | 列表 vs 库内，补抓 |
@@ -91,7 +91,7 @@
 
 | 项 | 命令 | 结果 |
 |---|---|---|
-| 单测 | `pytest db/tests -q` | 145 passed |
+| 单测 | `pytest db/tests -q` | 152 passed |
 | 数据闸门 | `python -m db.checks.run all --out .../checks-20261123-work529.json` | `ok: true`，G1–G6 全 PASS |
 | 台账 | `python -m db.etl.stats --json` | 16 个数据集 / 65,919 分区 / 102,391,068 行 / 6,290,875,840 字节 |
 | 手动 daily | `systemctl --user start quantdb-daily.service` | exit 0；2026-11-23 10:25；0 个新行情分区；日志 `logs/daily-20261123.log` |
@@ -114,3 +114,21 @@ systemctl --user daemon-reload
 
 数据回滚：停 timer → 用 `/srv/backup/quantdb/SHA256SUMS` 校验/恢复 → 必要时按
 `docs/RUNBOOK.md` §10 从 raw 重建 DuckDB。
+
+## 10. 独立审查处置
+
+第一轮独立审查（提交 `10c9813`）给出 9 条 blocking；已全部修复：
+
+| 编号 | 修复 |
+|---|---|
+| B1 | `fetch_index_weight` 补传 `concurrency`，新增 runner 回归 |
+| B2 | 指数成分空响应按源端延迟返回 75；成功才写完成 marker |
+| B3 | 关键行情数据集对全部待补交易日启用延迟保护；`stk_limit` / `suspend_d` 显式允许合法空分区 |
+| B4 | 装载改为按 DuckDB 水位补装所有更晚 raw 分区，抓取/装载崩溃可自愈 |
+| B5 | daily wrapper 先查日历，非交易日不创建客户端直接退出 0 |
+| B6 | 财务 timer 增加周一 09:30；报告期 09:30 等待 19:00，非报告期 09:30 失败后 19:00 重试 |
+| B7 | 政策同文别名写入 `index.json` 的 `alias_urls`，跨轮对账跳过 |
+| B8 | 政策源级/条目级错误返回非 0，触发告警 |
+| B9 | 冷备脚本与 unit 移入稳定仓库；home 脚本变 shim |
+
+第二轮复审在修复提交上重新执行，不复用第一轮会话。

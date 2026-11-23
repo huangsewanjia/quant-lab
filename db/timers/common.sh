@@ -61,14 +61,11 @@ check_trading_day() {
   set +e
   run_py -m db.etl.incremental check-day --date "${day}" >>"${LOG}" 2>&1
   code=$?
-  set -e
   if [ "${code}" -eq 2 ]; then
     log "交易日历未覆盖 ${day}，刷新后重查"
     refresh_calendar
-    set +e
     run_py -m db.etl.incremental check-day --date "${day}" >>"${LOG}" 2>&1
     code=$?
-    set -e
   fi
   return "${code}"
 }

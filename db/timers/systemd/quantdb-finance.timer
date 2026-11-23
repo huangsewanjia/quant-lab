@@ -3,6 +3,7 @@ Description=quantdb financial refresh at 19:00 on report days / Mondays
 
 [Timer]
 OnCalendar=*-*-* 19:00:00
+OnCalendar=Mon *-*-* 09:30:00
 Persistent=true
 AccuracySec=1min
 

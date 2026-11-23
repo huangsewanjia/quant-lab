@@ -13,8 +13,14 @@ init_task finance
 TODAY="$(date +%Y%m%d)"
 MONTH="$(date +%m)"
 DOW="$(date +%u)"
+HHMM="$(date +%H%M)"
+OK_MARKER="${STATE_DIR}/finance-ok-${TODAY}"
 
 if [[ " 01 04 07 10 " == *" ${MONTH} "* ]]; then
+  if [ "${HHMM}" -lt 1800 ]; then
+    log "报告期财务任务等待 19:00"
+    exit 0
+  fi
   set +e
   check_trading_day "${TODAY}"
   day_code=$?
@@ -33,10 +39,17 @@ else
     log "非报告期且非周一，退出 0"
     exit 0
   fi
+  if [ "${HHMM}" -ge 1200 ] && [ -f "${OK_MARKER}" ]; then
+    log "周一财务任务已成功，19:00 不重复"
+    exit 0
+  fi
 fi
 
 acquire_task_lock finance || exit 0
-acquire_db_lock
+if ! acquire_db_lock; then
+  alert_failure finance 1 || true
+  exit 1
+fi
 log "finance start ${TODAY}"
 set +e
 run_py -m db.etl.fetch --incremental --group finance \
@@ -44,6 +57,7 @@ run_py -m db.etl.fetch --incremental --group finance \
 code=$?
 set -e
 if [ "${code}" -eq 0 ]; then
+  touch "${OK_MARKER}"
   log "finance ok"
   exit 0
 fi

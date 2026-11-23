@@ -23,7 +23,7 @@ from typing import Any
 
 import pandas as pd
 
-from . import common
+from . import common, incremental
 from .fetch import DATASETS, FETCH_ORDER
 
 
@@ -54,6 +54,24 @@ def _db_counts() -> dict[str, int]:
         con.close()
 
 
+def _db_latest() -> dict[str, str]:
+    if not common.DB_PATH.exists():
+        return {}
+    con = common.duckdb_connect(read_only=True)
+    try:
+        latest: dict[str, str] = {}
+        for table in ("daily", "daily_basic", "adj_factor", "stk_limit", "suspend_d", "index_daily"):
+            try:
+                value = con.execute(f"SELECT max(trade_date) FROM {table}").fetchone()[0]
+            except Exception:
+                continue
+            if value:
+                latest[table] = str(value).replace("-", "")
+        return latest
+    finally:
+        con.close()
+
+
 def _raw_stats() -> dict[str, dict[str, int]]:
     stats: dict[str, dict[str, int]] = {}
     for dataset in FETCH_ORDER:
@@ -70,6 +88,10 @@ def _raw_stats() -> dict[str, dict[str, int]]:
             "partitions": len(partitions),
             "rows": rows,
             "empty_partitions": empty,
+            "latest": max(
+                (p for p in partitions if len(p) == 8 and p.isdigit()),
+                default=None,
+            ),
         }
     return stats
 
@@ -149,13 +171,13 @@ def _task_retries(days: int) -> int:
     return total
 
 
-def _calendar_gaps(raw: dict[str, dict[str, int]]) -> dict[str, int]:
+def _calendar_gaps(
+    raw: dict[str, dict[str, int]], now: dt.datetime | None = None
+) -> dict[str, int]:
     try:
-        days = [
-            str(d).replace("-", "")
-            for d in pd.read_parquet(common.partition_file("trade_cal", "SSE"))
-            .query("is_open == 1")["cal_date"]
-        ]
+        frame = incremental.calendar_frame()
+        days = [str(d).replace("-", "") for d in frame.query("is_open == 1")["cal_date"]]
+        end = incremental.effective_end(now or incremental.parse_now(), frame)
     except Exception:
         return {}
     gaps: dict[str, int] = {}
@@ -164,7 +186,11 @@ def _calendar_gaps(raw: dict[str, dict[str, int]]) -> dict[str, int]:
         if not entry:
             continue
         have = set(common.list_partitions(dataset))
-        expected = [d for d in days if have and min(have) <= d <= max(have)]
+        if not have:
+            continue
+        # Right edge is the latest completed close, not the latest observed
+        # partition: a dataset that stopped days ago must not look gap-free.
+        expected = [d for d in days if min(have) <= d <= end]
         gaps[dataset] = max(0, len(expected) - len([d for d in expected if d in have]))
     return gaps
 
@@ -182,6 +208,7 @@ def _previous() -> dict[str, Any]:
 def build(days: int = 7) -> dict[str, Any]:
     raw = _raw_stats()
     db = _db_counts()
+    db_latest = _db_latest()
     calls = _call_stats(days)
     gaps = _calendar_gaps(raw)
     previous = _previous()
@@ -197,6 +224,8 @@ def build(days: int = 7) -> dict[str, Any]:
             "partitions": raw.get(dataset, {}).get("partitions", 0),
             "empty_partitions": raw.get(dataset, {}).get("empty_partitions", 0),
             "calendar_gap": gaps.get(dataset, 0),
+            "latest_raw": raw.get(dataset, {}).get("latest"),
+            "latest_db": db_latest.get(dataset),
             "row_delta": (db_rows - int(previous_rows.get(dataset, db_rows))) if dataset in previous_rows else None,
         }
     report = {
@@ -228,14 +257,15 @@ def markdown(report: dict[str, Any]) -> str:
         f"- 失败清单条目：{report['failure_ledger_entries']:,}",
         f"- DuckDB 总行数：{report['total_db_rows']:,}",
         "",
-        "| 数据集 | 表内行数 | Parquet 行数 | 分区 | 空分区 | 日历缺口 | 周变化 |",
-        "|---|---:|---:|---:|---:|---:|---:|",
+        "| 数据集 | 表内行数 | Parquet 行数 | 最新 raw | 最新 DB | 分区 | 空分区 | 日历缺口 | 周变化 |",
+        "|---|---:|---:|---|---|---:|---:|---:|---:|",
     ]
     for name, entry in report["datasets"].items():
         delta = entry["row_delta"]
         delta_text = "首次" if delta is None else f"{delta:+,}"
         lines.append(
             f"| `{name}` | {entry['db_rows']:,} | {entry['raw_rows']:,} | "
+            f"{entry['latest_raw'] or '-'} | {entry['latest_db'] or '-'} | "
             f"{entry['partitions']:,} | {entry['empty_partitions']:,} | "
             f"{entry['calendar_gap']:,} | {delta_text} |"
         )

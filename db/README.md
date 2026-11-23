@@ -479,7 +479,7 @@ cd <repo>
 | 任务 | 频率 / 时间 | 内容 | 单元 |
 |---|---|---|---|
 | 行情增量 | 每交易日 18:30；19:30 / 20:30 重试 | `daily`、`daily_basic`、`adj_factor`、`stk_limit`、`suspend_d`、`index_daily` + `stock_basic` | `quantdb-daily.timer` |
-| 财务增量 | 报告期（1/4/7/10 月）每交易日 19:00；其余周一 19:00 | `income`、`balancesheet`、`cashflow`、`fina_indicator`、`dividend` | `quantdb-finance.timer` |
+| 财务增量 | 报告期（1/4/7/10 月）每交易日 19:00；其余周一 09:30（失败 19:00 重试） | `income`、`balancesheet`、`cashflow`、`fina_indicator`、`dividend` | `quantdb-finance.timer` |
 | 指数成分 | 每月第一个交易日 19:30（由 daily 的第 2/3 次触发执行） | `index_weight` | `quantdb-daily.timer` |
 | 政策抓取 | 每天 09:00 / 18:00 | 六源白名单增量 → 分类 → 入库 → 打标 → 元数据 | `quantdb-policy.timer` |
 | 政策对账 | 每周一 06:00 | 列表条数 vs 库内，缺的补抓，出统计 | `quantdb-weekly.timer` |
@@ -507,6 +507,8 @@ python -m db.etl.fetch --load-only --incremental --dataset daily
 - 收盘前手动跑行情会以**上一交易日**为终点，不会把当日未发布的数据写成空分区。
 - 18:30 后如果上游当日仍无数据，返回退出码 `75`，不写空分区；19:30 / 20:30 再试，
   第三次仍无数据才建告警单。
+- `stk_limit` / `suspend_d` 允许「该交易日确实没有涨跌停/停牌事件」的空分区；其余行情数据集
+  在增量窗口内的空响应视为源端延迟，保留重试，不落空分区。
 - 财务四张表的日期过滤口径不完全一致：`income` / `balancesheet` / `cashflow` 按公告日，
   `fina_indicator` 按报告期。增量窗口同时覆盖 `actual_date` 与 `end_date`。
 - 财务和指数成分是「读旧分区 + 合并 + 按主键/内容去重 + 原子写回」，不会用 7 天窗口覆盖历史。

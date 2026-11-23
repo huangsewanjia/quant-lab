@@ -382,8 +382,11 @@ def merge_existing_frame(dataset: str, partition: str, frame: pd.DataFrame) -> p
     if path.exists():
         try:
             frames.append(pd.read_parquet(path))
-        except Exception as exc:  # noqa: BLE001 - a damaged file is superseded
-            print(f"[warn] 旧分区不可读，按新数据写回: {path}: {exc}", file=sys.stderr)
+        except Exception as exc:  # noqa: BLE001
+            # Do not replace a damaged history with the new window. Surface the
+            # partition failure and leave the original file for an explicit
+            # repair or a full backfill.
+            raise RuntimeError(f"旧分区不可读，拒绝覆盖历史: {path}: {exc}") from exc
     if frame is not None and not frame.empty:
         frames.append(frame)
     columns = common.canonical_columns(dataset)
@@ -1391,8 +1394,16 @@ class Fetcher:
                     # The current month may not have been published yet. Keep
                     # the existing constituent history and let the next daily
                     # attempt try again.
+                    failures.append(
+                        {
+                            "dataset": spec.name,
+                            "partition": index_code,
+                            "error": "增量窗口无数据（可能尚未发布）",
+                            "source_delay": True,
+                        }
+                    )
                     print(
-                        f"[warn] {spec.name} {index_code}: 增量窗口无数据，保留旧分区",
+                        f"[source-delay] {spec.name} {index_code}: 增量窗口无数据，保留旧分区",
                         file=sys.stderr,
                         flush=True,
                     )

@@ -7,6 +7,7 @@
 - `db/etl/incremental.py`：行情水位、财务披露窗口、指数成分月度窗口、watermark、幂等装载。
 - `db/etl/weekly.py`：调用成功率、失败清单、日历缺口、行数变化的周报。
 - `db/timers/`：`daily.sh`、`finance.sh`、`policy.sh`、`weekly.sh` 与 4 个 systemd service/timer。
+- `db/timers/backup-*.sh` 与 `systemd/backup-nightly.*`：冷备逻辑进入稳定仓库；home 脚本变成 shim。
 - `db/policy/fetch_policy.py`：已知 URL 优先跳过；`--reconcile` 有界补抓。
 - `db/README.md` §11、`docs/WORK-529.md`、`DELIVERY.html`。
 
@@ -19,7 +20,7 @@
 
 实测：
 
-- `pytest db/tests -q` → 145 passed。
+- `pytest db/tests -q` → 152 passed。
 - 行情增量在收盘前 no-op；模拟收盘后无数据返回 75 且不写空分区。
 - 财务 2026-11-13 单日实测四次抓取 + dividend 21 个分区，重复跑行数不变。
 - 冷备 rsync + `SHA256SUMS` 89,715 个文件校验通过。

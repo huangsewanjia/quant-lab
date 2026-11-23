@@ -1,0 +1,13 @@
+[Unit]
+Description=Nightly quantdb cold copy and borg backup
+
+[Service]
+Type=oneshot
+WorkingDirectory=/srv/share/quantdb/code/quant-lab
+Environment=QUANTDB_HOME=/srv/share/quantdb
+ExecStart=/srv/share/quantdb/code/quant-lab/db/timers/backup-nightly.sh
+TimeoutStartSec=6h
+Nice=10
+
+[Install]
+WantedBy=default.target

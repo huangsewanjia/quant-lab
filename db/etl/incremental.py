@@ -54,6 +54,12 @@ FINANCE_DATASETS = ("income", "balancesheet", "cashflow", "fina_indicator", "div
 SUPPORTED_DATASETS = frozenset(MARKET_DATASETS + FINANCE_DATASETS + ("stock_basic", "trade_cal", "index_weight"))
 GROUPS = ("market", "finance", "index_weight", "all")
 
+# These two APIs legitimately return no rows on many trading days (no limit
+# event / no suspension). For every other market dataset an empty recent
+# trading day means "not published yet" and must be retried, not published as
+# an empty partition.
+ALLOW_EMPTY_DATASETS = frozenset({"stk_limit", "suspend_d"})
+
 
 class IncrementalError(RuntimeError):
     """A plan or load precondition that the wrapper must surface in its log."""
@@ -230,6 +236,18 @@ def market_plans(
             tuple(selected),
         )
     return plans
+
+
+def strict_empty_dates_for(
+    dataset: str, plan: Plan, now: dt.datetime
+) -> set[str]:
+    """Dates whose empty response must be retried instead of published."""
+    if plan.is_noop:
+        return set()
+    if dataset in ALLOW_EMPTY_DATASETS:
+        today = now.strftime("%Y%m%d")
+        return {today} if today in plan.days and now.time() >= CLOSE_TIME else set()
+    return set(plan.days)
 
 
 def finance_plan(now: dt.datetime, overlap_days: int = 7) -> Plan:
@@ -446,7 +464,7 @@ def _finance_parts_since(last_load: str | None) -> dict[str, list[str]]:
     return parts
 
 
-def load_only(datasets: Iterable[str] | None = None) -> int:
+def load_only_report(datasets: Iterable[str] | None = None) -> dict[str, int]:
     """``fetch --load-only --incremental``: load only post-watermark partitions."""
     requested = {d.strip() for d in (datasets or []) if d and d.strip()}
     if not requested or "all" in requested:
@@ -500,6 +518,11 @@ def load_only(datasets: Iterable[str] | None = None) -> int:
         index_weight_loaded="index_weight" in requested,
     )
     print(json.dumps({"loaded": loaded}, ensure_ascii=False, indent=2), flush=True)
+    return loaded
+
+
+def load_only(datasets: Iterable[str] | None = None) -> int:
+    load_only_report(datasets)
     return 0
 
 
@@ -519,13 +542,12 @@ def _run_market(client, now: dt.datetime, args: argparse.Namespace, summary: dic
     run_start = common.utc_now()
     source_delay = False
     errors: list[dict[str, Any]] = []
-    to_load: dict[str, list[str]] = {}
 
     for dataset, plan in plans.items():
         summary["datasets"][dataset] = plan.as_dict()
         if plan.is_noop:
             continue
-        strict = set(plan.days) if now.time() >= CLOSE_TIME and now.strftime("%Y%m%d") in plan.days else set()
+        strict = strict_empty_dates_for(dataset, plan, now)
         fetcher = fetch_mod.Fetcher(
             client,
             plan.start,
@@ -546,11 +568,11 @@ def _run_market(client, now: dt.datetime, args: argparse.Namespace, summary: dic
                 source_delay = True
             else:
                 errors.append(failure)
-        to_load[dataset] = [
+        plan_parts = [
             p for p in common.list_partitions(dataset) if plan.start <= p <= plan.end
         ]
         summary["new_partitions"] += sum(
-            1 for p in to_load[dataset] if _manifest_new_since(dataset, p, run_start)
+            1 for p in plan_parts if _manifest_new_since(dataset, p, run_start)
         )
 
     # stock_basic is small (3 calls) and changes rarely; refresh it every day.
@@ -564,17 +586,13 @@ def _run_market(client, now: dt.datetime, args: argparse.Namespace, summary: dic
     done, basic_failures = basic.fetch_stock_basic(fetch_mod.DATASETS["stock_basic"])
     summary["datasets"]["stock_basic"] = {"done": done, "failures": len(basic_failures)}
     errors.extend(basic_failures)
-    to_load["stock_basic"] = common.list_partitions("stock_basic")
-    to_load["trade_cal"] = common.list_partitions("trade_cal")
 
-    if to_load:
-        summary["loaded"] = load_selected(to_load)
-    market_watermarks = {}
-    for dataset in MARKET_DATASETS:
-        value = max_raw_date(dataset)
-        if value:
-            market_watermarks[dataset] = value
-    update_watermark(market=market_watermarks)
+    # Load by the DuckDB watermark, not by this run's fetch window: a previous
+    # run may have written raw partitions and then crashed before loading them.
+    # `load_only` picks up every raw partition newer than the table.
+    summary["loaded"] = load_only_report(
+        list(MARKET_DATASETS) + ["stock_basic", "trade_cal"]
+    )
 
     if errors:
         summary["errors"] = errors[:20]
@@ -601,7 +619,6 @@ def _run_finance(client, now: dt.datetime, args: argparse.Namespace, summary: di
     summary["finance_fetch_window"] = [fetch_start, fetch_end]
     run_start = common.utc_now()
     errors: list[dict[str, Any]] = []
-    to_load: dict[str, list[str]] = {}
 
     if codes:
         for dataset in ("income", "balancesheet", "cashflow", "fina_indicator"):
@@ -624,9 +641,6 @@ def _run_finance(client, now: dt.datetime, args: argparse.Namespace, summary: di
                 if _manifest_new_since(dataset, code, run_start)
             )
             errors.extend(failures)
-            to_load[dataset] = [
-                code for code in codes if common.partition_file(dataset, code).exists()
-            ]
 
     dividend = _fetch_dividend_days(client, plan, run_start)
     summary["datasets"]["dividend"] = {
@@ -636,11 +650,8 @@ def _run_finance(client, now: dt.datetime, args: argparse.Namespace, summary: di
     }
     errors.extend(dividend["errors"])
     summary["new_partitions"] += dividend["partitions"]
-    to_load["dividend"] = dividend["codes"]
 
-    if to_load:
-        summary["loaded"] = load_selected(to_load)
-    update_watermark(finance_loaded=True)
+    summary["loaded"] = load_only_report(list(FINANCE_DATASETS))
     if errors:
         summary["errors"] = errors[:20]
         return 1
@@ -724,15 +735,23 @@ def _run_index_weight(client, now: dt.datetime, args: argparse.Namespace, summar
         concurrency=args.concurrency,
         merge_existing=True,
     )
-    done, failures = fetcher.fetch_index_weight(fetch_mod.DATASETS["index_weight"])
+    done, failures = fetcher.fetch_index_weight(
+        fetch_mod.DATASETS["index_weight"], args.concurrency
+    )
     summary["datasets"]["index_weight"]["done"] = done
     summary["datasets"]["index_weight"]["failures"] = len(failures)
-    loaded = load_selected({"index_weight": common.list_partitions("index_weight")})
-    summary["loaded"] = loaded
-    update_watermark(index_weight_loaded=True)
+    summary["loaded"] = load_only_report(["index_weight"])
+    if any(failure.get("source_delay") for failure in failures):
+        summary["source_delay"] = True
+        return 75
     if failures:
         summary["errors"] = failures[:20]
         return 1
+    if done == 0:
+        # No index produced data: treat it as an upstream delay rather than a
+        # silent success. The next 20:30 trigger can retry.
+        summary["source_delay"] = True
+        return 75
     return 0
 
 
@@ -766,6 +785,28 @@ def run(args: argparse.Namespace) -> int:
         "new_partitions": 0,
         "errors": [],
     }
+    if group == "market":
+        try:
+            frame = calendar_frame()
+            days = open_days(frame)
+            today = now.strftime("%Y%m%d")
+            calendar_dates = frame["cal_date"].dropna()
+            calendar_max = (
+                str(calendar_dates.max()).replace("-", "") if not calendar_dates.empty else ""
+            )
+            if calendar_max and today <= calendar_max and today not in set(days):
+                summary.update(
+                    {
+                        "finished_at": common.utc_now(),
+                        "exit_code": 0,
+                        "reason": f"{today} 非交易日，直接退出 0",
+                    }
+                )
+                print(json.dumps(summary, ensure_ascii=False, indent=2), flush=True)
+                return 0
+        except IncrementalError:
+            # No usable calendar yet: refresh it below with the client.
+            pass
     client = TushareClient(
         rpm=getattr(args, "rpm", 195.0),
         retries=getattr(args, "retries", 2),
@@ -791,16 +832,18 @@ def check_day(day: str) -> int:
     try:
         frame = calendar_frame()
         days = open_days(frame)
-        if not days:
+        calendar_dates = frame["cal_date"].dropna()
+        if calendar_dates.empty:
             print(json.dumps({"date": day, "error": "交易日历为空"}, ensure_ascii=False))
             return 2
-        if day > days[-1]:
+        calendar_max = str(calendar_dates.max()).replace("-", "")
+        if day > calendar_max:
             print(
                 json.dumps(
                     {
                         "date": day,
                         "trading_day": None,
-                        "error": f"交易日历只覆盖到 {days[-1]}，请先 refresh-calendar",
+                        "error": f"交易日历只覆盖到 {calendar_max}，请先 refresh-calendar",
                     },
                     ensure_ascii=False,
                 )

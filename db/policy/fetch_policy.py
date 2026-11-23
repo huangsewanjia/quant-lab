@@ -206,6 +206,7 @@ def load_index() -> dict[str, Any]:
         try:
             payload = common.read_json(path)
             if isinstance(payload, dict) and isinstance(payload.get("documents"), list):
+                payload.setdefault("alias_urls", [])
                 return payload
         except (OSError, json.JSONDecodeError):
             pass
@@ -216,7 +217,13 @@ def load_index() -> dict[str, Any]:
             documents.append(common.read_json(meta_path))
         except (OSError, json.JSONDecodeError):
             continue
-    return {"generated_at": common.utc_now(), "documents": documents}
+    return {"generated_at": common.utc_now(), "documents": documents, "alias_urls": []}
+
+
+def _known_urls(index: dict[str, Any]) -> set[str]:
+    urls = {str(meta.get("url")) for meta in index.get("documents", [])}
+    urls.update(str(url) for url in index.get("alias_urls", []) if url)
+    return urls
 
 
 def append_missing(record: dict[str, Any]) -> None:
@@ -272,7 +279,7 @@ def run_source(
         return result
 
     by_sha = {str(meta.get("sha256")) for meta in index["documents"]}
-    by_url = {str(meta.get("url")) for meta in index["documents"]}
+    by_url = _known_urls(index)
     processed = 0
     for item in items:
         url = item["url"]
@@ -329,6 +336,9 @@ def _store_item(
         result["duplicates"] += 1
         # Same text under another URL: remember the URL so a bounded
         # reconciliation does not spend its budget on it every week.
+        aliases = index.setdefault("alias_urls", [])
+        if url not in aliases:
+            aliases.append(url)
         by_url.add(url)
         print(f"[dup-text] {title[:50]}")
         return "duplicate"
@@ -381,7 +391,7 @@ def reconcile(
     would exceed the job window. ``remaining`` records what is left.
     """
     by_sha = {str(meta.get("sha256")) for meta in index["documents"]}
-    by_url = {str(meta.get("url")) for meta in index["documents"]}
+    by_url = _known_urls(index)
     budget = max(0, max_fetch)
     results: list[dict[str, Any]] = []
     for source in sources:
@@ -484,6 +494,9 @@ def main(argv: list[str] | None = None) -> int:
         if summary["total_listed"] == 0:
             print("[fail] 全部政策源列表不可达", file=sys.stderr)
             return 2
+        if any(entry.get("errors") for entry in summary["sources"]):
+            print("[fail] 政策对账存在源级或条目级错误", file=sys.stderr)
+            return 1
         return 0
     results = []
     for source in sources:
@@ -513,6 +526,9 @@ def main(argv: list[str] | None = None) -> int:
     if summary["total_listed"] == 0 and not args.list_only:
         print("[fail] 全部政策源列表不可达", file=sys.stderr)
         return 2
+    if any(result.get("errors") for result in results):
+        print("[fail] 政策抓取存在源级或条目级错误", file=sys.stderr)
+        return 1
     return 0
 
 

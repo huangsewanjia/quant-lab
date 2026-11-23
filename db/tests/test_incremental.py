@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import datetime as dt
+import argparse
+import pytest
 
 import duckdb
 import pandas as pd
@@ -18,6 +20,22 @@ def _calendar(qdb, days: list[str]) -> None:
                 "cal_date": days,
                 "is_open": [1] * len(days),
                 "pretrade_date": days,
+            }
+        ),
+        "trade_cal",
+        "SSE",
+        "test",
+    )
+
+
+def _calendar_flags(qdb, rows: list[tuple[str, int]]) -> None:
+    qdb.write_partition(
+        pd.DataFrame(
+            {
+                "exchange": ["SSE"] * len(rows),
+                "cal_date": [day for day, _ in rows],
+                "is_open": [flag for _, flag in rows],
+                "pretrade_date": [day for day, _ in rows],
             }
         ),
         "trade_cal",
@@ -202,3 +220,81 @@ def test_calendar_beyond_coverage_is_unknown(qdb):
     _calendar(qdb, ["20200102"])
     assert incremental.check_day("20200103") == 2
     assert incremental.check_day("20200102") == 0
+
+
+def test_strict_empty_dates_protects_critical_datasets_and_allows_empty_events():
+    now = incremental.parse_now("2020-01-07T19:00:00+08:00")
+    plan = incremental.Plan("daily", "20200106", "20200107", "test", ("20200106", "20200107"))
+    assert incremental.strict_empty_dates_for("daily", plan, now) == {"20200106", "20200107"}
+    assert incremental.strict_empty_dates_for("suspend_d", plan, now) == {"20200107"}
+
+
+def test_holiday_returns_zero_before_creating_a_client(qdb, monkeypatch):
+    _calendar_flags(qdb, [("20200103", 1), ("20200104", 0)])
+
+    class FailClient:
+        def __init__(self, *args, **kwargs):
+            raise AssertionError("client must not be created on a holiday")
+
+    import db.etl.tushare_client as client_mod
+
+    monkeypatch.setattr(client_mod, "TushareClient", FailClient)
+    args = argparse.Namespace(
+        dataset="daily",
+        group="market",
+        now="2020-01-04T10:00:00+08:00",
+        concurrency=1,
+        rpm=60,
+        retries=0,
+    )
+    assert incremental.run(args) == 0
+
+
+def test_load_only_picks_up_raw_partitions_ahead_of_duckdb(qdb):
+    _calendar(qdb, ["20200102", "20200103"])
+    _daily(qdb, "20200102")
+    _daily(qdb, "20200103")
+    incremental.load_selected({"daily": ["20200102"]})
+    incremental.load_only(["daily"])
+    con = duckdb.connect(str(qdb.DB_PATH), read_only=True)
+    try:
+        assert con.execute("SELECT count(*) FROM daily").fetchone()[0] == 2
+        assert str(con.execute("SELECT max(trade_date) FROM daily").fetchone()[0]) == "2020-01-03"
+    finally:
+        con.close()
+
+
+def test_index_weight_runner_passes_concurrency_and_propagates_delay(qdb, monkeypatch):
+    _calendar(qdb, ["20261102"])
+    seen: list[int] = []
+
+    def fake_fetch(self, spec, concurrency):
+        seen.append(concurrency)
+        return 0, [{"source_delay": True, "error": "not published"}]
+
+    monkeypatch.setattr(fetch.Fetcher, "fetch_index_weight", fake_fetch)
+    monkeypatch.setattr(incremental, "load_only", lambda datasets: {})
+    summary = {"datasets": {}}
+    args = argparse.Namespace(concurrency=3)
+    code = incremental._run_index_weight(
+        object(),
+        incremental.parse_now("2026-11-02T19:35:00+08:00"),
+        args,
+        summary,
+    )
+    assert seen == [3]
+    assert code == 75
+
+
+def test_corrupt_old_partition_is_not_silently_replaced(qdb):
+    new = pd.DataFrame(
+        [{"ts_code": "600000.SH", "end_date": "20240630", "report_type": "1", "ann_date": "20240801"}]
+    )
+    old = pd.DataFrame(
+        [{"ts_code": "600000.SH", "end_date": "20231231", "report_type": "1", "ann_date": "20240101"}]
+    )
+    qdb.write_partition(old, "income", "600000.SH", "test")
+    target = qdb.partition_file("income", "600000.SH")
+    target.write_bytes(target.read_bytes() + b"broken")
+    with pytest.raises(RuntimeError, match="拒绝覆盖历史"):
+        fetch.merge_existing_frame("income", "600000.SH", new)
