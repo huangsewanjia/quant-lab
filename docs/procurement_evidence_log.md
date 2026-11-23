@@ -1,9 +1,10 @@
 # WORK-535 · 证据与停手登记
 
 > **工单** WORK-535 ｜ **编制日期** 2026-11-23
-> 配套：`docs/procurement_plan.csv`（84 行主清单）｜ `docs/procurement_brief.md`（决策摘要）｜ `docs/procurement_inquiry_templates.md`（13 家询价模板）
+> 配套：`docs/procurement_plan.csv`（**109 行**主清单）｜ `docs/procurement_brief.md`（决策摘要）｜ `docs/procurement_inquiry_templates.md`（**14 段**询价模板）
 > 本文件是摘要的底稿：**每个数字的出处、每次核对的原始输出、每一处停手**。摘要里的结论都可以在这里追到证据。
-> **原始产物**：`experiments/WORK-535/`（脚本 + JSON + txt 原始输出）；**独立复算**：`audit/recompute_work535.py`（40 项检查，blocking 0 → PASS）。
+> **原始产物**：`experiments/WORK-535/`（脚本 + JSON + txt 原始输出）；**独立复算**：`audit/recompute_work535.py`（43 项检查，blocking 0 → PASS）。
+> **采购范围增补**：工单评论「采购范围增补：外资投行研报」要求把研报订阅逐家登记 —— 已落进主清单（25 行「研报通道 × 战略层指标」）、摘要 §六、询价模板 §14 与本文件 §五。
 
 ---
 
@@ -11,7 +12,7 @@
 
 **方法**（`experiments/WORK-535/verify_prices.py`）：对每一行带货币数字的价格，重新抓取该行引用的 URL，**按数值比对**（`"10,000" ≡ "10000.0"`），数字带千分位必须逐位命中——页面上出现 `$5` 不等于命中 `$5,000`。价格格里写了多个 URL 时，逐个 URL 联合比对。
 
-**结果**：84 行里 **18 行带可核对数字**，去重后 **10 组唯一「(价格, URL)」组合**；**6 组在页面上直接命中**，**4 组取不到**（全部是 SEMI，同一个 URL）。
+**结果**：**109 行**里 **23 行带可核对数字**，去重后 **11 组唯一「(价格, URL)」组合**；**7 组在页面上直接命中**，**4 组取不到**（全部是 SEMI，同一个 URL）。
 
 | # | 价格 | URL | 复核结果 |
 |---|---|---|---|
@@ -21,25 +22,30 @@
 | 4 | `$15,000` | `https://www.sneresearch.com/en/business/report_view/148/page/0` | ✅ HTTP 200，逐字「Page Price $15,000」 |
 | 5 | `€ 11,500` / `€ 10,500` | `https://www.eusemiconductors.eu/esia/industry-statistics/wsts` | ✅ HTTP 200，页面命中 |
 | 6 | `$15,000` + `$5,000` | `.../report_view/148/page/0` + `.../report_view/38/page/130` | ✅ HTTP 200（跨 URL，已拆成各自带 URL 的价格格） |
-| 7–10 | SEMI 四组价格串（EMDS / WFF / WFF Premium / Historical WWSEMS） | `https://store-us.semi.org/collections/market-intelligence` | ⚠️ **HTTP 429 取不到** → 降为 **B 级证据**（该 URL 的搜索引擎索引副本），人工浏览器需复核 |
+| 7 | 慧博 基础版 1年 `¥1,668` / 2年 `¥2,376` / 专业版 1年 `¥3,996` / 2年 `¥5,592` | `https://www.hibor.com.cn/price` | ✅ HTTP 200，页面逐字命中（标题「价格套餐」） |
+| 8–11 | SEMI 四组价格串（EMDS / WFF / WFF Premium / Historical WWSEMS） | `https://store-us.semi.org/collections/market-intelligence` | ⚠️ **3 次 429 限流 + 1 次 200 但价格不在服务端 HTML 里（前端渲染）** → 全部降为 **B 级证据**（该 URL 的搜索引擎索引副本），人工浏览器需复核 |
 
-> **⚠️ 口径说明（必须一起读）**：10 组里有 **4 组没能直连复核**（SEMI store 对本机限流）。这 4 组的价格**不是本轮直接读到的数字**，清单备注与摘要的证据分级表都已标注为 B 级。除此之外，**没有任何一行价格是估算的**；拿不到的写 `未公开，需询价` 并给询价入口。
+> **⚠️ 口径说明（必须一起读）**：11 组里有 **4 组没能直连复核**（全部是 SEMI store：3 次 429 限流、1 次 200 但价格在前端渲染、不在服务端 HTML）。这 4 组的价格**不是本轮直接读到的数字**，清单备注与摘要的证据分级表都已标注为 B 级。除此之外，**没有任何一行价格是估算的**；拿不到的写 `未公开，需询价` 并给询价入口。
 
 **其它已公开价（未列入上表，因为同一 URL 下价格串不同、或属报告而非订阅）**：WoodMac `$6,750` / `$5,990` / `$9,990` / `$7,500`；SNE `$5,000`；TrendForce `USD 11,000` / `USD 18,000` / `USD 30,000` / `USD 55,000`；ICSG Copper Bulletin `€600`（会员）/ `€1,200`（非会员）。
 
+**研报通道（§五）的价格核对**：**只有慧博投研是 A 级**（官网 `https://www.hibor.com.cn/price` 实测 200，四个数逐字命中）；发现报告与萝卜投研的价格页虽然**能打开（200）**，但价格由前端脚本渲染，**本机取不到任何数字** → 按「未公开，需询价」登记；萝卜投研的索引副本线索（金卡 ¥1,299/年、银卡 ¥599/年）**单列为 B 级、未直接复核**。
+
 ---
 
-## 二、全表「官网价格页URL」可达性体检（47 个去重 URL）
+## 二、全表「官网价格页URL」可达性体检（52 个去重 URL）
 
-脚本 `experiments/WORK-535/check_plan_urls.py`，原始输出 `experiments/WORK-535/plan_url_status.json`。
+脚本 `experiments/WORK-535/check_plan_urls.py`，原始输出 `experiments/WORK-535/plan_url_status.json`（本轮为加入 5 家研报通道后的全量重测）。
 
 | 状态 | 数量 | 说明 |
 |---|---|---|
-| **200** | 35 | 直接可开 |
+| **200** | 41 | 直接可开（含 5 家研报通道的价格页/产品页） |
 | **403** | 8 | S&P Global（Akamai）、IEA ×3（Cloudflare）、IRENA、CMS、IMF、UNIDO —— **本机被拒，URL 本身存在，人工浏览器可开** |
 | **429** | 1 | `store-us.semi.org` 限流 |
-| **404** | 1 | `solarpowereurope.org/insights/outlooks` → **本单已改为首页**（`https://www.solarpowereurope.org/`，实测 200） |
+| **404** | 0 | 本轮 **0 个 404**（`solarpowereurope.org/insights/outlooks` 上一轮 404 → 已改为首页 `https://www.solarpowereurope.org/`，实测 200） |
 | **ERR** | 2 | `gg-lb.com` DNS 解析失败（Errno -2）；`mckinsey.com/featured-insights` 连接超时 |
+
+**验收条款核对**：标「未公开」的行共 **65 行**，其中 URL 未返回 200 的 **18 行**——IEA ×12（S&P Global、GGII、SolarPower Europe、CMS 各若干），**全部是本机被风控拒绝或域名失效，不是链接本身写错**；每一条都在行内备注里写明了状态。
 
 **每一条 CSV 行的备注末尾都带了自己那个 URL 的实测状态**（`【链接实测 200】` / `【链接实测 403：…】` 等），验收条款「标『未公开』的，URL 必须真实存在（能打开）」可**逐行自证**。
 
@@ -81,7 +87,37 @@
 
 ---
 
-## 五、已核实的否定性结论（写下来是为了不再踩）
+## 五、研报订阅通道（工单评论增补）：实测结果与停手
+
+**为什么要单列**：工单评论指出，用户要的「著名投行行业研究报告」在**公开源里几乎不存在** —— 东财研报接口抽样 900 条、95 家机构，高盛/摩根士丹利/摩根大通/瑞银/花旗/美银/野村/大和**零覆盖**，只有「中信证券经纪(香港)」。所以这一层要么走机构协议、要么走聚合平台，不能指望免费源。
+
+**逐家实测**（脚本 `experiments/WORK-535/probe_research_vendors*.py`，原始输出 `research_vendor_probe.json` / `research_vendor_probe2.json`）：
+
+| 数据商 | 类型 | 官网价格页 URL | 实测 | 公开价格 | 询价入口 |
+|---|---|---|---|---|---|
+| **慧博投研** | 聚合平台 | `https://www.hibor.com.cn/price` | **200，标题「价格套餐」** | ✅ **A 级**：基础版 1年 **¥1,668**（单月 ¥139）／2年 ¥2,376（单月 ¥99）；专业版 1年 **¥3,996**（单月 ¥333）／2年 ¥5,592（单月 ¥233） | `hbzixun@126.com`（官网首页公示） |
+| 发现报告 | 聚合平台 | `https://www.fxbaogao.com/vip-benefits` | **200，但正文为空**（价格由前端脚本渲染，本机未取到数字） | **未公开，需询价** | `cs@hufangde.com`、`hfd04@hufangde.com`（**官网未公开销售邮箱**） |
+| 萝卜投研（通联数据） | 聚合平台 | `https://m-robo.datayes.com/membership/open` | **200，标题「萝卜投研会员中心」**，只渲染出「￥ 0」 | **未公开，需询价**（⚠️ 索引副本显示金卡 ¥1,299/年、银卡 ¥599/年 → **B 级，未直接复核，不得当报价**） | 通联数据官网 `https://www.datayes.com/`（200）公示 `info@datayes.com`、`team.marketing@datayes.com` |
+| 中金公司研究部 | 中资头部 | `https://www.cicc.com/services/research`（200）＋ 中金点睛 `https://www.research.cicc.com/zh_CN/home`（200） | 业务介绍页逐字：研究团队覆盖「宏观经济、市场策略、固定收益、金融工程、资产配置、股票、大宗商品及外汇」 | **未公开，需询价** | `https://www.research.cicc.com/zh_CN/contact`（200），**无公开销售邮箱** |
+| 中信证券研究部 | 中资头部 | `https://www.citics.com/newsite/business/research_sales/research/research_yjfw/` | **200，但正文为空**（前端渲染） | **未公开，需询价** | 站内咨询，**无公开销售邮箱** |
+| Goldman Sachs Research | 外资投行 | `https://www.goldmansachs.com/what-we-do/research` | **200**，只给摘要与图表 | **未公开，需询价（量级未知）** | **官网无公开销售邮箱**，走机构授权 |
+| Morgan Stanley Research | 外资投行 | `https://www.morganstanley.com/what-we-do/research`（200） | 研究入口 `matrix.ms.com/research` 返回 **Access Verification**（需登录） | **未公开，需询价（量级未知）** | `https://www.morganstanley.com/contact-us`（200，零售客服口径） |
+| J.P. Morgan Research | 外资投行 | `https://www.jpmorgan.com/insights/research` | **200**，只给摘要与图表 | **未公开，需询价（量级未知）** | **官网无公开销售邮箱** |
+| UBS Evidence Lab | 外资投行 | `https://www.ubs.com/global/en/investment-bank/insights/evidence-lab.html` | ⚠️ **403**，页面未取到 | **未公开，需询价（量级未知）** | `ubs.com/global/en/contact-us.html` 亦 **403** |
+| Citi Research | 外资投行 | `https://www.citigroup.com/global/insights/research` | **200** | **未公开，需询价（量级未知）** | `https://www.citigroup.com/global/contact-us`（200，零售客服口径） |
+| BofA Global Research | 外资投行 | `https://ideas.bankofamerica.com/` | ⚠️ **DNS 解析失败（Errno -2）** | **未公开，需询价（量级未知）** | 页面未取到 |
+
+**口径纪律（本节最要紧的一条）**：这 5 家能服务的是「产业链利润/价值分布」这 5 条战略层硬缺口，但**研报是 PDF 与图表、不是结构化数据** —— 「各环节利润率」是否真的落在里面**必须索取样张逐页核对**。因此主清单里这 25 行的覆盖度一律记 **「部分」（只到「覆盖行业研究域」）**，建议一律记 **「等」**，不记「买」。
+
+**免费替代与能力差距**：投行官网 Insights 页（GS / MS Ideas / JPM Insights / Citi Insights；UBS 403、BofA DNS 失败）→ **只有公开摘要与图表，没有正文**；巨潮资讯网 CNINFO 公告与定期报告全文；东方财富研报免费摘要；SSRN 工作论文（学术口径 ≠ 卖方口径）；本单 61 条部分免费行的协会/统计局原始数据。**共性差距：研报不可直接入库、不可复算，卖方口径随分析师与样本期变动，跨期不可比。**
+
+**转载红线（硬要求第 2 条）**：外资投行研报合同通常**禁止转载与二次分发**，只限内部阅读；中资研报经聚合平台分发同样受版权约束（港美股研报因版权限制不托管 PDF）。询价模板 §14 已把「① 内部阅读范围与席位 ② 是否允许内部报告引用结论与数字并注明来源 ③ 是否允许图表复算 ④ 合同终止后的留存与销毁」写成必问项。
+
+**如果只能买一家**：**慧博投研基础版 1 年 ¥1,668**（唯一有官网公开标价、可比价、可做预算；外资投行是机构协议，量级未知）。**前提是先要 3–5 份样张**，核得到「各环节利润率」就下单，核不到就**别买研报**，转向结构化数据源（WoodMac / Benchmark，均为询价制）。
+
+---
+
+## 六、已核实的否定性结论（写下来是为了不再踩）
 
 | 结论 | 证据 |
 |---|---|
@@ -96,7 +132,7 @@
 
 ---
 
-## 六、未取到、须人工确认的字段
+## 七、未取到、须人工确认的字段
 
 - Benchmark：**产能利用率**字段、**长期合约价**产品。
 - S&P Global：全部覆盖度结论仅来自索引副本；索引副本对发布频率有「daily」与「weekly on Fridays」**两种互相矛盾的表述**。
@@ -111,7 +147,7 @@
 
 ---
 
-## 七、61 条「部分免费」行的免费替代源（能替代到哪一步）
+## 八、61 条「部分免费」行的免费替代源（能替代到哪一步）
 
 - **61/61 行都给了免费替代源**（门槛 80%）。替代源分三类：**① 协会/政府/交易所的官方统计**（IEA、IRENA、IFPMA、EFPIA、CMS、CNINFO、OICA、ICSG、BIS、Eurostat、World Bank、SHFE、USGS、ACEA、AFDC、CSIA、CNESA、EASE、SolarPower Europe、Eurometaux、SIA）｜**② 厂商自己免费放出的部分**（SEMI 新闻稿、SMM 公开行情页、WoodMac 公开新闻稿、McKinsey 文章）｜**③ 二手公开报告中的可引用数字**（如 CNESA 白皮书免费文章 `id=7798` 实测 HTTP 200，页内带真实数字：2025 年 2h EPC 中标均价 **1,043.82 元/kWh**（同比 −13.04%）、4h EPC **935.40 元/kWh**（同比 −8.19%）；LFP 储能系统（不含用户侧）采购中标价区间 **391.14–913.00 元/kWh** —— **单位是 元/kWh，不是 元/Wh**（页内「元/Wh」0 处），本库口径是元/Wh，换算须除以 1000；原文自述「根据 CNESA DataLink 全球储能数据库的**不完全统计**」）。
 - **能力差距逐条写在清单的「替代源能力差距」列**，主要三类：**频率降级**（月度→年度、年度→一次性）、**口径变窄**（总量有、分环节没有；全球有、中国没有）、**滞后**（Pink Sheet 滞后约 1 个月；IEA/EV 数据为年度）。
@@ -119,7 +155,7 @@
 
 ---
 
-## 八、本单自身踩过的坑（失败记录）
+## 九、本单自身踩过的坑（失败记录）
 
 | # | 坑 | 怎么发现 | 怎么改 |
 |---|---|---|---|
@@ -131,12 +167,14 @@
 | 6 | 赛迪 `$5,000` 挂在 SNE 的另一份报告上，只核对主 URL → 假阴性 | 核对表 NOT-FOUND | 价格格改为**每个价格挂自己的 URL**，核对器按行内全部 URL 联合比对 |
 | 7 | `solarpowereurope.org/insights/outlooks` 404（自己写错的） | 全表 URL 体检 | 改为首页（实测 200） |
 | 8 | 复算脚本把摘要 §四 的横向对比表也当成 §二 的覆盖表解析 → 报假阻断 | 复算报 BLOCKING | 复算只切 §二 段落；并加厂商简称别名表 |
+| 9 | **第三方内容站转述的价格被当成了厂商价**（搜索结果里有「慧博 328/5980 元/年」「Wind 约 4 万/年」等说法） | 本单的价格纪律要求「必须来自实际打开的厂商页面」 | 一律回到厂商自己的价格页取：慧博 → `https://www.hibor.com.cn/price`（200，有公开标价）；取不到就写「未公开，需询价」；索引副本只能算 B 级并注明未直接复核 |
+| 10 | 摘要 §五「未覆盖 5 条」一度写错（把已被 GGII 覆盖的 2 条列了进去） | 独立复算比对出比例对不上 | 按复算结果改正：未覆盖的是中国医药市场规模与增速、PCS 与逆变器出货量、全球锂盐与镍钴价格、半导体设备与材料国产化率、存储芯片现货价与合约价 |
 
 > 这些坑都写进了 `experiments/registry.md` 的 WORK-535 行「失败 / 被证伪项」栏。
 
 ---
 
-## 九、复现方式
+## 十、复现方式
 
 ```bash
 # 依赖：duckdb pandas numpy（本机 venv 在 workdir 下）
@@ -155,9 +193,13 @@ python experiments/WORK-535/check_plan_urls.py docs/procurement_plan.csv
 # 5) 覆盖度算式与贪心集合覆盖
 python experiments/WORK-535/final_stats.py docs/procurement_plan.csv
 
+# 6b) 研报通道厂商的价格页与联系入口探测（增补节用）
+python experiments/WORK-535/probe_research_vendors.py  research_vendor_probe.json
+python experiments/WORK-535/probe_research_vendors2.py research_vendor_probe2.json
+
 # 6) 独立复算闸门（不看上面任何脚本的函数，自己从 CSV + DuckDB 重算，
 #    再把摘要里写的数字解析出来逐个比对；退出码 0 = 无阻断）
 python audit/recompute_work535.py
 ```
 
-**已知缺口**：§六 里那些「须人工确认」的字段本单无法自证——它们的依据是「已打开的页面里没有」，**属于否定性证据**，必须由人在真实浏览器里再查一遍才能定案。
+**已知缺口**：§七 里那些「须人工确认」的字段本单无法自证——它们的依据是「已打开的页面里没有」，**属于否定性证据**，必须由人在真实浏览器里再查一遍才能定案。

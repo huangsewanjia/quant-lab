@@ -104,6 +104,31 @@
     "final": "https://www.benchmarkminerals.com/lithium/prices",
     "error": ""
   },
+  "https://www.hibor.com.cn/price": {
+    "status": 200,
+    "final": "https://www.hibor.com.cn/price/",
+    "error": ""
+  },
+  "https://www.fxbaogao.com/vip-benefits": {
+    "status": 200,
+    "final": "https://www.fxbaogao.com/vip-benefits",
+    "error": ""
+  },
+  "https://m-robo.datayes.com/membership/open": {
+    "status": 200,
+    "final": "https://m-robo.datayes.com/membership/open",
+    "error": ""
+  },
+  "https://www.cicc.com/services/research": {
+    "status": 200,
+    "final": "https://www.cicc.com/services/research",
+    "error": ""
+  },
+  "https://www.citics.com/newsite/business/research_sales/research/research_yjfw/": {
+    "status": 200,
+    "final": "https://www.citics.com/newsite/business/research_sales/research/research_yjfw/",
+    "error": ""
+  },
   "https://www.cnesa.org/": {
     "status": 200,
     "final": "https://www.cnesa.org/",
@@ -144,10 +169,10 @@
     "final": "https://energystorageeurope.eu/",
     "error": ""
   },
-  "https://www.solarpowereurope.org/insights/outlooks": {
-    "status": 404,
-    "final": "https://www.solarpowereurope.org/insights/outlooks",
-    "error": "Not Found"
+  "https://www.solarpowereurope.org/": {
+    "status": 200,
+    "final": "https://www.solarpowereurope.org/",
+    "error": ""
   },
   "https://joint-research-centre.ec.europa.eu/": {
     "status": 200,

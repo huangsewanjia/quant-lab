@@ -124,7 +124,15 @@ def recompute():
         union |= cov.get(v, {'hard': set(), 'p0': set()})['hard'] \
             | cov.get(v, {'hard': set(), 'p0': set()})['p0']
 
+    research_vendors = {'慧博投研（研报聚合平台）', '发现报告（研报聚合平台）',
+                        '萝卜投研（通联数据）', '中金公司研究部', '中信证券研究部'}
+    hibor = [r for r in rows if r[C_VEND] == '慧博投研（研报聚合平台）']
+
     return {
+        'n_research_rows': sum(1 for r in rows if r[C_VEND] in research_vendors),
+        'research_non_equal': sorted({r[C_VEND] for r in rows
+                                      if r[C_VEND] in research_vendors and r[C_ADV] != '等'}),
+        'hibor_priced': sum(1 for r in hibor if '¥1,668' in r[C_PRICE]),
         'n_rows': len(rows),
         'n_combos': len(combos_hard),
         'n_combos_all': len(combos),
@@ -178,10 +186,10 @@ def main():
     r = recompute()
     findings = []
 
-    check(findings, 'CSV 总行数 = 84', 84, r['n_rows'])
-    check(findings, '需采购「指标×数据商」组合数 = 23', 23, r['n_combos'])
-    check(findings, '全表「指标×数据商」组合数 = 92', 92, r['n_combos_all'])
-    check(findings, '需采购行数 = 23', 23, r['n_hard_rows'])
+    check(findings, 'CSV 总行数 = 109', 109, r['n_rows'])
+    check(findings, '需采购「指标×数据商」组合数 = 48', 48, r['n_combos'])
+    check(findings, '全表「指标×数据商」组合数 = 117', 117, r['n_combos_all'])
+    check(findings, '需采购行数 = 48（含 25 行研报通道）', 48, r['n_hard_rows'])
     check(findings, '部分免费行数 = 61', 61, r['n_part_rows'])
     check(findings, '16 条需采购指标每条 ≥1 供应商', 16, r['hard_with_vendor'])
     check(findings, '61 条部分免费给出免费替代源', 61, r['part_with_free_alt'])
@@ -189,8 +197,13 @@ def main():
     check(findings, '需采购行建议买 = 6', 6, r['adv_hard']['买'])
     check(findings, '部分免费行建议买 = 16', 16, r['adv_part']['买'])
     check(findings, '覆盖度取值：全覆盖 54', 54, r['cov_values'].get('全覆盖', 0))
-    check(findings, '覆盖度取值：部分 28', 28, r['cov_values'].get('部分', 0))
+    check(findings, '覆盖度取值：部分 53', 53, r['cov_values'].get('部分', 0))
     check(findings, '覆盖度取值：不覆盖 2', 2, r['cov_values'].get('不覆盖', 0))
+
+    # 研报通道专项：25 行、全部「等」、公开价只有慧博是 A 级
+    check(findings, '研报通道行数 = 25', 25, r['n_research_rows'])
+    check(findings, '研报通道全部标「等」', [], r['research_non_equal'])
+    check(findings, '慧博研报通道 5 行全部带 A 级公开价', 5, r['hibor_priced'])
 
     # brief 里写的比例，逐个与复算值对
     expect_ratios = {

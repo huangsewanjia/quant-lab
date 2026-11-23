@@ -1,25 +1,28 @@
 {
   "experiment": "WORK-535",
-  "checked_at": "2026-11-23T06:58:58.727894+00:00",
+  "checked_at": "2026-11-23T07:19:31.338251+00:00",
   "plan_csv": "docs/procurement_plan.csv",
   "brief_md": "docs/procurement_brief.md",
   "recomputed": {
-    "n_rows": 84,
-    "n_combos": 23,
-    "n_combos_all": 92,
-    "n_hard_rows": 23,
+    "n_research_rows": 25,
+    "research_non_equal": [],
+    "hibor_priced": 5,
+    "n_rows": 109,
+    "n_combos": 48,
+    "n_combos_all": 117,
+    "n_hard_rows": 48,
     "n_part_rows": 61,
     "n_buy_indicator_rows": 16,
     "hard_with_vendor": 16,
     "part_with_free_alt": 61,
     "adv_rows": {
       "买": 22,
-      "等": 38,
+      "等": 63,
       "不买": 24
     },
     "adv_hard": {
       "买": 6,
-      "等": 11,
+      "等": 36,
       "不买": 6
     },
     "adv_part": {
@@ -29,10 +32,10 @@
     },
     "cov_values": {
       "全覆盖": 54,
-      "部分": 28,
+      "部分": 53,
       "不覆盖": 2
     },
-    "price_rows": 16,
+    "price_rows": 21,
     "vendor_hard": {
       "高工锂电 / 高工产业研究院 GGII": 2,
       "Wood Mackenzie": 4,
@@ -47,6 +50,11 @@
       "TrendForce 集邦": 1,
       "SNE Research": 1,
       "中国有色金属工业协会": 1,
+      "慧博投研（研报聚合平台）": 5,
+      "发现报告（研报聚合平台）": 5,
+      "萝卜投研（通联数据）": 5,
+      "中金公司研究部": 5,
+      "中信证券研究部": 5,
       "中关村储能产业技术联盟 CNESA": 0,
       "电池网 CBEA": 0,
       "上海有色网 SMM": 0,
@@ -92,6 +100,11 @@
       "TrendForce 集邦": 1,
       "SNE Research": 5,
       "中国有色金属工业协会": 1,
+      "慧博投研（研报聚合平台）": 5,
+      "发现报告（研报聚合平台）": 5,
+      "萝卜投研（通联数据）": 5,
+      "中金公司研究部": 5,
+      "中信证券研究部": 5,
       "中关村储能产业技术联盟 CNESA": 3,
       "电池网 CBEA": 1,
       "上海有色网 SMM": 4,
@@ -123,43 +136,43 @@
       "UNIDO 工业统计（INDSTAT）": 1,
       "欧洲有色金属协会 Eurometaux": 2
     },
-    "greedy_all_hard": 9,
-    "greedy_all_p0": 28,
+    "greedy_all_hard": 11,
+    "greedy_all_p0": 29,
     "greedy_buy_hard": 8,
     "greedy_buy_p0": 18,
     "top3_union_p0": 16,
     "top3_union_hard": 7,
-    "single_max_hard": 4,
+    "single_max_hard": 5,
     "n_hard": 16,
     "n_part": 61,
     "n_p0": 77
   },
   "findings": [
     {
-      "check": "CSV 总行数 = 84",
-      "expected": 84,
-      "actual": 84,
+      "check": "CSV 总行数 = 109",
+      "expected": 109,
+      "actual": 109,
       "blocking": false,
       "detail": ""
     },
     {
-      "check": "需采购「指标×数据商」组合数 = 23",
-      "expected": 23,
-      "actual": 23,
+      "check": "需采购「指标×数据商」组合数 = 48",
+      "expected": 48,
+      "actual": 48,
       "blocking": false,
       "detail": ""
     },
     {
-      "check": "全表「指标×数据商」组合数 = 92",
-      "expected": 92,
-      "actual": 92,
+      "check": "全表「指标×数据商」组合数 = 117",
+      "expected": 117,
+      "actual": 117,
       "blocking": false,
       "detail": ""
     },
     {
-      "check": "需采购行数 = 23",
-      "expected": 23,
-      "actual": 23,
+      "check": "需采购行数 = 48（含 25 行研报通道）",
+      "expected": 48,
+      "actual": 48,
       "blocking": false,
       "detail": ""
     },
@@ -213,9 +226,9 @@
       "detail": ""
     },
     {
-      "check": "覆盖度取值：部分 28",
-      "expected": 28,
-      "actual": 28,
+      "check": "覆盖度取值：部分 53",
+      "expected": 53,
+      "actual": 53,
       "blocking": false,
       "detail": ""
     },
@@ -227,11 +240,32 @@
       "detail": ""
     },
     {
-      "check": "brief 比例 9/16（三家贪心（全部厂商）覆盖硬缺口）",
-      "expected": 56.2,
-      "actual": 56.2,
+      "check": "研报通道行数 = 25",
+      "expected": 25,
+      "actual": 25,
       "blocking": false,
-      "detail": "9/16 应为 56.2%"
+      "detail": ""
+    },
+    {
+      "check": "研报通道全部标「等」",
+      "expected": [],
+      "actual": [],
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "慧博研报通道 5 行全部带 A 级公开价",
+      "expected": 5,
+      "actual": 5,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "brief 比例 11/16（三家贪心（全部厂商）覆盖硬缺口）",
+      "expected": 68.8,
+      "actual": 68.8,
+      "blocking": false,
+      "detail": "11/16 应为 68.8%"
     },
     {
       "check": "brief 比例 7/16（推荐三家联合覆盖硬缺口）",
@@ -241,18 +275,18 @@
       "detail": "7/16 应为 43.8%"
     },
     {
-      "check": "brief 比例 4/16（单家最大覆盖硬缺口）",
-      "expected": 25.0,
-      "actual": 25.0,
+      "check": "brief 比例 5/16（单家最大覆盖硬缺口）",
+      "expected": 31.2,
+      "actual": 31.2,
       "blocking": false,
-      "detail": "4/16 应为 25.0%"
+      "detail": "5/16 应为 31.2%"
     },
     {
-      "check": "brief 比例 28/77（三家贪心（全部厂商）覆盖 P0）",
-      "expected": 36.4,
-      "actual": 36.4,
+      "check": "brief 比例 29/77（三家贪心（全部厂商）覆盖 P0）",
+      "expected": 37.7,
+      "actual": 37.7,
       "blocking": false,
-      "detail": "28/77 应为 36.4%"
+      "detail": "29/77 应为 37.7%"
     },
     {
       "check": "brief 比例 8/16（三家贪心（只算建议买）覆盖硬缺口）",
@@ -318,20 +352,6 @@
       "detail": ""
     },
     {
-      "check": "brief §二 覆盖数：米内网 Menet（硬缺口）",
-      "expected": 1,
-      "actual": 1,
-      "blocking": false,
-      "detail": ""
-    },
-    {
-      "check": "brief §二 覆盖数：米内网 Menet（P0）",
-      "expected": 2,
-      "actual": 2,
-      "blocking": false,
-      "detail": ""
-    },
-    {
       "check": "brief §二 覆盖数：Wood Mackenzie（硬缺口）",
       "expected": 4,
       "actual": 4,
@@ -342,6 +362,20 @@
       "check": "brief §二 覆盖数：Wood Mackenzie（P0）",
       "expected": 4,
       "actual": 4,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "brief §二 覆盖数：米内网 Menet（硬缺口）",
+      "expected": 1,
+      "actual": 1,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "brief §二 覆盖数：米内网 Menet（P0）",
+      "expected": 2,
+      "actual": 2,
       "blocking": false,
       "detail": ""
     },
@@ -416,7 +450,7 @@
       "detail": ""
     }
   ],
-  "n_checks": 40,
+  "n_checks": 43,
   "n_blocking": 0,
   "verdict": "PASS"
 }
