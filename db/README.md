@@ -458,3 +458,124 @@ cd <repo>
 
 本轮只删改过 **`index_weight` 的 8 个旧分区**（全是 0 行的坏分区，issue 明确授权），其余 `raw/` 分区**一个没动**；
 `raw/` 保持只追加语义。库里的旧空分区**没有重写**（仍是旧类型），由装载器的 `union_by_name` 兜住。
+
+---
+
+## 11. 定时任务（WORK-529，2026-11-23）
+
+### 11.1 稳定代码路径
+
+调度只认一个路径，不再从任务 workdir 运行：
+
+```bash
+/srv/share/quantdb/code/quant-lab      # git clone；更新用 git pull --ff-only
+```
+
+代码、`db/timers/` 与 systemd 单元都在这个仓库里。单元源文件是
+`db/timers/systemd/quantdb-*.{service,timer}`，安装到 `~/.config/systemd/user/`。
+
+### 11.2 时间表（Asia/Shanghai）
+
+| 任务 | 频率 / 时间 | 内容 | 单元 |
+|---|---|---|---|
+| 行情增量 | 每交易日 18:30；19:30 / 20:30 重试 | `daily`、`daily_basic`、`adj_factor`、`stk_limit`、`suspend_d`、`index_daily` + `stock_basic` | `quantdb-daily.timer` |
+| 财务增量 | 报告期（1/4/7/10 月）每交易日 19:00；其余周一 19:00 | `income`、`balancesheet`、`cashflow`、`fina_indicator`、`dividend` | `quantdb-finance.timer` |
+| 指数成分 | 每月第一个交易日 19:30（由 daily 的第 2/3 次触发执行） | `index_weight` | `quantdb-daily.timer` |
+| 政策抓取 | 每天 09:00 / 18:00 | 六源白名单增量 → 分类 → 入库 → 打标 → 元数据 | `quantdb-policy.timer` |
+| 政策对账 | 每周一 06:00 | 列表条数 vs 库内，缺的补抓，出统计 | `quantdb-weekly.timer` |
+| 周报 | 每周一 09:00 | 成功率、缺失分区、重试、行数变化 | `quantdb-weekly.timer` |
+| 冷备 | 每天 03:30（并入现有 `backup-nightly`） | `/srv/share/quantdb` → `/srv/backup/quantdb`，rsync + `SHA256SUMS` | `backup-nightly.timer` |
+
+### 11.3 增量规则
+
+```bash
+# 行情：max(raw trade_date)+1 .. 最近已完成收盘日
+python -m db.etl.fetch --incremental --group market
+
+# 财务：最近 7 天实际披露，按 disclosure_date 找代码
+python -m db.etl.fetch --incremental --group finance --overlap-days 7
+
+# 指数成分：只在每月第一个交易日 19:30 后执行
+python -m db.etl.fetch --incremental --group index_weight
+
+# 只装载水位之后的分区（重复装载幂等）
+python -m db.etl.fetch --load-only --incremental --dataset daily
+```
+
+要点：
+
+- 收盘前手动跑行情会以**上一交易日**为终点，不会把当日未发布的数据写成空分区。
+- 18:30 后如果上游当日仍无数据，返回退出码 `75`，不写空分区；19:30 / 20:30 再试，
+  第三次仍无数据才建告警单。
+- 财务四张表的日期过滤口径不完全一致：`income` / `balancesheet` / `cashflow` 按公告日，
+  `fina_indicator` 按报告期。增量窗口同时覆盖 `actual_date` 与 `end_date`。
+- 财务和指数成分是「读旧分区 + 合并 + 按主键/内容去重 + 原子写回」，不会用 7 天窗口覆盖历史。
+
+### 11.4 手动触发与看日志
+
+```bash
+systemctl --user start quantdb-daily.service
+systemctl --user start quantdb-finance.service
+systemctl --user start quantdb-policy.service
+systemctl --user start quantdb-weekly.service
+
+tail -f /srv/share/quantdb/logs/daily-$(date +%Y%m%d).log
+tail -f /srv/share/quantdb/logs/finance-$(date +%Y%m%d).log
+tail -f /srv/share/quantdb/logs/policy-$(date +%Y%m%d).log
+tail -f /srv/share/quantdb/logs/weekly-$(date +%Y%m%d).log
+```
+
+查看下次触发与最近状态：
+
+```bash
+systemctl --user list-timers --all | grep quantdb
+systemctl --user status quantdb-daily.service
+journalctl --user -u quantdb-daily.service -n 100 --no-pager
+```
+
+### 11.5 失败告警
+
+wrapper 失败时调用 `MULTICA_CLI_PATH issue create`：
+
+- 标题：`数据更新失败｜<task>｜<YYYY-MM-DD>`
+- 正文：任务、时间、主机、退出码、仓库、日志路径、日志尾部 50 行
+- 状态 `backlog`、不指派；同一任务同一天只建一张，单号写入
+  `/srv/share/quantdb/logs/state/<task>-alert-<date>.id`
+
+### 11.6 停用与回滚
+
+```bash
+# 停用全部四个 timer（保留单元文件）
+systemctl --user disable --now quantdb-daily.timer quantdb-finance.timer \
+  quantdb-policy.timer quantdb-weekly.timer
+
+# 只停某个任务
+systemctl --user disable --now quantdb-finance.timer
+
+# 代码回滚：在稳定路径 git revert <SHA>，再 daemon-reload
+cd /srv/share/quantdb/code/quant-lab
+git revert <SHA>
+cp db/timers/systemd/quantdb-* ~/.config/systemd/user/
+systemctl --user daemon-reload
+```
+
+数据回滚见 `docs/RUNBOOK.md` §10；冷备在 `/srv/backup/quantdb`，校验清单是同目录
+`SHA256SUMS`，可用 `sha256sum -c SHA256SUMS` 验证。
+
+### 11.7 失败排查顺序
+
+1. 先看 `/srv/share/quantdb/logs/<task>-<date>.log` 的最后 50 行和 `meta/failed/`。
+2. 查交易日历：`python -m db.etl.incremental check-day --date YYYYMMDD`；返回 2 表示日历没覆盖，先
+   `refresh-calendar`。
+3. 查增量计划：`python -m db.etl.incremental plan --group market --now <ISO>`。
+4. 查数据库锁：`/srv/share/quantdb/logs/.quantdb-db.lock`；同一时间只允许一个写库任务。
+5. 源端延迟：看退出码 `75` 和 `[source-delay]` 行；不要手工写空分区。
+
+### 11.8 已知限制
+
+- 政策库目前只入库了少量样本；周一对账单轮默认补抓 200 条，`remaining` 会逐周下降。
+- 非报告期的周一财务任务会处理最近 7 天实际披露的代码；披露密集时可能跑几十分钟。
+- 现有 `backup-nightly.service` 在 WORK-529 之前就是 failed 状态；本单只在其前面增加 quantdb
+  冷备，没有改 borg 逻辑。borg 的原始错误仍需单独处理。
+- issue 描述里的 `M = 15M` 与 `AGENTS.md` 第一部分「一·五」的「不设 issue 级 token 总额」冲突；
+  本单按 `AGENTS.md` 执行，不因额度停手。

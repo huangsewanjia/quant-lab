@@ -370,6 +370,73 @@ class Progress:
 # --------------------------------------------------------------------------- #
 
 
+def merge_existing_frame(dataset: str, partition: str, frame: pd.DataFrame) -> pd.DataFrame:
+    """Existing partition + new rows, projected to the declared schema.
+
+    Financial statements and index constituents are partitioned by code, but
+    their content is selected by a date window. An incremental run therefore
+    must not replace the partition with only the new window.
+    """
+    frames: list[pd.DataFrame] = []
+    path = common.partition_file(dataset, partition)
+    if path.exists():
+        try:
+            frames.append(pd.read_parquet(path))
+        except Exception as exc:  # noqa: BLE001 - a damaged file is superseded
+            print(f"[warn] 旧分区不可读，按新数据写回: {path}: {exc}", file=sys.stderr)
+    if frame is not None and not frame.empty:
+        frames.append(frame)
+    columns = common.canonical_columns(dataset)
+    if not frames:
+        return pd.DataFrame(columns=columns)
+    merged = pd.concat(frames, ignore_index=True, sort=False)
+    # Never carry the synthetic discriminator through the merge: the old rows
+    # have it, the new ones do not, and a float NaN column makes the later
+    # int64 assignment fail. write_partition recomputes it deterministically
+    # from the natural key.
+    if "dup_seq" in merged.columns:
+        merged = merged.drop(columns=["dup_seq"])
+    for column in columns:
+        if column == "dup_seq":
+            continue
+        if column not in merged.columns:
+            merged[column] = None
+    merged = common.normalize_date_columns(merged, dataset)
+    # Drop rows that are identical after normalising NULL-like cells. The same
+    # upstream row read back from Parquet can carry NaN where the fresh API
+    # response carries None; a naive string join would treat those as different
+    # versions and the row count would grow on every run.
+    signature = _row_signature(merged)
+    merged = merged.loc[~signature.duplicated()].reset_index(drop=True)
+    return merged[[column for column in columns if column != "dup_seq"]]
+
+
+def _row_signature(frame: pd.DataFrame) -> pd.Series:
+    def normalize(value: Any) -> str:
+        try:
+            if pd.isna(value):
+                return ""
+        except (TypeError, ValueError):
+            pass
+        return str(value)
+
+    parts = [frame[column].map(normalize) for column in frame.columns]
+    if not parts:
+        return pd.Series([""] * len(frame), index=frame.index)
+    return pd.concat(parts, axis=1).agg("\x1f".join, axis=1)
+
+
+def extended_study_window(
+    dataset: str, partition: str, start: str, end: str
+) -> list[str]:
+    """Keep the old study-window start while extending its end."""
+    meta = common.read_manifest(dataset, partition) or {}
+    old = meta.get("study_window")
+    if isinstance(old, (list, tuple)) and len(old) == 2 and all(old):
+        return [min(str(old[0]), start), max(str(old[1]), end)]
+    return [start, end]
+
+
 class Fetcher:
     def __init__(
         self,
@@ -379,6 +446,8 @@ class Fetcher:
         resume: bool = True,
         concurrency: int = 8,
         deadline: float | None = None,
+        strict_empty_dates: Iterable[str] | None = None,
+        merge_existing: bool = False,
     ) -> None:
         self.client = client
         self.start = start
@@ -386,6 +455,17 @@ class Fetcher:
         self.resume = resume
         self.concurrency = max(1, concurrency)
         self.deadline = deadline
+        # Dates for which an empty upstream response means "not published
+        # yet", not "checked and empty". The scheduled daily job sets this to
+        # today after the close so it can retry instead of writing a permanent
+        # empty partition.
+        self.strict_empty_dates = set(strict_empty_dates or ())
+        # Incremental financial / index-weight runs merge into the existing
+        # partition instead of replacing it, because their content depends on
+        # the requested window.
+        self.merge_existing = merge_existing
+        # Optional explicit code list for financial incremental runs.
+        self.codes: list[str] | None = None
         self._calendar: list[str] | None = None
         self._pool: ThreadPoolExecutor | None = None
         self._io_pool: ThreadPoolExecutor | None = None
@@ -453,6 +533,10 @@ class Fetcher:
         window = meta.get("study_window")
         if window is None:
             return True
+        if meta.get("incremental_merge") and len(window) == 2:
+            # An incrementally extended partition is complete for every run
+            # whose window is inside its recorded coverage.
+            return str(window[0]) <= self.start and str(window[1]) >= self.end
         return list(window) == [self.start, self.end]
 
     def _density(self) -> ListingDensity | None:
@@ -748,6 +832,24 @@ class Fetcher:
                     continue
                 if self.resume and common.manifest_resumable(spec.name, key):
                     continue
+                if key in self.strict_empty_dates:
+                    with lock:
+                        failures.append(
+                            {
+                                "dataset": spec.name,
+                                "partition": key,
+                                "error": f"{key} 上游无数据（可能尚未发布）",
+                                "source_delay": True,
+                            }
+                        )
+                        failed_dates.add(key)
+                    progress.bump(failed=True)
+                    print(
+                        f"[source-delay] {spec.name} {key}: 上游尚未发布，保留重试",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                    continue
                 try:
                     self.write_empty_partition(spec, key, query)
                     written.append(key)
@@ -792,6 +894,27 @@ class Fetcher:
                 if trade_date in failed_dates:
                     continue
                 if self.resume and common.manifest_resumable(spec.name, trade_date):
+                    continue
+                if trade_date in self.strict_empty_dates:
+                    # Today's close has happened but the upstream has not
+                    # published yet. Writing an empty partition here would make
+                    # every later run skip the day forever, so this is a
+                    # retryable failure instead.
+                    with lock:
+                        failures.append(
+                            {
+                                "dataset": spec.name,
+                                "partition": trade_date,
+                                "error": f"{trade_date} 上游无数据（可能尚未发布）",
+                                "source_delay": True,
+                            }
+                        )
+                    progress.bump(failed=True)
+                    print(
+                        f"[source-delay] {spec.name} {trade_date}: 上游尚未发布，保留重试",
+                        file=sys.stderr,
+                        flush=True,
+                    )
                     continue
                 columns = common.canonical_columns(spec.name)
                 if not columns:
@@ -838,6 +961,23 @@ class Fetcher:
                     spec.api, {"trade_date": trade_date}, dataset=spec.name, partition=trade_date
                 )
                 if frame.empty:
+                    if trade_date in self.strict_empty_dates:
+                        with lock:
+                            failures.append(
+                                {
+                                    "dataset": spec.name,
+                                    "partition": trade_date,
+                                    "error": f"{trade_date} 上游无数据（可能尚未发布）",
+                                    "source_delay": True,
+                                }
+                            )
+                        progress.bump(failed=True)
+                        print(
+                            f"[source-delay] {spec.name} {trade_date}: 上游尚未发布，保留重试",
+                            file=sys.stderr,
+                            flush=True,
+                        )
+                        return
                     # The day was fetched and upstream has no rows for it.
                     # Recording it as a failure would put it into the failure
                     # ledger for good; an explicit empty partition is the
@@ -913,7 +1053,12 @@ class Fetcher:
         universe = self._stock_universe()
         codes = list(universe["ts_code"].dropna().unique())
         dates = {row["ts_code"]: row for row in universe.to_dict(orient="records")}
-        todo = [c for c in codes if not self.resumable(spec.name, c)]
+        if self.codes is not None:
+            # Incremental runs already know which codes disclosed in the
+            # window; do not rescan all 5,924 codes.
+            todo = list(dict.fromkeys(self.codes))
+        else:
+            todo = [c for c in codes if not self.resumable(spec.name, c)]
         failures: list[dict[str, Any]] = []
         progress = Progress(spec.name, len(todo))
         lock = threading.Lock()
@@ -923,6 +1068,11 @@ class Fetcher:
             windows = code_windows(row.get("list_date"), row.get("delist_date"), self.start, self.end)
             columns = common.canonical_columns(spec.name)
             if not windows or not columns:
+                if self.merge_existing:
+                    # Nothing to add; leave the existing statement history
+                    # untouched instead of replacing it with an empty file.
+                    progress.bump()
+                    return
                 common.write_partition(
                     pd.DataFrame(columns=columns),
                     spec.name,
@@ -987,29 +1137,50 @@ class Fetcher:
                     progress.bump(failed=True)
                     return
                 frame = concat_frames(frames)
-                if frame.empty:
-                    common.write_partition(
-                        pd.DataFrame(columns=columns),
-                        spec.name,
-                        code,
-                        "tushare",
-                        extra_meta={"rows_raw": 0, "study_window": [self.start, self.end]},
+                if not frame.empty:
+                    frame = frame.copy()
+                    frame["ann_date"] = frame_dates(frame, "ann_date")
+                if self.merge_existing:
+                    frame = merge_existing_frame(spec.name, code, frame)
+                    if frame.empty:
+                        progress.bump()
+                        return
+                    study_window = extended_study_window(
+                        spec.name, code, self.start, self.end
                     )
-                    progress.bump()
-                    return
-                frame = frame.copy()
-                frame["ann_date"] = frame_dates(frame, "ann_date")
+                    extra_meta = {
+                        "query": {"ts_code": code, "windows": windows},
+                        "study_window": study_window,
+                        "incremental_merge": True,
+                        "incremental_window": [self.start, self.end],
+                    }
+                else:
+                    if frame.empty:
+                        common.write_partition(
+                            pd.DataFrame(columns=columns),
+                            spec.name,
+                            code,
+                            "tushare",
+                            extra_meta={
+                                "rows_raw": 0,
+                                "study_window": [self.start, self.end],
+                            },
+                        )
+                        progress.bump()
+                        return
+                    study_window = [self.start, self.end]
+                    extra_meta = {
+                        "query": {"ts_code": code, "windows": windows},
+                        "study_window": study_window,
+                    }
                 frame, dropped = common.drop_null_pk_rows(frame, spec.name)
+                extra_meta["rows_dropped_null_pk"] = dropped
                 common.write_partition(
                     frame,
                     spec.name,
                     code,
                     "tushare",
-                    extra_meta={
-                        "query": {"ts_code": code, "windows": windows},
-                        "rows_dropped_null_pk": dropped,
-                        "study_window": [self.start, self.end],
-                    },
+                    extra_meta=extra_meta,
                 )
                 common.clear_failures(spec.name, [code])
                 progress.bump()
@@ -1167,7 +1338,7 @@ class Fetcher:
         failures: list[dict[str, Any]] = []
         done = 0
         for index_code in INDEX_UNIVERSE:
-            if self.resumable(spec.name, index_code):
+            if not self.merge_existing and self.resumable(spec.name, index_code):
                 done += 1
                 continue
             frames = []
@@ -1216,6 +1387,16 @@ class Fetcher:
                 continue
             combined = concat_frames(frames)
             if combined.empty:
+                if self.merge_existing:
+                    # The current month may not have been published yet. Keep
+                    # the existing constituent history and let the next daily
+                    # attempt try again.
+                    print(
+                        f"[warn] {spec.name} {index_code}: 增量窗口无数据，保留旧分区",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                    continue
                 # Every monthly window came back empty: the upstream has no
                 # constituent history for this index. That is an observation,
                 # not a failure - a permanent failure entry would keep the
@@ -1247,6 +1428,15 @@ class Fetcher:
                     flush=True,
                 )
                 continue
+            if self.merge_existing:
+                combined = merge_existing_frame(spec.name, index_code, combined)
+                if combined.empty:
+                    continue
+                study_window = extended_study_window(
+                    spec.name, index_code, self.start, self.end
+                )
+            else:
+                study_window = [self.start, self.end]
             common.write_partition(
                 combined,
                 spec.name,
@@ -1261,7 +1451,8 @@ class Fetcher:
                     },
                     "months_requested": months_requested,
                     "months_with_rows": months_with_rows,
-                    "study_window": [self.start, self.end],
+                    "study_window": study_window,
+                    **({"incremental_merge": True} if self.merge_existing else {}),
                 },
             )
             done += 1
@@ -1424,6 +1615,26 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--load-only", action="store_true", help="只把已有 Parquet 装入 DuckDB")
     parser.add_argument("--full-refresh", action="store_true", help="装载前清空目标表")
     parser.add_argument(
+        "--incremental",
+        action="store_true",
+        help="按水位自动计算本次区间；默认关闭",
+    )
+    parser.add_argument(
+        "--group",
+        choices=("market", "finance", "index_weight", "all"),
+        help="增量分组；不填时由 --dataset 推断",
+    )
+    parser.add_argument(
+        "--overlap-days",
+        type=int,
+        default=7,
+        help="财务公告日重叠天数，防迟到公告",
+    )
+    parser.add_argument(
+        "--now",
+        help="调试用 ISO 时间（Asia/Shanghai），用于复算区间",
+    )
+    parser.add_argument(
         "--time-budget",
         type=int,
         default=0,
@@ -1441,11 +1652,20 @@ def main(argv: list[str] | None = None) -> int:
     common.ensure_layout()
     if args.status:
         return cmd_status(args)
+    datasets = [d.strip() for d in args.dataset.split(",") if d.strip()]
+    if args.incremental:
+        from . import incremental
+
+        if args.full_refresh:
+            print("--incremental 不能与 --full-refresh 同用", file=sys.stderr)
+            return 2
+        if args.load_only:
+            return incremental.load_only(datasets)
+        return incremental.run(args)
     if args.load_only:
-        datasets = [d.strip() for d in args.dataset.split(",") if d.strip()]
         load_duckdb(datasets, args.full_refresh)
         return 0
-    names = [d.strip() for d in args.dataset.split(",") if d.strip()]
+    names = datasets
     if "all" in names:
         names = list(FETCH_ORDER)
     unknown = [n for n in names if n not in DATASETS]

@@ -40,6 +40,12 @@ chmod 600 /home/moyongkai/.config/quantdb/tushare.token
 ## 3. 增量拉数
 
 ```bash
+$PY -m db.etl.fetch --incremental --group market          # 收盘后行情
+$PY -m db.etl.fetch --incremental --group finance         # 最近 7 天公告
+$PY -m db.etl.fetch --incremental --group index_weight    # 每月首个交易日
+$PY -m db.etl.fetch --load-only --incremental --dataset daily
+
+# 旧的手工窗口仍然可用
 $PY -m db.etl.fetch calendar --start 20200101 --end 20201231
 $PY -m db.etl.fetch stock-basic
 $PY -m db.etl.fetch daily --start 20200101 --end 20201231
@@ -128,17 +134,35 @@ cat /srv/share/quantdb/policy/missing/$(date +%Y%m%d).jsonl
 
 ```bash
 mkdir -p /srv/backup/quantdb
-rsync -a --delete /srv/share/quantdb/ /srv/backup/quantdb/
+rsync -a --delete --exclude 'staging/tmp/' /srv/share/quantdb/ /srv/backup/quantdb/
+cd /srv/backup/quantdb
+find db meta policy -type f -print0 | sort -z | xargs -0 -r sha256sum > SHA256SUMS
+sha256sum -c SHA256SUMS --quiet
 ```
 
-本单不启用定时任务。若要夜间自动备份，需要用户确认后再加 cron/systemd timer。
+现有 `backup-nightly.timer` 每天 03:30 先做这一步，再跑原来的 borg。`backup-nightly.service`
+在 WORK-529 之前就处于 failed 状态；本单没有改 borg 逻辑，borg 的原始错误需单独处理。
+
+### 9.1 定时任务
+
+四个 `systemd --user` timer 已安装并启用：
+
+```bash
+systemctl --user list-timers --all | grep quantdb
+systemctl --user start quantdb-daily.service
+tail -f /srv/share/quantdb/logs/daily-$(date +%Y%m%d).log
+```
+
+时间表、手动触发、停用和失败排查见 `../db/README.md` §11。
 
 ## 10. 回滚
 
 - 代码：`git revert <sha>`，重新跑 `pytest` 与 `checks`。
+- 调度：`systemctl --user disable --now quantdb-daily.timer quantdb-finance.timer quantdb-policy.timer quantdb-weekly.timer`；代码回滚后重新 `cp db/timers/systemd/quantdb-* ~/.config/systemd/user/ && systemctl --user daemon-reload`。
 - DuckDB：停止写入，备份 `quantdb.duckdb`，删除后 `init-db` + `load --full-refresh` 从 raw 重建。
 - raw 分区：按 manifest 的 sha256 定位异常文件，重拉该分区覆盖。
 - 政策：删除 `policy/<source>/<sha16>/` 与 `index.json` 对应条目，重跑采集。
+- 冷备：`/srv/backup/quantdb/SHA256SUMS` 可验证副本；恢复时先停 timer，再 `rsync -a /srv/backup/quantdb/ /srv/share/quantdb/`。
 
 ## 11. 停手条件
 

@@ -15,6 +15,7 @@ def qdb(tmp_path, monkeypatch):
     logs = home / "logs"
     tmp = staging / "tmp"
     failed = meta / "failed"
+    policy = home / "policy"
     for name, value in {
         "QDB_HOME": home,
         "RAW_DIR": raw,
@@ -25,7 +26,19 @@ def qdb(tmp_path, monkeypatch):
         "TMP_DIR": tmp,
         "FAILED_DIR": failed,
         "DB_PATH": db_dir / "quantdb.duckdb",
-        "LAYOUT_DIRS": [raw, db_dir, meta, staging, logs, tmp, failed],
+        "POLICY_DIR": policy,
+        "LAYOUT_DIRS": [
+            raw,
+            db_dir,
+            meta,
+            staging,
+            logs,
+            tmp,
+            failed,
+            policy,
+            policy / "missing",
+            policy / "meta",
+        ],
     }.items():
         monkeypatch.setattr(common, name, value)
     common.ensure_layout()

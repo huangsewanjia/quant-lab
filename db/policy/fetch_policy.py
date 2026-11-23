@@ -254,6 +254,8 @@ def run_source(
         "stored": 0,
         "missing": 0,
         "duplicates": 0,
+        "known": 0,
+        "remaining": 0,
         "errors": [],
     }
     try:
@@ -271,74 +273,167 @@ def run_source(
 
     by_sha = {str(meta.get("sha256")) for meta in index["documents"]}
     by_url = {str(meta.get("url")) for meta in index["documents"]}
-    for item in items[:max_items]:
+    processed = 0
+    for item in items:
         url = item["url"]
-        title = item["title"]
         if url in by_url:
-            result["duplicates"] += 1
-            print(f"[dup-url] {title[:50]}")
+            # Known URLs are skipped before the max-items budget is spent, so
+            # a daily run reaches genuinely new items deeper in the list.
+            result["known"] += 1
             continue
-        try:
-            html = fetcher.get(url)
-            doc = build_document(
-                html=html,
-                url=url,
-                title=title,
-                source=source,
-                publish_hint=item.get("publish_hint"),
-            )
-        except Exception as exc:  # noqa: BLE001
-            result["errors"].append(f"{url}: {type(exc).__name__}: {exc}")
-            append_missing(
-                {
-                    "source": source["id"],
-                    "title": title,
-                    "url": url,
-                    "reason": f"抓取/抽取失败: {type(exc).__name__}: {exc}",
-                    "fetched_at": common.utc_now(),
-                }
-            )
-            result["missing"] += 1
-            print(f"[fail] {title[:50]}: {exc}", file=sys.stderr)
-            continue
-
-        if doc["sha256"] in by_sha:
-            result["duplicates"] += 1
-            print(f"[dup-text] {title[:50]}")
-            continue
-        reasons = []
-        if not doc["publish_date"]:
-            reasons.append("缺 publish_date")
-        if not doc["effective_date"]:
-            reasons.append("缺 effective_date")
-        if doc["text_bytes"] < 80:
-            reasons.append("正文过短")
-        if reasons:
-            result["missing"] += 1
-            append_missing(
-                {
-                    "source": source["id"],
-                    "title": title,
-                    "url": url,
-                    "publish_date": doc["publish_date"],
-                    "effective_date": doc["effective_date"],
-                    "reason": "；".join(reasons),
-                    "fetched_at": common.utc_now(),
-                }
-            )
-            print(f"[missing] {title[:50]}: {'；'.join(reasons)}")
-            continue
-
-        meta = store_document(doc)
-        index["documents"].append(meta)
-        by_sha.add(doc["sha256"])
-        by_url.add(url)
-        result["stored"] += 1
-        print(
-            f"[store] {source['id']} {doc['publish_date']}..{doc['effective_date']} "
-            f"{title[:50]}"
-        )
+        if processed >= max_items:
+            break
+        processed += 1
+        _store_item(item, source, fetcher, index, by_sha, by_url, result)
+    result["remaining"] = max(0, len(items) - result["known"] - processed)
     return result
+
+
+def _store_item(
+    item: dict[str, Any],
+    source: dict[str, Any],
+    fetcher: Fetcher,
+    index: dict[str, Any],
+    by_sha: set[str],
+    by_url: set[str],
+    result: dict[str, Any],
+) -> str:
+    """Fetch, validate and store one list item. Returns a status string."""
+    url = item["url"]
+    title = item["title"]
+    try:
+        html = fetcher.get(url)
+        doc = build_document(
+            html=html,
+            url=url,
+            title=title,
+            source=source,
+            publish_hint=item.get("publish_hint"),
+        )
+    except Exception as exc:  # noqa: BLE001
+        result["errors"].append(f"{url}: {type(exc).__name__}: {exc}")
+        append_missing(
+            {
+                "source": source["id"],
+                "title": title,
+                "url": url,
+                "reason": f"抓取/抽取失败: {type(exc).__name__}: {exc}",
+                "fetched_at": common.utc_now(),
+            }
+        )
+        result["missing"] += 1
+        print(f"[fail] {title[:50]}: {exc}", file=sys.stderr)
+        return "error"
+
+    if doc["sha256"] in by_sha:
+        result["duplicates"] += 1
+        # Same text under another URL: remember the URL so a bounded
+        # reconciliation does not spend its budget on it every week.
+        by_url.add(url)
+        print(f"[dup-text] {title[:50]}")
+        return "duplicate"
+    reasons = []
+    if not doc["publish_date"]:
+        reasons.append("缺 publish_date")
+    if not doc["effective_date"]:
+        reasons.append("缺 effective_date")
+    if doc["text_bytes"] < 80:
+        reasons.append("正文过短")
+    if reasons:
+        result["missing"] += 1
+        append_missing(
+            {
+                "source": source["id"],
+                "title": title,
+                "url": url,
+                "publish_date": doc["publish_date"],
+                "effective_date": doc["effective_date"],
+                "reason": "；".join(reasons),
+                "fetched_at": common.utc_now(),
+            }
+        )
+        print(f"[missing] {title[:50]}: {'；'.join(reasons)}")
+        return "missing"
+
+    meta = store_document(doc)
+    index["documents"].append(meta)
+    by_sha.add(doc["sha256"])
+    by_url.add(url)
+    result["stored"] += 1
+    print(
+        f"[store] {source['id']} {doc['publish_date']}..{doc['effective_date']} "
+        f"{title[:50]}"
+    )
+    return "stored"
+
+
+def reconcile(
+    sources: list[dict[str, Any]],
+    fetcher: Fetcher,
+    index: dict[str, Any],
+    *,
+    max_fetch: int,
+) -> dict[str, Any]:
+    """Compare list-page counts with the index and backfill missing items.
+
+    The run is intentionally bounded: a first reconciliation can have more
+    than a thousand historical items, and fetching them all in one weekly run
+    would exceed the job window. ``remaining`` records what is left.
+    """
+    by_sha = {str(meta.get("sha256")) for meta in index["documents"]}
+    by_url = {str(meta.get("url")) for meta in index["documents"]}
+    budget = max(0, max_fetch)
+    results: list[dict[str, Any]] = []
+    for source in sources:
+        entry = {
+            "source": source["id"],
+            "listed": 0,
+            "in_index": 0,
+            "missing": 0,
+            "fetched": 0,
+            "stored": 0,
+            "duplicates": 0,
+            "errors": [],
+            "remaining": 0,
+        }
+        try:
+            items = list_items(source, fetcher)
+        except Exception as exc:  # noqa: BLE001
+            entry["errors"].append(f"列表失败: {type(exc).__name__}: {exc}")
+            print(f"[fail] {source['id']} 列表: {exc}", file=sys.stderr)
+            results.append(entry)
+            continue
+        entry["listed"] = len(items)
+        missing = [item for item in items if item["url"] not in by_url]
+        entry["in_index"] = len(items) - len(missing)
+        entry["missing"] = len(missing)
+        for item in missing:
+            if budget <= 0:
+                break
+            budget -= 1
+            status = _store_item(item, source, fetcher, index, by_sha, by_url, entry)
+            if status in ("stored", "missing", "duplicate"):
+                entry["fetched"] += 1
+        entry["remaining"] = max(0, entry["missing"] - entry["fetched"])
+        results.append(entry)
+    summary = {
+        "ts": common.utc_now(),
+        "max_fetch": max_fetch,
+        "sources": results,
+        "total_listed": sum(r["listed"] for r in results),
+        "total_in_index": sum(r["in_index"] for r in results),
+        "total_missing": sum(r["missing"] for r in results),
+        "total_fetched": sum(r["fetched"] for r in results),
+        "total_remaining": sum(r["remaining"] for r in results),
+    }
+    path = common.POLICY_DIR / "meta" / f"reconcile-{dt.date.today():%Y%m%d}.json"
+    common.write_json_atomic(path, summary)
+    print(
+        "[reconcile] listed={total_listed} in_index={total_in_index} "
+        "missing={total_missing} fetched={total_fetched} "
+        "remaining={total_remaining} report={path}".format(path=path, **summary)
+    )
+    return summary
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -351,6 +446,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-items", type=int, default=2, help="每源最多处理条目")
     parser.add_argument("--rpm", type=float, default=60.0, help="请求速率")
     parser.add_argument("--list-only", action="store_true", help="只列标题，不抓正文")
+    parser.add_argument(
+        "--reconcile",
+        action="store_true",
+        help="对账：源站列表条数 vs 库内，补抓缺失项",
+    )
+    parser.add_argument(
+        "--max-fetch",
+        type=int,
+        default=200,
+        help="对账模式单轮最多抓取的缺失条目（跨源总预算）",
+    )
     return parser
 
 
@@ -364,6 +470,21 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit(f"未知政策源: {args.source}")
     fetcher = Fetcher(rpm=args.rpm)
     index = load_index()
+    if args.reconcile:
+        if args.list_only:
+            print("--reconcile 与 --list-only 不能同用", file=sys.stderr)
+            return 2
+        summary = reconcile(sources, fetcher, index, max_fetch=args.max_fetch)
+        index["generated_at"] = common.utc_now()
+        common.write_json_atomic(common.POLICY_DIR / "index.json", index)
+        common.write_json_atomic(
+            common.POLICY_DIR / "last-reconcile.json",
+            summary,
+        )
+        if summary["total_listed"] == 0:
+            print("[fail] 全部政策源列表不可达", file=sys.stderr)
+            return 2
+        return 0
     results = []
     for source in sources:
         results.append(

@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-11-23 · WORK-529 定时更新
+
+新增：
+
+- `db/etl/incremental.py`：行情水位、财务披露窗口、指数成分月度窗口、watermark、幂等装载。
+- `db/etl/weekly.py`：调用成功率、失败清单、日历缺口、行数变化的周报。
+- `db/timers/`：`daily.sh`、`finance.sh`、`policy.sh`、`weekly.sh` 与 4 个 systemd service/timer。
+- `db/policy/fetch_policy.py`：已知 URL 优先跳过；`--reconcile` 有界补抓。
+- `db/README.md` §11、`docs/WORK-529.md`、`DELIVERY.html`。
+
+修复：
+
+- `common.POLICY_DIR` 缺失（政策采集的路径常量）。
+- `normalize_date_columns` 对「已存 DATE + 新到 YYYYMMDD」混合列会把旧值转成 NaT。
+- `drop_null_pk_rows` 会把合成列 `dup_seq` 当自然键，增量合并时误删新行。
+- 财务/指数成分增量改为「旧分区 + 新行 + 内容去重」，重复装载行数不变。
+
+实测：
+
+- `pytest db/tests -q` → 145 passed。
+- 行情增量在收盘前 no-op；模拟收盘后无数据返回 75 且不写空分区。
+- 财务 2026-11-13 单日实测四次抓取 + dividend 21 个分区，重复跑行数不变。
+- 冷备 rsync + `SHA256SUMS` 89,715 个文件校验通过。
+- 四个 timer `systemctl --user list-timers` 均 active。
+
 ## 2026-11-22 · WORK-513 建库 P1
 
 新增 `db/`：

@@ -65,10 +65,25 @@
 
 | 命令 | 实测结果 |
 |---|---|
-| `pytest db/tests -q` | 96 passed（含独立审查 4 条 blocking 的回归用例、空分区、财务主键 `dup_seq` 的回归用例） |
+| `pytest db/tests -q` | 145 passed（WORK-529 后实测；含增量区间、源端延迟、合并幂等、混合日期格式回归） |
 | `python -m db.checks.run all` | 6 项闸，见 `meta/checks/checks-<date>.json`；空数据一律判 FAIL（缺数据 ≠ 数据干净） |
 | `python -m db.etl.stats` | 台账统计（分区/行数/字节/空分区/上游调用/上游耗时） |
 | `python -m db.etl.delivery` | 交付快照（环境版本、逐数据集行数与字节、调用与报错数） |
+| `systemctl --user list-timers --all \| grep quantdb` | 四个 timer：daily / finance / policy / weekly，均 active |
+
+## 定时任务
+
+WORK-529 起，稳定代码路径是 `/srv/share/quantdb/code/quant-lab`；四个 systemd user timer 已启用：
+
+| timer | 下次触发（2026-11-23 实测） |
+|---|---|
+| `quantdb-policy.timer` | 18:00 |
+| `quantdb-daily.timer` | 18:30（19:30 / 20:30 重试） |
+| `quantdb-finance.timer` | 19:00 |
+| `quantdb-weekly.timer` | 下周一 06:00（对账）/ 09:00（周报） |
+
+冷备已并入现有 `backup-nightly.timer`（03:30）；`/srv/backup/quantdb` 的首次 rsync +
+`SHA256SUMS` 实测在 2026-11-23 完成，89,715 个文件校验通过。
 
 实测的上游约束（2026-11-22 直连 `api.tushare.pro`，非 MCP）：
 

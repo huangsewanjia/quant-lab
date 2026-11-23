@@ -1,0 +1,19 @@
+[Unit]
+Description=quantdb financial statement incremental refresh
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/srv/share/quantdb/code/quant-lab
+Environment=QUANTDB_HOME=/srv/share/quantdb
+Environment=QUANTDB_REPO=/srv/share/quantdb/code/quant-lab
+Environment=PYTHONPATH=/srv/share/quantdb/code/quant-lab
+Environment=QUANTDB_PYTHON=/home/moyongkai/.venvs/quantdb/bin/python
+Environment=MULTICA_CLI_PATH=/home/moyongkai/bin/multica
+ExecStart=/srv/share/quantdb/code/quant-lab/db/timers/finance.sh
+TimeoutStartSec=6h
+Nice=5
+
+[Install]
+WantedBy=default.target

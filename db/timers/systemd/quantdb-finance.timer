@@ -1,0 +1,10 @@
+[Unit]
+Description=quantdb financial refresh at 19:00 on report days / Mondays
+
+[Timer]
+OnCalendar=*-*-* 19:00:00
+Persistent=true
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

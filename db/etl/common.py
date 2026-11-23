@@ -40,6 +40,7 @@ LOGS_DIR = QDB_HOME / "logs"
 TMP_DIR = STAGING_DIR / "tmp"
 DB_PATH = DB_DIR / "quantdb.duckdb"
 FAILED_DIR = META_DIR / "failed"
+POLICY_DIR = QDB_HOME / "policy"
 
 TOKEN_ENV = "TUSHARE_TOKEN"
 TOKEN_FILE = Path(
@@ -49,7 +50,18 @@ TOKEN_FILE = Path(
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_SQL = PROJECT_ROOT / "db" / "schema.sql"
 
-LAYOUT_DIRS = [RAW_DIR, DB_DIR, META_DIR, STAGING_DIR, LOGS_DIR, TMP_DIR, FAILED_DIR]
+LAYOUT_DIRS = [
+    RAW_DIR,
+    DB_DIR,
+    META_DIR,
+    STAGING_DIR,
+    LOGS_DIR,
+    TMP_DIR,
+    FAILED_DIR,
+    POLICY_DIR,
+    POLICY_DIR / "missing",
+    POLICY_DIR / "meta",
+]
 
 PART_FILE = "part.parquet"
 
@@ -319,8 +331,12 @@ def normalize_date_columns(df: pd.DataFrame, dataset: str) -> pd.DataFrame:
             continue
         raw = work[column].astype("string").str.replace(r"\.0$", "", regex=True)
         parsed = pd.to_datetime(raw, format="%Y%m%d", errors="coerce")
-        if parsed.isna().all() and len(raw):
-            parsed = pd.to_datetime(raw, errors="coerce")
+        # Incremental merges combine stored DATE values (which stringify as
+        # YYYY-MM-DD) with fresh upstream YYYYMMDD strings. Parse both formats
+        # per cell; an all-or-nothing fallback would silently turn the stored
+        # dates into NaT and then trip the DuckDB NOT NULL constraint.
+        loose = pd.to_datetime(raw, errors="coerce")
+        parsed = parsed.fillna(loose)
         work[column] = parsed.dt.date
     return work
 
@@ -450,7 +466,11 @@ def drop_null_pk_rows(df: pd.DataFrame, dataset: str) -> tuple[pd.DataFrame, int
     be stored. The rows are dropped explicitly and the count is written to the
     manifest, so the loss is auditable instead of silent.
     """
-    pk = [column for column in TABLE_PK.get(dataset, ()) if column in df.columns]
+    # `dup_seq` is synthetic and is assigned by write_partition after this
+    # check; a merged incremental frame carries it as NULL for the new rows.
+    # Checking the natural key avoids dropping every new row.
+    keys = BASE_PK.get(dataset) or TABLE_PK.get(dataset, ())
+    pk = [column for column in keys if column in df.columns]
     if not pk or df.empty:
         return df, 0
     keep = df[pk].notna().all(axis=1)

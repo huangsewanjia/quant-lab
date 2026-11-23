@@ -24,8 +24,10 @@
 ## 运行与交付
 
 - [RUNBOOK.md](RUNBOOK.md)：建库、增量、质量闸、查询、政策、备份、回滚。
+- [WORK-529.md](WORK-529.md)：定时更新、增量水位、systemd timer、告警与验收证据。
 - [UI-INVENTORY.md](UI-INVENTORY.md)：命令行入口清单（本项目无图形界面）。
 - [DELIVERY.html](DELIVERY.html)：WORK-513 单文件交付说明。
+- [../DELIVERY.html](../DELIVERY.html)：WORK-529 单文件交付说明。
 - [../CHANGELOG.md](../CHANGELOG.md)：代码与文档变更记录。
 
 ## 当前状态
