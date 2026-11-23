@@ -160,3 +160,5 @@ systemctl --user daemon-reload
 
 同时加固：日历校验改为精确覆盖 `[CAL_START, calendar_end]`；`fetch_calendar()` 复用同一校验；
 weekly 对账与 policy 日常抓取共享 `policy.lock`；冷备 `SHA256SUMS` 覆盖 `raw/db/meta/policy`。
+
+第五轮定向复核对象 `ec2fa63`，结论 `PASS`，blocking 0；四个 timer 已启用。

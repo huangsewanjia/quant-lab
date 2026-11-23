@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WORK-529 定时更新交付说明</title>
+<style>
+  :root{
+    --ink:#1f2933; --muted:#66727d; --line:#d9e0e5; --paper:#fbfaf7;
+    --accent:#0f6b63; --accent2:#b14d2f; --soft:#eef4f1; --soft2:#f7eee8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:"Noto Sans SC","Source Han Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    line-height:1.72;font-size:16px}
+  main{max-width:1120px;margin:0 auto;padding:48px 28px 72px}
+  h1,h2,h3{font-family:Georgia,"Noto Serif SC","Songti SC",serif;font-weight:600;line-height:1.28}
+  h1{font-size:2.55rem;margin:0 0 10px;letter-spacing:0}
+  h2{font-size:1.55rem;margin:42px 0 14px;padding-top:12px;border-top:1px solid var(--line)}
+  h3{font-size:1.15rem;margin:26px 0 8px}
+  p{margin:0 0 13px}
+  a{color:var(--accent)}
+  .eyebrow{font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:700}
+  .subtitle{font-size:1.08rem;color:var(--muted);max-width:780px;margin:0 0 24px}
+  .meta{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);
+    border:1px solid var(--line);margin:24px 0 30px}
+  .meta div{background:#fff;padding:12px 14px;min-width:0;overflow-wrap:anywhere}
+  .meta b{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+  .abstract{background:var(--soft);border-left:4px solid var(--accent);padding:18px 20px;margin:22px 0 8px}
+  .abstract p:last-child{margin-bottom:0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  .card{border:1px solid var(--line);background:#fff;padding:18px 20px}
+  .card h3{margin-top:0}
+  .figure{margin:22px 0 26px;border:1px solid var(--line);background:#fff;padding:14px 14px 10px}
+  .figure svg{display:block;width:100%;height:auto}
+  .caption{font-size:.86rem;color:var(--muted);margin:6px 4px 0}
+  .caption b{color:var(--ink)}
+  table{width:100%;border-collapse:collapse;font-size:.92rem;background:#fff}
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);margin:16px 0 22px}
+  th,td{text-align:left;vertical-align:top;padding:9px 11px;border-bottom:1px solid var(--line)}
+  th{background:#f0f4f2;font-weight:650;white-space:nowrap}
+  tr:last-child td{border-bottom:0}
+  code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  code{font-size:.88em;background:#eef1f2;padding:1px 5px;border-radius:3px;overflow-wrap:anywhere;word-break:break-word}
+  pre{background:#182024;color:#e8efec;padding:14px 16px;overflow:auto;font-size:.82rem;line-height:1.55;border-radius:4px}
+  pre code{background:none;color:inherit;padding:0}
+  .ok{color:#146c45;font-weight:700}
+  .warn{color:#9a4b1f;font-weight:700}
+  .tag{display:inline-block;font-size:.76rem;border:1px solid var(--line);padding:1px 7px;border-radius:999px;color:var(--muted);margin-right:6px}
+  .two-col{columns:2;column-gap:34px}
+  .two-col p,.two-col li{break-inside:avoid}
+  ul,ol{margin:8px 0 14px;padding-left:22px}
+  li{margin:4px 0}
+  .small{font-size:.86rem;color:var(--muted)}
+  .footer{margin-top:44px;padding-top:14px;border-top:1px solid var(--line);font-size:.82rem;color:var(--muted)}
+  @media (max-width:800px){
+    main{padding:28px 16px 48px}
+    h1{font-size:2rem}
+    .meta{grid-template-columns:1fr}
+    .grid2{grid-template-columns:1fr}
+    .two-col{columns:1}
+    th{white-space:normal}
+    table{table-layout:fixed}
+    th,td{padding:7px 8px;word-break:break-word}
+    pre{white-space:pre-wrap;overflow-wrap:anywhere}
+  }
+  @media print{
+    body{background:#fff;font-size:11pt}
+    main{max-width:none;padding:0}
+    h2{page-break-after:avoid}
+    .figure,table,.card{page-break-inside:avoid}
+    pre{white-space:pre-wrap}
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">WORK-529 · quantdb operations</div>
+  <h1>定时更新交付说明</h1>
+  <p class="subtitle">把行情、财务、指数成分、政策与冷备从手工任务目录迁到稳定路径，并用 systemd user timer 驱动增量、重试、告警与周报。</p>
+
+  <div class="meta">
+    <div><b>代码提交</b><code>ec2fa63</code></div>
+    <div><b>分支</b><code>agent/work-529-timers</code></div>
+    <div><b>稳定路径</b><code>/srv/share/quantdb/code/quant-lab</code></div>
+    <div><b>最终审查</b><span class="ok">PASS · 0 blocking</span></div>
+  </div>
+
+  <div class="abstract">
+    <p><b>结论。</b>四个 <code>quantdb-*</code> timer 已启用，行情在 18:30 运行，财务在 19:00 运行并在周一 09:30 增加一次触发，政策在 09:00 / 18:00 运行，周报与对账在周一运行。数据装载按 DuckDB 水位补装，源端延迟不会写成永久空分区。</p>
+    <p><b>边界。</b>没有改 <code>schema.sql</code>，没有删改已落 Parquet，没有新增数据源。政策历史欠账、borg 既有故障和几条非阻塞建议仍保留在文末。</p>
+  </div>
+
+  <h2>一、做了什么</h2>
+  <div class="grid2">
+    <div class="card">
+      <h3>稳定代码与调度</h3>
+      <p>代码固定在 <code>/srv/share/quantdb/code/quant-lab</code>，用 git 分支管理。四个 service 直接执行仓库里的 wrapper，不再依赖会被清理的任务 workdir。</p>
+      <p>systemd 单元和 wrapper 都在 <code>db/timers/</code>，已安装到 <code>~/.config/systemd/user/</code>。</p>
+    </div>
+    <div class="card">
+      <h3>增量而不是全量</h3>
+      <p>行情按 <code>max(trade_date)+1</code> 推进；收盘前以上一交易日为终点，避免把未发布数据写成空分区。财务用 <code>disclosure_date(actual_date=...)</code> 找代码，再按公告日与报告期窗口抓取。</p>
+      <p>装载按 DuckDB 水位补装所有更晚的 raw 分区；重复装载使用主键 upsert，行数不变。</p>
+    </div>
+  </div>
+
+  <div class="figure">
+    <svg viewBox="0 0 1030 330" role="img" aria-label="quantdb 定时更新架构图">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#66727d"/>
+        </marker>
+      </defs>
+      <rect x="18" y="58" width="190" height="88" rx="4" fill="#eef4f1" stroke="#9ab5ae"/>
+      <text x="113" y="88" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933">Tushare Pro</text>
+      <text x="113" y="112" text-anchor="middle" font-size="12" fill="#66727d">行情 / 财务 / 披露日历</text>
+
+      <rect x="18" y="188" width="190" height="88" rx="4" fill="#f7eee8" stroke="#caa089"/>
+      <text x="113" y="218" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933">六源政策站</text>
+      <text x="113" y="242" text-anchor="middle" font-size="12" fill="#66727d">白名单列表页 + 正文</text>
+
+      <rect x="292" y="58" width="196" height="88" rx="4" fill="#fff" stroke="#b8c4ca"/>
+      <text x="390" y="86" text-anchor="middle" font-size="14" font-weight="700" fill="#1f2933">raw/ Parquet</text>
+      <text x="390" y="110" text-anchor="middle" font-size="11" fill="#66727d">只追加 · manifest + sha256</text>
+      <text x="390" y="128" text-anchor="middle" font-size="11" fill="#66727d">provisional 空分区可重判</text>
+
+      <rect x="292" y="188" width="196" height="88" rx="4" fill="#fff" stroke="#b8c4ca"/>
+      <text x="390" y="216" text-anchor="middle" font-size="14" font-weight="700" fill="#1f2933">policy/ 文档库</text>
+      <text x="390" y="240" text-anchor="middle" font-size="11" fill="#66727d">index.json · 双时间轴 · 标签</text>
+
+      <rect x="570" y="58" width="190" height="88" rx="4" fill="#eef4f1" stroke="#9ab5ae"/>
+      <text x="665" y="86" text-anchor="middle" font-size="14" font-weight="700" fill="#1f2933">DuckDB L1</text>
+      <text x="665" y="110" text-anchor="middle" font-size="11" fill="#66727d">16 张表 · 主键 upsert</text>
+      <text x="665" y="128" text-anchor="middle" font-size="11" fill="#66727d">按水位补装</text>
+
+      <rect x="570" y="188" width="190" height="88" rx="4" fill="#fff" stroke="#b8c4ca"/>
+      <text x="665" y="216" text-anchor="middle" font-size="14" font-weight="700" fill="#1f2933">systemd --user</text>
+      <text x="665" y="240" text-anchor="middle" font-size="11" fill="#66727d">4 timer + 4 service</text>
+      <text x="665" y="258" text-anchor="middle" font-size="11" fill="#66727d">Asia/Shanghai 本机时区</text>
+
+      <rect x="838" y="58" width="174" height="88" rx="4" fill="#f7eee8" stroke="#caa089"/>
+      <text x="925" y="86" text-anchor="middle" font-size="14" font-weight="700" fill="#1f2933">告警</text>
+      <text x="925" y="110" text-anchor="middle" font-size="11" fill="#66727d">MULTICA_CLI_PATH</text>
+      <text x="925" y="128" text-anchor="middle" font-size="11" fill="#66727d">日志尾部 50 行</text>
+
+      <rect x="838" y="188" width="174" height="88" rx="4" fill="#f7eee8" stroke="#caa089"/>
+      <text x="925" y="216" text-anchor="middle" font-size="14" font-weight="700" fill="#1f2933">冷备</text>
+      <text x="925" y="240" text-anchor="middle" font-size="11" fill="#66727d">rsync + SHA256SUMS</text>
+      <text x="925" y="258" text-anchor="middle" font-size="11" fill="#66727d">raw/db/meta/policy</text>
+
+      <line x1="208" y1="102" x2="286" y2="102" stroke="#66727d" stroke-width="1.4" marker-end="url(#arrow)"/>
+      <line x1="390" y1="146" x2="390" y2="182" stroke="#66727d" stroke-width="1.4" marker-end="url(#arrow)"/>
+      <line x1="208" y1="232" x2="286" y2="232" stroke="#66727d" stroke-width="1.4" marker-end="url(#arrow)"/>
+      <line x1="488" y1="102" x2="564" y2="102" stroke="#66727d" stroke-width="1.4" marker-end="url(#arrow)"/>
+      <line x1="665" y1="146" x2="665" y2="182" stroke="#66727d" stroke-width="1.4" marker-end="url(#arrow)"/>
+      <line x1="760" y1="102" x2="832" y2="102" stroke="#66727d" stroke-width="1.4" marker-end="url(#arrow)"/>
+      <line x1="760" y1="232" x2="832" y2="232" stroke="#66727d" stroke-width="1.4" marker-end="url(#arrow)"/>
+      <line x1="488" y1="232" x2="564" y2="232" stroke="#66727d" stroke-width="1.4" marker-end="url(#arrow)"/>
+    </svg>
+    <p class="caption"><b>图 1｜数据与调度。</b>定时器只负责触发；抓取、合并和装载都在稳定仓库的 Python ETL 中。失败进入 wrapper 的统一告警路径，冷备独立校验源目录。</p>
+  </div>
+
+  <h3>时间表</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>任务</th><th>频率</th><th>时间（Asia/Shanghai）</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td>行情增量</td><td>每交易日</td><td>18:30；19:30 / 20:30 重试</td><td><code>daily</code>、<code>daily_basic</code>、<code>adj_factor</code>、<code>stk_limit</code>、<code>suspend_d</code>、<code>index_daily</code>，并刷新 <code>stock_basic</code></td></tr>
+        <tr><td>财务增量</td><td>报告期每交易日；其余周一</td><td>19:00；非报告期周一 09:30</td><td>四张报表 + <code>dividend</code>，7 天公告重叠</td></tr>
+        <tr><td>指数成分</td><td>每月首个交易日</td><td>19:30（daily 的第二/三次触发）</td><td><code>index_weight</code>，上月至今窗口</td></tr>
+        <tr><td>政策抓取</td><td>每天两次</td><td>09:00 / 18:00</td><td>六源白名单增量 → 分类 → 入库 → 打标</td></tr>
+        <tr><td>政策对账</td><td>每周一</td><td>06:00</td><td>列表条数 vs 库内，缺的补抓，统计 remaining</td></tr>
+        <tr><td>周报</td><td>每周一</td><td>09:00</td><td>成功率、缺失分区、重试、行数变化</td></tr>
+        <tr><td>冷备</td><td>每天</td><td>03:30</td><td><code>/srv/share/quantdb</code> → <code>/srv/backup/quantdb</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="figure">
+    <svg viewBox="0 0 1030 250" role="img" aria-label="每日与每周任务时间线">
+      <line x1="70" y1="132" x2="980" y2="132" stroke="#1f2933" stroke-width="1.2"/>
+      <g font-size="11" fill="#66727d" text-anchor="middle">
+        <text x="90" y="160">00:00</text><text x="240" y="160">03:30</text><text x="390" y="160">09:00</text>
+        <text x="540" y="160">12:00</text><text x="690" y="160">18:00</text><text x="800" y="160">18:30</text>
+        <text x="880" y="160">19:00</text><text x="945" y="160">19:30</text><text x="985" y="160">20:30</text>
+      </g>
+      <g stroke="#9ab5ae" stroke-width="1">
+        <line x1="90" y1="122" x2="90" y2="142"/><line x1="240" y1="122" x2="240" y2="142"/>
+        <line x1="390" y1="122" x2="390" y2="142"/><line x1="540" y1="122" x2="540" y2="142"/>
+        <line x1="690" y1="122" x2="690" y2="142"/><line x1="800" y1="122" x2="800" y2="142"/>
+        <line x1="880" y1="122" x2="880" y2="142"/><line x1="945" y1="122" x2="945" y2="142"/>
+        <line x1="985" y1="122" x2="985" y2="142"/>
+      </g>
+      <g font-size="12">
+        <rect x="205" y="35" width="70" height="28" fill="#f7eee8" stroke="#caa089"/><text x="240" y="54" text-anchor="middle">冷备</text>
+        <rect x="328" y="35" width="124" height="28" fill="#eef4f1" stroke="#9ab5ae"/><text x="390" y="54" text-anchor="middle">政策 09:00</text>
+        <rect x="635" y="35" width="110" height="28" fill="#eef4f1" stroke="#9ab5ae"/><text x="690" y="54" text-anchor="middle">政策 18:00</text>
+        <rect x="740" y="88" width="120" height="28" fill="#f7eee8" stroke="#caa089"/><text x="800" y="107" text-anchor="middle">行情 18:30</text>
+        <rect x="824" y="35" width="112" height="28" fill="#eef4f1" stroke="#9ab5ae"/><text x="880" y="54" text-anchor="middle">财务 19:00</text>
+        <rect x="900" y="88" width="80" height="28" fill="#f7eee8" stroke="#caa089"/><text x="940" y="107" text-anchor="middle">重试/指数</text>
+      </g>
+      <rect x="70" y="190" width="910" height="30" fill="#f0f4f2" stroke="#d9e0e5"/>
+      <text x="90" y="210" font-size="12" fill="#1f2933">每周一：06:00 政策对账 · 09:30 财务（非报告期）· 09:00 周报</text>
+    </svg>
+    <p class="caption"><b>图 2｜触发时序。</b>19:30 / 20:30 同时承担行情重试与每月指数成分任务；09:30 的财务触发是非报告期周一的补跑入口。</p>
+  </div>
+
+  <div class="figure">
+    <svg viewBox="0 0 1030 275" role="img" aria-label="增量窗口与源端延迟逻辑">
+      <line x1="70" y1="125" x2="980" y2="125" stroke="#1f2933" stroke-width="1.2"/>
+      <g font-size="12" fill="#66727d" text-anchor="middle">
+        <text x="150" y="152">已落 max(trade_date)</text>
+        <text x="400" y="152">start = max + 1</text>
+        <text x="760" y="152">effective end</text>
+      </g>
+      <rect x="80" y="105" width="150" height="40" fill="#eef4f1" stroke="#9ab5ae"/>
+      <text x="155" y="130" text-anchor="middle" font-size="13">已有 raw 分区</text>
+      <rect x="250" y="105" width="500" height="40" fill="#fff" stroke="#b8c4ca"/>
+      <text x="500" y="130" text-anchor="middle" font-size="13">待抓窗口：只取交易日；节假日由 trade_cal 过滤</text>
+      <rect x="770" y="105" width="190" height="40" fill="#f7eee8" stroke="#caa089"/>
+      <text x="865" y="130" text-anchor="middle" font-size="13">上一已完成收盘日</text>
+      <line x1="230" y1="125" x2="248" y2="125" stroke="#66727d" stroke-width="1.4"/>
+      <line x1="750" y1="125" x2="768" y2="125" stroke="#66727d" stroke-width="1.4"/>
+      <text x="70" y="205" font-size="12" fill="#66727d">收盘前手动运行</text>
+      <path d="M 170 190 L 170 170 L 300 170 L 300 150" fill="none" stroke="#b14d2f" stroke-width="1.2"/>
+      <text x="320" y="205" font-size="12" fill="#b14d2f">end 回退到上一交易日，避免写当日空分区</text>
+      <text x="70" y="240" font-size="12" fill="#66727d">18:30 后无数据</text>
+      <path d="M 170 225 L 170 210 L 380 210 L 380 150" fill="none" stroke="#b14d2f" stroke-width="1.2"/>
+      <text x="400" y="240" font-size="12" fill="#b14d2f">返回 75；19:30 / 20:30 重试；第三次仍缺才建单</text>
+    </svg>
+    <p class="caption"><b>图 3｜水位与延迟。</b>关键行情数据集的空响应是重试信号；<code>stk_limit</code> / <code>suspend_d</code> 的合法空分区先 provisional，等同日 <code>daily</code> 就绪后再转永久。</p>
+  </div>
+
+  <h2>二、怎么验证</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>验收项</th><th>实际证据</th><th>结论</th></tr></thead>
+      <tbody>
+        <tr><td>稳定路径</td><td><code>git -C /srv/share/quantdb/code/quant-lab log -1</code>，HEAD <code>ec2fa63</code></td><td class="ok">PASS</td></tr>
+        <tr><td>增量区间</td><td>空库、正常库、跨节假日、收盘前、源端延迟单测</td><td class="ok">PASS</td></tr>
+        <tr><td>幂等装载</td><td>同数据装两次行数不变；raw 领先 DuckDB 与中间缺分区可补装</td><td class="ok">PASS</td></tr>
+        <tr><td>四个 wrapper</td><td><code>bash -n db/timers/*.sh</code> 全部通过</td><td class="ok">PASS</td></tr>
+        <tr><td>systemd</td><td>4 个 timer + 4 个 service；已 <code>enable --now</code>，见下表</td><td class="ok">PASS</td></tr>
+        <tr><td>失败告警</td><td>错误 token 路径建单 <code>WORK-533</code>，验证后取消；备份失败路径也进入告警函数</td><td class="ok">PASS</td></tr>
+        <tr><td>手动 daily</td><td>2026-11-23 14:04 <code>quantdb-daily.service</code> exit 0；日志显示 <code>market=0 index_weight=0 final=0</code></td><td class="ok">PASS</td></tr>
+        <tr><td>文档</td><td><code>db/README.md</code> §11、<code>docs/RUNBOOK.md</code> §9/§10、<code>docs/WORK-529.md</code></td><td class="ok">PASS</td></tr>
+        <tr><td>独立审查</td><td>最终定向审查 <code>03-review-round5.md</code>：<code>PASS</code>，0 blocking</td><td class="ok">PASS</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>运行证据</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>检查</th><th>结果</th></tr></thead>
+      <tbody>
+        <tr><td>单测</td><td><code>pytest db/tests -q</code> → <b>162 passed</b></td></tr>
+        <tr><td>数据闸门</td><td>G1–G6 全 PASS，报告 <code>/srv/share/quantdb/meta/checks/checks-20261123-work529.json</code></td></tr>
+        <tr><td>库规模</td><td>16 个数据集 / 65,919 分区 / 102,391,068 行 / 6,290,875,840 字节</td></tr>
+        <tr><td>财务重复装载</td><td>income 2 / balancesheet 2 / cashflow 1 / fina_indicator 2 / dividend 33，连续两次不变</td></tr>
+        <tr><td>指数增量</td><td>临时 home 8 个指数，4,733 行，max <code>2026-10-30</code></td></tr>
+        <tr><td>冷备</td><td><code>SHA256SUMS</code> 155,640 个文件，覆盖 <code>raw/db/meta/policy</code>，目标约 13G</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <pre><code>[2026-11-23T14:04:12+08:00] 已获得数据库锁
+[2026-11-23T14:04:12+08:00] market ok
+[2026-11-23T14:04:12+08:00] daily finished market=0 index_weight=0 final=0
+
+$ systemctl --user list-timers --all | grep quantdb
+Mon 2026-11-23 18:00 CST  quantdb-policy.timer
+Mon 2026-11-23 18:30 CST  quantdb-daily.timer
+Mon 2026-11-23 19:00 CST  quantdb-finance.timer
+Mon 2026-11-30 06:00 CST  quantdb-weekly.timer
+</code></pre>
+
+  <h3>审查轮次</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>轮次</th><th>对象</th><th>结论</th><th>处置</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><code>10c9813</code></td><td class="warn">NEEDS WORK · 9 blocking</td><td>全部修复</td></tr>
+        <tr><td>2</td><td><code>ae23c06</code></td><td class="warn">NEEDS WORK · 6 blocking</td><td>全部修复</td></tr>
+        <tr><td>3</td><td><code>a7081fd</code></td><td class="warn">NEEDS WORK · 2 blocking</td><td>全部修复</td></tr>
+        <tr><td>4</td><td><code>88dff05</code></td><td class="warn">NEEDS WORK · 1 blocking</td><td>计划层 provisional 修复</td></tr>
+        <tr><td>5</td><td><code>ec2fa63</code></td><td class="ok">PASS · 0 blocking</td><td>可交付</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>三、怎么回滚</h2>
+  <div class="grid2">
+    <div class="card">
+      <h3>代码与调度</h3>
+      <pre><code>systemctl --user disable --now \
+  quantdb-daily.timer quantdb-finance.timer \
+  quantdb-policy.timer quantdb-weekly.timer
+cd /srv/share/quantdb/code/quant-lab
+git revert ec2fa63
+cp db/timers/systemd/quantdb-* ~/.config/systemd/user/
+systemctl --user daemon-reload</code></pre>
+    </div>
+    <div class="card">
+      <h3>数据</h3>
+      <p>没有改 schema，没有删改已落 Parquet。需要恢复时先停 timer，用 <code>/srv/backup/quantdb/SHA256SUMS</code> 校验目标副本，再按 <code>docs/RUNBOOK.md</code> §10 从 raw 重建 DuckDB。</p>
+    </div>
+  </div>
+
+  <h2>四、遗留与需要确认</h2>
+  <ul>
+    <li><b>政策历史欠账。</b>首次对账时库内样本很少，周一对账单轮默认补抓 200 条，<code>remaining</code> 逐周下降；不是丢数据，是有界补抓。</li>
+    <li><b>周一财务体量。</b>非报告期周一处理最近 7 天实际披露的代码，披露密集时可能跑几十分钟。</li>
+    <li><b>borg 既有故障。</b><code>backup-nightly.service</code> 在本单之前就是 failed；本单把 quantdb 冷备放在前面并加了失败告警，borg 原始错误仍需单独处理。</li>
+    <li><b>非阻塞审查建议。</b>weekly 锁冲突时的报告跳过、provisional 周报统计、空分区重复写、同尺寸损坏文件的哈希校验，均记录在 <code>03-review-round5.md</code>，不阻塞本次交付。</li>
+    <li><b>时区。</b>timer 依赖主机本地时区；当前主机为 Asia/Shanghai，<code>list-timers</code> 显示 CST。</li>
+    <li><b>用量。</b>平台 <code>multica issue usage</code> 返回全 0，无法给出真实 token；本轮审查进程自报 token 较高，但这不是平台计量。</li>
+  </ul>
+
+  <p class="small">证据索引：代码 <code>/srv/share/quantdb/code/quant-lab</code>；审查 <code>/srv/data/multica/workspaces/workspace-c8faa36a018a/work-529-1b6d1696aec6/workdir/03-review-round5.md</code>；数据闸门 <code>/srv/share/quantdb/meta/checks/checks-20261123-work529.json</code>；日志 <code>/srv/share/quantdb/logs/</code>；冷备 <code>/srv/backup/quantdb/</code>。</p>
+
+  <div class="footer">
+    WORK-529 · 交付说明 · 代码提交 <code>ec2fa63</code> · 生成时间 2026-11-23 · 单文件离线可读
+  </div>
+</main>
+</body>
+</html>
