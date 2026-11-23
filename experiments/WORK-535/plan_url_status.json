@@ -1,0 +1,237 @@
+{
+  "https://www.gg-lb.com/": {
+    "status": "ERR",
+    "final": "https://www.gg-lb.com/",
+    "error": "URLError: <urlopen error [Errno -2] Name or service not known>"
+  },
+  "https://www.woodmac.com/lens/lens-energy-storage/": {
+    "status": 200,
+    "final": "https://www.woodmac.com/lens/lens-energy-storage/",
+    "error": ""
+  },
+  "https://about.bnef.com/insights/clean-energy/new-energy-outlook/": {
+    "status": 200,
+    "final": "https://about.bnef.com/insights/clean-energy/new-energy-outlook/",
+    "error": ""
+  },
+  "https://www.woodmac.com/press-releases/pcs-inverter-market-share-rankings-2026": {
+    "status": 200,
+    "final": "https://www.woodmac.com/press-releases/pcs-inverter-market-share-rankings-2026",
+    "error": ""
+  },
+  "https://www.sneresearch.com/en/insight/release/36": {
+    "status": 200,
+    "final": "https://www.sneresearch.com/en/insight/release/36",
+    "error": ""
+  },
+  "https://www.benchmarkminerals.com/battery-gigafactory/supply-chain-data": {
+    "status": 200,
+    "final": "https://www.benchmarkminerals.com/battery-gigafactory/supply-chain-data",
+    "error": ""
+  },
+  "https://www.spglobal.com/commodityinsights/en/our-methodology/price-assessments/metals/battery-metals": {
+    "status": 403,
+    "final": "https://www.spglobal.com/commodityinsights/en/our-methodology/price-assessments/metals/battery-metals",
+    "error": "Forbidden"
+  },
+  "https://www.benchmarkminerals.com/battery-energy-stationary-storage": {
+    "status": 200,
+    "final": "https://www.benchmarkminerals.com/battery-energy-stationary-storage",
+    "error": ""
+  },
+  "https://www.woodmac.com/reports/power-markets-us-energy-storage-monitor-q3-2026-150505404/": {
+    "status": 200,
+    "final": "https://www.woodmac.com/reports/power-markets-us-energy-storage-monitor-q3-2026-150505404/",
+    "error": ""
+  },
+  "https://www.menet.com.cn/menetDatabase/database.html": {
+    "status": 200,
+    "final": "https://www.menet.com.cn/menetDatabase/database.html",
+    "error": ""
+  },
+  "https://www.iqvia.com/solutions/commercialization/brand-and-portfolio-strategy": {
+    "status": 200,
+    "final": "https://www.iqvia.com/solutions/commercialization/brand-and-portfolio-strategy",
+    "error": ""
+  },
+  "https://www.yytj.org.cn/subscribeReportList.aspx": {
+    "status": 200,
+    "final": "https://www.yytj.org.cn/subscribeReportList.aspx",
+    "error": ""
+  },
+  "https://api.mtx.cn/report?command=detail&report_id=10022650": {
+    "status": 200,
+    "final": "https://api.mtx.cn/report?command=detail&report_id=10022650",
+    "error": ""
+  },
+  "https://www.mckinsey.com/featured-insights": {
+    "status": "ERR",
+    "final": "https://www.mckinsey.com/featured-insights",
+    "error": "TimeoutError: The read operation timed out"
+  },
+  "https://www.sneresearch.com/en/business/report_list/0?s_cat=&s_keyword=Semiconductor": {
+    "status": 200,
+    "final": "https://www.sneresearch.com/en/business/report_list/0?s_cat=&s_keyword=Semiconductor",
+    "error": ""
+  },
+  "https://www.trendforce.com/membership": {
+    "status": 200,
+    "final": "https://www.trendforce.com/membership",
+    "error": ""
+  },
+  "https://www.benchmarkminerals.com/battery-gigafactory/prices": {
+    "status": 200,
+    "final": "https://www.benchmarkminerals.com/battery-gigafactory/prices",
+    "error": ""
+  },
+  "https://www.sneresearch.com/en/business/report_view/148/page/0": {
+    "status": 200,
+    "final": "https://www.sneresearch.com/en/business/report_view/148/page/0",
+    "error": ""
+  },
+  "https://www.woodmac.com/industry/metals-and-mining/lithium-product-suite/": {
+    "status": 200,
+    "final": "https://www.woodmac.com/industry/metals-and-mining/lithium-product-suite/",
+    "error": ""
+  },
+  "https://www.chinania.org.cn/html/hangyetongji/jqzs/": {
+    "status": 200,
+    "final": "https://www.chinania.org.cn/html/hangyetongji/jqzs/",
+    "error": ""
+  },
+  "https://www.benchmarkminerals.com/lithium/prices": {
+    "status": 200,
+    "final": "https://www.benchmarkminerals.com/lithium/prices",
+    "error": ""
+  },
+  "https://www.cnesa.org/": {
+    "status": 200,
+    "final": "https://www.cnesa.org/",
+    "error": ""
+  },
+  "https://www.cnesa.org/information/detail/?column_id=1&id=7798": {
+    "status": 200,
+    "final": "https://www.cnesa.org/information/detail/?column_id=1&id=7798",
+    "error": ""
+  },
+  "https://www.sneresearch.com/en/insight/release_view/": {
+    "status": 200,
+    "final": "https://www.sneresearch.com/en/insight/release_view/",
+    "error": ""
+  },
+  "https://www.smm.cn/": {
+    "status": 200,
+    "final": "https://www.smm.cn/",
+    "error": ""
+  },
+  "https://www.iea.org/reports/batteries-and-secure-energy-transitions": {
+    "status": 403,
+    "final": "https://www.iea.org/reports/batteries-and-secure-energy-transitions",
+    "error": "Forbidden"
+  },
+  "https://www.irena.org/Data": {
+    "status": 403,
+    "final": "https://www.irena.org/Data",
+    "error": "Forbidden"
+  },
+  "https://www.iea.org/data-and-statistics": {
+    "status": 403,
+    "final": "https://www.iea.org/data-and-statistics",
+    "error": "Forbidden"
+  },
+  "https://energystorageeurope.eu/": {
+    "status": 200,
+    "final": "https://energystorageeurope.eu/",
+    "error": ""
+  },
+  "https://www.solarpowereurope.org/insights/outlooks": {
+    "status": 404,
+    "final": "https://www.solarpowereurope.org/insights/outlooks",
+    "error": "Not Found"
+  },
+  "https://joint-research-centre.ec.europa.eu/": {
+    "status": 200,
+    "final": "https://joint-research-centre.ec.europa.eu/select-language?destination=/node/10050",
+    "error": ""
+  },
+  "https://www.cninfo.com.cn/": {
+    "status": 200,
+    "final": "https://www.cninfo.com.cn/",
+    "error": ""
+  },
+  "https://www.ifpma.org/": {
+    "status": 200,
+    "final": "https://www.ifpma.org/",
+    "error": ""
+  },
+  "https://www.efpia.eu/": {
+    "status": 200,
+    "final": "https://www.efpia.eu/",
+    "error": ""
+  },
+  "https://www.cms.gov/": {
+    "status": 403,
+    "final": "https://www.cms.gov/",
+    "error": "Forbidden"
+  },
+  "https://web.csia.net.cn/newsinfo/11310429.html": {
+    "status": 200,
+    "final": "https://web.csia.net.cn/newsinfo/11310429.html",
+    "error": ""
+  },
+  "https://www.eusemiconductors.eu/esia/industry-statistics/wsts": {
+    "status": 200,
+    "final": "https://www.eusemiconductors.eu/esia/industry-statistics/wsts",
+    "error": ""
+  },
+  "https://store-us.semi.org/collections/market-intelligence": {
+    "status": 429,
+    "final": "https://store-us.semi.org/collections/market-intelligence",
+    "error": "Too Many Requests"
+  },
+  "https://web.csia.net.cn/": {
+    "status": 200,
+    "final": "https://web.csia.net.cn/",
+    "error": ""
+  },
+  "https://www.federalregister.gov/agencies/industry-and-security-bureau": {
+    "status": 200,
+    "final": "https://www.federalregister.gov/agencies/industry-and-security-bureau",
+    "error": ""
+  },
+  "https://www.semiconductors.org/data-resources/market-data/": {
+    "status": 200,
+    "final": "https://www.semiconductors.org/data-resources/market-data/",
+    "error": ""
+  },
+  "https://www.imf.org/en/Publications/WEO/weo-database": {
+    "status": 403,
+    "final": "https://www.imf.org/en/Publications/WEO/weo-database",
+    "error": "Forbidden"
+  },
+  "https://www.iea.org/reports/global-ev-outlook-2026": {
+    "status": 403,
+    "final": "https://www.iea.org/reports/global-ev-outlook-2026",
+    "error": "Forbidden"
+  },
+  "https://oica.net/production-statistics/": {
+    "status": 200,
+    "final": "https://oica.net/production-statistics/",
+    "error": ""
+  },
+  "https://icsg.org/": {
+    "status": 200,
+    "final": "https://icsg.org/",
+    "error": ""
+  },
+  "https://stat.unido.org/": {
+    "status": 403,
+    "final": "https://stat.unido.org/",
+    "error": "Forbidden"
+  },
+  "https://european-metals.eu/": {
+    "status": 200,
+    "final": "https://european-metals.eu/",
+    "error": ""
+  }
+}

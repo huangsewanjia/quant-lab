@@ -131,3 +131,81 @@
 3. 需要新源 → 按 §5 顺序试，**每个源先探活再放量**（≤5 行样例 → 确认字段与单位 → 才取窗口）。
 4. 成交额类需求 → 默认走代理口径并标注倍数；除非换 IP 重试东财成功。
 5. 取完 → 落 `data/<EXP>/*.csv` + `experiments/<EXP>/snapshot_manifest.json`（含 sha256）。
+
+---
+
+## 6. 行业数据（付费源）可用性登记 —— WORK-535
+
+> **作用**：把「哪些行业数据要花钱、哪家能拿到、官网价格公开与否、免费替代源在哪」固定下来，
+> 避免下一单重复探测。**本节只登记可用性与价格出处，不含任何购买决策。**
+>
+> **采样日期**：2026-11-23 ｜ **探测方式**：本机 `urllib` + 浏览器 UA 探测；`web_fetch` 与子代理复读。
+> **状态口径**：`可直连` = 本轮实测 HTTP 200；`被限流` = 429/403（需真实浏览器）；`不可达` = DNS 失败或连接被拒。
+
+### 6.1 库内 URL 的修正（下次取数前先改用这一列）
+
+| 原 `data_catalog` URL | 实测 | 正确地址 |
+|---|---|---|
+| `https://www.esia.eu/` | 200，但页面是**域名停放售卖页**「esia.eu is for sale!」 | `https://www.eusemiconductors.eu/esia/industry-statistics/wsts` |
+| `https://web.csia.net.cn/newsinfo/` | **404**（列表页需带文章 id） | `https://web.csia.net.cn/newsinfo/<id>.html`（例 `11310429`、`11304672`） |
+| `https://www.fda.gov/drugs` | **404**，且口径错位（FDA 药品审评 ≠ BIS 出口管制） | `https://www.federalregister.gov/agencies/industry-and-security-bureau` |
+| `https://www.ifpma.org/publications/data-center/` | **404** | `https://www.ifpma.org/news-and-resources/#publications` |
+| `https://www.iea.org/reports/global-ev-outlook-2024` | 200，但为**过期版本** | `https://www.iea.org/reports/global-ev-outlook-2026`（CC BY 4.0） |
+| `https://ease-storage.eu/` | 301 → | `https://energystorageeurope.eu/` |
+| `https://eurometaux.eu/` | 301 → | `https://european-metals.eu/` |
+| `https://www.oica.net/` | 跳到 | `https://oica.net/production-statistics/` |
+| `https://www.imf.org/en/Publications/WEO` | 403 | `https://www.imf.org/en/Publications/WEO/weo-database` |
+| `https://www.solarpowereurope.org/insights/outlooks` | **404** | `https://www.solarpowereurope.org/`（首页，实测 200） |
+| `https://data.jrc.ec.europa.eu` | Request Rejected | EU CRMA 战略项目页 |
+
+### 6.2 付费源的官网可达性与价格公开性
+
+| 数据商 | 官网状态 | 公开价格？ | 价格出处 |
+|---|---|---|---|
+| SEMI 国际半导体产业协会 | `semi.org` 403、`store-us.semi.org` **429** | **有**（索引副本） | EMDS `$3,350/$7,050`；Fab Forecast 订阅 `$7,550/$11,100`；Fab Forecast Premium `$10,300/$15,000`；Historical WWSEMS `$3,050/$4,100` |
+| Wood Mackenzie | 可直连 | **有**（报告单份价） | US Energy Storage Monitor `$5,000`；Global copper mine cost summary `$6,750`；ES battery component `$5,990`；Europe LCOE 2026 `$9,990`；US Solar Market Insight `$7,500` |
+| ESIA / WSTS | 可直连 | **有** | Full WSTS Package `€ 11,500`；Blue and Green Books `€ 10,500`（年费） |
+| SNE Research | 可直连 | **有**（报告单份价） | Global EV & Battery Quarterly Forecast `$15,000`；Global xEV market and Battery supply & demand outlook `$5,000`；Monthly Tracker 订阅费未公开 |
+| TrendForce 集邦 | 可直连 | **有** | Silver `USD 5,000/年`（促销 `USD 4K/year`）；Gold `USD 11,000`；DRAM Platinum `USD 18,000`；Memory Platinum `USD 30,000`；Memory Diamond `USD 55,000` |
+| 赛迪顾问 CCID | `ccidgroup.com` 可直连；`mtx.cn` 需 hash 路由 | **有** | `api.mtx.cn/report?command=detail&report_id=…` 返回 `"price": 10000.0`（元/份） |
+| Benchmark Mineral Intelligence | 可直连 | **无** | 六个产品页 grep 命中 0 个价格串；`/store`、`/shop`、`/pricing` 全 404 |
+| S&P Global Commodity Insights | **全域 403**（Akamai） | **无** | 未观测到任何价格 |
+| IQVIA | 可直连 | **无** | 已核 `/sitemap`，全站无价目表 |
+| 米内网 Menet | 可直连 | **无** | 产品页只有「咨询价格」「申请试用」 |
+| BNEF | `about.bnef.com` 可直连；`/data/` 403 | **无** | 订阅制 |
+| 中国医药工业信息中心 | `yytj.org.cn`、`cphiic.com` 可直连 | **无** | 征订页无金额 |
+| 高工锂电 / GGII | **不可达**（`gg-lb.com` DNS 失败、`gaogong123.com` TCP 拒绝、`ggii.com` 超时） | **无** | 无法核价 |
+| SMM / CNESA / EASE / SolarPower Europe / Eurometaux / IEA | 首页可直连，明细需登录 | **无** | 订阅制 |
+
+### 6.3 已确认可直连的免费源（先查这些，再考虑买）
+
+IRENA（Renewable Capacity Statistics）｜ IFPMA（医药市场统计）｜ EFPIA（医药市场统计）｜ CMS（Medicare 与处方药统计）｜
+中国半导体行业协会 CSIA（单篇文章）｜ 中国有色金属工业协会（景气指数，免费全文）｜ 巨潮资讯网 CNINFO ｜
+OICA（世界汽车产量）｜ 欧盟 JRC（工业与能源数据集）｜ UNIDO INDSTAT ｜ ICSG + LME/SHFE/COMEX（交易所库存）｜
+US Federal Register（BIS 规则与清单）｜ SHFE（免费日/周/月/年数据）｜ World Bank Pink Sheet（月度 USD/t 锂/镍/钴/铜/铝）｜
+SEMI 新闻稿（设备账单总额与分地区表）｜ SIA 月度销售统计｜ TrendForce DRAM/NAND 现货价页（当次 session 高/低/均价与涨跌）｜
+CNESA 白皮书摘要 ｜ 电池网 CBEA 月度信息 ｜ McKinsey Our Insights（多数文章免注册可读）｜ IEA Global EV Outlook 2026（CC BY 4.0 PDF）
+
+### 6.4 踩坑记录
+
+1. **「有公开价」≠「价格就是订阅价」**：WoodMac 的公开价全部是**单份 PDF 报告**，其订阅（Lens / Lithium Product Suite / EV & Battery Supply Chain Service）一律无公开价。
+2. **McKinsey 不卖结构化数据**：价值链与利润率分析以 Report/Article 形式发布，页面元数据 `"IsPageRestricted":"false"`、`enableRegWall:false`，**多数文章免注册可读** → 属「免费」，不是「需询价」。
+3. **TrendForce 的报价单位是每颗芯片规格**（如 `DDR5 16Gb (2Gx8) 4800/5600` → `72.00`），**不是 USD/GB**；换算前不能与本库口径并列。
+4. **SNE 不覆盖 PCS 出货量**：其储能条目是 GWh 能量口径（`Global ESS Shipments Reach 461GWh in 1H26`），不是本库要求的 GW 功率口径。
+5. **IQVIA 没有「产业链各环节利润率 / 研发投入强度」产品页**；WoodMac、BNEF 同样没有「五环节利润率」产品页 —— 这三条指标的覆盖度都存疑，须向销售确认。
+6. **WoodMac 的免费稿 ≠ 免费数据**：WoodMac 的 PCS 份额、储能 EPC 成本区间、BESS 集成商排名都是**免费新闻稿**，底下的付费报告无公开标价。
+7. **SNE 不覆盖半导体产业链价值分布**：官网自有检索 EN（`Semiconductor`）与 KO（`반도체`）**均返回空报告列表**，「Emerging Industry」目录只有氢能、SMR、人形机器人、钠离子电池、回收、BMS → 覆盖度记「不覆盖」、建议「不买」。**PCS 与半导体这两条否定性结论，都是靠官网检索为空拿到的，不是印象。**
+8. **CNESA 免费文的单位是 元/kWh，不是 元/Wh**：实测 `cnesa.org/information/detail/?column_id=1&id=7798`（HTTP 200）页内为 2025 年口径 —— 2h EPC 中标均价 **1,043.82 元/kWh**（同比 −13.04%）、4h EPC **935.40 元/kWh**（同比 −8.19%）、LFP 系统（不含用户侧）采购中标价区间 **391.14–913.00 元/kWh**；页内「元/Wh」**0 处**。本库口径是元/Wh，**换算须 ÷1000**，且原文自述「根据 CNESA DataLink 全球储能数据库的**不完全统计**」。
+9. **协会里也有公开标价，别一概当「无价」**：ICSG Copper Bulletin 年刊 **€600（会员）/ €1,200（非会员）** —— 本单唯一的协会类公开标价，可作询价基准；但它给的是精炼铜产量与用量，不含交易所注册仓单。
+10. **SMM 的公开行情页有单日报价，但不是订阅价**：行情页渲染为「未登录」，值藏在 HTML 属性里（示例 2026-11-23 电池级碳酸锂 low 88,700 / high 92,300 / avg 90,500 元/吨）；`data-pro.smm.cn/terminal` 实测 200 但**无任何价格数字** → 订阅价未公开。
+
+### 6.5 P0 采购面结论索引（结论本身在 docs/，此处只做指针）
+
+- 主清单 `docs/procurement_plan.csv`（**84 行** = 23 个「需采购指标 × 数据商」+ 61 个「部分免费指标 × 付费源」；12 列；0 空值）
+- 决策摘要 `docs/procurement_brief.md`（覆盖度排序 + 贪心集合覆盖算式 + 「先买哪 2–3 家」+ 横向对比 + 逐家缺口）
+- 询价模板 `docs/procurement_inquiry_templates.md`（13 家）
+- 证据底稿 `docs/procurement_evidence_log.md`（价格分级 / 已修死链 / 停手登记 / 本单 8 处坑）
+- 可复现资产与独立复算闸门 `experiments/WORK-535/`、`audit/recompute_work535.py`（**40 项检查、blocking 0 → PASS**）
+
+**取数前先看 §6.2**：Benchmark / S&P Global / IQVIA / 米内网 / BNEF / 医药工业信息中心 / GGII 的价格**官网不公开**，必须询价；SEMI 的价格**本机被限流（429）**，需人工浏览器复核。
+
