@@ -53,6 +53,15 @@ LAYOUT_DIRS = [RAW_DIR, DB_DIR, META_DIR, STAGING_DIR, LOGS_DIR, TMP_DIR, FAILED
 
 PART_FILE = "part.parquet"
 
+# Version of the fetch logic. Every manifest records it, and a partition that
+# was published as "the upstream has no data" is only trusted when it was
+# written by the current implementation: a bug in the window logic (the
+# WORK-518 index_weight bug asked the upstream for the date "20260920260930")
+# published empty partitions that every later run skipped for ever.
+# Bump this whenever the fetch logic changes in a way that could change what
+# the upstream returns.
+FETCH_IMPL_VERSION = "2026-11-23-window-fix"
+
 # Datasets partitioned by trade_date=YYYYMMDD (行情类).
 TRADE_DATE_DATASETS = {
     "daily",
@@ -265,6 +274,24 @@ def manifest_ok(dataset: str, partition: str, verify_hash: bool = True) -> bool:
     return True
 
 
+def manifest_resumable(dataset: str, partition: str) -> bool:
+    """A partition is complete AND was written by the current fetch logic.
+
+    A partition that was published as "the upstream has no data" is only
+    trusted when it was written by the current fetch implementation. The
+    WORK-518 index_weight bug asked the upstream for the date
+    "20260920260930" and published eight empty partitions; without this check
+    every later run would have skipped them for ever and the dataset would
+    have stayed empty.
+    """
+    if not manifest_ok(dataset, partition):
+        return False
+    meta = read_manifest(dataset, partition) or {}
+    if meta.get("empty_upstream") and meta.get("fetch_impl") != FETCH_IMPL_VERSION:
+        return False
+    return True
+
+
 def list_partitions(dataset: str) -> list[str]:
     base = META_DIR / dataset
     if not base.exists():
@@ -365,6 +392,7 @@ def write_partition(
         "columns": list(work.columns),
         "column_types": column_types,
         "primary_key": list(key),
+        "fetch_impl": FETCH_IMPL_VERSION,
     }
     if extra_meta:
         meta.update(extra_meta)
@@ -588,7 +616,39 @@ def duckdb_connect(read_only: bool = False):
 
 
 def apply_schema(con) -> None:
+    """Apply schema.sql and rebuild the tables whose primary key is stale.
+
+    DuckDB cannot change the primary key of an existing table, and
+    ``CREATE TABLE IF NOT EXISTS`` keeps the old table. A table that still
+    carries the previous primary key then drops rows **silently** on load:
+    ``INSERT OR REPLACE`` replaces the conflicting row instead of failing, so
+    a report that the upstream returns twice (the original filing and the
+    restatement) is stored once and the row count no longer matches the
+    Parquet layer. Measured on the DuckDB file of 2026-11-23: the financial
+    tables kept the primary key without ``dup_seq`` and lost 20% (income),
+    31% (balancesheet), 22% (cashflow) and 44% (fina_indicator) of their rows.
+
+    The DuckDB layer is derived from the Parquet layer, so a stale table is
+    dropped and recreated from the current schema; the load then repopulates
+    it. The tables that are rebuilt are printed, never silently.
+    """
     con.execute(SCHEMA_SQL.read_text(encoding="utf-8"))
+    stale: list[str] = []
+    for table, pk in declared_primary_keys().items():
+        existing = existing_primary_key(con, table)
+        if existing is not None and tuple(existing) != tuple(pk):
+            stale.append(table)
+    if not stale:
+        return
+    for view in ("v_daily_qfq", "v_daily_hfq"):
+        con.execute(f"DROP VIEW IF EXISTS {view}")
+    for table in stale:
+        con.execute(f"DROP TABLE {table}")
+    con.execute(SCHEMA_SQL.read_text(encoding="utf-8"))
+    print(
+        "[schema] 主键过时的表已重建（行数由装载重新填满）: " + ", ".join(stale),
+        flush=True,
+    )
 
 
 def ensure_db() -> None:
@@ -749,10 +809,11 @@ def schema_types(con, table: str) -> dict[str, str]:
 
 _SCHEMA_COLUMNS: dict[str, list[str]] = {}
 _SCHEMA_TYPES: dict[str, dict[str, str]] = {}
+_SCHEMA_KEYS: dict[str, tuple[str, ...]] = {}
 
 
 def _parse_schema() -> None:
-    """Parse schema.sql once: column names and declared types per table."""
+    """Parse schema.sql once: column names, declared types and primary keys."""
     import re
 
     if _SCHEMA_COLUMNS:
@@ -765,6 +826,11 @@ def _parse_schema() -> None:
         columns = re.findall(r'^\s*"([^"]+)"\s+(\w+)', body, re.M)
         _SCHEMA_COLUMNS[table] = [name for name, _ in columns]
         _SCHEMA_TYPES[table] = {name: sql_type for name, sql_type in columns}
+        key = re.search(r'PRIMARY KEY\s*\(([^)]*)\)', body)
+        if key:
+            _SCHEMA_KEYS[table] = tuple(
+                name.strip().strip('"') for name in key.group(1).split(",")
+            )
 
 
 def canonical_columns(dataset: str) -> list[str]:
@@ -786,3 +852,24 @@ def declared_arrow_types(dataset: str) -> dict[str, pa.DataType]:
         for column, sql_type in declared_types(dataset).items()
         if sql_type in _ARROW_TYPES
     }
+
+
+def declared_primary_keys() -> dict[str, tuple[str, ...]]:
+    """Declared PRIMARY KEY per table, parsed from schema.sql."""
+    _parse_schema()
+    return dict(_SCHEMA_KEYS)
+
+
+def existing_primary_key(con, table: str) -> tuple[str, ...] | None:
+    """PRIMARY KEY of a table that already exists in the database."""
+    try:
+        rows = con.execute(
+            "SELECT constraint_column_names FROM duckdb_constraints() "
+            "WHERE table_name = ? AND constraint_type = 'PRIMARY KEY'",
+            [table],
+        ).fetchall()
+    except Exception:  # noqa: BLE001 - a missing table has no constraint
+        return None
+    if not rows:
+        return None
+    return tuple(str(column) for column in rows[0][0])

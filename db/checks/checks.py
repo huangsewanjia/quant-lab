@@ -78,21 +78,24 @@ def _iso_date(day: str) -> str | None:
 # --------------------------------------------------------------------------- #
 
 
-def _suspension_counts(con) -> dict[str, dict[str, int]]:
+def _suspension_counts(con) -> tuple[dict[str, dict[str, int]], str | None]:
     """Suspended stocks per trading day, split by suspend_type.
 
     ``suspend_d`` holds one row per (ts_code, trade_date). ``S`` marks a stock
     that was suspended, ``R`` one that resumed. A suspended stock has no daily
     row, so the count is the upper bound of how many daily rows a day may be
-    missing. A day without any suspension record is not excused.
+    missing.
+
+    Returns the counts and, when the table could not be read, the error text:
+    the report has to show why the evidence is missing.
     """
     counts: dict[str, dict[str, int]] = {}
     try:
         rows = con.execute(
             "SELECT trade_date, suspend_type, count(*) FROM suspend_d GROUP BY 1, 2"
         ).fetchall()
-    except Exception:  # noqa: BLE001 - the table may not be loaded yet
-        return counts
+    except Exception as exc:  # noqa: BLE001 - the table may not be loaded yet
+        return counts, f"{type(exc).__name__}: {exc}"
     for day, suspend_type, count in rows:
         bucket = counts.setdefault(str(day), {"total": 0, "suspended": 0, "resumed": 0})
         bucket["total"] += int(count)
@@ -100,7 +103,7 @@ def _suspension_counts(con) -> dict[str, dict[str, int]]:
             bucket["suspended"] += int(count)
         elif str(suspend_type).upper() == "R":
             bucket["resumed"] += int(count)
-    return counts
+    return counts, None
 
 
 def check_trading_days(con, tolerance: float = 0.05) -> tuple[bool, dict[str, Any]]:
@@ -113,7 +116,7 @@ def check_trading_days(con, tolerance: float = 0.05) -> tuple[bool, dict[str, An
         "SELECT trade_date, count(*) FROM daily GROUP BY 1 ORDER BY 1"
     ).fetchall()
     by_day = {str(row[0]): int(row[1]) for row in counts}
-    suspensions = _suspension_counts(con)
+    suspensions, suspension_error = _suspension_counts(con)
 
     missing = [day for day in open_days if day not in by_day]
     empty = [day for day in open_days if by_day.get(day) == 0]
@@ -123,6 +126,16 @@ def check_trading_days(con, tolerance: float = 0.05) -> tuple[bool, dict[str, An
     # day moves the count far away from its neighbours.
     series = pd.Series([by_day.get(day, 0) for day in open_days], index=open_days)
     rolling = series.rolling(11, center=True, min_periods=3).median()
+    # The same rolling median for the suspension count: it is the routine
+    # suspension level of a normal day, and it is already reflected in the
+    # rolling median of the daily rows. Only the EXCESS suspensions can
+    # explain a deviation.
+    suspension_series = pd.Series(
+        [float(suspensions.get(day, {}).get("suspended", 0)) for day in open_days],
+        index=open_days,
+    )
+    suspension_rolling = suspension_series.rolling(11, center=True, min_periods=3).median()
+
     anomalies: list[dict[str, Any]] = []
     for day in open_days:
         count = by_day.get(day)
@@ -133,22 +146,33 @@ def check_trading_days(con, tolerance: float = 0.05) -> tuple[bool, dict[str, An
         if deviation <= tolerance:
             continue
         # The deviation is kept as an anomaly either way. Whether it is a data
-        # defect or a market-wide suspension is decided by the evidence: a
-        # suspended stock has no daily row, so a shortfall that is not bigger
-        # than the number of stocks suspended that day cannot be missing data.
-        shortfall = max(0.0, float(median) - float(count))
+        # defect or a market-wide suspension is decided by the evidence: the
+        # expectation is the rolling median minus the excess suspensions, and
+        # the row count has to match THAT expectation within the same 5%
+        # tolerance. The adjustment can only excuse a day, it can never
+        # create one - and it cannot excuse a day with MORE rows than usual.
         suspension = suspensions.get(day, {"total": 0, "suspended": 0, "resumed": 0})
-        explained = shortfall <= suspension["suspended"]
+        baseline = suspension_rolling.get(day)
+        baseline = 0.0 if baseline is None or pd.isna(baseline) else float(baseline)
+        excess = max(0.0, float(suspension["suspended"]) - baseline)
+        expected = max(1.0, float(median) - excess)
+        adjusted_deviation = abs(count - expected) / expected
+        explained = adjusted_deviation <= tolerance
         anomalies.append(
             {
                 "trade_date": day,
                 "rows": count,
                 "rolling_median": float(median),
                 "deviation": round(float(deviation), 4),
-                "shortfall_rows": int(round(shortfall)),
+                "shortfall_rows": int(round(max(0.0, float(median) - float(count)))),
+                "surplus_rows": int(round(max(0.0, float(count) - float(median)))),
                 "suspend_rows": suspension["total"],
                 "suspend_rows_s": suspension["suspended"],
                 "suspend_rows_r": suspension["resumed"],
+                "suspend_baseline_median": round(baseline, 1),
+                "excess_suspensions": round(excess, 1),
+                "expected_rows": round(expected, 1),
+                "adjusted_deviation": round(float(adjusted_deviation), 4),
                 "judgement": "explained_by_suspensions" if explained else "unexplained",
             }
         )
@@ -181,12 +205,14 @@ def check_trading_days(con, tolerance: float = 0.05) -> tuple[bool, dict[str, An
         "unexplained_count": len(unexplained),
         "unexplained_anomalies": unexplained[:50],
         "judgement_rule": (
-            "偏差日先按 11 日居中滚动中位数记为 anomaly；缺口行数 <= 当日 suspend_d 中 "
-            "suspend_type='S' 的停牌家数，判为停牌可解释例外（PASS-with-exceptions），"
-            "否则判为未解释异常，闸门 FAIL。阈值 5% 不放宽，anomaly 记录全部保留。"
+            "偏差 >5% 的交易日先记为 anomaly；再把当天的预期行数调整为"
+            "「滚动中位数 - 当日超额停牌家数」，行数与调整后预期的偏差仍 <=5% "
+            "判为停牌可解释例外，否则判为未解释异常（闸门 FAIL）。"
+            "行数多于中位数（多出来）永远不解释。阈值 5% 不放宽，anomaly 全部保留。"
         ),
         "suspension_source": "suspend_d 表按 trade_date 统计（S=停牌，R=复牌）",
         "days_with_suspension_records": len(suspensions),
+        "suspension_read_error": suspension_error,
         "conclusion": "PASS_WITH_EXCEPTIONS" if exceptions and not unexplained else (
             "PASS" if ok else "FAIL"
         ),

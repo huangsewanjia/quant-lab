@@ -49,7 +49,7 @@ token 只从 `TUSHARE_TOKEN` 或 `/home/moyongkai/.config/quantdb/tushare.token`
 /srv/share/quantdb/staging/tmp                                      # DuckDB 溢写
 ```
 
-**manifest 字段**：`dataset` / `partition` / `rows` / `bytes` / `sha256` / `file` / `source` / `fetched_at` / `columns` / `primary_key` / `query`（本次取数用的参数）/ `empty_upstream`（该交易日确无数据）/ `rows_raw`（上游返回的原始行数）/ `rows_dropped_null_pk`（主键含 NULL 被丢的行数）/ `possible_truncation`（响应触到上游行数上限）/ `months_requested` + `months_with_rows`（`index_weight` 用）。
+**manifest 字段**：`dataset` / `partition` / `rows` / `bytes` / `sha256` / `file` / `source` / `fetched_at` / `columns` / `column_types`（每列的 Parquet 物理类型）/ `primary_key` / `query`（本次取数用的参数）/ `empty_upstream`（该交易日确无数据）/ `rows_raw`（上游返回的原始行数）/ `rows_dropped_null_pk`（主键含 NULL 被丢的行数）/ `possible_truncation`（响应触到上游行数上限）/ `months_requested` + `months_with_rows`（`index_weight` 用）。
 
 **写入顺序**：先写 `.part.parquet.tmp.<pid>.<tid>` → `os.replace` 原子改名 → 再写 manifest（manifest 本身也是临时文件 + 原子改名）。
 因此：manifest 存在 ⇒ parquet 一定存在且完整；中断最多留下一个 `.tmp` 残留（下次启动清理），**不会**出现「manifest 指向不存在的文件」。
@@ -79,6 +79,28 @@ pandas/pyarrow 是**按值**推断 Parquet 列类型的，所以：
 - 没有选「逐文件统一 schema 再合并」：那要打开 50,917 个文件的元数据，比 128 批的合并贵得多，而且解决不了「同一列在不同文件里类型不同」（`dividend.div_listdate` 实测 4,161 个 `date32` + 1,709 个 `timestamp[ms]` + 54 个 `null`）。
 - DATE 列的投影按批内实际类型分三种：`DATE`/`TIMESTAMP` 直接 `CAST(... AS DATE)`（**这一步很关键**：合并后混合列被提升成 `TIMESTAMP`，如果只按字符串解析，这些分区的日期会被静默变成 NULL）；`VARCHAR` 走 `try_cast` + `try_strptime('%Y%m%d')` + `try_strptime('%Y-%m-%d')`；数值类型只走字符串解析（避免被当成儒略日）。
 - 库里的旧分区**不重写**（`raw/` 只追加），所以旧分区仍然带 `null`/`timestamp` 类型列，由装载器兜住。
+
+### 2.2 主键过时的表会被重建（WORK-518 修，装载时实测发现）
+
+DuckDB **改不了已有表的主键**，`CREATE TABLE IF NOT EXISTS` 也不会更新旧表。于是：
+
+- 财务四表 + `dividend` 的主键后来加过 `dup_seq`（见 3.0 节：上游同一份报表会给原始版和更正版两行）；
+- 但 2026-11-23 的 `quantdb.duckdb` 是在那之前建的，这 5 张表**仍带着没有 `dup_seq` 的旧主键**；
+- 装载用 `INSERT OR REPLACE`：主键冲突时**旧行被替换掉，不报错**，于是同一份报表的两个版本只留一个 —— **静默丢行**。
+
+实测（2026-11-23 装载，Parquet 读到的行数 vs 表内行数）：
+
+| 表 | Parquet 行数 | 表内行数 | 丢失 | 丢失率 |
+|---|---:|---:|---:|---:|
+| `income` | 353,491 | 282,482 | 71,009 | 20.1% |
+| `balancesheet` | 398,898 | 276,102 | 122,796 | 30.8% |
+| `cashflow` | 362,711 | 282,078 | 80,633 | 22.2% |
+| `fina_indicator` | 484,520 | 273,114 | 211,406 | 43.6% |
+| `dividend` | 248,990 | 248,155 | 835 | 0.3% |
+
+修法：`apply_schema()` 每次都比对**库里的主键**与 `db/schema.sql` 声明的主键，不一致的表先 `DROP` 再按当前 schema 重建（重建的表名会打印出来，不静默）。
+DuckDB 层是从 Parquet 层派生的，重建后由装载填满；主键一致的表不动，行数也不动。
+这就是 G2「Parquet 行数 = DuckDB 行数」这道闸存在的意义：它把静默丢行变成 FAIL。
 
 ---
 
@@ -230,15 +252,23 @@ G5 的新浪源用 `stock_zh_a_hist_sina`（新浪），一次请求取回个股
 现在的判定（`db/checks/checks.py`）：
 
 1. 偏差 >5% 的日子**一律记为 anomaly**，一条都不删；
-2. 再用 `suspend_d` 的当日停牌家数判它是「可解释例外」还是「未解释异常」：
-   `缺口行数 = 滚动中位数 - 当日行数`，`缺口行数 ≤ 当日 suspend_type='S' 的停牌家数` → 可解释例外；
-   否则 → 未解释异常，闸门 FAIL；
-3. 停牌家数只认 `suspend_type='S'`（真正停牌的），`R`（复牌）另计，不用来开脱；
-4. 没有停牌记录 → 没有例外可讲 → 判 FAIL。
+2. 停牌数据来自 `suspend_d`，只认 `suspend_type='S'`（真正停牌的），`R`（复牌）另计，不用来开脱；
+3. **把当天的预期行数按停牌调整**：`预期 = 滚动中位数 - 当日超额停牌家数`，
+   其中「超额停牌」= 当日停牌家数 − 邻近日停牌家数的滚动中位数。
+   滚动中位数本身已经含了平常那几十上百家的例行停牌，所以**只有超额停牌才可能解释偏差**；
+4. 行数与**调整后预期**的偏差仍 ≤5% → 判为「停牌可解释例外」；否则 → 未解释异常，闸门 FAIL；
+5. **行数比中位数多（多出来）永远不解释**：缺口为负，超额停牌只会把预期压得更低，判定只会更严；
+6. 没有停牌记录 → 没有例外可讲 → 判 FAIL。
 
-闸门报告里每一天都给出 `rows / rolling_median / deviation / shortfall_rows / suspend_rows / suspend_rows_s / suspend_rows_r / judgement`，
+所以这条闸**只可能被停牌「解释」，不可能被停牌「制造」**——调整只会让原本达标的日更不达标，不会反过来。
+
+闸门报告里每一天都给出 `rows / rolling_median / deviation / shortfall_rows / surplus_rows / suspend_rows / suspend_rows_s / suspend_rows_r / suspend_baseline_median / excess_suspensions / expected_rows / adjusted_deviation / judgement`，
 可解释例外另列在 `exceptions`，未解释异常在 `unexplained_anomalies`，结论字段 `conclusion` 取
-`PASS` / `PASS_WITH_EXCEPTIONS` / `FAIL`。**阈值仍是 5%，没有放宽**。
+`PASS` / `PASS_WITH_EXCEPTIONS` / `FAIL`。**阈值仍是 5%，没有放宽。**
+
+实测（2026-11-23，真实库 5,072 个开市日）：未调整口径下偏差 >5% 的正好是那 6 天，
+调整后它们的偏差是 0.4%~1.4%（全部落在 5% 内）→ 6 条可解释例外、0 条未解释异常 → G1 判 **PASS-with-exceptions**；
+其余 5,066 天的未调整偏差本来就 ≤5%，不受影响（调整只用于「解释」，不用于「制造」异常）。
 
 ### 本轮闸门实测结果
 

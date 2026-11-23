@@ -434,14 +434,20 @@ class Fetcher:
         covers that window. Resuming them for a wider study window would
         silently keep the narrow data for good, so the window is recorded in
         the manifest and a mismatch forces a re-fetch.
+
+        A partition that was published as "the upstream has no data" is only
+        trusted when it was written by the current fetch implementation. The
+        WORK-518 bug in the index_weight window published eight empty
+        partitions; without this check every later run would have skipped
+        them for ever and the dataset would have stayed empty.
         """
         if not self.resume:
             return False
-        if not common.manifest_ok(dataset, partition):
+        if not common.manifest_resumable(dataset, partition):
             return False
+        meta = common.read_manifest(dataset, partition) or {}
         if dataset not in common.WINDOW_SCOPED_DATASETS:
             return True
-        meta = common.read_manifest(dataset, partition) or {}
         window = meta.get("study_window")
         if window is None:
             return True
@@ -612,7 +618,7 @@ class Fetcher:
         failures: list[dict[str, Any]] = []
         done = 0
         for exchange in ("SSE", "SZSE"):
-            if self.resume and common.manifest_ok("trade_cal", exchange):
+            if self.resume and common.manifest_resumable("trade_cal", exchange):
                 done += 1
                 continue
             try:
@@ -643,7 +649,7 @@ class Fetcher:
         failures: list[dict[str, Any]] = []
         done = 0
         for status in ("L", "D", "P"):
-            if self.resume and common.manifest_ok("stock_basic", status):
+            if self.resume and common.manifest_resumable("stock_basic", status):
                 done += 1
                 continue
             try:
@@ -668,7 +674,7 @@ class Fetcher:
     def fetch_range(self, spec: DatasetSpec, concurrency: int) -> tuple[int, list[dict[str, Any]]]:
         """Date-window fetch for 行情类; one partition per trade_date."""
         dates = self.calendar()
-        missing = [d for d in dates if not (self.resume and common.manifest_ok(spec.name, d))]
+        missing = [d for d in dates if not (self.resume and common.manifest_resumable(spec.name, d))]
         runs = contiguous_runs(missing)
         failures: list[dict[str, Any]] = []
         progress = Progress(spec.name, len(missing))
@@ -713,7 +719,7 @@ class Fetcher:
             query = {"start_date": lo, "end_date": hi}
             for key, group in groups.items():
                 seen.add(key)
-                if self.resume and common.manifest_ok(spec.name, key):
+                if self.resume and common.manifest_resumable(spec.name, key):
                     continue
                 try:
                     common.write_partition(
@@ -738,7 +744,7 @@ class Fetcher:
             for key in self.trading_days_in(lo, hi):
                 if key in groups:
                     continue
-                if self.resume and common.manifest_ok(spec.name, key):
+                if self.resume and common.manifest_resumable(spec.name, key):
                     continue
                 try:
                     self.write_empty_partition(spec, key, query)
@@ -783,7 +789,7 @@ class Fetcher:
                     continue
                 if trade_date in failed_dates:
                     continue
-                if self.resume and common.manifest_ok(spec.name, trade_date):
+                if self.resume and common.manifest_resumable(spec.name, trade_date):
                     continue
                 columns = common.canonical_columns(spec.name)
                 if not columns:
@@ -819,7 +825,7 @@ class Fetcher:
     def fetch_trade_date(self, spec: DatasetSpec, concurrency: int) -> tuple[int, list[dict[str, Any]]]:
         """One call per trading day (index_daily does not accept a date window)."""
         dates = self.calendar()
-        missing = [d for d in dates if not (self.resume and common.manifest_ok(spec.name, d))]
+        missing = [d for d in dates if not (self.resume and common.manifest_resumable(spec.name, d))]
         failures: list[dict[str, Any]] = []
         progress = Progress(spec.name, len(missing))
         lock = threading.Lock()
@@ -1263,7 +1269,7 @@ class Fetcher:
 
     def fetch_classify(self, spec: DatasetSpec) -> tuple[int, list[dict[str, Any]]]:
         failures: list[dict[str, Any]] = []
-        if self.resume and common.manifest_ok(spec.name, "SW2021"):
+        if self.resume and common.manifest_resumable(spec.name, "SW2021"):
             return 1, failures
         try:
             frame = self.client.frame(
@@ -1350,7 +1356,10 @@ def run_datasets(
 
 def load_duckdb(datasets: list[str], full_refresh: bool) -> int:
     if "all" in datasets:
-        datasets = [name for name in DATASETS if name not in {"index_classify"}]
+        # Every dataset is loaded, index_classify included: apply_schema() can
+        # rebuild a table whose primary key is stale, and a table that is not
+        # repopulated afterwards would stay empty.
+        datasets = [name for name in DATASETS]
     loaded = 0
     with common.duckdb_connect() as con:
         common.apply_schema(con)

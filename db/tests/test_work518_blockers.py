@@ -212,7 +212,9 @@ def test_loader_splits_a_mixed_set_into_batches_that_all_load(qdb):
 
     with qdb.duckdb_connect() as con:
         qdb.apply_schema(con)
-        loaded = qdb.load_partitions(con, "stk_limit", partitions, batch_size=1)
+        # batch_size=2 puts an empty partition and a populated one into the
+        # SAME batch - that is the case that used to crash the load.
+        loaded = qdb.load_partitions(con, "stk_limit", partitions, batch_size=2)
         assert loaded == 2
         assert con.execute("SELECT count(*) FROM stk_limit").fetchone()[0] == 2
 
@@ -284,6 +286,65 @@ def test_loader_keeps_the_dates_of_a_legacy_timestamp_partition(qdb):
         assert row[1] == "DATE"
 
 
+def test_loader_keeps_the_dates_when_a_batch_merges_date_and_timestamp(qdb):
+    """A batch that mixes a DATE partition with a TIMESTAMP partition.
+
+    This is the production shape: dividend.div_listdate is date32[day] in
+    4,161 partitions and timestamp[ms] in 1,709 of them. Merging the schemas
+    of such a batch promotes the column to TIMESTAMP, and a projection that
+    only understands strings would silently drop those dates - the row count
+    would still look right, only the dates would be gone.
+    """
+    # one partition written by the current writer: DATE
+    qdb.write_partition(
+        pd.DataFrame(
+            {
+                "ts_code": ["600000.SH"],
+                "name": ["浦发银行"],
+                "start_date": ["20060104"],
+                "end_date": ["20100101"],
+                "ann_date": [None],
+                "change_reason": ["更名"],
+            }
+        ),
+        "namechange",
+        "600000.SH",
+        "test",
+    )
+    assert _parquet_types(qdb.partition_file("namechange", "600000.SH"))["end_date"] == (
+        "date32[day]"
+    )
+
+    # one partition written by the old writer: TIMESTAMP, with values
+    legacy = pd.DataFrame(
+        {
+            "ts_code": ["000001.SZ"],
+            "name": ["平安银行"],
+            "start_date": pd.to_datetime(["2006-01-05"]),
+            "end_date": pd.to_datetime(["2008-10-31"]),
+            "ann_date": pd.to_datetime([None]),
+            "change_reason": ["更名"],
+        }
+    )
+    target = qdb.partition_file("namechange", "000001.SZ")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    legacy.to_parquet(target, index=False, compression="zstd")
+    assert _parquet_types(target)["end_date"].startswith("timestamp")
+
+    with qdb.duckdb_connect() as con:
+        qdb.apply_schema(con)
+        loaded = qdb.load_partitions(
+            con, "namechange", ["000001.SZ", "600000.SH"], batch_size=400
+        )
+        assert loaded == 2
+        rows = con.execute(
+            "SELECT ts_code, end_date, typeof(end_date) FROM namechange ORDER BY ts_code"
+        ).fetchall()
+        assert rows[0][1].isoformat() == "2008-10-31"
+        assert rows[1][1].isoformat() == "2010-01-01"
+        assert {row[2] for row in rows} == {"DATE"}
+
+
 # --------------------------------------------------------------------------- #
 # B2 - the index_weight window is a valid date
 # --------------------------------------------------------------------------- #
@@ -344,8 +405,22 @@ def test_index_weight_end_date_never_leaves_the_run_window(qdb):
 # --------------------------------------------------------------------------- #
 
 
-def _seed_g1_tables(con, days, rows_per_day, drop_day=None, suspended=0):
-    """Fill trade_cal / daily / suspend_d with a reproducible row-count series."""
+def _seed_g1_tables(
+    con,
+    days,
+    rows_per_day,
+    drop_day=None,
+    drop_rows=None,
+    surplus_day=None,
+    routine_suspended=0,
+    extra_suspended=0,
+):
+    """Fill trade_cal / daily / suspend_d with a reproducible row-count series.
+
+    ``routine_suspended`` is the number of stocks suspended on EVERY trading
+    day (the routine level); ``extra_suspended`` is the extra suspensions on
+    the day under test (the abnormal part that can explain a deviation).
+    """
     con.execute("DELETE FROM suspend_d")
     con.execute("DELETE FROM daily")
     con.execute("DELETE FROM trade_cal")
@@ -355,19 +430,28 @@ def _seed_g1_tables(con, days, rows_per_day, drop_day=None, suspended=0):
             ["SSE", day, 1, day],
         )
     for day in days:
-        count = rows_per_day if day != drop_day else max(1, rows_per_day // 10)
+        if day == drop_day:
+            count = drop_rows if drop_rows is not None else max(1, rows_per_day // 10)
+        elif day == surplus_day:
+            count = int(rows_per_day * 1.2)
+        else:
+            count = rows_per_day
         for index in range(count):
             con.execute(
                 "INSERT INTO daily (ts_code, trade_date, open, high, low, close) "
                 "VALUES (?, ?, 1.0, 1.0, 1.0, 1.0)",
                 [f"{index:06d}.SZ", day],
             )
-    for index in range(suspended):
-        con.execute(
-            "INSERT INTO suspend_d (ts_code, trade_date, suspend_timing, suspend_type) "
-            "VALUES (?, ?, NULL, 'S')",
-            [f"S{index:05d}.SZ", drop_day],
-        )
+    for day in days:
+        suspended = routine_suspended
+        if day in (drop_day, surplus_day):
+            suspended += extra_suspended
+        for index in range(suspended):
+            con.execute(
+                "INSERT INTO suspend_d (ts_code, trade_date, suspend_timing, suspend_type) "
+                "VALUES (?, ?, NULL, 'S')",
+                [f"S{day}-{index:05d}.SZ", day],
+            )
 
 
 def _g1_days() -> list[str]:
@@ -375,11 +459,21 @@ def _g1_days() -> list[str]:
 
 
 def test_g1_reports_a_suspension_explained_deviation_as_an_exception(qdb):
-    """A shortfall that is covered by the suspension count is not a defect."""
+    """A shortfall that is covered by the excess suspensions is not a defect."""
     days = _g1_days()
     with qdb.duckdb_connect() as con:
         qdb.apply_schema(con)
-        _seed_g1_tables(con, days, 100, drop_day="2020-01-07", suspended=200)
+        # 20 routine suspensions every day, 40 more on the day in question:
+        # the excess is 40, so 60 rows are expected and 60 rows are there.
+        _seed_g1_tables(
+            con,
+            days,
+            100,
+            drop_day="2020-01-07",
+            drop_rows=60,
+            routine_suspended=20,
+            extra_suspended=40,
+        )
         ok, detail = checks.check_trading_days(con)
 
     assert ok is True
@@ -390,27 +484,41 @@ def test_g1_reports_a_suspension_explained_deviation_as_an_exception(qdb):
 
     exception = detail["exceptions"][0]
     assert exception["trade_date"] == "2020-01-07"
-    assert exception["rows"] == 10
+    assert exception["rows"] == 60
     assert exception["rolling_median"] == 100.0
-    assert exception["shortfall_rows"] == 90
-    assert exception["suspend_rows"] == 200
-    assert exception["suspend_rows_s"] == 200
+    assert exception["shortfall_rows"] == 40
+    assert exception["suspend_rows"] == 60
+    assert exception["suspend_rows_s"] == 60
+    assert exception["excess_suspensions"] == 40.0
+    assert exception["expected_rows"] == 60.0
+    assert exception["adjusted_deviation"] == 0.0
     assert exception["judgement"] == "explained_by_suspensions"
 
 
 def test_g1_fails_a_deviation_that_the_suspension_count_does_not_cover(qdb):
-    """A shortfall bigger than the suspension count is still a defect."""
+    """A shortfall bigger than the excess suspensions is still a defect."""
     days = _g1_days()
     with qdb.duckdb_connect() as con:
         qdb.apply_schema(con)
-        _seed_g1_tables(con, days, 100, drop_day="2020-01-07", suspended=5)
+        _seed_g1_tables(
+            con,
+            days,
+            100,
+            drop_day="2020-01-07",
+            drop_rows=10,
+            routine_suspended=20,
+            extra_suspended=40,
+        )
         ok, detail = checks.check_trading_days(con)
 
     assert ok is False
     assert detail["unexplained_count"] == 1
     assert detail["exception_count"] == 0
-    assert detail["anomalies"][0]["judgement"] == "unexplained"
-    assert detail["anomalies"][0]["suspend_rows"] == 5
+    anomaly = detail["anomalies"][0]
+    assert anomaly["judgement"] == "unexplained"
+    assert anomaly["suspend_rows"] == 60
+    assert anomaly["excess_suspensions"] == 40.0
+    assert anomaly["shortfall_rows"] == 90
 
 
 def test_g1_fails_a_deviation_without_any_suspension_record(qdb):
@@ -418,12 +526,84 @@ def test_g1_fails_a_deviation_without_any_suspension_record(qdb):
     days = _g1_days()
     with qdb.duckdb_connect() as con:
         qdb.apply_schema(con)
-        _seed_g1_tables(con, days, 100, drop_day="2020-01-07", suspended=0)
+        _seed_g1_tables(con, days, 100, drop_day="2020-01-07", drop_rows=10)
         ok, detail = checks.check_trading_days(con)
 
     assert ok is False
     assert detail["unexplained_count"] == 1
     assert detail["anomalies"][0]["suspend_rows"] == 0
+    assert detail["anomalies"][0]["excess_suspensions"] == 0.0
+
+
+def test_g1_fails_an_upward_deviation_even_with_suspensions(qdb):
+    """More rows than usual is a defect, not a suspension - it is never excused.
+
+    The shortfall of a surplus day is 0, so a rule that compares the shortfall
+    with the suspension count would call every surplus day "explained".
+    """
+    days = _g1_days()
+    with qdb.duckdb_connect() as con:
+        qdb.apply_schema(con)
+        _seed_g1_tables(
+            con,
+            days,
+            100,
+            surplus_day="2020-01-07",
+            routine_suspended=20,
+            extra_suspended=40,
+        )
+        ok, detail = checks.check_trading_days(con)
+
+    assert ok is False
+    assert detail["unexplained_count"] == 1
+    assert detail["exception_count"] == 0
+    anomaly = detail["anomalies"][0]
+    assert anomaly["trade_date"] == "2020-01-07"
+    assert anomaly["surplus_rows"] == 20
+    assert anomaly["shortfall_rows"] == 0
+    assert anomaly["judgement"] == "unexplained"
+
+
+def test_g1_fails_an_upward_deviation_without_suspensions(qdb):
+    """The plain case: a day with too many rows must fail the gate."""
+    days = _g1_days()
+    with qdb.duckdb_connect() as con:
+        qdb.apply_schema(con)
+        _seed_g1_tables(con, days, 100, surplus_day="2020-01-07")
+        ok, detail = checks.check_trading_days(con)
+
+    assert ok is False
+    assert detail["unexplained_count"] == 1
+    assert detail["anomalies"][0]["judgement"] == "unexplained"
+
+
+def test_g1_does_not_excuse_a_gap_that_the_routine_suspensions_do_not_cover(qdb):
+    """The routine suspensions of a normal day must not excuse a real gap.
+
+    Every trading day has suspension records, so comparing the shortfall with
+    the absolute count would excuse a real gap of that size on any day. The
+    excuse has to come from the EXCESS suspensions over the neighbouring days.
+    """
+    days = _g1_days()
+    with qdb.duckdb_connect() as con:
+        qdb.apply_schema(con)
+        _seed_g1_tables(
+            con,
+            days,
+            100,
+            drop_day="2020-01-07",
+            drop_rows=10,
+            routine_suspended=20,
+            extra_suspended=0,
+        )
+        ok, detail = checks.check_trading_days(con)
+
+    assert ok is False
+    assert detail["unexplained_count"] == 1
+    anomaly = detail["anomalies"][0]
+    assert anomaly["suspend_rows"] == 20
+    assert anomaly["excess_suspensions"] == 0.0
+    assert anomaly["shortfall_rows"] == 90
 
 
 def test_g1_keeps_every_anomaly_record(qdb):
@@ -431,13 +611,19 @@ def test_g1_keeps_every_anomaly_record(qdb):
     days = _g1_days()
     with qdb.duckdb_connect() as con:
         qdb.apply_schema(con)
-        _seed_g1_tables(con, days, 100, drop_day="2020-01-07", suspended=200)
+        _seed_g1_tables(
+            con,
+            days,
+            100,
+            drop_day="2020-01-07",
+            drop_rows=60,
+            routine_suspended=20,
+            extra_suspended=40,
+        )
         _, detail = checks.check_trading_days(con)
 
-    assert detail["anomaly_count"] == len(detail["anomalies"]) or detail[
-        "anomaly_count"
-    ] > 0
     assert detail["anomaly_count"] == 1
+    assert len(detail["anomalies"]) == detail["anomaly_count"]
     assert detail["anomalies"][0]["trade_date"] == "2020-01-07"
 
 
@@ -461,3 +647,167 @@ def test_g1_does_not_loosen_the_five_percent_threshold(qdb):
     assert ok is True
     assert detail["anomaly_count"] == 0
     assert detail["deviation_tolerance"] == 0.05
+
+
+# --------------------------------------------------------------------------- #
+# B5 (found by the WORK-518 load): a stale primary key drops rows silently
+# --------------------------------------------------------------------------- #
+
+
+def test_a_table_with_a_stale_primary_key_is_rebuilt(qdb):
+    """A table created with an older primary key must not keep it.
+
+    DuckDB cannot change a primary key and CREATE TABLE IF NOT EXISTS keeps
+    the old table, so the financial tables kept the primary key without
+    dup_seq and INSERT OR REPLACE silently dropped one of the two report
+    versions (measured: 20%-44% of the financial rows).
+    """
+    with qdb.duckdb_connect() as con:
+        con.execute(
+            "CREATE TABLE income (ts_code VARCHAR, end_date DATE, report_type VARCHAR, "
+            "ann_date DATE, PRIMARY KEY (ts_code, end_date, report_type, ann_date))"
+        )
+        assert qdb.existing_primary_key(con, "income") == (
+            "ts_code",
+            "end_date",
+            "report_type",
+            "ann_date",
+        )
+
+        qdb.apply_schema(con)
+
+        assert qdb.existing_primary_key(con, "income") == (
+            "ts_code",
+            "end_date",
+            "report_type",
+            "ann_date",
+            "dup_seq",
+        )
+
+
+def test_a_table_with_the_current_primary_key_is_kept(qdb):
+    """A table that already matches the schema must not be dropped."""
+    with qdb.duckdb_connect() as con:
+        qdb.apply_schema(con)
+        con.execute(
+            "INSERT INTO income (ts_code, end_date, report_type, ann_date, dup_seq) "
+            "VALUES ('600000.SH', DATE '2023-12-31', '1', DATE '2024-01-01', 0)"
+        )
+        qdb.apply_schema(con)
+        rows = con.execute("SELECT count(*) FROM income").fetchone()[0]
+        assert rows == 1
+
+
+def test_a_stale_primary_key_does_not_swallow_rows(qdb):
+    """The rebuilt table keeps both versions of the same report.
+
+    This is the silent data loss the WORK-518 load measured: the old primary
+    key had no dup_seq, so INSERT OR REPLACE replaced the first version of the
+    report with the second one.
+    """
+    frame = pd.DataFrame(
+        {
+            "ts_code": ["600000.SH", "600000.SH"],
+            "end_date": ["20231231", "20231231"],
+            "report_type": ["1", "1"],
+            "ann_date": ["20240101", "20240101"],
+            "total_revenue": [100.0, 110.0],
+        }
+    )
+    with qdb.duckdb_connect() as con:
+        # a table with the old primary key
+        con.execute(
+            "CREATE TABLE income (ts_code VARCHAR, end_date DATE, report_type VARCHAR, "
+            "ann_date DATE, total_revenue DOUBLE, "
+            "PRIMARY KEY (ts_code, end_date, report_type, ann_date))"
+        )
+        qdb.write_partition(frame, "income", "600000.SH", "test")
+        # apply_schema rebuilds the table, then the partition is loaded twice
+        qdb.apply_schema(con)
+        qdb.load_partitions(con, "income", ["600000.SH"])
+        qdb.load_partitions(con, "income", ["600000.SH"])
+        rows = con.execute(
+            "SELECT count(*), count(DISTINCT dup_seq) FROM income"
+        ).fetchone()
+        assert rows[0] == 2
+        assert rows[1] == 2
+
+
+class _EmptyClient:
+    """Every upstream window comes back empty."""
+
+    def __init__(self) -> None:
+        self.calls: list[dict] = []
+
+    def call(self, api, params, **kwargs):
+        self.calls.append(dict(params))
+        return ["ts_code", "trade_date", "close"], []
+
+
+def _seed_calendar(qdb, days: list[str]) -> None:
+    qdb.write_partition(
+        pd.DataFrame(
+            {
+                "exchange": ["SSE"] * len(days),
+                "cal_date": days,
+                "is_open": [1] * len(days),
+                "pretrade_date": days,
+            }
+        ),
+        "trade_cal",
+        "SSE",
+        "test",
+    )
+
+
+# --------------------------------------------------------------------------- #
+# F6: an empty partition written by an older fetch implementation is re-probed
+# --------------------------------------------------------------------------- #
+
+
+def test_an_empty_partition_of_an_older_fetch_version_is_re_fetched(qdb):
+    """A fetch bug must not freeze empty partitions for ever.
+
+    The WORK-518 index_weight bug asked the upstream for an invalid date and
+    published eight empty partitions; every later resume skipped them because
+    the manifest said "complete, 0 rows".
+    """
+    days = ["20200102", "20200103"]
+    _seed_calendar(qdb, days)
+    client = _EmptyClient()
+    fetcher = fetch.Fetcher(client, "20200101", "20200131", resume=True)
+    fetcher.fetch_range(fetch.DATASETS["stk_limit"], concurrency=1)
+
+    # The manifest now carries the fetch implementation version.
+    manifest = qdb.read_manifest("stk_limit", "20200102")
+    assert manifest["fetch_impl"] == qdb.FETCH_IMPL_VERSION
+
+    # An older implementation (or a missing marker) is not trusted.
+    manifest["fetch_impl"] = "old-window-bug"
+    qdb.write_json_atomic(qdb.manifest_path("stk_limit", "20200102"), manifest)
+    again = fetch.Fetcher(client, "20200101", "20200131", resume=True)
+    done, failures = again.fetch_range(fetch.DATASETS["stk_limit"], concurrency=1)
+    assert failures == []
+    assert done == 1, "the empty partition of an older fetch version was skipped"
+
+    # A partition with rows is not re-fetched just because the marker is old.
+    qdb.write_partition(
+        pd.DataFrame(
+            {
+                "trade_date": ["20200103"],
+                "ts_code": ["600000.SH"],
+                "up_limit": [11.0],
+                "down_limit": [9.0],
+            }
+        ),
+        "stk_limit",
+        "20200103",
+        "test",
+    )
+    manifest = qdb.read_manifest("stk_limit", "20200103")
+    manifest["fetch_impl"] = "old-window-bug"
+    qdb.write_json_atomic(qdb.manifest_path("stk_limit", "20200103"), manifest)
+    calls_before = len(client.calls)
+    third = fetch.Fetcher(client, "20200101", "20200131", resume=True)
+    third.fetch_range(fetch.DATASETS["stk_limit"], concurrency=1)
+    assert len(client.calls) == calls_before, "a populated partition was re-fetched"
