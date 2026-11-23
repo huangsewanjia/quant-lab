@@ -15,10 +15,11 @@
 | 抓取批次清单 | `/srv/share/quantdb/meta/reports/runs/20261123T060932Z_20230101_20261123.json` |
 | 分区 manifest | `/srv/share/quantdb/meta/reports/trade_date=YYYYMMDD.json` |
 | 汇总统计 | `/srv/share/quantdb/meta/reports/summary.json` |
-| 抽样校验 | `/srv/share/quantdb/meta/reports/validation/verify-20261123T061503Z.json` |
+| 抽样校验（最终） | `/srv/share/quantdb/meta/reports/validation/verify-20261123T062114Z.json` |
 | 抓取日志 | `/srv/share/quantdb/logs/reports-fetch-20261123.jsonl` |
 | 幂等第一次 | `/srv/data/multica/workspaces/workspace-c8faa36a018a/work-536-fd8955b65de3/workdir/evidence/idem_run1.json` |
 | 幂等第二次 | `/srv/data/multica/workspaces/workspace-c8faa36a018a/work-536-fd8955b65de3/workdir/evidence/idem_run2.json` |
+| 全量重跑 | `/srv/data/multica/workspaces/workspace-c8faa36a018a/work-536-fd8955b65de3/workdir/evidence/fetch_full_run2.json` |
 
 ## 核心数字
 

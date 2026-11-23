@@ -612,6 +612,11 @@ def fetch_month(
         "qType": Q_TYPE_STOCK,
     }
     first = http_get_json(session, paths, API_URL, {**base, "pageNo": 1})
+    if "data" not in first or "hits" not in first:
+        raise FetchError(
+            f"{lo}..{hi}: unexpected report-list payload keys={sorted(first)[:10]}; "
+            "refusing to treat it as an empty month"
+        )
     hits = int(first.get("hits") or 0)
     total_pages = int(first.get("TotalPage") or 0)
     if total_pages > MAX_PAGES_PER_MONTH:
@@ -622,6 +627,10 @@ def fetch_month(
     pages = 1
     for page in range(2, total_pages + 1):
         payload = http_get_json(session, paths, API_URL, {**base, "pageNo": page})
+        if "data" not in payload:
+            raise FetchError(
+                f"{lo}..{hi} page {page}: unexpected payload keys={sorted(payload)[:10]}"
+            )
         raw_rows.extend(payload.get("data") or [])
         pages += 1
         if sleep_s:
@@ -641,6 +650,11 @@ def fetch_month(
 
     fetched_at = dt.datetime.now(dt.timezone.utc)
     by_day: dict[dt.date, list[dict[str, Any]]] = {}
+    raw_by_day: dict[dt.date, int] = {}
+    for row in raw_rows:
+        day = _date(row.get("publishDate"))
+        if day is not None:
+            raw_by_day[day] = raw_by_day.get(day, 0) + 1
     for row in rows:
         day = _date(row.get("publishDate"))
         if day is None or day < lo or day > hi:
@@ -666,7 +680,7 @@ def fetch_month(
             },
             pages=pages,
             upstream_hits=hits,
-            rows_raw=len(raw_rows),
+            rows_raw=raw_by_day.get(day, 0),
         )
         written += 1
         day += dt.timedelta(days=1)
@@ -1316,10 +1330,10 @@ def cmd_verify(args: argparse.Namespace, paths: Paths) -> dict[str, Any]:
         "consensus_validation": consensus,
         "summary": summary,
         "pass": all(x["pass"] for x in counts)
+        and bool(consensus)
         and all(
-            all(y.get("pass") for y in x.get("years", []))
+            "years" in x and all(y.get("pass") for y in x["years"])
             for x in consensus
-            if "years" in x
         ),
         "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
     }

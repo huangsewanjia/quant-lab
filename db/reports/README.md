@@ -146,7 +146,7 @@ cd /srv/data/multica/workspaces/workspace-c8faa36a018a/work-536-fd8955b65de3/wor
 - 每个自然日一个分区：`/srv/share/quantdb/raw/reports/meta/trade_date=YYYYMMDD/part.parquet`。
 - 空分区也写（例如春节/周末），用显式 Arrow schema 保证类型稳定；0 条日期可解释为「上游当日无研报」。
 - 写入顺序：`part.parquet.tmp.<pid>.<ns>` → `os.replace` → manifest。manifest 存在则 parquet 完整。
-- manifest 字段：`dataset / partition / rows / bytes / sha256 / file / source / fetched_at / columns / column_types / primary_key / query / pages / upstream_hits / rows_raw / duplicates_dropped / impl_version / empty_upstream`。
+- manifest 字段：`dataset / partition / rows / bytes / sha256 / file / source / fetched_at / columns / column_types / primary_key / query / pages / upstream_hits / rows_raw / duplicates_dropped / impl_version / empty_upstream`。注意 `upstream_hits` 是**整月**上游总数，`rows_raw / rows / duplicates_dropped` 是**该日分区**口径。
 - 同区间重跑：分区覆盖写，行数不变；`--resume` 会先比对 manifest 的 sha256，再决定是否跳过。
 - 网络失败重试 2 次（共 3 次尝试）；401/403 立即停止并保留原始响应片段。token/凭据不写入日志、manifest 或评论。
 

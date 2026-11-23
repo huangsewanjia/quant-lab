@@ -12,9 +12,11 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from db.reports.fetch_em import (  # noqa: E402
+    FetchError,
     Paths,
     build_tables,
     classify_change,
+    fetch_month,
     month_windows,
     normalize_rating,
     normalize_record,
@@ -123,6 +125,40 @@ def test_partition_roundtrip_including_empty_day(tmp_path: Path):
     assert man2["rows"] == 0
     assert partition_ok(paths, empty_day)
     assert pq.read_table(partition_file(paths, empty_day)).num_rows == 0
+
+
+def test_fetch_month_rejects_unexpected_payload(tmp_path: Path, monkeypatch):
+    import db.reports.fetch_em as module
+
+    monkeypatch.setattr(module, "http_get_json", lambda *args, **kwargs: {"error": "blocked"})
+    with pytest.raises(FetchError, match="unexpected report-list payload"):
+        fetch_month(
+            object(),
+            Paths(tmp_path),
+            dt.date(2026, 11, 20),
+            dt.date(2026, 11, 20),
+            resume=False,
+            sleep_s=0,
+        )
+    assert not list((tmp_path / "raw" / "reports" / "meta").glob("trade_date=*"))
+
+
+def test_fetch_month_dedupes_info_code(tmp_path: Path, monkeypatch):
+    import db.reports.fetch_em as module
+
+    row = _raw(ratingChange="2")
+    payload = {"hits": 2, "TotalPage": 1, "data": [row, dict(row)]}
+    monkeypatch.setattr(module, "http_get_json", lambda *args, **kwargs: payload)
+    result = fetch_month(
+        object(),
+        Paths(tmp_path),
+        dt.date(2026, 11, 20),
+        dt.date(2026, 11, 20),
+        resume=False,
+        sleep_s=0,
+    )
+    assert result["rows"] == 1
+    assert pq.read_table(partition_file(Paths(tmp_path), dt.date(2026, 11, 20))).num_rows == 1
 
 
 def test_build_tables_computes_median_and_change(tmp_path: Path):
