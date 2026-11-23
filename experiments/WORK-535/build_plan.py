@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from plan_partial import PARTIAL_BY_SOURCE  # noqa: E402
 from plan_purchase import PURCHASE  # noqa: E402
 from plan_reach import OK_TAG, REACH  # noqa: E402
+from plan_research import RESEARCH_ROWS  # noqa: E402
 
 COLUMNS = [
     '指标名', '行业', '区域', '数据商', '覆盖度(全覆盖/部分)', '官网价格页URL', '公开价格',
@@ -102,6 +103,17 @@ def main(out_path):
         for p in hit:
             rows.append(normalize({**p, '行业': r['行业'], '区域': r['区域']}))
             used.add((p['指标名'], p['数据商']))
+    # ---- 研报订阅通道（采购范围增补）：服务 5 条战略层「产业链利润/价值分布」硬缺口 ----
+    n_research = 0
+    for r in RESEARCH_ROWS:
+        hit = buy[buy['指标名'] == r['指标名']]
+        if hit.empty:
+            print(f'!! 研报通道指标不在需采购集: {r["指标名"]}')
+            continue
+        rows.append(normalize({**r, '行业': hit.iloc[0]['行业'], '区域': hit.iloc[0]['区域']}))
+        n_research += 1
+    print(f'研报订阅通道追加行: {n_research}')
+
     orphan = [(p['指标名'], p['数据商']) for p in PURCHASE
               if p['指标名'] not in set(buy['指标名'])]
     if orphan:
