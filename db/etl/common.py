@@ -882,6 +882,16 @@ def canonical_columns(dataset: str) -> list[str]:
     return list(_SCHEMA_COLUMNS.get(dataset, []))
 
 
+def schema_tables() -> list[str]:
+    """Table names declared in schema.sql (no DB connection needed).
+
+    The dataset registry (``TABLE_PK``) is hand-written; this is the list it
+    has to agree with, name by name - not only by count.
+    """
+    _parse_schema()
+    return sorted(_SCHEMA_COLUMNS)
+
+
 def declared_types(dataset: str) -> dict[str, str]:
     """Declared SQL type per column, parsed from schema.sql."""
     _parse_schema()

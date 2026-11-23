@@ -38,14 +38,23 @@ AKSHARE_PYTHON = os.environ.get(
 CROSSCHECK_SYMBOLS = ("sh600000", "sz000001", "sh600519", "sh601318", "sz000002")
 
 # Every dataset that lands in DuckDB has to be covered by G2 (primary key
-# uniqueness + Parquet/DuckDB row parity). The list is derived from the
-# schema instead of being written out by hand: the reference tables
-# (``trade_cal``, ``stock_basic``, ``index_classify``) were missing from the
-# hand-written list, so a 4-row drift of the calendar between the Parquet
-# layer and DuckDB (2026-11-23) passed every gate. Deriving the list makes
-# that class of blind spot impossible to reintroduce: a new table in
-# ``common.TABLE_PK`` is checked as soon as it is declared.
-PK_DATASETS = tuple(common.TABLE_PK)
+# uniqueness + Parquet/DuckDB row parity). The list used to be a hand-written
+# tuple of 13 datasets; the reference tables (``trade_cal``,
+# ``stock_basic``, ``index_classify``) were missing from it, so a 4-row drift
+# of the calendar between the Parquet layer and DuckDB (2026-11-23) passed
+# every gate. The list is now read from ``common.TABLE_PK`` **on every call**
+# (not captured at import time), so a table that is declared is checked as
+# soon as it is declared.
+#
+# The registry itself is still hand-written; what keeps it honest is the
+# name-level check in ``db/tests/test_post_acceptance_defects.py``, which
+# asserts that ``common.TABLE_PK``, the tables in ``schema.sql`` and
+# ``db.etl.fetch.DATASETS`` are the same set of names.
+
+
+def _pk_datasets() -> tuple[str, ...]:
+    """Datasets G2 has to cover, read fresh on every call."""
+    return tuple(common.TABLE_PK)
 
 
 def _code_to_symbol(code: str) -> str:
@@ -225,8 +234,10 @@ def check_primary_keys(con) -> tuple[bool, dict[str, Any]]:
     parity: dict[str, Any] = {}
     duplicates: dict[str, int] = {}
     missing: list[str] = []
+    errors: dict[str, str] = {}
+    unusable_pk: list[str] = []
 
-    for dataset in PK_DATASETS:
+    for dataset in _pk_datasets():
         files = common.partition_globs(dataset)
         if not files:
             # A dataset with no partitions at all would otherwise "pass" this
@@ -236,12 +247,23 @@ def check_primary_keys(con) -> tuple[bool, dict[str, Any]]:
             continue
         glob = common.parquet_glob(dataset)
         pk = [c for c in common.TABLE_PK[dataset] if c in common.canonical_columns(dataset)]
-        parquet_rows = int(
-            con.execute(
-                f"SELECT count(*) FROM {common.PARQUET_SCAN}", [glob]
-            ).fetchone()[0]
-        )
-        if pk:
+        if not pk:
+            # The declared primary key has no column in the schema: there is
+            # nothing to group by, so the duplicate check cannot run. Scoring
+            # "zero duplicates" here would be a silent green - report it.
+            unusable_pk.append(dataset)
+            parity[dataset] = {
+                "partitions": len(files),
+                "note": "主键列不在 schema 中，重复检查无法执行",
+                "difference": 0,
+            }
+            continue
+        try:
+            parquet_rows = int(
+                con.execute(
+                    f"SELECT count(*) FROM {common.PARQUET_SCAN}", [glob]
+                ).fetchone()[0]
+            )
             group = ",".join(str(index + 1) for index in range(len(pk)))
             dup_count = int(
                 con.execute(
@@ -251,9 +273,20 @@ def check_primary_keys(con) -> tuple[bool, dict[str, Any]]:
                     [glob],
                 ).fetchone()[0]
             )
-        else:  # pragma: no cover - every dataset declares a primary key
-            dup_count = 0
-        table_rows = int(con.execute(f"SELECT count(*) FROM {dataset}").fetchone()[0])
+            table_rows = int(
+                con.execute(f'SELECT count(*) FROM "{dataset}"').fetchone()[0]
+            )
+        except Exception as exc:  # noqa: BLE001
+            # One broken dataset must not wipe the detail of the other 15:
+            # the report says which dataset failed and the rest stay visible.
+            errors[dataset] = f"{type(exc).__name__}: {exc}"
+            parity[dataset] = {
+                "partitions": len(files),
+                "note": "读取失败",
+                "difference": 0,
+                "error": errors[dataset],
+            }
+            continue
         duplicates[dataset] = dup_count
         parity[dataset] = {
             "parquet_rows": parquet_rows,
@@ -265,13 +298,21 @@ def check_primary_keys(con) -> tuple[bool, dict[str, Any]]:
 
     total_dup = sum(duplicates.values())
     mismatched = {k: v for k, v in parity.items() if v.get("difference", 0) != 0}
-    ok = total_dup == 0 and not mismatched and not missing
+    ok = (
+        total_dup == 0
+        and not mismatched
+        and not missing
+        and not errors
+        and not unusable_pk
+    )
     return ok, {
         "duplicate_keys": duplicates,
         "total_duplicate_key_groups": total_dup,
         "row_parity": parity,
         "mismatched_datasets": mismatched,
         "missing_datasets": missing,
+        "unreadable_datasets": errors,
+        "unusable_primary_key": unusable_pk,
     }
 
 

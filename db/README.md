@@ -283,9 +283,9 @@ G5 的新浪源用 `stock_zh_a_hist_sina`（新浪），一次请求取回个股
 ### 本轮闸门实测结果
 
 <!-- gates:begin -->
-实测于 2026-11-23 11:05（2026-11-23T03:05:00Z），命令 `/home/moyongkai/.venvs/quantdb/bin/python -m db.checks.run all --out /srv/share/quantdb/meta/checks/checks-20261123-recheck.json` → **EXIT_CODE=0**，
-报告 `/srv/share/quantdb/meta/checks/checks-20261123-recheck.json`。
-（这一轮跑在 §8 第 18 条的修复之后：G2 的行数勾稽名单已从 13 张表扩到**全部 16 张表**，含三张参考表。）
+实测于 2026-11-23 11:31（2026-11-23T03:31:30Z），命令 `/home/moyongkai/.venvs/quantdb/bin/python -m db.checks.run all --out /srv/share/quantdb/meta/checks/checks-20261123-recheck2.json` → **EXIT_CODE=0**，
+报告 `/srv/share/quantdb/meta/checks/checks-20261123-recheck2.json`。
+（这一轮跑在 §11 的修复之后：G2 的行数勾稽名单已从 13 张表扩到**全部 16 张表**，含三张参考表；主键列缺失、单表读失败都判 FAIL。）
 
 | 闸 | 结论 | 实测值 |
 |---|---|---|
@@ -330,7 +330,7 @@ excess_suspensions / expected_rows / adjusted_deviation / judgement` 都在报�
   （日志 `/srv/share/quantdb/logs/work518-final-load.log`，代码提交 `1010512`）。16 张表逐表「读入行数 = 表内行数」。
 - **16 表逐表 Parquet ↔ DuckDB 行数对照**：差值全为 0，`MISMATCH_TABLES=0`（日志 `/srv/share/quantdb/logs/work518-final-verify.log`）。
 - **复权视图**：`v_daily_qfq` 与 `v_daily_hfq` 各 15,964,248 行 = `daily` 15,966,167 − **1,919** 行（上游 `adj_factor` 缺口，见 §8 第 17 条）。
-- **单测**：`python -m pytest db/tests -q` → **139 passed**（本轮新增 7 个用例，见 §11）。
+- **单测**：`python -m pytest db/tests -q` → **142 passed**（本轮新增 10 个用例，见 §11）。
 <!-- gates:end -->
 
 ---
@@ -417,7 +417,9 @@ excess_suspensions / expected_rows / adjusted_deviation / judgement` 都在报�
       **而这道漂移当时一道闸都没报**：G2 的行数勾稽名单是手写的 13 张表，`trade_cal` / `stock_basic` / `index_classify`
       三张参考表**根本不在名单里**。
     - **修法**：`checks.PK_DATASETS` 改为从 `common.TABLE_PK` 派生 → **16 张表全部纳入**行数勾稽与主键检查，
-      以后新增表自动纳入，名单再也不会和 schema 漂移。回归用例见 `db/tests/test_post_acceptance_defects.py`。
+      以后新增表自动纳入，**不再与手写 13 表名单漂移**。名单本身（`common.TABLE_PK`）仍是手写的，
+      由名字级断言守住：`set(TABLE_PK) == set(schema.sql 的表) == set(fetch.DATASETS)`。
+      回归用例见 `db/tests/test_post_acceptance_defects.py`。
     - **取数纪律**：参考表按**研究窗口**抓（`--start 20060101 --end 20261121`），**改窗口就要同步重装 DuckDB**；
       `stock_basic` 是例外——它是上游在册主表，与窗口无关（当前 5,925 行，三个分区 L/D/P）。
     - 复跑：`python -m db.etl.fetch --dataset trade_cal --start 20060101 --end 20261121 --no-resume`
@@ -532,23 +534,41 @@ C1 的空分区类型问题（Parquet 全列 `null` 类型 → 统一 schema 的
 
 | 文件 | 改动 |
 |---|---|
-| `db/checks/checks.py` | `PK_DATASETS` 改为 `tuple(common.TABLE_PK)`，覆盖全部 16 张表；注释写明事故与后果 |
-| `db/tests/test_post_acceptance_defects.py` | **新增 7 个用例**：名单覆盖全表、参考表无分区判缺、日历漂移判 FAIL、日历主键重复判 FAIL、写入层去重、复权视图不给无因子的行编价 |
+| `db/checks/checks.py` | G2 的数据集清单改为**每次调用现读** `common.TABLE_PK`，覆盖全部 16 张表；注释写明事故与后果；主键列缺失、单表读取失败都判 FAIL 且不丢其余表的明细 |
+| `db/etl/common.py` | 新增 `schema_tables()`（从 schema.sql 解析表名），供 registry 与 schema 做**名字级**比对 |
+| `db/tests/test_post_acceptance_defects.py` | **新增 10 个用例**：名单覆盖全表、registry 与 schema 名字级一致、参考表无分区判缺、日历漂移判 FAIL、日历主键重复判 FAIL、写入层去重、复权视图不给无因子的行编价、主键列缺失判 FAIL、单表读失败不影响其余 15 张表的明细 |
 | `db/README.md` | §5 G2 口径、§8 第 17/18 条、§5 闸门实测表更新、§11 本节 |
 
-单测 **132 → 139**，`python -m pytest db/tests -q` → **139 passed**。
+单测 **132 → 142**，`python -m pytest db/tests -q` → **142 passed**。
 
 ### 11.4 复跑命令与实测值
 
 ```bash
 export QUANTDB_HOME=/srv/share/quantdb
 cd <repo>
-/home/moyongkai/.venvs/quantdb/bin/python -m pytest db/tests -q                       # 139 passed
+/home/moyongkai/.venvs/quantdb/bin/python -m pytest db/tests -q                       # 142 passed
 /home/moyongkai/.venvs/quantdb/bin/python -m db.checks.run all \
-    --out /srv/share/quantdb/meta/checks/checks-20261123-recheck.json                 # EXIT_CODE=0
+    --out /srv/share/quantdb/meta/checks/checks-20261123-recheck2.json                # EXIT_CODE=0
 /home/moyongkai/.venvs/quantdb/bin/python -m db.etl.stats --out /srv/share/quantdb/meta/stats-20261123-recheck.md
 /home/moyongkai/.venvs/quantdb/bin/python -m db.etl.delivery --out /srv/share/quantdb/meta/delivery-20261123-recheck.json
 ```
 
 - 六闸结论：G1 `PASS_WITH_EXCEPTIONS`（6 条可解释例外、0 条未解释异常）、G2/G3/G4/G5/G6 全 `PASS`。
 - 16 张表逐表 Parquet 行数 = DuckDB 行数，合计 **102,391,068 = 102,391,068**，差异 0，重复主键组 0。
+
+### 11.5 本轮改动的独立复核（独立子代理，主循环不参与）
+
+按交付物 #8 的要求，本轮改动（`569cce3`）另起独立子代理审，结论 **PASS，无 blocking**，提了 3 条 suggestion + 2 条 nit。
+子代理做了变异测试（改完全部 `git checkout --` 还原，最终 `git status` 干净）。
+
+| 编号 | 复核意见 | 处置 |
+|---|---|---|
+| S1 | 派生源 `common.TABLE_PK` **本身仍是手写清单**；原守卫只比数量不比名字 → 「名单再也不会和 schema 漂移」是过强断言 | **已修**：新增 `common.schema_tables()`，并加名字级断言 `set(TABLE_PK) == set(schema.sql 表) == set(fetch.DATASETS)`（16 项）；README 措辞改为「不再与手写 13 表名单漂移」 |
+| S2 | 主键列不在 schema 时 `pk` 为空 → 代码记「重复组 0」，是**静默放绿** | **已修**：记入 `unusable_primary_key` 并判 FAIL；新增用例 + 变异测试确认 |
+| S3 | DuckDB 缺表时抛 `CatalogException`，被上层捕获 → G2 FAIL 但 **16 张表的逐表明细全丢** | **已修**：改为逐数据集 `try/except`，坏的那张进 `unreadable_datasets`，其余 15 张的明细照常出报告；新增用例 + 变异测试确认 |
+| N1 | 清单是 import 期快照，运行时改 `common.TABLE_PK` 不生效 | **已修**：改为函数内现读 |
+| N2 | 措辞过强 | **已修**（见 S1 处置） |
+
+复核方自己没跑上游 `adj_factor` 的 25 对抽样（需要 token/网络），因此 **上游缺口那条只有本轮主循环的实测**
+（25/25 返回 0 行，对照组 1 行）；复核方独立复算的其余数字与本轮一致：16 表合计 102,391,068、
+反连接 1,919、复权视图 15,964,248、`trade_cal` 两个分区各 7,630 行、单测 142 passed。

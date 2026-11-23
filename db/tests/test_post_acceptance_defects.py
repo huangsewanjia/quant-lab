@@ -24,7 +24,7 @@ from __future__ import annotations
 import pandas as pd
 
 from db.checks import checks
-from db.etl import common
+from db.etl import common, fetch
 
 
 # --------------------------------------------------------------------------- #
@@ -32,14 +32,31 @@ from db.etl import common
 # --------------------------------------------------------------------------- #
 
 
-def test_the_parity_gate_covers_every_declared_dataset():
+def test_the_parity_gate_covers_every_declared_dataset(qdb):
     """A table that exists in the schema has to be checked by G2.
 
     Before the fix this failed with three missing datasets: the reference
     tables were absent from the hand-written list.
     """
-    assert set(checks.PK_DATASETS) == set(common.TABLE_PK)
-    assert {"trade_cal", "stock_basic", "index_classify"} <= set(checks.PK_DATASETS)
+    with qdb.duckdb_connect() as con:
+        qdb.apply_schema(con)
+        _, detail = checks.check_primary_keys(con)
+
+    assert set(detail["row_parity"]) == set(common.TABLE_PK)
+    assert {"trade_cal", "stock_basic", "index_classify"} <= set(detail["row_parity"])
+
+
+def test_the_dataset_registry_agrees_with_the_schema_by_name():
+    """The registry is hand-written, so it is checked by name, not by count.
+
+    ``test_review_findings.py`` only compares how many tables there are; a
+    table that is declared in ``schema.sql`` and fetched by ``fetch.DATASETS``
+    but missing from ``common.TABLE_PK`` would silently escape G2.
+    """
+    registry = set(common.TABLE_PK)
+    assert registry == set(common.schema_tables())
+    assert registry == set(fetch.DATASETS)
+    assert len(registry) == 16
 
 
 def test_g2_reports_a_reference_dataset_without_partitions(qdb):
@@ -165,6 +182,78 @@ def test_g2_fails_when_a_partition_carries_a_duplicate_key(qdb):
     assert detail["row_parity"]["trade_cal"]["duplicate_key_groups"] == 1
     assert detail["total_duplicate_key_groups"] >= 1
     assert ok is False
+
+
+def test_g2_fails_when_the_primary_key_columns_are_missing_from_the_schema(
+    qdb, monkeypatch
+):
+    """A dataset whose key columns are not in the schema must not score zero dups.
+
+    There is nothing to group by in that case, so the duplicate check cannot
+    run. Reporting "0 duplicate groups" would be a silent green.
+    """
+    frame = pd.DataFrame(
+        {
+            "exchange": ["SSE", "SSE"],
+            "cal_date": ["2020-01-02", "2020-01-03"],
+            "is_open": [1, 1],
+            "pretrade_date": ["2019-12-31", "2020-01-02"],
+        }
+    )
+    qdb.write_partition(frame, "trade_cal", "SSE", "test")
+
+    with qdb.duckdb_connect() as con:
+        qdb.apply_schema(con)
+        qdb.load_partitions(con, "trade_cal", ["SSE"])
+        real_columns = common.canonical_columns
+        monkeypatch.setattr(
+            common,
+            "canonical_columns",
+            lambda dataset: [] if dataset == "trade_cal" else real_columns(dataset),
+        )
+        ok, detail = checks.check_primary_keys(con)
+
+    assert "trade_cal" in detail["unusable_primary_key"]
+    assert detail["row_parity"]["trade_cal"]["note"]
+    assert ok is False
+
+
+def test_g2_keeps_the_other_datasets_visible_when_one_table_is_missing(qdb):
+    """A table that cannot be read must not wipe the detail of the other 15."""
+    calendar = pd.DataFrame(
+        {
+            "exchange": ["SSE"],
+            "cal_date": ["2020-01-02"],
+            "is_open": [1],
+            "pretrade_date": ["2019-12-31"],
+        }
+    )
+    daily = pd.DataFrame(
+        {
+            "ts_code": ["600000.SH"],
+            "trade_date": ["2020-01-02"],
+            "open": [12.0],
+            "high": [12.6],
+            "low": [11.9],
+            "close": [12.47],
+        }
+    )
+    qdb.write_partition(calendar, "trade_cal", "SSE", "test")
+    qdb.write_partition(daily, "daily", "20200102", "test")
+
+    with qdb.duckdb_connect() as con:
+        qdb.apply_schema(con)
+        qdb.load_partitions(con, "trade_cal", ["SSE"])
+        qdb.load_partitions(con, "daily", ["20200102"])
+        con.execute('DROP TABLE "trade_cal"')
+        ok, detail = checks.check_primary_keys(con)
+
+    assert "trade_cal" in detail["unreadable_datasets"]
+    assert ok is False
+    # The other datasets keep their measured numbers.
+    assert detail["row_parity"]["daily"]["parquet_rows"] == 1
+    assert detail["row_parity"]["daily"]["duckdb_rows"] == 1
+    assert detail["row_parity"]["daily"]["difference"] == 0
 
 
 # --------------------------------------------------------------------------- #
