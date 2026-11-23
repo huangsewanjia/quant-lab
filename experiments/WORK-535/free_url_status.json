@@ -1,0 +1,152 @@
+{
+  "https://www.woodmac.com/press-releases/apac-utility-scale-energy-storage-pricing-report-2025/": {
+    "status": 200,
+    "final": "https://www.woodmac.com/press-releases/apac-utility-scale-energy-storage-pricing-report-2025/",
+    "error": "",
+    "owner": "储能产业链利润分布（电芯/PCS/系统/EPC/运营）"
+  },
+  "https://www.woodmac.com/press-releases/pcs-inverter-market-share-rankings-2026": {
+    "status": 200,
+    "final": "https://www.woodmac.com/press-releases/pcs-inverter-market-share-rankings-2026",
+    "error": "",
+    "owner": "储能变流器 PCS 与逆变器出货量"
+  },
+  "https://www.yytj.org.cn/": {
+    "status": 200,
+    "final": "https://www.yytj.org.cn/",
+    "error": "",
+    "owner": "医药产业链利润分布（创新药/CXO/原料药/流通）"
+  },
+  "https://web.csia.net.cn/newsinfo/11304672.html": {
+    "status": 200,
+    "final": "https://web.csia.net.cn/newsinfo/11304672.html",
+    "error": "",
+    "owner": "半导体设备与材料国产化率"
+  },
+  "https://web.csia.net.cn/newsinfo/11310429.html": {
+    "status": 200,
+    "final": "https://web.csia.net.cn/newsinfo/11310429.html",
+    "error": "",
+    "owner": "半导体设备与材料国产化率"
+  },
+  "https://www.trendforce.com/price/dram/dram_spot": {
+    "status": 200,
+    "final": "https://www.trendforce.com/price/dram/dram_spot",
+    "error": "",
+    "owner": "存储芯片现货价与合约价"
+  },
+  "https://www.trendforce.com/price/flash/flash_spot": {
+    "status": 200,
+    "final": "https://www.trendforce.com/price/flash/flash_spot",
+    "error": "",
+    "owner": "存储芯片现货价与合约价"
+  },
+  "http://www.cbea.com/": {
+    "status": 200,
+    "final": "http://www.cbea.com/",
+    "error": "",
+    "owner": "动力与储能电池装机量"
+  },
+  "https://www.worldbank.org/en/research/commodity-markets": {
+    "status": 200,
+    "final": "https://www.worldbank.org/en/research/commodity-markets",
+    "error": "",
+    "owner": "电池级碳酸锂与氢氧化锂现货价"
+  },
+  "https://www.shfe.com.cn/reports/tradedata/dailyandweeklydata/": {
+    "status": 200,
+    "final": "https://www.shfe.com.cn/reports/tradedata/dailyandweeklydata/",
+    "error": "",
+    "owner": "电池级碳酸锂与氢氧化锂现货价"
+  },
+  "https://hq.smm.cn/new-energy/category/201102250059": {
+    "status": 200,
+    "final": "https://hq.smm.cn/new-energy/category/201102250059",
+    "error": "",
+    "owner": "电池级碳酸锂与氢氧化锂现货价"
+  },
+  "https://hq.smm.cn/new-energy": {
+    "status": 200,
+    "final": "https://new-energy.smm.cn/new_energy/14042",
+    "error": "",
+    "owner": "电池级碳酸锂与氢氧化锂现货价"
+  },
+  "https://pubs.usgs.gov/periodicals/mcs2026/": {
+    "status": 200,
+    "final": "https://pubs.usgs.gov/periodicals/mcs2026/",
+    "error": "",
+    "owner": "全球电池原材料供需平衡"
+  },
+  "https://pubs.usgs.gov/periodicals/mcs2026/mcs2026-lithium.pdf": {
+    "status": 200,
+    "final": "https://pubs.usgs.gov/periodicals/mcs2026/mcs2026-lithium.pdf",
+    "error": "",
+    "owner": "全球电池原材料供需平衡"
+  },
+  "https://pubs.usgs.gov/periodicals/mcs2026/mcs2026-rare-earths.pdf": {
+    "status": 200,
+    "final": "https://pubs.usgs.gov/periodicals/mcs2026/mcs2026-rare-earths.pdf",
+    "error": "",
+    "owner": "全球电池原材料供需平衡"
+  },
+  "https://single-market-economy.ec.europa.eu/sectors/raw-materials/areas-specific-interest/critical-raw-materials/strategic-projects-under-crma_en": {
+    "status": 200,
+    "final": "https://single-market-economy.ec.europa.eu/sectors/raw-materials/areas-specific-interest/critical-raw-materials/strategic-projects-under-crma_en",
+    "error": "",
+    "owner": "欧洲电池产能项目清单"
+  },
+  "https://www.semi.org/en/semi-press-release/": {
+    "status": 403,
+    "final": "https://www.semi.org/en/semi-press-release/",
+    "error": "Forbidden",
+    "owner": "全球晶圆制造产能与地区集中度"
+  },
+  "https://www.wsts.org/76/Recent-News-Release": {
+    "status": 200,
+    "final": "https://www.wsts.org/76/Recent-News-Release",
+    "error": "",
+    "owner": "全球半导体市场规模（WSTS 口径）"
+  },
+  "https://www.sneresearch.com/en/insight/release_view/706/page/12": {
+    "status": 200,
+    "final": "https://www.sneresearch.com/en/insight/release_view/706/page/12",
+    "error": "",
+    "owner": "SNE Research 全球电池与半导体市场数据"
+  },
+  "https://joint-research-centre.ec.europa.eu/": {
+    "status": 200,
+    "final": "https://joint-research-centre.ec.europa.eu/select-language?destination=/node/10050",
+    "error": "",
+    "owner": "欧洲半导体设备与材料进口依赖度"
+  },
+  "https://ec.europa.eu/eurostat/databrowser/view/prodcom_nace_ind/default/table": {
+    "status": 200,
+    "final": "https://ec.europa.eu/eurostat/databrowser/view/prodcom_nace_ind/default/table",
+    "error": "",
+    "owner": "欧洲半导体设备与材料进口依赖度"
+  },
+  "https://hq.smm.cn/copper/category/201102250376": {
+    "status": 200,
+    "final": "https://hq.smm.cn/copper/category/201102250376",
+    "error": "",
+    "owner": "铜/铝/铅/锌现货价与升贴水"
+  },
+  "https://hq.smm.cn/aluminum/category/201102250311": {
+    "status": 200,
+    "final": "https://hq.smm.cn/aluminum/category/201102250311",
+    "error": "",
+    "owner": "铜/铝/铅/锌现货价与升贴水"
+  },
+  "https://hq.smm.cn/lead/category/201102250211": {
+    "status": 200,
+    "final": "https://hq.smm.cn/lead/category/201102250211",
+    "error": "",
+    "owner": "铜/铝/铅/锌现货价与升贴水"
+  },
+  "https://hq.smm.cn/zinc/category/201102250173": {
+    "status": 200,
+    "final": "https://hq.smm.cn/zinc/category/201102250173",
+    "error": "",
+    "owner": "铜/铝/铅/锌现货价与升贴水"
+  }
+}

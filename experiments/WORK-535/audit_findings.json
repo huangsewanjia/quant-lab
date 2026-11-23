@@ -1,0 +1,456 @@
+{
+  "experiment": "WORK-535",
+  "checked_at": "2026-11-23T07:30:11.591859+00:00",
+  "plan_csv": "docs/procurement_plan.csv",
+  "brief_md": "docs/procurement_brief.md",
+  "recomputed": {
+    "n_research_rows": 25,
+    "research_non_equal": [],
+    "hibor_priced": 5,
+    "n_rows": 109,
+    "n_combos": 48,
+    "n_combos_all": 117,
+    "n_hard_rows": 48,
+    "n_part_rows": 61,
+    "n_buy_indicator_rows": 16,
+    "hard_with_vendor": 16,
+    "part_with_free_alt": 61,
+    "adv_rows": {
+      "买": 22,
+      "等": 63,
+      "不买": 24
+    },
+    "adv_hard": {
+      "买": 6,
+      "等": 36,
+      "不买": 6
+    },
+    "adv_part": {
+      "买": 16,
+      "等": 27,
+      "不买": 18
+    },
+    "cov_values": {
+      "全覆盖": 54,
+      "部分": 53,
+      "不覆盖": 2
+    },
+    "price_rows": 21,
+    "vendor_hard": {
+      "高工锂电 / 高工产业研究院 GGII": 2,
+      "Wood Mackenzie": 4,
+      "BloombergNEF（BNEF）": 1,
+      "Benchmark Mineral Intelligence": 4,
+      "S&P Global Commodity Insights（Platts）": 1,
+      "米内网 Menet": 1,
+      "IQVIA": 1,
+      "中国医药工业信息中心": 1,
+      "赛迪顾问 / 中国电子信息产业发展研究院（CCID）": 1,
+      "McKinsey 麦肯锡": 2,
+      "TrendForce 集邦": 1,
+      "SNE Research": 1,
+      "中国有色金属工业协会": 1,
+      "慧博投研（研报聚合平台）": 5,
+      "发现报告（研报聚合平台）": 5,
+      "萝卜投研（通联数据）": 5,
+      "中金公司研究部": 5,
+      "中信证券研究部": 5,
+      "中关村储能产业技术联盟 CNESA": 0,
+      "电池网 CBEA": 0,
+      "上海有色网 SMM": 0,
+      "国际能源署 IEA": 0,
+      "国际可再生能源署 IRENA": 0,
+      "欧洲储能协会 EASE（European Energy Storage Association）": 0,
+      "SolarPower Europe": 0,
+      "欧盟 JRC 联合研究中心": 0,
+      "巨潮资讯网 CNINFO": 0,
+      "商务部": 0,
+      "国际制药协会联盟 IFPMA": 0,
+      "欧洲制药工业协会 EFPIA": 0,
+      "美国 CMS（Medicare 与处方药统计）": 0,
+      "美国 CMS（免费）+ IQVIA（付费源）": 0,
+      "中国半导体行业协会 CSIA": 0,
+      "WSTS": 0,
+      "国际半导体产业协会 SEMI": 0,
+      "上市公司定期报告": 0,
+      "全球半导体贸易统计 WSTS（经 ESIA 独家许可订阅）": 0,
+      "欧洲半导体产业协会 ESIA": 0,
+      "美国商务部工业与安全局 BIS（经 Federal Register 公示）": 0,
+      "美国半导体行业协会 SIA": 0,
+      "国际货币基金组织 IMF": 0,
+      "国际汽车制造商组织 OICA": 0,
+      "IEA": 0,
+      "上海期货交易所 SHFE": 0,
+      "国际铜业研究组织 ICSG": 0,
+      "交易所（LME/SHFE/COMEX）": 0,
+      "UNIDO 工业统计（INDSTAT）": 0,
+      "欧洲有色金属协会 Eurometaux": 0
+    },
+    "vendor_p0": {
+      "高工锂电 / 高工产业研究院 GGII": 2,
+      "Wood Mackenzie": 4,
+      "BloombergNEF（BNEF）": 1,
+      "Benchmark Mineral Intelligence": 4,
+      "S&P Global Commodity Insights（Platts）": 1,
+      "米内网 Menet": 2,
+      "IQVIA": 1,
+      "中国医药工业信息中心": 1,
+      "赛迪顾问 / 中国电子信息产业发展研究院（CCID）": 1,
+      "McKinsey 麦肯锡": 2,
+      "TrendForce 集邦": 1,
+      "SNE Research": 5,
+      "中国有色金属工业协会": 1,
+      "慧博投研（研报聚合平台）": 5,
+      "发现报告（研报聚合平台）": 5,
+      "萝卜投研（通联数据）": 5,
+      "中金公司研究部": 5,
+      "中信证券研究部": 5,
+      "中关村储能产业技术联盟 CNESA": 3,
+      "电池网 CBEA": 1,
+      "上海有色网 SMM": 4,
+      "国际能源署 IEA": 15,
+      "国际可再生能源署 IRENA": 2,
+      "欧洲储能协会 EASE（European Energy Storage Association）": 1,
+      "SolarPower Europe": 1,
+      "欧盟 JRC 联合研究中心": 3,
+      "巨潮资讯网 CNINFO": 1,
+      "商务部": 1,
+      "国际制药协会联盟 IFPMA": 2,
+      "欧洲制药工业协会 EFPIA": 1,
+      "美国 CMS（Medicare 与处方药统计）": 1,
+      "美国 CMS（免费）+ IQVIA（付费源）": 1,
+      "中国半导体行业协会 CSIA": 3,
+      "WSTS": 1,
+      "国际半导体产业协会 SEMI": 9,
+      "上市公司定期报告": 1,
+      "全球半导体贸易统计 WSTS（经 ESIA 独家许可订阅）": 1,
+      "欧洲半导体产业协会 ESIA": 1,
+      "美国商务部工业与安全局 BIS（经 Federal Register 公示）": 1,
+      "美国半导体行业协会 SIA": 1,
+      "国际货币基金组织 IMF": 1,
+      "国际汽车制造商组织 OICA": 1,
+      "IEA": 1,
+      "上海期货交易所 SHFE": 1,
+      "国际铜业研究组织 ICSG": 1,
+      "交易所（LME/SHFE/COMEX）": 1,
+      "UNIDO 工业统计（INDSTAT）": 1,
+      "欧洲有色金属协会 Eurometaux": 2
+    },
+    "greedy_all_hard": 11,
+    "greedy_all_p0": 29,
+    "greedy_buy_hard": 8,
+    "greedy_buy_p0": 18,
+    "top3_union_p0": 16,
+    "top3_union_hard": 7,
+    "single_max_hard": 5,
+    "n_hard": 16,
+    "n_part": 61,
+    "n_p0": 77
+  },
+  "findings": [
+    {
+      "check": "CSV 总行数 = 109",
+      "expected": 109,
+      "actual": 109,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "需采购「指标×数据商」组合数 = 48",
+      "expected": 48,
+      "actual": 48,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "全表「指标×数据商」组合数 = 117",
+      "expected": 117,
+      "actual": 117,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "需采购行数 = 48（含 25 行研报通道）",
+      "expected": 48,
+      "actual": 48,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "部分免费行数 = 61",
+      "expected": 61,
+      "actual": 61,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "16 条需采购指标每条 ≥1 供应商",
+      "expected": 16,
+      "actual": 16,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "61 条部分免费给出免费替代源",
+      "expected": 61,
+      "actual": 61,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "建议买行数合计 = 22",
+      "expected": 22,
+      "actual": 22,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "需采购行建议买 = 6",
+      "expected": 6,
+      "actual": 6,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "部分免费行建议买 = 16",
+      "expected": 16,
+      "actual": 16,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "覆盖度取值：全覆盖 54",
+      "expected": 54,
+      "actual": 54,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "覆盖度取值：部分 53",
+      "expected": 53,
+      "actual": 53,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "覆盖度取值：不覆盖 2",
+      "expected": 2,
+      "actual": 2,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "研报通道行数 = 25",
+      "expected": 25,
+      "actual": 25,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "研报通道全部标「等」",
+      "expected": [],
+      "actual": [],
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "慧博研报通道 5 行全部带 A 级公开价",
+      "expected": 5,
+      "actual": 5,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "brief 比例 11/16（三家贪心（全部厂商）覆盖硬缺口）",
+      "expected": 68.8,
+      "actual": 68.8,
+      "blocking": false,
+      "detail": "11/16 应为 68.8%"
+    },
+    {
+      "check": "brief 比例 7/16（推荐三家联合覆盖硬缺口）",
+      "expected": 43.8,
+      "actual": 43.8,
+      "blocking": false,
+      "detail": "7/16 应为 43.8%"
+    },
+    {
+      "check": "brief 比例 5/16（单家最大覆盖硬缺口）",
+      "expected": 31.2,
+      "actual": 31.2,
+      "blocking": false,
+      "detail": "5/16 应为 31.2%"
+    },
+    {
+      "check": "brief 比例 29/77（三家贪心（全部厂商）覆盖 P0）",
+      "expected": 37.7,
+      "actual": 37.7,
+      "blocking": false,
+      "detail": "29/77 应为 37.7%"
+    },
+    {
+      "check": "brief 比例 8/16（三家贪心（只算建议买）覆盖硬缺口）",
+      "expected": 50.0,
+      "actual": 50.0,
+      "blocking": false,
+      "detail": "8/16 应为 50.0%"
+    },
+    {
+      "check": "brief 比例 18/77（三家贪心（只算建议买）覆盖 P0）",
+      "expected": 23.4,
+      "actual": 23.4,
+      "blocking": false,
+      "detail": "18/77 应为 23.4%"
+    },
+    {
+      "check": "brief 比例 16/77（推荐三家联合覆盖 P0）",
+      "expected": 20.8,
+      "actual": 20.8,
+      "blocking": false,
+      "detail": "16/77 应为 20.8%"
+    },
+    {
+      "check": "brief §二 覆盖数：国际半导体产业协会 SEMI（硬缺口）",
+      "expected": 0,
+      "actual": 0,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "brief §二 覆盖数：国际半导体产业协会 SEMI（P0）",
+      "expected": 9,
+      "actual": 9,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "brief §二 覆盖数：SNE Research（硬缺口）",
+      "expected": 1,
+      "actual": 1,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "brief §二 覆盖数：SNE Research（P0）",
+      "expected": 5,
+      "actual": 5,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "brief §二 覆盖数：Benchmark Mineral Intelligence（硬缺口）",
+      "expected": 4,
+      "actual": 4,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "brief §二 覆盖数：Benchmark Mineral Intelligence（P0）",
+      "expected": 4,
+      "actual": 4,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "brief §二 覆盖数：Wood Mackenzie（硬缺口）",
+      "expected": 4,
+      "actual": 4,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "brief §二 覆盖数：Wood Mackenzie（P0）",
+      "expected": 4,
+      "actual": 4,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "brief §二 覆盖数：米内网 Menet（硬缺口）",
+      "expected": 1,
+      "actual": 1,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "brief §二 覆盖数：米内网 Menet（P0）",
+      "expected": 2,
+      "actual": 2,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "brief §二 覆盖数：中国半导体行业协会 CSIA（硬缺口）",
+      "expected": 0,
+      "actual": 0,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "brief §二 覆盖数：中国半导体行业协会 CSIA（P0）",
+      "expected": 3,
+      "actual": 3,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "brief §二 覆盖数：赛迪顾问 / 中国电子信息产业发展研究院（CCID）（硬缺口）",
+      "expected": 1,
+      "actual": 1,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "brief §二 覆盖数：赛迪顾问 / 中国电子信息产业发展研究院（CCID）（P0）",
+      "expected": 1,
+      "actual": 1,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "brief §二 覆盖数：TrendForce 集邦（硬缺口）",
+      "expected": 1,
+      "actual": 1,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "brief §二 覆盖数：TrendForce 集邦（P0）",
+      "expected": 1,
+      "actual": 1,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "brief §二 覆盖数：高工锂电 / 高工产业研究院 GGII（硬缺口）",
+      "expected": 2,
+      "actual": 2,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "brief §二 覆盖数：高工锂电 / 高工产业研究院 GGII（P0）",
+      "expected": 2,
+      "actual": 2,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "brief §二 覆盖数：McKinsey 麦肯锡（硬缺口）",
+      "expected": 2,
+      "actual": 2,
+      "blocking": false,
+      "detail": ""
+    },
+    {
+      "check": "brief §二 覆盖数：McKinsey 麦肯锡（P0）",
+      "expected": 2,
+      "actual": 2,
+      "blocking": false,
+      "detail": ""
+    }
+  ],
+  "n_checks": 43,
+  "n_blocking": 0,
+  "verdict": "PASS"
+}

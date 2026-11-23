@@ -1,0 +1,95 @@
+  1/52  ERR   https://www.gg-lb.com/  URLError: <urlopen error [Errno -2] Name or service not known>
+  2/52  200   https://www.woodmac.com/lens/lens-energy-storage/  
+  3/52  200   https://about.bnef.com/insights/clean-energy/new-energy-outlook/  
+  4/52  200   https://www.woodmac.com/press-releases/pcs-inverter-market-share-rankings-2026  
+  5/52  200   https://www.sneresearch.com/en/insight/release/36  
+  6/52  200   https://www.benchmarkminerals.com/battery-gigafactory/supply-chain-data  
+  7/52  403   https://www.spglobal.com/commodityinsights/en/our-methodology/price-assessments/metals/battery-metals  Forbidden
+  8/52  200   https://www.benchmarkminerals.com/battery-energy-stationary-storage  
+  9/52  200   https://www.woodmac.com/reports/power-markets-us-energy-storage-monitor-q3-2026-150505404/  
+ 10/52  200   https://www.menet.com.cn/menetDatabase/database.html  
+ 11/52  200   https://www.iqvia.com/solutions/commercialization/brand-and-portfolio-strategy  
+ 12/52  200   https://www.yytj.org.cn/subscribeReportList.aspx  
+ 13/52  200   https://api.mtx.cn/report?command=detail&report_id=10022650  
+ 14/52  ERR   https://www.mckinsey.com/featured-insights  TimeoutError: The read operation timed out
+ 15/52  200   https://www.sneresearch.com/en/business/report_list/0?s_cat=&s_keyword=Semiconductor  
+ 16/52  200   https://www.trendforce.com/membership  
+ 17/52  200   https://www.benchmarkminerals.com/battery-gigafactory/prices  
+ 18/52  200   https://www.sneresearch.com/en/business/report_view/148/page/0  
+ 19/52  200   https://www.woodmac.com/industry/metals-and-mining/lithium-product-suite/  
+ 20/52  200   https://www.chinania.org.cn/html/hangyetongji/jqzs/  
+ 21/52  200   https://www.benchmarkminerals.com/lithium/prices  
+ 22/52  200   https://www.hibor.com.cn/price  
+ 23/52  200   https://www.fxbaogao.com/vip-benefits  
+ 24/52  200   https://m-robo.datayes.com/membership/open  
+ 25/52  200   https://www.cicc.com/services/research  
+ 26/52  200   https://www.citics.com/newsite/business/research_sales/research/research_yjfw/  
+ 27/52  200   https://www.cnesa.org/  
+ 28/52  200   https://www.cnesa.org/information/detail/?column_id=1&id=7798  
+ 29/52  200   https://www.sneresearch.com/en/insight/release_view/  
+ 30/52  200   https://www.smm.cn/  
+ 31/52  403   https://www.iea.org/reports/batteries-and-secure-energy-transitions  Forbidden
+ 32/52  403   https://www.irena.org/Data  Forbidden
+ 33/52  403   https://www.iea.org/data-and-statistics  Forbidden
+ 34/52  200   https://energystorageeurope.eu/  
+ 35/52  200   https://www.solarpowereurope.org/  
+ 36/52  200   https://joint-research-centre.ec.europa.eu/  
+ 37/52  200   https://www.cninfo.com.cn/  
+ 38/52  200   https://www.ifpma.org/  
+ 39/52  200   https://www.efpia.eu/  
+ 40/52  403   https://www.cms.gov/  Forbidden
+ 41/52  200   https://web.csia.net.cn/newsinfo/11310429.html  
+ 42/52  200   https://www.eusemiconductors.eu/esia/industry-statistics/wsts  
+ 43/52  429   https://store-us.semi.org/collections/market-intelligence  Too Many Requests
+ 44/52  200   https://web.csia.net.cn/  
+ 45/52  200   https://www.federalregister.gov/agencies/industry-and-security-bureau  
+ 46/52  200   https://www.semiconductors.org/data-resources/market-data/  
+ 47/52  403   https://www.imf.org/en/Publications/WEO/weo-database  Forbidden
+ 48/52  403   https://www.iea.org/reports/global-ev-outlook-2026  Forbidden
+ 49/52  200   https://oica.net/production-statistics/  
+ 50/52  200   https://icsg.org/  
+ 51/52  403   https://stat.unido.org/  Forbidden
+ 52/52  200   https://european-metals.eu/  
+
+=== 按状态汇总 ===
+  200     41 个
+  403      8 个
+  429      1 个
+  ERR      2 个
+
+--- 403 ---
+   https://www.spglobal.com/commodityinsights/en/our-methodology/price-assessments/metals/battery-metals   Forbidden
+   https://www.iea.org/reports/batteries-and-secure-energy-transitions   Forbidden
+   https://www.irena.org/Data   Forbidden
+   https://www.iea.org/data-and-statistics   Forbidden
+   https://www.cms.gov/   Forbidden
+   https://www.imf.org/en/Publications/WEO/weo-database   Forbidden
+   https://www.iea.org/reports/global-ev-outlook-2026   Forbidden
+   https://stat.unido.org/   Forbidden
+
+--- 429 ---
+   https://store-us.semi.org/collections/market-intelligence   Too Many Requests
+
+--- ERR ---
+   https://www.gg-lb.com/   URLError: <urlopen error [Errno -2] Name or service not known>
+   https://www.mckinsey.com/featured-insights   TimeoutError: The read operation timed out
+
+=== 验收：标「未公开」的行共 65 行；其中 URL 未返回 200 的: 18 行 ===
+    ('电池产能与产能利用率', '高工锂电 / 高工产业研究院 GGII', 'https://www.gg-lb.com/', 'ERR')
+    ('全球锂盐与镍钴价格', 'S&P Global Commodity Insights（Platts）', 'https://www.spglobal.com/commodityinsights/en/our-methodology/price-assessments/metals/battery-metals', 403)
+    ('动力电池产能与开工率', '高工锂电 / 高工产业研究院 GGII', 'https://www.gg-lb.com/', 'ERR')
+    ('全球储能装机与系统成本', '国际能源署 IEA', 'https://www.iea.org/reports/batteries-and-secure-energy-transitions', 403)
+    ('全球电池原材料供需平衡', '国际能源署 IEA', 'https://www.iea.org/data-and-statistics', 403)
+    ('全球电网投资与储能装机', '国际能源署 IEA', 'https://www.iea.org/reports/batteries-and-secure-energy-transitions', 403)
+    ('美国处方药销售与渠道结构', '美国 CMS（免费）+ IQVIA（付费源）', 'https://www.cms.gov/', 403)
+    ('全球能源需求与二氧化碳排放', '国际能源署 IEA', 'https://www.iea.org/data-and-statistics', 403)
+    ('全球 EV 销量与中国渗透率', '国际能源署 IEA', 'https://www.iea.org/reports/global-ev-outlook-2026', 403)
+    ('全球 EV 销量与新车渗透率', '国际能源署 IEA', 'https://www.iea.org/reports/global-ev-outlook-2026', 403)
+    ('全球动力电池需求与产能', '国际能源署 IEA', 'https://www.iea.org/reports/batteries-and-secure-energy-transitions', 403)
+    ('东南亚 EV 与两轮车电动化', '国际能源署 IEA', 'https://www.iea.org/reports/global-ev-outlook-2026', 403)
+    ('拉美与澳洲 EV 渗透率', '国际能源署 IEA', 'https://www.iea.org/reports/global-ev-outlook-2026', 403)
+    ('欧洲 EV 与 PHEV 技术路线结构', '国际能源署 IEA', 'https://www.iea.org/reports/global-ev-outlook-2026', 403)
+    ('美国 EV 销量与新车渗透率', '国际能源署 IEA', 'https://www.iea.org/reports/global-ev-outlook-2026', 403)
+    ('全球稀土产量与集中度', '国际能源署 IEA', 'https://www.iea.org/data-and-statistics', 403)
+    ('全球锂储量与需求结构', '国际能源署 IEA', 'https://www.iea.org/data-and-statistics', 403)
+    ('全球锂供需与产能过剩', '国际能源署 IEA', 'https://www.iea.org/data-and-statistics', 403)

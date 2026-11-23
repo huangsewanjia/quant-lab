@@ -1,0 +1,272 @@
+{
+  "checked": {
+    "baohf@pharmadl.com": {
+      "email": "baohf@pharmadl.com",
+      "found_on": "https://www.yytj.org.cn/ContactUs.aspx",
+      "tried": [
+        {
+          "url": "https://www.yytj.org.cn/ContactUs.aspx",
+          "status": 200,
+          "contains_email": true
+        }
+      ],
+      "found_status": 200
+    },
+    "cs@hufangde.com": {
+      "email": "cs@hufangde.com",
+      "found_on": "https://www.fxbaogao.com/",
+      "tried": [
+        {
+          "url": "https://www.fxbaogao.com/",
+          "status": 200,
+          "contains_email": true
+        }
+      ],
+      "found_status": 200
+    },
+    "hbzixun@126.com": {
+      "email": "hbzixun@126.com",
+      "found_on": "https://www.hibor.com.cn/",
+      "tried": [
+        {
+          "url": "https://www.hibor.com.cn/",
+          "status": 200,
+          "contains_email": true
+        }
+      ],
+      "found_status": 200
+    },
+    "hfd04@hufangde.com": {
+      "email": "hfd04@hufangde.com",
+      "found_on": "https://www.fxbaogao.com/",
+      "tried": [
+        {
+          "url": "https://www.fxbaogao.com/",
+          "status": 200,
+          "contains_email": true
+        }
+      ],
+      "found_status": 200
+    },
+    "info@datayes.com": {
+      "email": "info@datayes.com",
+      "found_on": "https://www.datayes.com/",
+      "tried": [
+        {
+          "url": "https://www.datayes.com/",
+          "status": 200,
+          "contains_email": true
+        }
+      ],
+      "found_status": 200
+    },
+    "kefu@smm.cn": {
+      "email": "kefu@smm.cn",
+      "found_on": "https://www.smm.cn/about/contact",
+      "tried": [
+        {
+          "url": "https://www.smm.cn/about/contact",
+          "status": 200,
+          "contains_email": true
+        }
+      ],
+      "found_status": 200
+    },
+    "press@iea.org": {
+      "email": "press@iea.org",
+      "found_on": null,
+      "tried": [
+        {
+          "url": "https://www.iea.org/about/contact",
+          "status": 403,
+          "contains_email": false
+        },
+        {
+          "url": "https://www.iea.org/contact",
+          "status": 403,
+          "contains_email": false
+        }
+      ]
+    },
+    "pricegroup@spglobal.com": {
+      "email": "pricegroup@spglobal.com",
+      "found_on": null,
+      "tried": [
+        {
+          "url": "https://www.spglobal.com/commodityinsights/en/contact-us",
+          "status": 403,
+          "contains_email": false
+        },
+        {
+          "url": "https://www.spglobal.com/commodityinsights/en/our-methodology/price-assessments/metals/battery-metals",
+          "status": 403,
+          "contains_email": false
+        }
+      ]
+    },
+    "prices@benchmarkminerals.com": {
+      "email": "prices@benchmarkminerals.com",
+      "found_on": null,
+      "tried": [
+        {
+          "url": "https://www.benchmarkminerals.com/contact",
+          "status": 200,
+          "contains_email": false
+        },
+        {
+          "url": "https://www.benchmarkminerals.com/battery-gigafactory/prices",
+          "status": 200,
+          "contains_email": false
+        }
+      ]
+    },
+    "sales.bnef@bloomberg.net": {
+      "email": "sales.bnef@bloomberg.net",
+      "found_on": "https://about.bnef.com/contact-us/",
+      "tried": [
+        {
+          "url": "https://about.bnef.com/contact-us/",
+          "status": 200,
+          "contains_email": true
+        }
+      ],
+      "found_status": 200
+    },
+    "sales@sneresearch.com": {
+      "email": "sales@sneresearch.com",
+      "found_on": "https://www.sneresearch.com/en/about/contact/",
+      "tried": [
+        {
+          "url": "https://www.sneresearch.com/en/about/contact/",
+          "status": 200,
+          "contains_email": true
+        }
+      ],
+      "found_status": 200
+    },
+    "service.en@smm.cn": {
+      "email": "service.en@smm.cn",
+      "found_on": "https://www.smm.cn/about/contact",
+      "tried": [
+        {
+          "url": "https://www.smm.cn/about/contact",
+          "status": 200,
+          "contains_email": true
+        }
+      ],
+      "found_status": 200
+    },
+    "service@ccidconsulting.com": {
+      "email": "service@ccidconsulting.com",
+      "found_on": "https://www.ccidconsulting.com/contact",
+      "tried": [
+        {
+          "url": "https://www.ccidconsulting.com/contact",
+          "status": 200,
+          "contains_email": true
+        }
+      ],
+      "found_status": 200
+    },
+    "service@smm.cn": {
+      "email": "service@smm.cn",
+      "found_on": "https://www.smm.cn/about/contact",
+      "tried": [
+        {
+          "url": "https://www.smm.cn/about/contact",
+          "status": 200,
+          "contains_email": true
+        }
+      ],
+      "found_status": 200
+    },
+    "service@trendforce.com": {
+      "email": "service@trendforce.com",
+      "found_on": "https://www.trendforce.com/contact/reporting",
+      "tried": [
+        {
+          "url": "https://www.trendforce.com/contact/reporting",
+          "status": 200,
+          "contains_email": true
+        }
+      ],
+      "found_status": 200
+    },
+    "sh@wsts.org": {
+      "email": "sh@wsts.org",
+      "found_on": "https://www.wsts.org/65/CONTACT",
+      "tried": [
+        {
+          "url": "https://www.wsts.org/65/CONTACT",
+          "status": 200,
+          "contains_email": true
+        }
+      ],
+      "found_status": 200
+    },
+    "sr_mi@trendforce.com": {
+      "email": "sr_mi@trendforce.com",
+      "found_on": "https://www.trendforce.com/contact/reporting",
+      "tried": [
+        {
+          "url": "https://www.trendforce.com/contact/reporting",
+          "status": 200,
+          "contains_email": true
+        }
+      ],
+      "found_status": 200
+    },
+    "support@woodmac.com": {
+      "email": "support@woodmac.com",
+      "found_on": "https://www.woodmac.com/about/contact-us/",
+      "tried": [
+        {
+          "url": "https://www.woodmac.com/about/contact-us/",
+          "status": 200,
+          "contains_email": true
+        }
+      ],
+      "found_status": 200
+    },
+    "team.marketing@datayes.com": {
+      "email": "team.marketing@datayes.com",
+      "found_on": "https://www.datayes.com/",
+      "tried": [
+        {
+          "url": "https://www.datayes.com/",
+          "status": 200,
+          "contains_email": true
+        }
+      ],
+      "found_status": 200
+    },
+    "tp@wsts.org": {
+      "email": "tp@wsts.org",
+      "found_on": "https://www.wsts.org/65/CONTACT",
+      "tried": [
+        {
+          "url": "https://www.wsts.org/65/CONTACT",
+          "status": 200,
+          "contains_email": true
+        }
+      ],
+      "found_status": 200
+    },
+    "yaoxl@pharmadl.com": {
+      "email": "yaoxl@pharmadl.com",
+      "found_on": "https://www.yytj.org.cn/ContactUs.aspx",
+      "tried": [
+        {
+          "url": "https://www.yytj.org.cn/ContactUs.aspx",
+          "status": 200,
+          "contains_email": true
+        }
+      ],
+      "found_status": 200
+    }
+  },
+  "not_checked": [
+    "research1@gaogong123.com"
+  ],
+  "n_in_plan": 22
+}

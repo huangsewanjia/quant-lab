@@ -1,0 +1,33 @@
+  1/25  200   https://www.woodmac.com/press-releases/apac-utility-scale-energy-storage-pricing-report-2025/  
+  2/25  200   https://www.woodmac.com/press-releases/pcs-inverter-market-share-rankings-2026  
+  3/25  200   https://www.yytj.org.cn/  
+  4/25  200   https://web.csia.net.cn/newsinfo/11304672.html  
+  5/25  200   https://web.csia.net.cn/newsinfo/11310429.html  
+  6/25  200   https://www.trendforce.com/price/dram/dram_spot  
+  7/25  200   https://www.trendforce.com/price/flash/flash_spot  
+  8/25  200   http://www.cbea.com/  
+  9/25  200   https://www.worldbank.org/en/research/commodity-markets  
+ 10/25  200   https://www.shfe.com.cn/reports/tradedata/dailyandweeklydata/  
+ 11/25  200   https://hq.smm.cn/new-energy/category/201102250059  
+ 12/25  200   https://hq.smm.cn/new-energy  
+ 13/25  200   https://pubs.usgs.gov/periodicals/mcs2026/  
+ 14/25  200   https://pubs.usgs.gov/periodicals/mcs2026/mcs2026-lithium.pdf  
+ 15/25  200   https://pubs.usgs.gov/periodicals/mcs2026/mcs2026-rare-earths.pdf  
+ 16/25  200   https://single-market-economy.ec.europa.eu/sectors/raw-materials/areas-specific-interest/critical-raw-materials/strategic-projects-under-crma_en  
+ 17/25  403   https://www.semi.org/en/semi-press-release/  Forbidden
+ 18/25  200   https://www.wsts.org/76/Recent-News-Release  
+ 19/25  200   https://www.sneresearch.com/en/insight/release_view/706/page/12  
+ 20/25  200   https://joint-research-centre.ec.europa.eu/  
+ 21/25  200   https://ec.europa.eu/eurostat/databrowser/view/prodcom_nace_ind/default/table  
+ 22/25  200   https://hq.smm.cn/copper/category/201102250376  
+ 23/25  200   https://hq.smm.cn/aluminum/category/201102250311  
+ 24/25  200   https://hq.smm.cn/lead/category/201102250211  
+ 25/25  200   https://hq.smm.cn/zinc/category/201102250173  
+
+=== 按状态汇总（免费替代源 URL）===
+  200     24 个
+  403      1 个
+
+--- 403 ---
+   https://www.semi.org/en/semi-press-release/
+       指标: 全球晶圆制造产能与地区集中度  Forbidden
