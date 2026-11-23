@@ -33,7 +33,7 @@
 
 **拟采购产品**：BESS Service / Battery & Gigafactory（Prices + Supply-chain data）/ Lithium Prices
 
-**询价入口**：https://www.benchmarkminerals.com/contact ；prices@benchmarkminerals.com
+**询价入口**：**官网联系表单** https://www.benchmarkminerals.com/contact （实测 200；表单第一项即「Using Benchmark prices in contracts」，正对本单用途；**页面内无任何公开邮箱**——`prices@benchmarkminerals.com` 未能在官网复核到，**不作为询价入口**）
 
 **邮件正文**（可直接复制）：
 

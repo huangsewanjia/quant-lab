@@ -87,7 +87,34 @@
 
 ---
 
-## 五、研报订阅通道（工单评论增补）：实测结果与停手
+## 五、询价入口的邮箱回环核对（大管家点名项：模板邮箱未验证真实性）
+
+**方法**（`experiments/WORK-535/verify_contacts.py`）：把主清单里出现的每个邮箱，逐个回到**厂商自己的页面**重新抓取，确认页面 HTML 里确实出现该邮箱串。原始输出 `experiments/WORK-535/contact_verification.json`。
+
+**结果：清单里 22 个邮箱，核对 21 个 → 命中 18，未复核到 3**；另 1 个（`research1@gaogong123.com`）是第三方转载域名，按设计不核对（清单里已标「未获官网确认」）。
+
+| 邮箱 | 回环结果 |
+|---|---|
+| `prices@benchmarkminerals.com` | ❌ **未复核到 → 已从询价入口撤掉**。Benchmark 联系页实测 200，但**页内没有任何邮箱**（是分类表单，第一项即「Using Benchmark prices in contracts」）；sitemap 里也没有第二个联系页。**清单、摘要、询价模板三处已改为「官网联系表单」并写明原因** |
+| `press@iea.org` | ❌ 未复核到 —— `iea.org` 全站对本机 **403**（非邮箱不存在），清单已按停手登记处理 |
+| `pricegroup@spglobal.com` | ❌ 未复核到 —— `spglobal.com` **全域 403**；清单里本就标注「索引副本，未直接验证」 |
+| `tp@wsts.org` / `sh@wsts.org` | ✅ `https://www.wsts.org/65/CONTACT` 与 `https://www.wsts.org/135/263/Disclosure` 实测 200 且页内含这两个邮箱（**WSTS 首页是 JS 渲染，所以第一轮抓不到**） |
+| `sales@sneresearch.com` | ✅ `https://www.sneresearch.com/en/about/contact/` |
+| `support@woodmac.com` | ✅ `https://www.woodmac.com/about/contact-us/` |
+| `service@trendforce.com` / `sr_mi@trendforce.com` | ✅ `https://www.trendforce.com/contact/reporting` |
+| `service@ccidconsulting.com` | ✅ `https://www.ccidconsulting.com/contact` |
+| `sales.bnef@bloomberg.net` | ✅ `https://about.bnef.com/contact-us/` |
+| `baohf@pharmadl.com` / `yaoxl@pharmadl.com` | ✅ `https://www.yytj.org.cn/ContactUs.aspx` |
+| `kefu@smm.cn` / `service@smm.cn` / `service.en@smm.cn` | ✅ `https://www.smm.cn/about/contact` |
+| `hbzixun@126.com` | ✅ `https://www.hibor.com.cn/`（首页公示） |
+| `cs@hufangde.com` / `hfd04@hufangde.com` | ✅ `https://www.fxbaogao.com/`（首页公示） |
+| `info@datayes.com` / `team.marketing@datayes.com` | ✅ `https://www.datayes.com/`（通联数据官网公示） |
+
+> **本节的价值**：把「询价入口」从「抄来的邮箱」变成**逐个回环核过、可当场复跑**的证据；核不到的不留，改为可核的表单入口并写明原因。
+
+---
+
+## 六、研报订阅通道（工单评论增补）：实测结果与停手
 
 **为什么要单列**：工单评论指出，用户要的「著名投行行业研究报告」在**公开源里几乎不存在** —— 东财研报接口抽样 900 条、95 家机构，高盛/摩根士丹利/摩根大通/瑞银/花旗/美银/野村/大和**零覆盖**，只有「中信证券经纪(香港)」。所以这一层要么走机构协议、要么走聚合平台，不能指望免费源。
 
@@ -117,7 +144,7 @@
 
 ---
 
-## 六、已核实的否定性结论（写下来是为了不再踩）
+## 七、已核实的否定性结论（写下来是为了不再踩）
 
 | 结论 | 证据 |
 |---|---|
@@ -132,7 +159,7 @@
 
 ---
 
-## 七、未取到、须人工确认的字段
+## 八、未取到、须人工确认的字段
 
 - Benchmark：**产能利用率**字段、**长期合约价**产品。
 - S&P Global：全部覆盖度结论仅来自索引副本；索引副本对发布频率有「daily」与「weekly on Fridays」**两种互相矛盾的表述**。
@@ -144,10 +171,11 @@
 - GGII：现域名、联系渠道、产品形态、是否存在公开标价 —— **全部未取到**。
 - SNE：Monthly Tracker 订阅费（逐字「※ Subscription pricing is available upon request」）。
 - 全部 SEMI 价格：**未直连复核**（429），需人工浏览器核对。
+- `press@iea.org`、`pricegroup@spglobal.com`：**官网对本机 403**，邮箱无法回环复核（不是邮箱不存在）；需人工浏览器确认。
 
 ---
 
-## 八、61 条「部分免费」行的免费替代源（能替代到哪一步）
+## 九、61 条「部分免费」行的免费替代源（能替代到哪一步）
 
 - **61/61 行都给了免费替代源**（门槛 80%）。替代源分三类：**① 协会/政府/交易所的官方统计**（IEA、IRENA、IFPMA、EFPIA、CMS、CNINFO、OICA、ICSG、BIS、Eurostat、World Bank、SHFE、USGS、ACEA、AFDC、CSIA、CNESA、EASE、SolarPower Europe、Eurometaux、SIA）｜**② 厂商自己免费放出的部分**（SEMI 新闻稿、SMM 公开行情页、WoodMac 公开新闻稿、McKinsey 文章）｜**③ 二手公开报告中的可引用数字**（如 CNESA 白皮书免费文章 `id=7798` 实测 HTTP 200，页内带真实数字：2025 年 2h EPC 中标均价 **1,043.82 元/kWh**（同比 −13.04%）、4h EPC **935.40 元/kWh**（同比 −8.19%）；LFP 储能系统（不含用户侧）采购中标价区间 **391.14–913.00 元/kWh** —— **单位是 元/kWh，不是 元/Wh**（页内「元/Wh」0 处），本库口径是元/Wh，换算须除以 1000；原文自述「根据 CNESA DataLink 全球储能数据库的**不完全统计**」）。
 - **能力差距逐条写在清单的「替代源能力差距」列**，主要三类：**频率降级**（月度→年度、年度→一次性）、**口径变窄**（总量有、分环节没有；全球有、中国没有）、**滞后**（Pink Sheet 滞后约 1 个月；IEA/EV 数据为年度）。
@@ -155,7 +183,7 @@
 
 ---
 
-## 九、本单自身踩过的坑（失败记录）
+## 十、本单自身踩过的坑（失败记录）
 
 | # | 坑 | 怎么发现 | 怎么改 |
 |---|---|---|---|
@@ -169,12 +197,14 @@
 | 8 | 复算脚本把摘要 §四 的横向对比表也当成 §二 的覆盖表解析 → 报假阻断 | 复算报 BLOCKING | 复算只切 §二 段落；并加厂商简称别名表 |
 | 9 | **第三方内容站转述的价格被当成了厂商价**（搜索结果里有「慧博 328/5980 元/年」「Wind 约 4 万/年」等说法） | 本单的价格纪律要求「必须来自实际打开的厂商页面」 | 一律回到厂商自己的价格页取：慧博 → `https://www.hibor.com.cn/price`（200，有公开标价）；取不到就写「未公开，需询价」；索引副本只能算 B 级并注明未直接复核 |
 | 10 | 摘要 §五「未覆盖 5 条」一度写错（把已被 GGII 覆盖的 2 条列了进去） | 独立复算比对出比例对不上 | 按复算结果改正：未覆盖的是中国医药市场规模与增速、PCS 与逆变器出货量、全球锂盐与镍钴价格、半导体设备与材料国产化率、存储芯片现货价与合约价 |
+| 11 | **硬要求第 3 条漏了「路透/彭博新闻」这个免费替代源** | 大管家验收时点出该清单未列全 | 25 行的「免费替代源」与「替代源能力差距」列补入路透/彭博（并把五个来源的差距逐个写清：Insights 页无正文、监管披露无测算、路透/彭博只给结论、SSRN 口径不同、协会源频率降级） |
+| 12 | **清单里写了 `prices@benchmarkminerals.com`，但该邮箱在 Benchmark 官网任何页面都核不到**（联系页是分类表单，页内无邮箱） | 询价邮箱回环核对（`verify_contacts.py`） | 撤掉该邮箱，改为「官网联系表单 https://www.benchmarkminerals.com/contact （实测 200，表单第一项即 Using Benchmark prices in contracts）」，并在清单/摘要/模板三处写明原因 |
 
 > 这些坑都写进了 `experiments/registry.md` 的 WORK-535 行「失败 / 被证伪项」栏。
 
 ---
 
-## 十、复现方式
+## 十一、复现方式
 
 ```bash
 # 依赖：duckdb pandas numpy（本机 venv 在 workdir 下）
@@ -192,6 +222,9 @@ python experiments/WORK-535/check_plan_urls.py docs/procurement_plan.csv
 
 # 5) 覆盖度算式与贪心集合覆盖
 python experiments/WORK-535/final_stats.py docs/procurement_plan.csv
+
+# 6a) 询价入口邮箱的回环核对（每个邮箱回厂商页面确认）
+python experiments/WORK-535/verify_contacts.py docs/procurement_plan.csv
 
 # 6b) 研报通道厂商的价格页与联系入口探测（增补节用）
 python experiments/WORK-535/probe_research_vendors.py  research_vendor_probe.json

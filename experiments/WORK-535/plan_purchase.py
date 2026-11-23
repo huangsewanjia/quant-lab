@@ -30,7 +30,7 @@ PURCHASE = [
         替代源能力差距='IEA 公开页只给全球装机与成本结论，不给「系统 vs 组件」分项出货量，也没有项目级明细',
         建议='买',
         备注='官网明示交付物原文：「Forecast and assessment in PDF with supporting Excel workbook」「Database as Excel workbook」「A monthly database providing a project-by-project status update of grid scale stationary storage projects」。'
-             '覆盖度依据 = 该产品页实读（HTTP 200）。询价入口：https://www.benchmarkminerals.com/contact ；prices@benchmarkminerals.com'),
+             '覆盖度依据 = 该产品页实读（HTTP 200）。询价入口：**官网联系表单** https://www.benchmarkminerals.com/contact （实测 200；表单第一项即「Using Benchmark prices in contracts」，正对本单用途；**页面内无任何公开邮箱**——`prices@benchmarkminerals.com` 未能在官网复核到，**不作询价入口**）'),
     dict(
         指标名='全球电芯价格与产能利用率', 行业='储能与电力设备', 区域='全球',
         数据商='Benchmark Mineral Intelligence', 覆盖度='部分',
@@ -41,7 +41,7 @@ PURCHASE = [
         建议='等',
         备注='官网覆盖电芯产能、产能管线与生产成本：「Benchmark tracks global gigafactory build-outs, cell production capacity, and associated production costs」；'
              '更新频率原文「Our cell prices and gigafactory capacity is updated monthly, while supply chain forecasts and price forecasts are updated on a quarterly basis」。'
-             '**「产能利用率/utilisation」未在任何公开页出现 → 须向销售确认是否单列该字段**。询价入口同 Benchmark。'),
+             '**「产能利用率/utilisation」未在任何公开页出现 → 须向销售确认是否单列该字段**。询价入口同 Benchmark（官网联系表单 https://www.benchmarkminerals.com/contact ；**页面内无公开邮箱**）。'),
     dict(
         指标名='全球电芯价格', 行业='新能源车', 区域='全球',
         数据商='Benchmark Mineral Intelligence', 覆盖度='全覆盖',
@@ -52,7 +52,7 @@ PURCHASE = [
         建议='买',
         备注='官网原文「Benchmark publishes battery cell price assessments monthly along with capacity assessments of lithium ion and sodium ion batteries」；'
              '「You can also integrate our prices data via API, Excel add-in」。公开页列出 NCM111/523/622/811、NCA、LFP、LCO 七种电芯体系，但**未出现 kWh 字样 → 单位需确认**。'
-             '询价入口：https://www.benchmarkminerals.com/contact ；prices@benchmarkminerals.com'),
+             '询价入口：**官网联系表单** https://www.benchmarkminerals.com/contact （实测 200；表单第一项即「Using Benchmark prices in contracts」，正对本单用途；**页面内无任何公开邮箱**——`prices@benchmarkminerals.com` 未能在官网复核到，**不作询价入口**）'),
     dict(
         指标名='全球锂价与长期合约价', 行业='有色与锂', 区域='其他',
         数据商='Benchmark Mineral Intelligence', 覆盖度='部分',
@@ -62,7 +62,7 @@ PURCHASE = [
         替代源能力差距='免费源为月度基准价、非评估价，且不含长期合约价；Pink Sheet 滞后约 1 个月',
         建议='等',
         备注='官网原文「Benchmark publishes Lithium Price Assessments daily, weekly and every two weeks」，品种列 Lithium Carbonate / Lithium Hydroxide / Spodumene。'
-             '**「长期合约价」无对应产品页**：页面 FAQ 只解释现货与合约价的机制差异，未说明是否提供长期合约价序列 → 须向销售确认。询价入口同 Benchmark。'),
+             '**「长期合约价」无对应产品页**：页面 FAQ 只解释现货与合约价的机制差异，未说明是否提供长期合约价序列 → 须向销售确认。询价入口同 Benchmark（官网联系表单 https://www.benchmarkminerals.com/contact ；**页面内无公开邮箱**）。'),
     dict(
         指标名='全球电芯价格与产能利用率', 行业='储能与电力设备', 区域='全球',
         数据商='Benchmark Mineral Intelligence', 覆盖度='全覆盖',
@@ -72,7 +72,7 @@ PURCHASE = [
         替代源能力差距='免费源不存在；本行是价格评估产品族入口，覆盖度作为「电芯价格 + 锂钴镍等原料价」的佐证',
         建议='等',
         备注='官网原文「Bringing together over 2,500 price assessments, covering a broad range of energy transition raw materials and chemistries」；'
-             '方法学 PDF 公开（含锂、钴、镍、石墨、稀土等）。询价入口：https://www.benchmarkminerals.com/contact ；prices@benchmarkminerals.com'),
+             '方法学 PDF 公开（含锂、钴、镍、石墨、稀土等）。询价入口：**官网联系表单** https://www.benchmarkminerals.com/contact （实测 200；表单第一项即「Using Benchmark prices in contracts」，正对本单用途；**页面内无任何公开邮箱**——`prices@benchmarkminerals.com` 未能在官网复核到，**不作询价入口**）'),
     dict(
         指标名='全球电芯价格', 行业='新能源车', 区域='全球',
         数据商='Benchmark Mineral Intelligence', 覆盖度='全覆盖',

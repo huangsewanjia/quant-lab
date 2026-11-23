@@ -204,7 +204,7 @@ PARTIAL_BY_SOURCE = {
                       '**按地区与 190+ 细分品类的月度账单属会员付费**',
         建议='买',
         备注='**WSTS 新闻稿实测可达**（当前为「Global Semiconductor Market Surges Beyond $1.5T 2026」，含 PDF 下载）；'
-             'WSTS 官网 Contact 页列 Administrator and CEO Tobias Pröttel（tp@wsts.org）。'
+             'WSTS 官网 Contact 页列 Administrator and CEO Tobias Pröttel（tp@wsts.org（**已在官网核到**：https://www.wsts.org/65/CONTACT 与 https://www.wsts.org/135/263/Disclosure 两页实测 200 且页内含该邮箱；同页另有 sh@wsts.org））。'
              '口径：按市场所在地统计、销售额为出厂价口径（G-04）。',
     ),
     'WSTS 世界半导体贸易统计组织 https://www.wsts.org/ ；中国半导体行业协会转载 https://web.csia.net.cn/': dict(
@@ -216,7 +216,7 @@ PARTIAL_BY_SOURCE = {
         替代源能力差距='免费源给全球总量与主要分项，**半年度分品类明细与完整历史序列需会员订阅**；'
                       'CSIA 转载为协会口径，与 WSTS 原表的品类划分不完全对应',
         建议='买',
-        备注='WSTS 新闻稿实测可达。询价入口：WSTS 官网 Contact（tp@wsts.org）；ESIA 订阅表单。',
+        备注='WSTS 新闻稿实测可达。询价入口：WSTS 官网 Contact（tp@wsts.org（**已在官网核到**：https://www.wsts.org/65/CONTACT 与 https://www.wsts.org/135/263/Disclosure 两页实测 200 且页内含该邮箱；同页另有 sh@wsts.org））；ESIA 订阅表单。',
     ),
     '欧洲半导体产业协会 ESIA https://www.esia.eu/（ESIA·欧洲半导体产业统计）': dict(
         数据商='欧洲半导体产业协会 ESIA', 覆盖度='部分',

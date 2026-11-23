@@ -27,6 +27,7 @@
 | `plan_url_status.json` / `free_url_status.json` | URL 体检原始结果 |
 | `final_stats.txt` | 算式原始输出 |
 | `audit_findings.json` | 独立复算结论（由 `audit/recompute_work535.py` 产出，43 项 blocking 0） |
+| `verify_contacts.py` | 询价入口邮箱的**回环核对**：每个邮箱回到厂商自己的页面确认确实出现 → `contact_verification.json`（21 核对，18 命中，3 未复核到） |
 | `probe_research_vendors.py` / `probe_research_vendors2.py` | 研报通道厂商的价格页 / 产品页 / 联系入口探测 → `research_vendor_probe.json` / `research_vendor_probe2.json` |
 
 ---
@@ -40,6 +41,7 @@ python verify_prices.py ../../docs/procurement_plan.csv            # 3) 价格�
 python check_plan_urls.py ../../docs/procurement_plan.csv          # 4) URL 体检
 python check_free_urls.py ../../docs/procurement_plan.csv          # 5) 免费源链接体检
 python final_stats.py ../../docs/procurement_plan.csv              # 6) 覆盖度算式
+python verify_contacts.py ../../docs/procurement_plan.csv          # 6a) 询价邮箱回环核对
 python probe_research_vendors.py  research_vendor_probe.json        # 6b) 研报通道厂商价格页探测
 python probe_research_vendors2.py research_vendor_probe2.json       # 6c) 研报通道厂商联系入口探测
 cd ../../ && python audit/recompute_work535.py                    # 7) 独立复算闸门
@@ -54,4 +56,5 @@ cd ../../ && python audit/recompute_work535.py                    # 7) 独立复
 1. **价格零编造**：任何价格要么在引用的 URL 上复核命中（A 级），要么标注为本机取不到、证据降为 B 级（SEMI，429），要么写 `未公开，需询价` 并给询价入口。**没有「大概是 $X」**。
 2. **覆盖度必须有依据**：覆盖度只来自实际打开的厂商产品页；**核实为不覆盖的写「不覆盖」，不计入任何覆盖数**（本单 2 行）。保守口径：同一「指标 × 数据商」有多条证据时，**覆盖度取低**、建议取强，冲突写进备注。
 3. **区分数据与报告**：McKinsey / 中国有色金属工业协会 / 中国医药工业信息中心只卖报告或文章 → 标「不买」；TrendForce 报价单位是**每颗芯片规格**（DDR5 16Gb → 72.00），不是本库要的 USD/GB，换算前不可并列。
-4. **研报通道只到「覆盖研究域」**：5 家研报通道（慧博 / 发现报告 / 萝卜投研 / 中金 / 中信）虽然各自覆盖 5 条战略层硬缺口，但给的是 **PDF 与图表、不是结构化数据** → 覆盖度记「部分」、建议记「等」，**必须先索取样张**核对「各环节利润率」是否落在里面；外资投行研报合同通常**禁止转载与二次分发**。
+4. **询价入口必须回环核到**：清单里出现的每个邮箱都要能在厂商自己的页面上找到；核不到的不留（Benchmark 的 `prices@…` 官网无此邮箱 → 改用联系表单）。
+5. **研报通道只到「覆盖研究域」**：5 家研报通道（慧博 / 发现报告 / 萝卜投研 / 中金 / 中信）虽然各自覆盖 5 条战略层硬缺口，但给的是 **PDF 与图表、不是结构化数据** → 覆盖度记「部分」、建议记「等」，**必须先索取样张**核对「各环节利润率」是否落在里面；外资投行研报合同通常**禁止转载与二次分发**。

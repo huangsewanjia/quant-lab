@@ -58,7 +58,7 @@
 
 ### 第 2 家｜Benchmark Mineral Intelligence
 - **覆盖 4 条硬缺口**（全球储能系统与组件出货量 / 全球电芯价格 / 全球电芯价格与产能利用率 / 全球锂价与长期合约价），是**唯一对电芯价格 + 电芯产能双全覆盖**的厂商，**不可替代**；其中 2 行标「买」。
-- **价格需询价** → 先发询价函拿报价：<https://www.benchmarkminerals.com/contact> ／ `prices@benchmarkminerals.com`。
+- **价格需询价** → 先发询价函拿报价：**官网联系表单** <https://www.benchmarkminerals.com/contact>（实测 200；表单第一项即「Using Benchmark prices in contracts」，正对本单用途；**页面内无任何公开邮箱**——`prices@benchmarkminerals.com` 未能在官网复核到，**不写进清单**）。
 - ⚠️ 两处口径必须问清：① 官网任何公开页**都没出现「产能利用率 / utilisation」字段**（只到产能与产能管线）→ 该行覆盖度按保守口径记「部分」；② **没有「长期合约价」产品页**（FAQ 只解释现货与合约价的机制差异）。
 
 ### 第 3 家｜Wood Mackenzie
