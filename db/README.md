@@ -550,11 +550,14 @@ cd <repo>
 /home/moyongkai/.venvs/quantdb/bin/python -m db.checks.run all \
     --out /srv/share/quantdb/meta/checks/checks-20261123-recheck2.json                # EXIT_CODE=0
 /home/moyongkai/.venvs/quantdb/bin/python -m db.etl.stats --out /srv/share/quantdb/meta/stats-20261123-recheck.md
-/home/moyongkai/.venvs/quantdb/bin/python -m db.etl.delivery --out /srv/share/quantdb/meta/delivery-20261123-recheck.json
+/home/moyongkai/.venvs/quantdb/bin/python -m db.etl.delivery --out /srv/share/quantdb/meta/delivery-20261123-recheck2.json
 ```
 
 - 六闸结论：G1 `PASS_WITH_EXCEPTIONS`（6 条可解释例外、0 条未解释异常）、G2/G3/G4/G5/G6 全 `PASS`。
 - 16 张表逐表 Parquet 行数 = DuckDB 行数，合计 **102,391,068 = 102,391,068**，差异 0，重复主键组 0。
+- 交付汇总 `meta/delivery-20261123-recheck2.json`：`totals.rows = 102,391,068`、`failures = {}`（无失败分区）、`quality_gates.ok = true`。
+- DuckDB 文件校验值：`sha256 = fe8832f2aab2b17958284956cf3060a84f785a01dac3e684abf0b77f0918df8a`（5,817,249,792 字节）。
+  （2026-11-23 02:21Z 验收记录里的 `484b0bfc…` **已作废**：`trade_cal` 按研究窗口重抓并重装后文件内容变了。）
 
 ### 11.5 本轮改动的独立复核（独立子代理，主循环不参与）
 
