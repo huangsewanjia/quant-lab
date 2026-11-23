@@ -16,12 +16,16 @@ fi
 
 rsync -a --delete --exclude 'staging/tmp/' "${QDB_SRC}/" "${QDB_DST}/"
 (
-  cd "${QDB_DST}"
+  cd "${QDB_SRC}"
   {
+    [ -d raw ] && find raw -type f -print0
     [ -d db ] && find db -type f -print0
     [ -d meta ] && find meta -type f -print0
     [ -d policy ] && find policy -type f -print0
-  } | sort -z | xargs -0 -r sha256sum > SHA256SUMS
+  } | sort -z | xargs -0 -r sha256sum > "${QDB_DST}/SHA256SUMS"
+)
+(
+  cd "${QDB_DST}"
   sha256sum -c SHA256SUMS --quiet
 )
-echo "quantdb cold copy done: $(date -Iseconds)" | tee -a "${QDB_SRC}/logs/backup-cold.log"
+echo "quantdb cold copy done: $(date -Iseconds) files=$(wc -l < "${QDB_DST}/SHA256SUMS")" | tee -a "${QDB_SRC}/logs/backup-cold.log"

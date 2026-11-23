@@ -20,10 +20,10 @@
 
 实测：
 
-- `pytest db/tests -q` → 152 passed。
+- `pytest db/tests -q` → 156 passed。
 - 行情增量在收盘前 no-op；模拟收盘后无数据返回 75 且不写空分区。
 - 财务 2026-11-13 单日实测四次抓取 + dividend 21 个分区，重复跑行数不变。
-- 冷备 rsync + `SHA256SUMS` 89,715 个文件校验通过。
+- 冷备 rsync + `SHA256SUMS` 155,640 个文件校验通过。
 - 四个 timer `systemctl --user list-timers` 均 active。
 
 ## 2026-11-22 · WORK-513 建库 P1

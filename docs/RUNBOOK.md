@@ -135,8 +135,9 @@ cat /srv/share/quantdb/policy/missing/$(date +%Y%m%d).jsonl
 ```bash
 mkdir -p /srv/backup/quantdb
 rsync -a --delete --exclude 'staging/tmp/' /srv/share/quantdb/ /srv/backup/quantdb/
+cd /srv/share/quantdb
+find raw db meta policy -type f -print0 | sort -z | xargs -0 -r sha256sum > /srv/backup/quantdb/SHA256SUMS
 cd /srv/backup/quantdb
-find db meta policy -type f -print0 | sort -z | xargs -0 -r sha256sum > SHA256SUMS
 sha256sum -c SHA256SUMS --quiet
 ```
 

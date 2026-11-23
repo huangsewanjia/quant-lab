@@ -226,7 +226,8 @@ def test_strict_empty_dates_protects_critical_datasets_and_allows_empty_events()
     now = incremental.parse_now("2020-01-07T19:00:00+08:00")
     plan = incremental.Plan("daily", "20200106", "20200107", "test", ("20200106", "20200107"))
     assert incremental.strict_empty_dates_for("daily", plan, now) == {"20200106", "20200107"}
-    assert incremental.strict_empty_dates_for("suspend_d", plan, now) == {"20200107"}
+    assert incremental.strict_empty_dates_for("suspend_d", plan, now) == set()
+    assert incremental.strict_empty_dates_for("stk_limit", plan, now) == set()
 
 
 def test_holiday_returns_zero_before_creating_a_client(qdb, monkeypatch):
@@ -242,6 +243,27 @@ def test_holiday_returns_zero_before_creating_a_client(qdb, monkeypatch):
     args = argparse.Namespace(
         dataset="daily",
         group="market",
+        now="2020-01-04T10:00:00+08:00",
+        concurrency=1,
+        rpm=60,
+        retries=0,
+    )
+    assert incremental.run(args) == 0
+
+
+def test_index_weight_holiday_returns_zero_before_creating_a_client(qdb, monkeypatch):
+    _calendar_flags(qdb, [("20200103", 1), ("20200104", 0)])
+
+    class FailClient:
+        def __init__(self, *args, **kwargs):
+            raise AssertionError("client must not be created on a holiday")
+
+    import db.etl.tushare_client as client_mod
+
+    monkeypatch.setattr(client_mod, "TushareClient", FailClient)
+    args = argparse.Namespace(
+        dataset="index_weight",
+        group="index_weight",
         now="2020-01-04T10:00:00+08:00",
         concurrency=1,
         rpm=60,
@@ -298,3 +320,47 @@ def test_corrupt_old_partition_is_not_silently_replaced(qdb):
     target.write_bytes(target.read_bytes() + b"broken")
     with pytest.raises(RuntimeError, match="拒绝覆盖历史"):
         fetch.merge_existing_frame("income", "600000.SH", new)
+
+
+def test_dividend_incremental_drops_null_primary_keys(qdb):
+    class DividendClient:
+        def call(self, api, params, **kwargs):
+            assert api == "dividend"
+            return (
+                ["ts_code", "end_date", "ann_date", "div_proc"],
+                [
+                    ["600000.SH", None, "20261113", "实施"],
+                    ["600000.SH", "20260930", "20261113", "实施"],
+                ],
+            )
+
+    plan = incremental.Plan("finance", "20261113", "20261113", "test", ("20261113",))
+    result = incremental._fetch_dividend_days(
+        DividendClient(), plan, "2026-11-23T00:00:00Z"
+    )
+    assert result["partitions"] == 1
+    meta = qdb.read_manifest("dividend", "600000.SH")
+    assert meta["rows"] == 1
+    assert meta["rows_dropped_null_pk"] == 1
+
+
+def test_empty_calendar_response_does_not_overwrite_existing(qdb):
+    old = pd.DataFrame(
+        {"exchange": ["SSE"], "cal_date": ["20200102"], "is_open": [1], "pretrade_date": ["20200102"]}
+    )
+    qdb.write_partition(old, "trade_cal", "SSE", "test")
+
+    class EmptyCalendarClient:
+        def frame(self, api, params, **kwargs):
+            return pd.DataFrame()
+
+    with pytest.raises(incremental.IncrementalError):
+        incremental.refresh_calendar(EmptyCalendarClient(), "20200106")
+    assert qdb.read_manifest("trade_cal", "SSE")["rows"] == 1
+
+
+def test_missing_raw_file_is_not_a_watermark(qdb):
+    _daily(qdb, "20200102")
+    _daily(qdb, "20200103")
+    qdb.partition_file("daily", "20200103").unlink()
+    assert incremental.max_raw_date("daily") == "20200102"

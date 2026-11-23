@@ -91,14 +91,15 @@
 
 | 项 | 命令 | 结果 |
 |---|---|---|
-| 单测 | `pytest db/tests -q` | 152 passed |
+| 单测 | `pytest db/tests -q` | 156 passed |
 | 数据闸门 | `python -m db.checks.run all --out .../checks-20261123-work529.json` | `ok: true`，G1–G6 全 PASS |
 | 台账 | `python -m db.etl.stats --json` | 16 个数据集 / 65,919 分区 / 102,391,068 行 / 6,290,875,840 字节 |
 | 手动 daily | `systemctl --user start quantdb-daily.service` | exit 0；2026-11-23 10:25；0 个新行情分区；日志 `logs/daily-20261123.log` |
 | 源端延迟 | `fetch --incremental --group market --now 2026-11-23T18:35:00+08:00`（临时 home） | exit 75；`daily/20261123` 无分区、失败清单记 `source_delay` |
 | 财务幂等 | 临时 home 连续两次 `fetch --incremental --group finance --overlap-days 1 --now 2026-11-13T19:00:00+08:00` | 行数保持 income 2 / balancesheet 2 / cashflow 1 / fina_indicator 2 / dividend 33 |
+| 指数独立 | 临时 home 伪造 19:35 + 错误 token 跑 `daily.sh` | market=1 时仍执行 index_weight，日志 `daily finished market=1 index_weight=1 final=1` |
 | 告警 | 错误 token 路径运行 `daily.sh` | 建单 `WORK-533`，验证后已取消 |
-| 冷备 | rsync + `SHA256SUMS` | 89,715 个文件校验通过；`/srv/backup/quantdb` 13G |
+| 冷备 | rsync + `SHA256SUMS` | 155,640 个文件校验通过；`/srv/backup/quantdb` 13G |
 | 定时器 | `systemctl --user list-timers --all` | daily 18:30 / finance 19:00 / policy 18:00 / weekly 下周一 06:00 |
 
 ## 9. 回滚
@@ -132,3 +133,14 @@ systemctl --user daemon-reload
 | B9 | 冷备脚本与 unit 移入稳定仓库；home 脚本变 shim |
 
 第二轮复审在修复提交上重新执行，不复用第一轮会话。
+
+### 第二轮复审的 6 条 blocking（已修）
+
+| 编号 | 修复 |
+|---|---|
+| R1 | `stk_limit` / `suspend_d` 的合法空响应不再按源端延迟处理 |
+| R2 | 增量 `dividend` 写分区前清理空主键，`rows_dropped_null_pk` 入 manifest |
+| R3 | 日历刷新先校验非空、覆盖区间和 `is_open`，异常时保留旧分区 |
+| R4 | daily 的 19:30 / 20:30 分支无条件执行 `index_weight`，再合并退出码 |
+| R5 | 冷备从源目录生成 `SHA256SUMS`，覆盖 `raw/db/meta/policy`，在目标目录校验 |
+| R6 | `--group index_weight` 与 `market` 一样先查日历，节假日不创建客户端 |

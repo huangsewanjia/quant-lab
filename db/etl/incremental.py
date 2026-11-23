@@ -185,7 +185,14 @@ def _date_range(start: str, end: str) -> list[str]:
 
 
 def max_raw_date(dataset: str) -> str | None:
-    values = [p for p in common.list_partitions(dataset) if _norm_date(p)]
+    values = []
+    for partition in common.list_partitions(dataset):
+        if not _norm_date(partition):
+            continue
+        meta = common.read_manifest(dataset, partition) or {}
+        if not common.manifest_file_ok(meta, verify_hash=False):
+            continue
+        values.append(partition)
     return max(values) if values else None
 
 
@@ -245,8 +252,9 @@ def strict_empty_dates_for(
     if plan.is_noop:
         return set()
     if dataset in ALLOW_EMPTY_DATASETS:
-        today = now.strftime("%Y%m%d")
-        return {today} if today in plan.days and now.time() >= CLOSE_TIME else set()
+        # No limit event / no suspension is a legitimate empty result on many
+        # trading days. Do not turn it into a source-delay alert.
+        return set()
     return set(plan.days)
 
 
@@ -287,10 +295,35 @@ def index_weight_plan(now: dt.datetime, calendar: pd.DataFrame | None = None) ->
     )
 
 
+def _validate_calendar_frame(
+    frame: pd.DataFrame, exchange: str, start: str, end: str
+) -> None:
+    """Reject an empty or truncated calendar before it replaces the old one."""
+    if frame.empty:
+        raise IncrementalError(f"trade_cal {exchange} 返回空响应，保留旧日历")
+    for column in ("cal_date", "is_open"):
+        if column not in frame.columns:
+            raise IncrementalError(f"trade_cal {exchange} 缺列 {column}")
+    dates = [d for d in frame["cal_date"].map(_norm_date).tolist() if d]
+    if not dates:
+        raise IncrementalError(f"trade_cal {exchange} 没有有效日期，保留旧日历")
+    if min(dates) > start or max(dates) < end:
+        raise IncrementalError(
+            f"trade_cal {exchange} 覆盖 {min(dates)}..{max(dates)}，"
+            f"不足 {start}..{end}，保留旧日历"
+        )
+    try:
+        flags = {int(value) for value in frame["is_open"].dropna().tolist()}
+    except (TypeError, ValueError) as exc:
+        raise IncrementalError(f"trade_cal {exchange} is_open 非法") from exc
+    if not flags <= {0, 1}:
+        raise IncrementalError(f"trade_cal {exchange} is_open 越界: {sorted(flags)}")
+
+
 def refresh_calendar(client, end: str | None = None) -> dict[str, Any]:
     """Refresh the two trade_cal partitions through ``end`` (or today)."""
     calendar_end = max(CAL_END, end or dt.datetime.now(TZ).strftime("%Y%m%d"))
-    written = []
+    frames: list[tuple[str, pd.DataFrame]] = []
     for exchange in ("SSE", "SZSE"):
         frame = client.frame(
             "trade_cal",
@@ -298,6 +331,10 @@ def refresh_calendar(client, end: str | None = None) -> dict[str, Any]:
             dataset="trade_cal",
             partition=exchange,
         )
+        _validate_calendar_frame(frame, exchange, CAL_START, calendar_end)
+        frames.append((exchange, frame))
+    written = []
+    for exchange, frame in frames:
         meta = common.write_partition(
             frame,
             "trade_cal",
@@ -697,6 +734,7 @@ def _fetch_dividend_days(client, plan: Plan, run_start: str) -> dict[str, Any]:
     for code, frames in rows_by_code.items():
         new = pd.concat(frames, ignore_index=True, sort=False)
         merged = fetch_mod.merge_existing_frame("dividend", code, new)
+        merged, dropped = common.drop_null_pk_rows(merged, "dividend")
         if merged.empty:
             continue
         meta = common.write_partition(
@@ -708,6 +746,7 @@ def _fetch_dividend_days(client, plan: Plan, run_start: str) -> dict[str, Any]:
                 "query": {"ann_date": list(plan.days), "mode": "incremental_merge"},
                 "study_window": extended_window("dividend", code, plan.start, plan.end),
                 "incremental_merge": True,
+                "rows_dropped_null_pk": dropped,
             },
         )
         partitions += 1
@@ -785,7 +824,7 @@ def run(args: argparse.Namespace) -> int:
         "new_partitions": 0,
         "errors": [],
     }
-    if group == "market":
+    if group in ("market", "index_weight"):
         try:
             frame = calendar_frame()
             days = open_days(frame)

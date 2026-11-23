@@ -24,6 +24,8 @@ if [ ! -f "${RECON_MARKER}" ]; then
   fi
 fi
 
+# If the 06:00 reconcile runs past 09:00, this process falls through and runs
+# the report itself; the 09:00 timer is only the normal-path fallback.
 if [ "${code}" -eq 0 ] && [ "$(date +%H%M)" -ge 0900 ] && [ ! -f "${REPORT_MARKER}" ]; then
   if ! acquire_db_lock; then
     alert_failure weekly 1 || true

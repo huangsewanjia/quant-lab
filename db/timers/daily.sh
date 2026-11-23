@@ -49,7 +49,6 @@ run_index_weight() {
   set +e
   run_py -m db.etl.fetch --incremental --group index_weight --concurrency 4 >>"${LOG}" 2>&1
   code=$?
-  set -e
   if [ "${code}" -eq 0 ]; then
     touch "${marker}"
     rm -f "${attempt_file}"
@@ -67,35 +66,62 @@ run_index_weight() {
 
 if [ -f "${STATE_DIR}/daily-ok-${TODAY}" ] && [ "${HHMM}" -ge 1900 ]; then
   log "今日行情已成功，跳过重复抓取"
+  set +e
   run_index_weight
-  exit $?
+  index_only_code=$?
+  set -e
+  exit "${index_only_code}"
 fi
+
+merge_exit() {
+  local market_code="$1"
+  local index_code="$2"
+  if [ "${market_code}" -ne 0 ] && [ "${market_code}" -ne 75 ]; then
+    printf '%s\n' "${market_code}"
+  elif [ "${index_code}" -ne 0 ] && [ "${index_code}" -ne 75 ]; then
+    printf '%s\n' "${index_code}"
+  elif [ "${market_code}" -eq 75 ] || [ "${index_code}" -eq 75 ]; then
+    printf '75\n'
+  else
+    printf '0\n'
+  fi
+}
 
 attempt_count
 log "daily start attempt=${ATTEMPT} at ${HHMM}"
 set +e
 run_py -m db.etl.fetch --incremental --group market --concurrency 8 >>"${LOG}" 2>&1
-code=$?
+market_code=$?
 set -e
 
-if [ "${code}" -eq 0 ]; then
+index_code=0
+if [ "${HHMM}" -ge 1900 ]; then
+  set +e
+  run_index_weight
+  index_code=$?
+  set -e
+fi
+
+market_result="${market_code}"
+if [ "${market_code}" -eq 0 ]; then
   touch "${STATE_DIR}/daily-ok-${TODAY}"
   reset_attempt
   log "market ok"
-  run_index_weight
-  exit $?
-fi
-
-if [ "${code}" -eq 75 ]; then
+elif [ "${market_code}" -eq 75 ]; then
   if [ "${ATTEMPT}" -ge 3 ]; then
     log "源端连续 3 次无当日数据，转告警"
     alert_failure daily 75 || true
-    exit 1
+    market_result=1
+  else
+    log "源端当日数据未发布，保留 19:30/20:30 重试"
+    market_result=75
   fi
-  log "源端当日数据未发布，保留 19:30/20:30 重试"
-  exit 75
+else
+  log "market 失败 exit=${market_code}"
+  alert_failure daily "${market_code}" || true
+  market_result="${market_code}"
 fi
 
-log "market 失败 exit=${code}"
-alert_failure daily "${code}" || true
-exit "${code}"
+final_code=$(merge_exit "${market_result}" "${index_code}")
+log "daily finished market=${market_code} index_weight=${index_code} final=${final_code}"
+exit "${final_code}"
