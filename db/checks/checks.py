@@ -140,7 +140,10 @@ def check_trading_days(con, tolerance: float = 0.05) -> tuple[bool, dict[str, An
     for day in open_days:
         count = by_day.get(day)
         median = rolling.get(day)
-        if count is None or median is None or median == 0:
+        if count is None or median is None or pd.isna(median) or median == 0:
+            # A day without a usable rolling median (fewer than three trading
+            # days around it) cannot be judged - it is not excused, it is
+            # simply not comparable, and it must not show up as NaN either.
             continue
         deviation = abs(count - median) / median
         if deviation <= tolerance:

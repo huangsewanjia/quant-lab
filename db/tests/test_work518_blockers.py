@@ -592,7 +592,10 @@ def test_g1_does_not_excuse_a_gap_that_the_routine_suspensions_do_not_cover(qdb)
             days,
             100,
             drop_day="2020-01-07",
-            drop_rows=10,
+            # 20 routine suspensions, 20 rows missing: the OLD rule compared
+            # the shortfall with the absolute suspension count and excused it,
+            # the new rule looks at the EXCESS (0) and does not.
+            drop_rows=80,
             routine_suspended=20,
             extra_suspended=0,
         )
@@ -603,7 +606,7 @@ def test_g1_does_not_excuse_a_gap_that_the_routine_suspensions_do_not_cover(qdb)
     anomaly = detail["anomalies"][0]
     assert anomaly["suspend_rows"] == 20
     assert anomaly["excess_suspensions"] == 0.0
-    assert anomaly["shortfall_rows"] == 90
+    assert anomaly["shortfall_rows"] == 20
 
 
 def test_g1_keeps_every_anomaly_record(qdb):
@@ -623,7 +626,7 @@ def test_g1_keeps_every_anomaly_record(qdb):
         _, detail = checks.check_trading_days(con)
 
     assert detail["anomaly_count"] == 1
-    assert len(detail["anomalies"]) == detail["anomaly_count"]
+    assert len(detail["anomalies"]) == min(detail["anomaly_count"], 50)
     assert detail["anomalies"][0]["trade_date"] == "2020-01-07"
 
 
@@ -674,7 +677,23 @@ def test_a_table_with_a_stale_primary_key_is_rebuilt(qdb):
             "ann_date",
         )
 
+        # The rebuild happens in the load of THAT dataset, not in apply_schema.
         qdb.apply_schema(con)
+        qdb.write_partition(
+            pd.DataFrame(
+                {
+                    "ts_code": ["600000.SH"],
+                    "end_date": ["20231231"],
+                    "report_type": ["1"],
+                    "ann_date": ["20240101"],
+                    "total_revenue": [100.0],
+                }
+            ),
+            "income",
+            "600000.SH",
+            "test",
+        )
+        qdb.load_partitions(con, "income", ["600000.SH"])
 
         assert qdb.existing_primary_key(con, "income") == (
             "ts_code",
@@ -721,9 +740,9 @@ def test_a_stale_primary_key_does_not_swallow_rows(qdb):
             "ann_date DATE, total_revenue DOUBLE, "
             "PRIMARY KEY (ts_code, end_date, report_type, ann_date))"
         )
-        qdb.write_partition(frame, "income", "600000.SH", "test")
-        # apply_schema rebuilds the table, then the partition is loaded twice
         qdb.apply_schema(con)
+        qdb.write_partition(frame, "income", "600000.SH", "test")
+        # the load of that dataset rebuilds the table, then loads the partition twice
         qdb.load_partitions(con, "income", ["600000.SH"])
         qdb.load_partitions(con, "income", ["600000.SH"])
         rows = con.execute(
@@ -811,3 +830,52 @@ def test_an_empty_partition_of_an_older_fetch_version_is_re_fetched(qdb):
     third = fetch.Fetcher(client, "20200101", "20200131", resume=True)
     third.fetch_range(fetch.DATASETS["stk_limit"], concurrency=1)
     assert len(client.calls) == calls_before, "a populated partition was re-fetched"
+
+
+def test_a_subset_load_does_not_empty_a_table_it_does_not_refill(qdb):
+    """A stale table outside the load set must keep its rows.
+
+    The rebuild is scoped to the dataset that is loaded: a subset load (for
+    example `--dataset daily --load-only`) must never empty the financial
+    tables it does not refill.
+    """
+    stale = pd.DataFrame(
+        {
+            "ts_code": ["600000.SH", "600000.SH"],
+            "end_date": ["20231231", "20231231"],
+            "report_type": ["1", "1"],
+            "ann_date": ["20240101", "20240101"],
+            "total_revenue": [100.0, 110.0],
+        }
+    )
+    with qdb.duckdb_connect() as con:
+        con.execute(
+            "CREATE TABLE income (ts_code VARCHAR, end_date DATE, report_type VARCHAR, "
+            "ann_date DATE, total_revenue DOUBLE, "
+            "PRIMARY KEY (ts_code, end_date, report_type, ann_date))"
+        )
+        con.execute(
+            "INSERT INTO income VALUES ('600000.SH', DATE '2023-12-31', '1', "
+            "DATE '2024-01-01', 100.0)"
+        )
+        qdb.apply_schema(con)
+        qdb.write_partition(stale, "income", "600000.SH", "test")
+
+        # a load of a DIFFERENT dataset must not touch the income table
+        qdb.write_partition(
+            pd.DataFrame(
+                {
+                    "trade_date": ["20200102"],
+                    "ts_code": ["600000.SH"],
+                    "up_limit": [11.0],
+                    "down_limit": [9.0],
+                }
+            ),
+            "stk_limit",
+            "20200102",
+            "test",
+        )
+        qdb.load_partitions(con, "stk_limit", ["20200102"])
+
+        rows = con.execute("SELECT count(*) FROM income").fetchone()[0]
+        assert rows == 1, "the stale table was emptied by a load of another dataset"

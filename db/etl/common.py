@@ -264,6 +264,11 @@ def manifest_ok(dataset: str, partition: str, verify_hash: bool = True) -> bool:
     meta = read_manifest(dataset, partition)
     if not meta:
         return False
+    return manifest_file_ok(meta, verify_hash=verify_hash)
+
+
+def manifest_file_ok(meta: dict[str, Any], verify_hash: bool = True) -> bool:
+    """The parquet file behind a manifest exists and matches it."""
     file_path = QDB_HOME / str(meta.get("file", ""))
     if not meta.get("file") or not file_path.exists():
         return False
@@ -284,9 +289,11 @@ def manifest_resumable(dataset: str, partition: str) -> bool:
     every later run would have skipped them for ever and the dataset would
     have stayed empty.
     """
-    if not manifest_ok(dataset, partition):
+    meta = read_manifest(dataset, partition)
+    if not meta:
         return False
-    meta = read_manifest(dataset, partition) or {}
+    if not manifest_file_ok(meta):
+        return False
     if meta.get("empty_upstream") and meta.get("fetch_impl") != FETCH_IMPL_VERSION:
         return False
     return True
@@ -616,9 +623,20 @@ def duckdb_connect(read_only: bool = False):
 
 
 def apply_schema(con) -> None:
-    """Apply schema.sql and rebuild the tables whose primary key is stale.
+    """Apply schema.sql (CREATE TABLE IF NOT EXISTS).
 
-    DuckDB cannot change the primary key of an existing table, and
+    The primary key of an existing table is NOT touched here: DuckDB cannot
+    change it, and the table may hold data that the current load does not
+    refill. The stale-key tables are rebuilt by ``load_partitions`` of the
+    dataset they belong to - see ``rebuild_stale_table``.
+    """
+    con.execute(SCHEMA_SQL.read_text(encoding="utf-8"))
+
+
+def stale_primary_keys(con, datasets: Iterable[str]) -> list[str]:
+    """The datasets whose table exists but carries an outdated primary key.
+
+    DuckDB cannot change the primary key of an existing table and
     ``CREATE TABLE IF NOT EXISTS`` keeps the old table. A table that still
     carries the previous primary key then drops rows **silently** on load:
     ``INSERT OR REPLACE`` replaces the conflicting row instead of failing, so
@@ -627,28 +645,46 @@ def apply_schema(con) -> None:
     Parquet layer. Measured on the DuckDB file of 2026-11-23: the financial
     tables kept the primary key without ``dup_seq`` and lost 20% (income),
     31% (balancesheet), 22% (cashflow) and 44% (fina_indicator) of their rows.
-
-    The DuckDB layer is derived from the Parquet layer, so a stale table is
-    dropped and recreated from the current schema; the load then repopulates
-    it. The tables that are rebuilt are printed, never silently.
     """
-    con.execute(SCHEMA_SQL.read_text(encoding="utf-8"))
     stale: list[str] = []
-    for table, pk in declared_primary_keys().items():
-        existing = existing_primary_key(con, table)
-        if existing is not None and tuple(existing) != tuple(pk):
-            stale.append(table)
-    if not stale:
-        return
-    for view in ("v_daily_qfq", "v_daily_hfq"):
-        con.execute(f"DROP VIEW IF EXISTS {view}")
-    for table in stale:
-        con.execute(f"DROP TABLE {table}")
-    con.execute(SCHEMA_SQL.read_text(encoding="utf-8"))
+    for dataset in datasets:
+        declared = declared_primary_keys().get(dataset)
+        if declared is None:
+            continue
+        existing = existing_primary_key(con, dataset)
+        if existing is None:
+            continue  # the table does not exist yet - schema.sql creates it
+        if set(existing) != set(declared) or len(existing) != len(declared):
+            stale.append(dataset)
+    return stale
+
+
+def rebuild_stale_table(con, dataset: str) -> bool:
+    """Drop and recreate one table whose primary key is outdated.
+
+    Only the table of ``dataset`` is touched, and only right before that
+    dataset is loaded, so a subset load can never empty a table it does not
+    refill. The DuckDB layer is derived from the Parquet layer, so the load
+    that follows repopulates it. The rebuild is one transaction, and it is
+    printed - never silent.
+    """
+    if dataset not in stale_primary_keys(con, [dataset]):
+        return False
+    con.execute("BEGIN TRANSACTION")
+    try:
+        for view in ("v_daily_qfq", "v_daily_hfq"):
+            con.execute(f"DROP VIEW IF EXISTS {view}")
+        con.execute(f"DROP TABLE {dataset}")
+        con.execute(SCHEMA_SQL.read_text(encoding="utf-8"))
+        con.execute("COMMIT")
+    except Exception:  # noqa: BLE001 - keep the database consistent
+        con.execute("ROLLBACK")
+        raise
     print(
-        "[schema] 主键过时的表已重建（行数由装载重新填满）: " + ", ".join(stale),
+        f"[schema] 主键过时，已重建（行数由本次装载填满）: {dataset}",
         flush=True,
     )
+    return True
 
 
 def ensure_db() -> None:
@@ -734,11 +770,18 @@ def load_partitions(
     keys = list(partitions) if partitions is not None else list_partitions(dataset)
     if not keys:
         return 0
-    cols = schema_columns(con, dataset)
     files = [str(partition_file(dataset, key)) for key in keys]
     files = [path for path in files if Path(path).exists()]
     if not files:
         return 0
+    # A table whose primary key is outdated would silently drop rows on the
+    # insert (INSERT OR REPLACE replaces the conflicting row), so it is
+    # rebuilt here - right before this dataset is loaded, and only this one,
+    # so a subset load can never empty a table it does not refill. The
+    # rebuild happens BEFORE the schema is read below: the new table is the
+    # one that has to be projected.
+    rebuild_stale_table(con, dataset)
+    cols = schema_columns(con, dataset)
     if full_refresh:
         con.execute(f"DELETE FROM {dataset}")
     # Cast every column to its declared type: the Parquet files keep the raw
@@ -861,7 +904,12 @@ def declared_primary_keys() -> dict[str, tuple[str, ...]]:
 
 
 def existing_primary_key(con, table: str) -> tuple[str, ...] | None:
-    """PRIMARY KEY of a table that already exists in the database."""
+    """PRIMARY KEY of a table that already exists in the database.
+
+    Returns None when the table does not exist and an empty tuple when the
+    table exists without a primary key - the two cases need different
+    treatment, so they must not be conflated.
+    """
     try:
         rows = con.execute(
             "SELECT constraint_column_names FROM duckdb_constraints() "
@@ -870,6 +918,14 @@ def existing_primary_key(con, table: str) -> tuple[str, ...] | None:
         ).fetchall()
     except Exception:  # noqa: BLE001 - a missing table has no constraint
         return None
-    if not rows:
+    if rows:
+        return tuple(str(column) for column in rows[0][0])
+    try:
+        exists = int(
+            con.execute(
+                "SELECT count(*) FROM duckdb_tables() WHERE table_name = ?", [table]
+            ).fetchone()[0]
+        )
+    except Exception:  # noqa: BLE001
         return None
-    return tuple(str(column) for column in rows[0][0])
+    return () if exists else None

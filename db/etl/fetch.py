@@ -443,9 +443,11 @@ class Fetcher:
         """
         if not self.resume:
             return False
-        if not common.manifest_resumable(dataset, partition):
-            return False
         meta = common.read_manifest(dataset, partition) or {}
+        if not meta or not common.manifest_file_ok(meta):
+            return False
+        if meta.get("empty_upstream") and meta.get("fetch_impl") != common.FETCH_IMPL_VERSION:
+            return False
         if dataset not in common.WINDOW_SCOPED_DATASETS:
             return True
         window = meta.get("study_window")
@@ -1356,13 +1358,25 @@ def run_datasets(
 
 def load_duckdb(datasets: list[str], full_refresh: bool) -> int:
     if "all" in datasets:
-        # Every dataset is loaded, index_classify included: apply_schema() can
-        # rebuild a table whose primary key is stale, and a table that is not
-        # repopulated afterwards would stay empty.
+        # Every dataset is loaded, index_classify included: a table whose
+        # primary key is stale is rebuilt right before its own dataset is
+        # loaded, and a dataset that is not loaded would stay empty.
         datasets = [name for name in DATASETS]
     loaded = 0
     with common.duckdb_connect() as con:
         common.apply_schema(con)
+        stale_outside = [
+            name
+            for name in common.stale_primary_keys(con, common.TABLE_PK)
+            if name not in datasets
+        ]
+        if stale_outside:
+            print(
+                "[warn] 这些表的主键过时，但不在本次装载范围内，未重建（表内容保持原样，"
+                "行数会少于 Parquet 层）: " + ", ".join(stale_outside),
+                file=sys.stderr,
+                flush=True,
+            )
         for dataset in datasets:
             if dataset not in common.TABLE_PK:
                 print(f"[skip] 未知数据集 {dataset}", file=sys.stderr)
