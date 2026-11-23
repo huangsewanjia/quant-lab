@@ -185,7 +185,13 @@ def _calendar_gaps(
         entry = raw.get(dataset)
         if not entry:
             continue
-        have = set(common.list_partitions(dataset))
+        have = {
+            partition
+            for partition in common.list_partitions(dataset)
+            if common.manifest_file_ok(
+                common.read_manifest(dataset, partition) or {}, verify_hash=False
+            )
+        }
         if not have:
             continue
         # Right edge is the latest completed close, not the latest observed

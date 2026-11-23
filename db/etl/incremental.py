@@ -221,6 +221,11 @@ def _market_start(dataset: str) -> str:
     return _date_after(latest) if latest else DEFAULT_START
 
 
+def _partition_present(dataset: str, day: str) -> bool:
+    meta = common.read_manifest(dataset, day) or {}
+    return bool(meta) and common.manifest_file_ok(meta, verify_hash=False)
+
+
 def market_plans(
     now: dt.datetime,
     calendar: pd.DataFrame | None = None,
@@ -228,18 +233,21 @@ def market_plans(
     frame = calendar if calendar is not None else calendar_frame()
     days = open_days(frame)
     end = effective_end(now, frame)
+    all_days = [d for d in days if CAL_START <= d <= end]
     plans: dict[str, Plan] = {}
     for dataset in MARKET_DATASETS:
-        start = _market_start(dataset)
-        selected = [d for d in days if start <= d <= end]
+        # Find the first raw partition that is absent or corrupt, not just the
+        # max date: a missing middle day must be re-fetched, not skipped.
+        missing = [d for d in all_days if not _partition_present(dataset, d)]
+        selected = [d for d in all_days if missing and d >= missing[0]]
         if not selected:
-            plans[dataset] = Plan(dataset, None, None, f"无新交易日（水位后到 {end}）")
+            plans[dataset] = Plan(dataset, None, None, f"无新交易日或缺失分区（到 {end}）")
             continue
         plans[dataset] = Plan(
             dataset,
             selected[0],
             selected[-1],
-            f"水位 {start} 之后到 {end}，{len(selected)} 个交易日",
+                f"水位 {selected[0]} 之后到 {end}，{len(selected)} 个交易日",
             tuple(selected),
         )
     return plans
@@ -312,11 +320,19 @@ def _validate_calendar_frame(
             f"trade_cal {exchange} 覆盖 {min(dates)}..{max(dates)}，"
             f"不足 {start}..{end}，保留旧日历"
         )
+    start_day = dt.date(int(start[:4]), int(start[4:6]), int(start[6:]))
+    end_day = dt.date(int(end[:4]), int(end[4:6]), int(end[6:]))
+    expected_days = (end_day - start_day).days + 1
+    if len(set(dates)) < int(expected_days * 0.95):
+        raise IncrementalError(
+            f"trade_cal {exchange} 只有 {len(set(dates))} 天，"
+            f"少于预期 {expected_days} 天的 95%，保留旧日历"
+        )
     try:
         flags = {int(value) for value in frame["is_open"].dropna().tolist()}
     except (TypeError, ValueError) as exc:
         raise IncrementalError(f"trade_cal {exchange} is_open 非法") from exc
-    if not flags <= {0, 1}:
+    if not flags or 1 not in flags or not flags <= {0, 1}:
         raise IncrementalError(f"trade_cal {exchange} is_open 越界: {sorted(flags)}")
 
 
@@ -517,9 +533,19 @@ def load_only_report(datasets: Iterable[str] | None = None) -> dict[str, int]:
                 selected[dataset] = common.list_partitions(dataset)
                 continue
             if dataset in MARKET_DATASETS:
-                latest = _table_max(con, dataset)
+                try:
+                    db_dates = {
+                        _norm_date(row[0])
+                        for row in con.execute(
+                            f"SELECT DISTINCT trade_date FROM {dataset}"
+                        ).fetchall()
+                    }
+                except Exception:
+                    db_dates = set()
                 selected[dataset] = [
-                    p for p in common.list_partitions(dataset) if not latest or p > latest
+                    p
+                    for p in common.list_partitions(dataset)
+                    if p not in db_dates and _partition_present(dataset, p)
                 ]
                 continue
             if dataset in FINANCE_DATASETS:
@@ -592,6 +618,7 @@ def _run_market(client, now: dt.datetime, args: argparse.Namespace, summary: dic
             resume=True,
             concurrency=args.concurrency,
             strict_empty_dates=strict,
+            provisional_empty=True,
         )
         spec = fetch_mod.DATASETS[dataset]
         if spec.strategy == "range":

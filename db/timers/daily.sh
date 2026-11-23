@@ -36,7 +36,7 @@ if ! acquire_db_lock; then
 fi
 
 run_index_weight() {
-  [ "${HHMM}" -ge 1900 ] || return 0
+  [ "$(date +%H%M)" -ge 1900 ] || return 0
   local marker="${STATE_DIR}/index-weight-done-${TODAY}"
   [ -f "${marker}" ] && return 0
   log "检查每月指数成分任务"
@@ -95,12 +95,10 @@ market_code=$?
 set -e
 
 index_code=0
-if [ "${HHMM}" -ge 1900 ]; then
-  set +e
-  run_index_weight
-  index_code=$?
-  set -e
-fi
+set +e
+run_index_weight
+index_code=$?
+set -e
 
 market_result="${market_code}"
 if [ "${market_code}" -eq 0 ]; then

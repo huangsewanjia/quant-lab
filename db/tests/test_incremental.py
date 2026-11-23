@@ -85,7 +85,8 @@ def test_normal_plan_advances_one_trading_day(qdb):
 
 def test_holiday_crossing_keeps_only_open_days(qdb):
     _calendar(qdb, ["20200120", "20200121", "20200122", "20200123", "20200203", "20200204"])
-    _daily(qdb, "20200123")
+    for day in ("20200120", "20200121", "20200122", "20200123"):
+        _daily(qdb, day)
     plan = incremental.market_plans(
         incremental.parse_now("2020-02-04T19:00:00+08:00")
     )["daily"]
@@ -364,3 +365,84 @@ def test_missing_raw_file_is_not_a_watermark(qdb):
     _daily(qdb, "20200103")
     qdb.partition_file("daily", "20200103").unlink()
     assert incremental.max_raw_date("daily") == "20200102"
+
+
+def test_market_plan_catches_a_middle_missing_partition(qdb):
+    _calendar(qdb, ["20200102", "20200103", "20200106"])
+    _daily(qdb, "20200102")
+    _daily(qdb, "20200106")
+    plan = incremental.market_plans(
+        incremental.parse_now("2020-01-06T19:00:00+08:00")
+    )["daily"]
+    assert plan.start == "20200103"
+    assert plan.days == ("20200103", "20200106")
+
+
+def test_load_only_loads_a_middle_missing_partition(qdb):
+    _calendar(qdb, ["20200102", "20200103", "20200106"])
+    _daily(qdb, "20200102")
+    _daily(qdb, "20200103")
+    _daily(qdb, "20200106")
+    incremental.load_selected({"daily": ["20200102", "20200106"]})
+    incremental.load_only(["daily"])
+    con = duckdb.connect(str(qdb.DB_PATH), read_only=True)
+    try:
+        assert con.execute("SELECT count(*) FROM daily").fetchone()[0] == 3
+    finally:
+        con.close()
+
+
+def test_sparse_calendar_response_is_rejected(qdb):
+    old = pd.DataFrame(
+        {
+            "exchange": ["SSE"] * 3,
+            "cal_date": ["20200102", "20200103", "20200106"],
+            "is_open": [1, 1, 1],
+            "pretrade_date": ["20200102", "20200102", "20200103"],
+        }
+    )
+    qdb.write_partition(old, "trade_cal", "SSE", "test")
+
+    class SparseClient:
+        def frame(self, api, params, **kwargs):
+            return pd.DataFrame(
+                {
+                    "exchange": ["SSE"] * 3,
+                    "cal_date": ["20200102", "20200103", "20200106"],
+                    "is_open": [1, 1, 1],
+                    "pretrade_date": ["20200102", "20200102", "20200103"],
+                }
+            )
+
+    with pytest.raises(incremental.IncrementalError, match="保留旧日历"):
+        incremental.refresh_calendar(SparseClient(), "20200106")
+    assert qdb.read_manifest("trade_cal", "SSE")["rows"] == 3
+
+
+def test_allow_empty_is_provisional_until_daily_is_ready(qdb):
+    _calendar(qdb, ["20200106"])
+    fetcher = fetch.Fetcher(
+        EmptyClient(),
+        "20200106",
+        "20200106",
+        resume=True,
+        concurrency=1,
+        provisional_empty=True,
+    )
+    fetcher.fetch_range(fetch.DATASETS["suspend_d"], concurrency=1)
+    meta = qdb.read_manifest("suspend_d", "20200106")
+    assert meta["provisional"] is True
+    assert common.manifest_resumable("suspend_d", "20200106") is False
+    _daily(qdb, "20200106")
+    fetcher = fetch.Fetcher(
+        EmptyClient(),
+        "20200106",
+        "20200106",
+        resume=True,
+        concurrency=1,
+        provisional_empty=True,
+    )
+    fetcher.fetch_range(fetch.DATASETS["suspend_d"], concurrency=1)
+    meta = qdb.read_manifest("suspend_d", "20200106")
+    assert not meta.get("provisional")
+    assert common.manifest_resumable("suspend_d", "20200106") is True

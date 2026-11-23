@@ -42,6 +42,10 @@ from .tushare_client import ROW_CAPS, TushareClient, TushareError
 DEFAULT_START = "20060101"
 DEFAULT_END = "20261121"
 
+# These APIs can legitimately return no rows on a trading day. An empty result
+# is provisional until the critical `daily` partition for the same day exists.
+ALLOW_EMPTY_DATASETS = frozenset({"stk_limit", "suspend_d"})
+
 # The issue this ETL reports progress to.
 ISSUE_ID = "01a202e2-3475-7438-b91a-29add6099aa5"
 
@@ -451,6 +455,7 @@ class Fetcher:
         deadline: float | None = None,
         strict_empty_dates: Iterable[str] | None = None,
         merge_existing: bool = False,
+        provisional_empty: bool = False,
     ) -> None:
         self.client = client
         self.start = start
@@ -467,6 +472,10 @@ class Fetcher:
         # partition instead of replacing it, because their content depends on
         # the requested window.
         self.merge_existing = merge_existing
+        # Incremental runs mark allow-empty datasets provisional until the
+        # critical `daily` partition is ready. Full backfills keep the old
+        # permanent-empty behavior.
+        self.provisional_empty = provisional_empty
         # Optional explicit code list for financial incremental runs.
         self.codes: list[str] | None = None
         self._calendar: list[str] | None = None
@@ -528,6 +537,8 @@ class Fetcher:
             return False
         meta = common.read_manifest(dataset, partition) or {}
         if not meta or not common.manifest_file_ok(meta):
+            return False
+        if meta.get("provisional"):
             return False
         if meta.get("empty_upstream") and meta.get("fetch_impl") != common.FETCH_IMPL_VERSION:
             return False
@@ -682,7 +693,9 @@ class Fetcher:
         calendar = self.calendar()
         return calendar[bisect_left(calendar, lo) : bisect_right(calendar, hi)]
 
-    def write_empty_partition(self, spec: DatasetSpec, key: str, query: dict[str, Any]) -> None:
+    def write_empty_partition(
+        self, spec: DatasetSpec, key: str, query: dict[str, Any], *, provisional: bool = False
+    ) -> None:
         """Publish an explicit empty partition for a trading day.
 
         Some upstream datasets have no history for the early years
@@ -693,13 +706,28 @@ class Fetcher:
         then spends its whole budget on days that will never produce rows
         and the backfill can never reach completion.
         """
+        extra_meta = {"rows_raw": 0, "query": query, "empty_upstream": True}
+        if provisional:
+            extra_meta["provisional"] = True
         common.write_partition(
             pd.DataFrame(columns=common.canonical_columns(spec.name)),
             spec.name,
             key,
             "tushare",
-            extra_meta={"rows_raw": 0, "query": query, "empty_upstream": True},
+            extra_meta=extra_meta,
         )
+
+    def _daily_ready(self, day: str) -> bool:
+        meta = common.read_manifest("daily", day) or {}
+        return int(meta.get("rows") or 0) > 0
+
+    def _write_empty_for(self, spec: DatasetSpec, key: str, query: dict[str, Any]) -> None:
+        provisional = (
+            self.provisional_empty
+            and spec.name in ALLOW_EMPTY_DATASETS
+            and not self._daily_ready(key)
+        )
+        self.write_empty_partition(spec, key, query, provisional=provisional)
 
     # -- per-dataset strategies ------------------------------------------ #
 
@@ -854,7 +882,7 @@ class Fetcher:
                     )
                     continue
                 try:
-                    self.write_empty_partition(spec, key, query)
+                    self._write_empty_for(spec, key, query)
                     written.append(key)
                     progress.bump()
                 except Exception as exc:  # noqa: BLE001
@@ -919,28 +947,11 @@ class Fetcher:
                         flush=True,
                     )
                     continue
-                columns = common.canonical_columns(spec.name)
-                if not columns:
-                    with lock:
-                        failures.append(
-                            {
-                                "dataset": spec.name,
-                                "partition": trade_date,
-                                "error": "无法确定该数据集的列清单，未写空分区",
-                            }
-                        )
-                    progress.bump(failed=True)
-                    continue
                 try:
-                    common.write_partition(
-                        pd.DataFrame(columns=columns),
-                        spec.name,
+                    self._write_empty_for(
+                        spec,
                         trade_date,
-                        "tushare",
-                        extra_meta={
-                            "query": {"start_date": run[0], "end_date": run[-1]},
-                            "empty_upstream": True,
-                        },
+                        {"start_date": run[0], "end_date": run[-1]},
                     )
                     progress.bump()
                 except Exception as exc:  # noqa: BLE001
@@ -985,7 +996,7 @@ class Fetcher:
                     # Recording it as a failure would put it into the failure
                     # ledger for good; an explicit empty partition is the
                     # honest record and lets the resume logic move on.
-                    self.write_empty_partition(
+                    self._write_empty_for(
                         spec, trade_date, {"trade_date": trade_date}
                     )
                     progress.bump()

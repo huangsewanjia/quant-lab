@@ -91,7 +91,7 @@
 
 | 项 | 命令 | 结果 |
 |---|---|---|
-| 单测 | `pytest db/tests -q` | 156 passed |
+| 单测 | `pytest db/tests -q` | 160 passed |
 | 数据闸门 | `python -m db.checks.run all --out .../checks-20261123-work529.json` | `ok: true`，G1–G6 全 PASS |
 | 台账 | `python -m db.etl.stats --json` | 16 个数据集 / 65,919 分区 / 102,391,068 行 / 6,290,875,840 字节 |
 | 手动 daily | `systemctl --user start quantdb-daily.service` | exit 0；2026-11-23 10:25；0 个新行情分区；日志 `logs/daily-20261123.log` |
@@ -124,7 +124,7 @@ systemctl --user daemon-reload
 |---|---|
 | B1 | `fetch_index_weight` 补传 `concurrency`，新增 runner 回归 |
 | B2 | 指数成分空响应按源端延迟返回 75；成功才写完成 marker |
-| B3 | 关键行情数据集对全部待补交易日启用延迟保护；`stk_limit` / `suspend_d` 显式允许合法空分区 |
+| B3 | 关键行情数据集对全部待补交易日启用延迟保护；`stk_limit` / `suspend_d` 允许合法空分区，增量模式先 provisional |
 | B4 | 装载改为按 DuckDB 水位补装所有更晚 raw 分区，抓取/装载崩溃可自愈 |
 | B5 | daily wrapper 先查日历，非交易日不创建客户端直接退出 0 |
 | B6 | 财务 timer 增加周一 09:30；报告期 09:30 等待 19:00，非报告期 09:30 失败后 19:00 重试 |
@@ -138,9 +138,16 @@ systemctl --user daemon-reload
 
 | 编号 | 修复 |
 |---|---|
-| R1 | `stk_limit` / `suspend_d` 的合法空响应不再按源端延迟处理 |
+| R1 | `stk_limit` / `suspend_d` 的合法空响应不再按源端延迟处理；增量模式先 provisional，等 `daily` 就绪 |
 | R2 | 增量 `dividend` 写分区前清理空主键，`rows_dropped_null_pk` 入 manifest |
 | R3 | 日历刷新先校验非空、覆盖区间和 `is_open`，异常时保留旧分区 |
 | R4 | daily 的 19:30 / 20:30 分支无条件执行 `index_weight`，再合并退出码 |
 | R5 | 冷备从源目录生成 `SHA256SUMS`，覆盖 `raw/db/meta/policy`，在目标目录校验 |
 | R6 | `--group index_weight` 与 `market` 一样先查日历，节假日不创建客户端 |
+
+### 第三轮复审的 2 条 blocking（已修）
+
+| 编号 | 修复 |
+|---|---|
+| R7 | `backup-nightly.sh` 用子 shell 隔离 `set -e`，失败后能进入 `alert_failure` |
+| R8 | `stk_limit` / `suspend_d` 的空分区先写 `provisional`；`daily` 未就绪时 `manifest_resumable=False`，下一轮重抓，`daily` 成功后才转永久空分区 |

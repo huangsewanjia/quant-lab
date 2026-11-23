@@ -507,8 +507,9 @@ python -m db.etl.fetch --load-only --incremental --dataset daily
 - 收盘前手动跑行情会以**上一交易日**为终点，不会把当日未发布的数据写成空分区。
 - 18:30 后如果上游当日仍无数据，返回退出码 `75`，不写空分区；19:30 / 20:30 再试，
   第三次仍无数据才建告警单。
-- `stk_limit` / `suspend_d` 允许「该交易日确实没有涨跌停/停牌事件」的空分区；其余行情数据集
-  在增量窗口内的空响应视为源端延迟，保留重试，不落空分区。
+- `stk_limit` / `suspend_d` 允许「该交易日确实没有涨跌停/停牌事件」的空分区；增量模式下这类空
+  分区先标记 `provisional`，等同一交易日的 `daily` 成功后才转为可 resume；`daily` 未就绪时下轮重抓。
+  其余行情数据集在增量窗口内的空响应视为源端延迟，保留重试，不落空分区。
 - 财务四张表的日期过滤口径不完全一致：`income` / `balancesheet` / `cashflow` 按公告日，
   `fina_indicator` 按报告期。增量窗口同时覆盖 `actual_date` 与 `end_date`。
 - 财务和指数成分是「读旧分区 + 合并 + 按主键/内容去重 + 原子写回」，不会用 7 天窗口覆盖历史。
@@ -562,7 +563,7 @@ systemctl --user daemon-reload
 ```
 
 数据回滚见 `docs/RUNBOOK.md` §10；冷备在 `/srv/backup/quantdb`，校验清单是同目录
-`SHA256SUMS`，可用 `sha256sum -c SHA256SUMS` 验证。
+`SHA256SUMS`（覆盖 `raw/db/meta/policy`），可用 `sha256sum -c SHA256SUMS` 验证。
 
 ### 11.7 失败排查顺序
 

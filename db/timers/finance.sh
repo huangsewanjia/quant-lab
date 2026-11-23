@@ -15,6 +15,7 @@ MONTH="$(date +%m)"
 DOW="$(date +%u)"
 HHMM="$(date +%H%M)"
 OK_MARKER="${STATE_DIR}/finance-ok-${TODAY}"
+CATCHUP_MONDAY=""
 
 if [[ " 01 04 07 10 " == *" ${MONTH} "* ]]; then
   if [ "${HHMM}" -lt 1800 ]; then
@@ -36,8 +37,13 @@ if [[ " 01 04 07 10 " == *" ${MONTH} "* ]]; then
   fi
 else
   if [ "${DOW}" -ne 1 ]; then
-    log "非报告期且非周一，退出 0"
-    exit 0
+    last_monday="$(date -d 'last monday' +%Y%m%d)"
+    if [ -f "${STATE_DIR}/finance-ok-${last_monday}" ]; then
+      log "非报告期且上次周一已完成，退出 0"
+      exit 0
+    fi
+    log "非报告期补跑上次周一 ${last_monday}"
+    CATCHUP_MONDAY="${last_monday}"
   fi
   if [ "${HHMM}" -ge 1200 ] && [ -f "${OK_MARKER}" ]; then
     log "周一财务任务已成功，19:00 不重复"
@@ -58,6 +64,9 @@ code=$?
 set -e
 if [ "${code}" -eq 0 ]; then
   touch "${OK_MARKER}"
+  if [ -n "${CATCHUP_MONDAY}" ]; then
+    touch "${STATE_DIR}/finance-ok-${CATCHUP_MONDAY}"
+  fi
   log "finance ok"
   exit 0
 fi

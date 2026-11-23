@@ -46,7 +46,7 @@ run_backup() {
 
 log "backup start"
 set +e
-run_backup >>"${LOG}" 2>&1
+( run_backup ) >>"${LOG}" 2>&1
 code=$?
 set -e
 if [ "${code}" -eq 0 ]; then

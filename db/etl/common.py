@@ -306,6 +306,10 @@ def manifest_resumable(dataset: str, partition: str) -> bool:
         return False
     if not manifest_file_ok(meta):
         return False
+    if meta.get("provisional"):
+        # The day's empty response was observed before the critical market
+        # dataset was ready; re-fetch on the next run.
+        return False
     if meta.get("empty_upstream") and meta.get("fetch_impl") != FETCH_IMPL_VERSION:
         return False
     return True
