@@ -101,11 +101,11 @@ def main():
         A(f"{i}. {r}")
     A("")
     A(f"> 预注册：`experiments/WORK-555/preregistration.md` v1.0（commit `9a85409`，**早于**任何回测产物 commit）。"
-      f"本次交付的全部数字来自**最新一轮收口**的产物；**中途重跑过三次**——"
-      f"第一次因独立代码审查判 FAIL（S2 早停监控量与预注册文字不符、S3 组合权重泄漏），"
-      f"第二次因收口审计发现「产物 float32 量化导致审计复算与建模侧不一致」，"
-      f"第三次因第四轮独立复审判 FAIL（诊断臂 xgbfull 秩口径分歧 + 交付件两处同量不一致）；"
-      f"三次的原因与影响见下文「独立审查」段与 `failure_log.md` §13/§15/§16。")
+      f"本次交付的全部数字来自**最新一轮收口**的产物。**因 FAIL 驱动的重跑**见 "
+      f"`failure_log.md` §13/§15/§16（第一次因独立代码审查判 FAIL：S2 早停监控量与预注册文字不符、"
+      f"S3 组合权重泄漏；第二次因收口审计发现「产物 float32 量化导致审计复算与建模侧不一致」；"
+      f"第三次因第四轮独立复审判 FAIL：诊断臂 xgbfull 秩口径分歧 + 交付件两处同量不一致），"
+      f"最新一轮收口（含第五轮处置）见 §17。")
     A("")
     A("> **关于本单此前那条「首屏样张（版式先交，数字后补）」评论**：那条评论里的数字栏是"
       "**当时的占位值**（训练未完成时填的），**已被本条终版评论全面取代**，请勿引用。"
@@ -256,7 +256,14 @@ def main():
     A("")
 
     # ---------------- 独立审查 ----------------
-    A(f"### 独立代码审查（{len(reviews)} 轮，全部 FAIL → 逐项处置 → 增量复审）")
+    # 第六轮审查 S6-1：轮次是动态的，而「全部判 FAIL」是硬编码 —— 第 5 轮判 PASS 后
+    # 这句话变成假话，且与同句里列出的「第5轮 PASS」直接冲突。改为按实际判决动态生成。
+    _n_fail = sum(1 for rv in reviews if str(rv.get("verdict", "")).upper() == "FAIL")
+    _n_pass = len(reviews) - _n_fail
+    _verdict_phrase = (f"{len(reviews)} 轮，其中 {_n_fail} 轮判 FAIL"
+                       + (f"、{_n_pass} 轮判 PASS" if _n_pass else "")
+                       + " → 逐项处置 → 增量复审")
+    A(f"### 独立代码审查（{_verdict_phrase}）")
     A("")
     A(f"实现完成后交给**独立子代理**审查（隔离沙箱、零 import 建模函数、自带一套从头写的复算实现）。"
       f"主循环不参与审查判决；每轮修复后交回同一审查方**复审增量**。")
@@ -329,11 +336,11 @@ def main():
         with open(p, encoding="utf-8") as fh:
             on_disk = fh.read()
         if on_disk.rstrip("\n") != body.rstrip("\n"):
-            print(f"[FAIL] final_comment.md 与生成器输出不一致（落盘 {len(on_disk):,} B vs "
-                  f"重生成 {len(body):,} B）—— 评论已陈旧，须重跑 "
+            print(f"[FAIL] final_comment.md 与生成器输出不一致（落盘 {len(on_disk):,} 字符 vs "
+                  f"重生成 {len(body):,} 字符）—— 评论已陈旧，须重跑 "
                   f"scripts/work555_final_comment.py --file", file=sys.stderr)
             return 1
-        print(f"[PASS] final_comment.md 与生成器输出逐字节一致（{len(body):,} B）")
+        print(f"[PASS] final_comment.md 与生成器输出逐字节一致（{len(body):,} 字符）")
         return 0
     print(body)
     if args.file:

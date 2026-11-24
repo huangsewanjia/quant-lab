@@ -8,7 +8,7 @@
 2. DEE 净 Sharpe（rf=0，8 bps）均值 −0.5841 **< 0** → **直接退**
 3. 95% CI 含 0 → 记「未复现」（仍算交付）
 
-> 预注册：`experiments/WORK-555/preregistration.md` v1.0（commit `9a85409`，**早于**任何回测产物 commit）。本次交付的全部数字来自**最新一轮收口**的产物；**中途重跑过三次**——第一次因独立代码审查判 FAIL（S2 早停监控量与预注册文字不符、S3 组合权重泄漏），第二次因收口审计发现「产物 float32 量化导致审计复算与建模侧不一致」，第三次因第四轮独立复审判 FAIL（诊断臂 xgbfull 秩口径分歧 + 交付件两处同量不一致）；三次的原因与影响见下文「独立审查」段与 `failure_log.md` §13/§15/§16。
+> 预注册：`experiments/WORK-555/preregistration.md` v1.0（commit `9a85409`，**早于**任何回测产物 commit）。本次交付的全部数字来自**最新一轮收口**的产物。**因 FAIL 驱动的重跑**见 `failure_log.md` §13/§15/§16（第一次因独立代码审查判 FAIL：S2 早停监控量与预注册文字不符、S3 组合权重泄漏；第二次因收口审计发现「产物 float32 量化导致审计复算与建模侧不一致」；第三次因第四轮独立复审判 FAIL：诊断臂 xgbfull 秩口径分歧 + 交付件两处同量不一致），最新一轮收口（含第五轮处置）见 §17。
 
 > **关于本单此前那条「首屏样张（版式先交，数字后补）」评论**：那条评论里的数字栏是**当时的占位值**（训练未完成时填的），**已被本条终版评论全面取代**，请勿引用。那条评论的用途只是先确认版式；本条才是数字与判词的正式交付。
 
@@ -80,8 +80,8 @@
 
 | 交付件 | 路径 | 大小 | sha256（前 16 位） |
 |---|---|---|---|
-| report.html | `experiments/WORK-555/report.html` | 1,346,223 B | `0be40bf5ebf74097` |
-| report_print.pdf | `experiments/WORK-555/report_print.pdf` | 1,526,961 B | `ade3543a1031bfd4` |
+| report.html | `experiments/WORK-555/report.html` | 1,346,313 B | `bd2e08da8470c80a` |
+| report_print.pdf | `experiments/WORK-555/report_print.pdf` | 1,527,373 B | `440e83df9a4f3f13` |
 | report_firstscreen_1440x900.png | `experiments/WORK-555/report_firstscreen_1440x900.png` | 212,483 B | `4ca2acfe2c3cb2ce` |
 | fig1_rankic_arms.png | `figures/WORK-555/fig1_rankic_arms.png` | 130,224 B | `e9d5a187d4e07e61` |
 | fig2_daily_rankic.png | `figures/WORK-555/fig2_daily_rankic.png` | 553,133 B | `b13b2a27d4cd50e6` |
@@ -90,7 +90,7 @@
 
 单文件 HTML 自检：内嵌 base64 图 **4** 张、**外链 0 处**（要求 0）、断网可开。
 
-### 独立代码审查（5 轮，全部 FAIL → 逐项处置 → 增量复审）
+### 独立代码审查（6 轮，其中 4 轮判 FAIL、2 轮判 PASS → 逐项处置 → 增量复审）
 
 实现完成后交给**独立子代理**审查（隔离沙箱、零 import 建模函数、自带一套从头写的复算实现）。主循环不参与审查判决；每轮修复后交回同一审查方**复审增量**。
 
@@ -180,6 +180,17 @@
 | N5-2 | nit | B4-1 统一了**秩**口径（Spearman 侧已逐位一致），但 **Pearson IC** 侧该臂仍走独立实现：`pearson_ic_by_day` 对 float32 标签数组直接做 `t.std()`（fl… | work555_xgb_diag.pearson_ic_by_day 里把标签升到 float64（`ys = np.asarray(y, dtype='float64')`）或改用 np.corrcoef，与其余臂口径统一；预计 gap 收敛到 ~1e-16。… |
 
 留痕：`experiments/WORK-555/review_round5.json`
+
+**第 6 轮**（增量复审范围 `83dc1ba..7e026fb（处置 + 产物重出单 commit；含 scripts/work555_final_comment.py / work555_report.py / work555_final_numbers.py / work555_selfcheck.sh / work555_finalize_v4.sh / work555_xgb_diag.py / audit/recompute_work555.py 与产物重出）`）：判决 **PASS**
+
+> 0 blocking + 1 suggestion + 1 nit。第五轮遗留 4 项（S5-1 / S5-2 / N5-1 / N5-2）经审查方独立验证全部闭合：① 交付评论 provenance 段已改为「最新一轮收口 / 中途重跑过三次 / 见 §13/§15/§16」，与 §13/§15/§16 三节一一对应、与正文 xgbfull 数值（+0.024601 / +0.022910）一致；新增的 work555_final_comment.py --check 与 work555_report.py --check 两道漂移闸门经审查方负控实测真的会红（改落盘评论一行 → exit 1；改 report.html 一个字符 → exit 1），自证清单在 pristine2 沙箱实测 13 项全过、exit 0，且连续两次跑均 exit 0、产物清单 44/44 逐份 sha256 一致、nomask_assert.json 哈希未变（幂等）；② work555_final_numbers.py 的 --check 已从 findings[] 派生 n_blocking_derived 并与计数器互校，审查方负控（把某条 finding 的 severity 改成 blocking 而 n_blocking 留 0）exit 1（第五轮此处仍 exit 0），反向负控（n_blocking 改 5、数组 0 条 blocking）同样 exit 1；③ work555_xgb_diag.py 的重复 HERE 赋值已删（提交态只剩 scripts/work555_xgb_diag.py:43 一处）；④ 该臂 Pearson IC 标签升 float64 后，audit_findings.json 的 ic::xgbfull_s42/s43::test_ic_mean_best_iter 两项 gap 均为 0.0（逐位相同），run_xgbfull_*.json 与审计复算值逐位一致，preds_xgbfull_*.npz 哈希前后不变（e1f8b191… / e3e982ac…）。§17.3 三问的独立回答：审计脚本 diff 只有一个 hunk（audit/recompute_work555.py:437 elif d > 0: → else:），TOL=1e-6（第 48 行）逐字未动、add( 调用数 14=14、findings.append 8=8、blocking 分支逐字未动，不属放宽判据、不属删检查；项数在新版下只取决于覆盖面（构造 gap 恰好 0 的场景实测项数仍 330，旧版同数据掉到 317）；无新的 blocking 判据被削弱（构造 gap≈1e-3 的场景，新旧两版都报 n_blocking=1 / verdict=BLOCKING，blocking item 同一条）。本轮无 blocking：审查方自写复算 352 项 0 blocking、跨交付件同量对齐 195 项零不一致、提交态审计重跑与提交逐条一致（330 项、0 blocking）、判词「未复现（退）」仍按预注册 §6.2 机械得出且判词相关量在本增量内逐字节未改。唯一遗留 S6-1：三份交付件硬编码「全部判 FAIL」，与同句里「第 5 轮 PASS」自相矛盾（叙述性，不触及判词）；N6-1：provenance「中途重跑过三次」未计入 §17.4 记录的第四次收口重跑。
+
+| # | 级别 | 问题 | 处置 |
+|---|---|---|---|
+| S6-1 | suggestion | 三处生成器把「全部判 FAIL」写死，而轮次是动态的（len(_rounds)）。第 5 轮判决是 PASS，因此这句话在本增量里变成了假的，且与同一句里紧接着列出的「第5轮 PASS」直接冲突（同一交付件内部自相矛盾）… | 把三处硬编码改为按实际轮次动态生成（例如统计 verdict 为 FAIL 的轮数，写成「5 轮，其中 4 轮判 FAIL、第 5 轮判 PASS」），或直接删去「全部 FAIL」这类总结性措辞，只保留逐轮判决列表；改完后重跑 work555_final_numbers.py --check / w… |
+| N6-1 | nit | provenance 段枚举的三次重跑对应 §13（S2/S3 修复重跑）、§15（float32 无损落盘重跑）、§16（第四轮处置重跑），三节一一对应，引用无误；但 §17.4 记录了本轮（第五轮处置）又跑了一次完整… | 把「中途重跑过三次」改成不含次数的表述（如「中途因 FAIL 驱动的重跑见 §13/§15/§16，最新一轮收口见 §17」），或补上第四次（§17）的口径；改完重跑三道 --check 闸门与自证清单。… |
+
+留痕：`experiments/WORK-555/review_round6.json`
 
 ### 字节级可复现性（补上第一轮审查未能核实的项）
 

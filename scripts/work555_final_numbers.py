@@ -539,7 +539,8 @@ def render_registry_row(n):
            f"⑤ **基线本身是稳的**：MLP-only 基线自身极差 "
            f"{f(p.get('rankic_range_mlp'), 4)} 未超预注册 0.01 阈值 —— "
            f"因此 Δ_ic 的方向由**相对表现**决定，而不是由基线的种子噪声决定<br>")
-        + f"⑥ **独立审查 {len(_rounds)} 轮全部判 FAIL**（"
+        + f"⑥ **独立审查 {len(_rounds)} 轮，其中 "
+        + f"{sum(1 for rd, v, c, fn in _rounds if str(v).upper() == 'FAIL')} 轮判 FAIL**（"
         + "；".join(f"第{rd}轮 {c['blocking']} blocking + {c['suggestion']} suggestion "
                     f"+ {c['nit']} nit" for rd, _v, c, _fn in _rounds)
         + "）：第一轮的 5 项（B1 审计脚本在 sha256 漂移路径崩溃（已修为显式 blocking）、"

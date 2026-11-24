@@ -800,10 +800,14 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
         for _f0 in review.get("findings", []):
             if _f0.get("severity") in _rc:
                 _rc[_f0["severity"]] += 1
+        _n_fail = sum(1 for _x in _rounds if str(_x[1]).upper() == "FAIL")
+        _n_pass = len(_rounds) - _n_fail
         A("<h3>独立代码审查：逐轮发现与处置</h3>")
         A(f"<p>本单实现完成后交给<b>独立子代理</b>做代码审查（隔离沙箱、零 import 建模函数、"
           f"自带一套从头写的复算实现）。共 <b>{len(_rounds)}</b> 轮，"
-          f"<b>全部判 FAIL</b>，逐项处置后进入下一轮："
+          f"其中 <b>{_n_fail}</b> 轮判 FAIL"
+          + (f"、<b>{_n_pass}</b> 轮判 PASS" if _n_pass else "")
+          + "，逐项处置后进入下一轮："
           + "；".join(f"第{_rd}轮 <b>{_v}</b>（{_c['blocking']} blocking + "
                       f"{_c['suggestion']} suggestion + {_c['nit']} nit）"
                       for _rd, _v, _c, _fn in _rounds)
@@ -1015,11 +1019,11 @@ def main():
         with open(p, encoding="utf-8") as fh:
             on_disk = fh.read()
         if on_disk != html:
-            print(f"[FAIL] report.html 与生成器输出不一致（落盘 {len(on_disk):,} B vs "
-                  f"重生成 {len(html):,} B）—— 报告已陈旧，须重跑 scripts/work555_report.py",
+            print(f"[FAIL] report.html 与生成器输出不一致（落盘 {len(on_disk):,} 字符 vs "
+                  f"重生成 {len(html):,} 字符）—— 报告已陈旧，须重跑 scripts/work555_report.py",
                   file=sys.stderr)
             return 1
-        print(f"[PASS] report.html 与生成器输出逐字节一致（{len(html):,} B）")
+        print(f"[PASS] report.html 与生成器输出逐字节一致（{len(html):,} 字符）")
         return 0
     with open(p, "w", encoding="utf-8") as fh:
         fh.write(html)
