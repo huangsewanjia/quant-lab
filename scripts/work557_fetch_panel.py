@@ -7,7 +7,7 @@ WORK-503 的下游脚本（build_panel / dump_qlib / build_dataset / run_arms / 
 + 每股 fundamentals CSV。本单换数据源（quantdb 底座代替新浪/baostock），但**不换靶**：
 下游脚本一行不改，只换本脚本产出的输入。
 
-**产���（data/WORK-557/ 与 experiments/WORK-557/）**
+**产物（data/WORK-557/ 与 experiments/WORK-557/）**
     data/WORK-557/sina/<code>.csv         不复权日线（涨跌停判定、组合收益用）
     data/WORK-557/sina_hfq/<code>.csv     后复权日线（特征与组合收益用）
     data/WORK-557/fundamentals/<code>.csv 每股净资产（value_bp 先验）

@@ -32,129 +32,129 @@
     "year": 2009,
     "member_days": 73198,
     "no_bar": 1752,
-    "suspended": 4,
-    "real_gap": 1748,
-    "real_gap_rate": 0.023880433891636382
+    "suspended": 1748,
+    "real_gap": 4,
+    "real_gap_rate": 5.464630181152491e-05
    },
    {
     "year": 2010,
     "member_days": 72562,
     "no_bar": 2119,
-    "suspended": 0,
-    "real_gap": 2119,
-    "real_gap_rate": 0.02920261293790138
+    "suspended": 2119,
+    "real_gap": 0,
+    "real_gap_rate": 0.0
    },
    {
     "year": 2011,
     "member_days": 73200,
     "no_bar": 1939,
-    "suspended": 6,
-    "real_gap": 1933,
-    "real_gap_rate": 0.026407103825136613
+    "suspended": 1933,
+    "real_gap": 6,
+    "real_gap_rate": 8.19672131147541e-05
    },
    {
     "year": 2012,
     "member_days": 72900,
     "no_bar": 1145,
-    "suspended": 0,
-    "real_gap": 1145,
-    "real_gap_rate": 0.01570644718792867
+    "suspended": 1145,
+    "real_gap": 0,
+    "real_gap_rate": 0.0
    },
    {
     "year": 2013,
     "member_days": 71400,
     "no_bar": 1638,
-    "suspended": 6,
-    "real_gap": 1632,
-    "real_gap_rate": 0.022857142857142857
+    "suspended": 1632,
+    "real_gap": 6,
+    "real_gap_rate": 8.403361344537815e-05
    },
    {
     "year": 2014,
     "member_days": 73500,
     "no_bar": 2550,
-    "suspended": 0,
-    "real_gap": 2550,
-    "real_gap_rate": 0.03469387755102041
+    "suspended": 2550,
+    "real_gap": 0,
+    "real_gap_rate": 0.0
    },
    {
     "year": 2015,
     "member_days": 73200,
     "no_bar": 4970,
-    "suspended": 19,
-    "real_gap": 4951,
-    "real_gap_rate": 0.06763661202185792
+    "suspended": 4951,
+    "real_gap": 19,
+    "real_gap_rate": 0.00025956284153005464
    },
    {
     "year": 2016,
     "member_days": 73200,
     "no_bar": 3205,
-    "suspended": 0,
-    "real_gap": 3205,
-    "real_gap_rate": 0.04378415300546448
+    "suspended": 3205,
+    "real_gap": 0,
+    "real_gap_rate": 0.0
    },
    {
     "year": 2017,
     "member_days": 73200,
     "no_bar": 3974,
-    "suspended": 10,
-    "real_gap": 3964,
-    "real_gap_rate": 0.054153005464480874
+    "suspended": 3964,
+    "real_gap": 10,
+    "real_gap_rate": 0.0001366120218579235
    },
    {
     "year": 2018,
     "member_days": 72900,
     "no_bar": 2602,
-    "suspended": 0,
-    "real_gap": 2602,
-    "real_gap_rate": 0.03569272976680384
+    "suspended": 2602,
+    "real_gap": 0,
+    "real_gap_rate": 0.0
    },
    {
     "year": 2019,
     "member_days": 73200,
     "no_bar": 192,
-    "suspended": 0,
-    "real_gap": 192,
-    "real_gap_rate": 0.002622950819672131
+    "suspended": 192,
+    "real_gap": 0,
+    "real_gap_rate": 0.0
    },
    {
     "year": 2020,
     "member_days": 72900,
     "no_bar": 127,
-    "suspended": 0,
-    "real_gap": 127,
-    "real_gap_rate": 0.0017421124828532236
+    "suspended": 127,
+    "real_gap": 0,
+    "real_gap_rate": 0.0
    },
    {
     "year": 2021,
     "member_days": 72900,
     "no_bar": 89,
-    "suspended": 0,
-    "real_gap": 89,
-    "real_gap_rate": 0.0012208504801097394
+    "suspended": 89,
+    "real_gap": 0,
+    "real_gap_rate": 0.0
    },
    {
     "year": 2022,
     "member_days": 72600,
     "no_bar": 50,
-    "suspended": 0,
-    "real_gap": 50,
-    "real_gap_rate": 0.0006887052341597796
+    "suspended": 50,
+    "real_gap": 0,
+    "real_gap_rate": 0.0
    },
    {
     "year": 2023,
     "member_days": 72600,
     "no_bar": 4,
-    "suspended": 0,
-    "real_gap": 4,
-    "real_gap_rate": 5.509641873278237e-05
+    "suspended": 4,
+    "real_gap": 0,
+    "real_gap_rate": 0.0
    },
    {
     "year": 2024,
     "member_days": 72600,
     "no_bar": 86,
-    "suspended": 0,
-    "real_gap": 86,
-    "real_gap_rate": 0.0011845730027548209
+    "suspended": 86,
+    "real_gap": 0,
+    "real_gap_rate": 0.0
    }
   ]
  },

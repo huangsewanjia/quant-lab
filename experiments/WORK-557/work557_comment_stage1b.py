@@ -75,8 +75,9 @@ def main():
     P("| 年 | member_days | daily 无行 | 其中停牌 | 真缺口 | 真缺口率 |")
     P("|---|---|---|---|---|---|")
     for r in yr:
-        P("| %d | %d | %d | %d | %d | %.6f%% |"
-          % (r["year"], r["member_days"], r["no_bar"], r["suspended"], r["real_gap"],
+        P("| %d | %s | %s | %s | %s | %.6f%% |"
+          % (r["year"], "{:,}".format(r["member_days"]), "{:,}".format(r["no_bar"]),
+             "{:,}".format(r["suspended"]), "{:,}".format(r["real_gap"]),
              100.0 * r["real_gap_rate"]))
     P("")
     P("> **这条把段1 的结论钉死了**：2009–2013 的 1.57%%~2.92%%「缺失」确实是**停牌**（可复现、可解释），"
@@ -112,8 +113,9 @@ def main():
     P("| 板块 | 真实幅度 | bar 数 | 落在 503 候选带内 |")
     P("|---|---|---|---|")
     for r in bd:
-        P("| %s | %.0f%% | %d | %d (%.2f%%) |"
-          % (r["board"], 100 * float(r["band"]), r["n"], r["in_work503_band_set"],
+        P("| %s | %.0f%% | %s | %s (%.2f%%) |"
+          % (r["board"], 100 * float(r["band"]), "{:,}".format(r["n"]),
+             "{:,}".format(r["in_work503_band_set"]),
              100.0 * r["in_work503_band_set"] / max(r["n"], 1)))
     P("")
     P("**三处静态弱点（全部量化，全部继承自 `WORK-503`）：**")

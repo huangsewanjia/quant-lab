@@ -248,7 +248,8 @@ def main():
                 {"year": int(y), "member_days": int(md), "no_bar": int(nb),
                  "suspended": int(su), "real_gap": int(rg),
                  "real_gap_rate": (rg / md) if md else None}
-                for y, md, nb, su, rg in yearly],
+                # SQL 列序：year, member_days, no_bar, real_gap, suspended
+                for y, md, nb, rg, su in yearly],
         },
         "check_B_limit": {
             "columns": list(bkeys),

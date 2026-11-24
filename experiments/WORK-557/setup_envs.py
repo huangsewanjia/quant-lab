@@ -5,10 +5,10 @@
   1. 建 py3.13 venv（--system-site-packages，继承 ds 环境的 torch 2.11+cu128）
      -> .venv/ ；qlib 的纯 python 依赖装在这里，不污染 ds 环境（WORK-538 在用）。
   2. 建 py3.9 venv（从 moblieagent 解释器）-> .venv39/ ；装 pyqlib 的 cp39 轮子
-     （它的 _libs/*.pyd 是 cp39 ABI，是 _libs 语义��「参考实现」）。
+     （它的 _libs/*.pyd 是 cp39 ABI，是 _libs 语义层面的「参考实现」）。
   3. 把 pyqlib 的 cp312 轮子解到 .tmp_qlib312/，供 py3.13 用。
 
-不做：不改 ds 环境任何已��装的包；不写 Z:\\quantdb。
+不做：不改 ds 环境任何已装的包；不写 Z:\\quantdb。
 """
 import os
 import pathlib
