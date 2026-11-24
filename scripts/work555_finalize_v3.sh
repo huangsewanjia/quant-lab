@@ -35,8 +35,11 @@ done
 echo "=== [2/9] 断言演示：刻意关闭掩码，必须报 UNTRADABLE_PRICE_READ $(date -Is)"
 "$PY" scripts/work555_backtest.py --arm dee --seed 42 --no-mask > "$LOG/nomask_demo.log" 2>&1
 NOMASK_RC=$?
-echo "  no-mask exit code = $NOMASK_RC（应非 0）"
+echo "  单组示例 no-mask exit code = $NOMASK_RC（应非 0）"
 grep -m 1 "UNTRADABLE_PRICE_READ" "$LOG/nomask_demo.log" || echo "  !! 未捕获 UNTRADABLE_PRICE_READ"
+echo "  --- 全 8 组合（4 臂 × 2 种子）逐组实测并落盘 ---"
+"$PY" scripts/work555_nomask_all.py
+echo "  nomask_all exit=$?"
 
 echo "=== [3/9] 组合权重不变量（Σw ≤ 1、Σw + cash ≡ 1） $(date -Is)"
 "$PY" - <<'PYEOF'

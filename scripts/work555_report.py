@@ -856,6 +856,8 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
       "/tmp/w555venv/bin/python scripts/work555_backtest.py --arm dee --seed 42\n"
       "# 5) 断言演示：刻意关闭掩码，必须报 UNTRADABLE_PRICE_READ\n"
       "/tmp/w555venv/bin/python scripts/work555_backtest.py --arm dee --seed 42 --no-mask\n"
+      "# 5b) 不可成交断言全 8 组合（4 臂 × 2 种子）逐组实测并落盘\n"
+      "/tmp/w555venv/bin/python scripts/work555_nomask_all.py\n"
       "# 6) 独立复算（不 import 建模函数）\n"
       "/tmp/w555venv/bin/python audit/recompute_work555.py\n"
       "# 6b) 对外数字唯一真源：重生成 failure_log §12 与 registry 行；--check 可判陈旧\n"

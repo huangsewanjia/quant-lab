@@ -70,6 +70,7 @@ def main():
     man = jload(os.path.join(OUT, "snapshot_manifest.json")) or {}
     rv1 = jload(os.path.join(OUT, "review_round1.json")) or {}
     rv2 = jload(os.path.join(OUT, "review_round2.json")) or {}
+    rv3 = jload(os.path.join(OUT, "review_round3.json")) or {}
 
     p = n["primary"]
     v = n["verdict"]
@@ -160,22 +161,27 @@ def main():
     # ---------------- 不可成交断言 ----------------
     A("### 不可成交断言实测（预注册 §7 失败判据第 4 条）")
     A("")
-    nomask = "/tmp/w555logs/nomask_demo.log"
-    first = ""
-    if os.path.exists(nomask):
-        with open(nomask, encoding="utf-8", errors="replace") as fh:
-            for line in fh:
-                if "UNTRADABLE_PRICE_READ" in line:
-                    first = line.strip()
-                    break
-    A("```")
-    A("$ /tmp/w555venv/bin/python scripts/work555_backtest.py --arm dee --seed 42 --no-mask")
-    A(first or "UNTRADABLE_PRICE_READ ts_code=300017.SZ trade_date=2017-01-16 reason=limit_down purpose=sell_fill")
-    A("exit code = 1")
-    A("```")
-    A("")
-    A("掩码开启时同一命令 `n_guard_violations = 0`、exit 0；"
-      "8 个臂/种子组合（dee/mlp_only/xgb/xgbfull × s42/s43）逐一验证：**全部触发、全部退出码非 0**。")
+    nm = jload(os.path.join(OUT, "nomask_assert.json"))
+    if nm:
+        A(f"命令：`/tmp/w555venv/bin/python scripts/work555_nomask_all.py`"
+          f"（4 臂 × 2 种子逐组真跑 `{--no-mask}`，非抽样）")
+        A("")
+        A("| 臂 | 种子 | 退出码 | 是否触发 | 命中的不可成交事件 |")
+        A("|---|---|---|---|---|")
+        for r in nm.get("rows", []):
+            f = r.get("fields", {})
+            ev = (f"`{f.get('ts_code', '?')}` {str(f.get('trade_date', '?'))[:10]} "
+                  f"{f.get('reason', '?')}/{f.get('purpose', '?')}")
+            A(f"| {r.get('arm')} | {r.get('seed')} | {r.get('exit_code')} | "
+              f"{'**是**' if r.get('triggered') else '**否**'} | {ev} |")
+        A("")
+        A(f"**{nm.get('n_triggered')}/{nm.get('n_combinations')} 组合全部触发、退出码全部非 0**"
+          f"（记录文件 `experiments/WORK-555/nomask_assert.json`，含每组 stderr 的 sha256 留痕）。")
+        A("")
+        A("掩码开启时同一命令 `n_guard_violations = 0`、exit 0（`bt_daily_*.csv` 逐日账本可核）。")
+    else:
+        A("**未取到**：本轮未生成 `experiments/WORK-555/nomask_assert.json`，"
+          "8 组合逐组实测记录缺失，故本条不给断言结论。")
     A("")
 
     # ---------------- 快照 ----------------
@@ -219,33 +225,30 @@ def main():
     A("")
 
     # ---------------- 独立审查 ----------------
-    A("### 独立代码审查（第一轮 FAIL → 处置 → 增量复审）")
+    A("### 独立代码审查（三轮，全部 FAIL → 逐项处置 → 增量复审）")
     A("")
     A(f"实现完成后交给**独立子代理**审查（隔离沙箱、零 import 建模函数、自带一套从头写的复算实现）。"
-      f"第一轮判决 **{rv1.get('verdict', '—')}**（{rv1.get('summary', '—')}）。")
+      f"主循环不参与审查判决；每轮修复后交回同一审查方**复审增量**。")
     A("")
-    A("| # | 级别 | 问题 | 处置 |")
-    A("|---|---|---|---|")
-    for f in rv1.get("findings", []):
-        A(f"| {f.get('id')} | {f.get('severity')} | {f.get('problem', '')[:120]}… | "
-          f"{f.get('fix', '')[:160]}… |")
-    A("")
-    if rv2:
-        A(f"**第二轮（增量复审，范围 `{rv2.get('reviewed_range', '8fd1bb3..HEAD')}`）："
-          f"{rv2.get('verdict', '—')}** —— {rv2.get('summary', '')}")
-        if rv2.get("findings"):
+    for label, rv in (("第一轮", rv1), ("第二轮", rv2), ("第三轮", rv3)):
+        if not rv:
+            A(f"**{label}**：留痕文件缺失，未取到判决。")
             A("")
+            continue
+        A(f"**{label}**（增量复审范围 `{rv.get('reviewed_range', '—')}`）："
+          f"判决 **{rv.get('verdict', '—')}**")
+        A("")
+        A(f"> {rv.get('summary', '')}")
+        A("")
+        if rv.get("findings"):
             A("| # | 级别 | 问题 | 处置 |")
             A("|---|---|---|---|")
-            for f in rv2.get("findings", []):
-                A(f"| {f.get('id')} | {f.get('severity')} | {f.get('problem', '')[:120]}… | "
-                  f"{f.get('fix', '')[:160]}… |")
-    else:
-        A("（第二轮增量复审结果将在完成后并入本段。）")
-    A("")
-    A("留痕：`experiments/WORK-555/review_round1.json`"
-      + ("、`experiments/WORK-555/review_round2.json`" if rv2 else "") + "。")
-    A("")
+            for f in rv["findings"]:
+                A(f"| {f.get('id')} | {f.get('severity')} | {f.get('problem', '')[:110]}… | "
+                  f"{f.get('fix', '')[:150]}… |")
+            A("")
+        A(f"留痕：`experiments/WORK-555/review_round{rv.get('round', '?')}.json`")
+        A("")
 
     # ---------------- 复现性（字节级）
     rc = jload(os.path.join(OUT, "repro_check.json"))
@@ -280,8 +283,11 @@ def main():
     A("/tmp/w555venv/bin/python scripts/work555_artifact_manifest.py --check  # 产物清单复核")
     A("```")
     A("")
-    A("**线程固定是复现前提**：float32 GEMM 的归约顺序随 BLAS 线程数变化，"
-      "不固定时同命令同 seed 结果不可复现（实测 T=1 与 committed 产物逐字节一致，T=4 不同）。")
+    A("**线程固定是复现前提**：实测表明线程数会改变训练数值结果"
+      "（`scripts/work555_thread_sensitivity.py`：同代码 / 同 seed / 同 60 步，"
+      "T=1 与 T=4 的最优快照集成级验证损失相对差 3.569e-05），"
+      "不固定线程时同命令同 seed 结果不可复现。"
+      "该机制的根因未被单独隔离验证，表述只到「线程数改变数值结果」为止，详见 `failure_log.md` §14。")
     A("")
 
     body = "\n".join(L)

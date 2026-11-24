@@ -84,6 +84,9 @@ else
   FAIL=1
 fi
 
+run nomask_all "不可成交断言 8 组合（4 臂 × 2 种子）逐组触发且退出码非 0" \
+    "$PY" scripts/work555_nomask_all.py
+
 echo "--- 快照 sha256（6 份应逐份 MATCH）---"
 "$PY" - <<'PYEOF'
 import hashlib, json, sys
