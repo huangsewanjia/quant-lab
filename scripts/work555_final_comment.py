@@ -142,8 +142,17 @@ def main():
     A("")
     A(f"- 判决：**{au.get('verdict', '—')}**，blocking **{au.get('n_blocking', '—')}** 项 / "
       f"共 **{au.get('n_findings', '—')}** 项检查项")
-    A(f"- Δ_ic 复算值 `{ (au.get('primary_test_recomputed') or {}).get('delta_ic_mean')!r }`（建模侧 "
-      f"`{p.get('delta_ic_mean')!r}`，差异来自 float32 存储精度，相对差 ≤ 1e-6）")
+    _rec = (au.get("primary_test_recomputed") or {}).get("delta_ic_mean")
+    _mod = p.get("delta_ic_mean")
+    if isinstance(_rec, (int, float)) and isinstance(_mod, (int, float)) and float(_mod) != 0:
+        _d = abs(float(_rec) - float(_mod))
+        _r = _d / abs(float(_mod))
+        _cmp = ("逐位一致" if _d == 0 else
+                f"相对差 {_r:.2e}（float32 存储精度量级）" if _r <= 1e-6 else
+                f"**不一致（绝对差 {_d:.6g}、相对差 {_r:.3g}）**")
+    else:
+        _cmp = "复算值或建模侧取值缺失，未取到可比对"
+    A(f"- Δ_ic 复算值 `{_rec!r}`（建模侧 `{_mod!r}`）→ {_cmp}")
     inv = n["weight_invariant"]
     A(f"- 组合权重不变量（现金账本口径）：全部 {inv.get('n_files')} 份逐日账本 "
       f"max Σw = **{inv.get('max_sum_w', 0):.9f}**、Σw>1 天数 = **{inv.get('n_days_over_1')}**、"
@@ -174,7 +183,7 @@ def main():
     nm = jload(os.path.join(OUT, "nomask_assert.json"))
     if nm:
         A(f"命令：`/tmp/w555venv/bin/python scripts/work555_nomask_all.py`"
-          f"（4 臂 × 2 种子逐组真跑 `{--no-mask}`，非抽样）")
+          f"（4 臂 × 2 种子逐组真跑 `--no-mask`，非抽样）")
         A("")
         A("| 臂 | 种子 | 退出码 | 是否触发 | 命中的不可成交事件 |")
         A("|---|---|---|---|---|")
