@@ -35,9 +35,19 @@ max|diff| = 0；与全树预测 max|diff| = 1.8e-2），
 import argparse
 import json
 import os
+import sys
 import time
 
 import numpy as np
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+# 秩口径必须与其余臂（work555_dee）**逐位一致**：第四轮审查 B4-1 实测发现本脚本原用
+# 序数秩 np.argsort(np.argsort(x))，与其余臂/审计侧的平均并列秩口径不同，
+# 导致 xgbfull 的 RankIC 与产物复算值相差 1.07e-03，且该臂在审计里零覆盖。
+# 这里直接复用建模侧唯一的 _rank 实现，避免两处再漂移。
+from work555_dee import _rank  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
@@ -66,8 +76,8 @@ def rank_ic_by_day(pred, y, day_remap, n_days):
         if b - a < 3:
             continue
         p, t = ps[a:b], ys[a:b]
-        pr = np.argsort(np.argsort(p)).astype(np.float64)
-        tr = np.argsort(np.argsort(t)).astype(np.float64)
+        pr = _rank(p)
+        tr = _rank(t)
         sp, st = pr.std(), tr.std()
         if sp <= 0 or st <= 0:
             continue

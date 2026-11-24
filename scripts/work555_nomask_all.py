@@ -60,6 +60,12 @@ def run_one(arm, seed):
     if m:
         fields = {"ts_code": m.group(1), "trade_date": m.group(2),
                   "reason": m.group(4), "purpose": m.group(5)}
+    stderr = p.stderr or ""
+    # 第四轮审查 S4-2 实测发现：traceback 全文内嵌**脚本的绝对路径**，
+    # 因此 stderr_sha256 跨 checkout 路径不可复现（审查方实测：把路径替换回去可
+    # 逐位复现提交值，证明差异 100% 来自路径，不是断言本身不可复现）。
+    # 这里额外记一个**路径无关**的归一化摘要，供跨路径核对。
+    stderr_norm = stderr.replace(REPO, "<REPO>")
     return {
         "arm": arm,
         "seed": seed,
@@ -67,7 +73,10 @@ def run_one(arm, seed):
         "triggered": bool(hit) and int(p.returncode) != 0,
         "message_line": hit or "",
         "fields": fields,
-        "stderr_sha256": hashlib.sha256((p.stderr or "").encode("utf-8")).hexdigest(),
+        "stderr_sha256": hashlib.sha256(stderr.encode("utf-8")).hexdigest(),
+        "stderr_sha256_normalized": hashlib.sha256(stderr_norm.encode("utf-8")).hexdigest(),
+        "stderr_sha256_note": ("stderr_sha256 含本 checkout 的绝对路径，跨路径不可比；"
+                               "stderr_sha256_normalized 把仓库路径替换成 <REPO> 后计算，跨路径可比"),
         "cmd": " ".join(["/tmp/w555venv/bin/python"] + cmd[1:]),
     }
 

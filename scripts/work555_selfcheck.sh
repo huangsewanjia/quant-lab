@@ -73,6 +73,20 @@ print(f"          审计判决 {a.get('verdict')}（blocking {a.get('n_blocking'
 if a.get("n_blocking"):
     print("    FAIL  审计存在未关闭的 blocking，不得据此出正式结论")
     sys.exit(1)
+# 第四轮审查 S4-1 实测发现：门禁原先只读 n_blocking **计数器**，不看 findings[] 数组，
+# 于是「数组里有 severity=blocking、但计数器仍是 0」的状态会被完全放行（负控 nc_sev）。
+# 这里自行从 findings[] 派生一次，并要求与计数器互相一致。
+arr_blocking = [f for f in a.get("findings", []) if f.get("severity") == "blocking"]
+if arr_blocking:
+    print(f"    FAIL  findings[] 里有 {len(arr_blocking)} 条 severity=blocking，"
+          f"但 n_blocking={a.get('n_blocking')}（计数器与数组不一致）")
+    for f in arr_blocking[:5]:
+        print(f"          - {f.get('item')}")
+    sys.exit(1)
+if int(a.get("n_blocking") or 0) != len(arr_blocking):
+    print("    FAIL  n_blocking 与 findings[] 派生值不一致")
+    sys.exit(1)
+print(f"    PASS  findings[] 派生 blocking 数 = {len(arr_blocking)}，与 n_blocking 一致")
 PYEOF
 [ $? -ne 0 ] && FAIL=1
 
@@ -86,8 +100,19 @@ else
   FAIL=1
 fi
 
+# nomask_all 会写回 experiments/WORK-555/nomask_assert.json，而该文件在**产物清单**
+# 的 sha256 覆盖范围内 —— 不还原的话，跑一次自证清单就会让清单漂移（第四轮审查 S4-2
+# 实测：第 1 次跑全绿，第 2 次跑即报「漂移 1」）。这里跑前备份、跑后还原，使自证清单幂等。
+NOMASK_REC=experiments/WORK-555/nomask_assert.json
+NOMASK_BAK="$LOG/nomask_assert.bak"
+[ -f "$NOMASK_REC" ] && cp "$NOMASK_REC" "$NOMASK_BAK"
 run nomask_all "不可成交断言 8 组合（4 臂 × 2 种子）逐组触发且退出码非 0" \
     "$PY" scripts/work555_nomask_all.py
+if [ -f "$NOMASK_BAK" ]; then
+  cp "$NOMASK_BAK" "$NOMASK_REC"
+  rm -f "$NOMASK_BAK"
+  echo "    (已还原 $NOMASK_REC，避免自证清单改写清单覆盖的产物)"
+fi
 
 echo "--- 快照 sha256（6 份应逐份 MATCH）---"
 "$PY" - <<'PYEOF'

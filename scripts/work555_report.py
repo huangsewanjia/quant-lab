@@ -781,13 +781,40 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
 
     # ---- 8b 独立代码审查第一轮：发现与处置
     if review:
-        A("<h3>独立代码审查第一轮：发现与处置</h3>")
+        # 第四轮审查 S4-3 实测发现：留痕原先只写第一轮，读者会误以为独立审查第一轮后即闭环。
+        # 这里按盘上的 review_round*.json 动态列出全部轮次与分级计数。
+        _rounds = []
+        for _fn in sorted(os.listdir(OUT)):
+            if not (_fn.startswith("review_round") and _fn.endswith(".json")):
+                continue
+            _r = jload(os.path.join(OUT, _fn))
+            if not _r:
+                continue
+            _c = {"blocking": 0, "suggestion": 0, "nit": 0}
+            for _fd in _r.get("findings", []):
+                if _fd.get("severity") in _c:
+                    _c[_fd["severity"]] += 1
+            _rounds.append((_r.get("round", _fn), _r.get("verdict", "?"), _c, _fn))
+        _rounds.sort(key=lambda x: (x[0] if isinstance(x[0], int) else 0, str(x[3])))
+        _rc = {"blocking": 0, "suggestion": 0, "nit": 0}
+        for _f0 in review.get("findings", []):
+            if _f0.get("severity") in _rc:
+                _rc[_f0["severity"]] += 1
+        A("<h3>独立代码审查：逐轮发现与处置</h3>")
         A(f"<p>本单实现完成后交给<b>独立子代理</b>做代码审查（隔离沙箱、零 import 建模函数、"
-          f"自带一套从头写的复算实现）。第一轮判决 <b>{review.get('verdict', '—')}</b>："
+          f"自带一套从头写的复算实现）。共 <b>{len(_rounds)}</b> 轮，"
+          f"<b>全部判 FAIL</b>，逐项处置后进入下一轮："
+          + "；".join(f"第{_rd}轮 <b>{_v}</b>（{_c['blocking']} blocking + "
+                      f"{_c['suggestion']} suggestion + {_c['nit']} nit）"
+                      for _rd, _v, _c, _fn in _rounds)
+          + f"。第一轮判决 <b>{review.get('verdict', '—')}</b>："
           f"{str(review.get('summary', '—')).replace('<', '&lt;')}。"
-          "下表逐条列问题、修复与<b>可复跑的验证</b>；机器可读留痕见 "
-          "<span class=\"mono\">experiments/WORK-555/review_round1.json</span>。</p>")
-        A("<table><caption>表 9b · 独立审查第一轮：2 blocking + 3 suggestion + 4 nit 的处置</caption>")
+          "下表逐条列第一轮的问题、修复与<b>可复跑的验证</b>；各轮机器可读留痕见 "
+          "<span class=\"mono\">experiments/WORK-555/review_round1.json</span> ~ "
+          "<span class=\"mono\">experiments/WORK-555/review_round"
+          f"{len(_rounds)}.json</span>。</p>")
+        A(f"<table><caption>表 9b · 独立审查第一轮：{_rc['blocking']} blocking + "
+          f"{_rc['suggestion']} suggestion + {_rc['nit']} nit 的处置</caption>")
         A("<thead><tr><th class=\"c\" style=\"width:5%\">#</th><th class=\"c\" style=\"width:9%\">级别</th>"
           "<th class=\"l\">问题</th><th class=\"l\">修复</th><th class=\"l\">验证（可复跑）</th>"
           "</tr></thead><tbody>")

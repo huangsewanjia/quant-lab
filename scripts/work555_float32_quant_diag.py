@@ -45,12 +45,27 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(REPO, "audit"))
 
 import work555_dee as MODEL           # noqa: E402
+import work555_xgb_diag as XGB        # noqa: E402
 import recompute_work555 as AUDIT     # noqa: E402
 
 TOL = 1e-6                 # 与 audit/recompute_work555.py 的 TOL 同口径
 ARMS = ("dee", "mlp_only", "xgb", "xgbfull")
 SEEDS = (42, 43)
 N_PERTURB = 20
+
+# 每个臂的「建模侧秩函数」与「run json 里的报告值字段名」必须成对取，
+# 否则会把「建模侧复算值」错配到「别的臂的秩口径」上。
+# 第四轮审查 B4-1 实测发现：xgbfull 臂原先用序数秩（已在 work555_xgb_diag.py 修为
+# 平均并列秩），且其报告字段名是 test_rankic_mean_best_iter；本脚本原先对全部臂
+# 一律用 work555_dee.rank_ic_by_day + test_rankic_mean，于是该臂的 1.07e-03 口径差
+# 被完全遮住，还被写成「该臂无 test_rankic_mean 字段」。
+RANK_FN = {"dee": "MODEL", "mlp_only": "MODEL", "xgb": "XGB", "xgbfull": "XGB"}
+REPORT_KEY = {"dee": "test_rankic_mean", "mlp_only": "test_rankic_mean",
+              "xgb": "test_rankic_mean", "xgbfull": "test_rankic_mean_best_iter"}
+
+
+def rank_fn_for(arm):
+    return XGB.rank_ic_by_day if RANK_FN[arm] == "XGB" else MODEL.rank_ic_by_day
 
 
 def load_npz(arm, seed):
@@ -80,14 +95,14 @@ def ric_from_np(arm, seed):
     y = d["y"].astype(np.float64)
     di = d["date_idx"]
     n_days = int(di.max()) + 1
-    a = float(np.nanmean(MODEL.rank_ic_by_day(pred, y, di, n_days)))
+    a = float(np.nanmean(rank_fn_for(arm)(pred, y, di, n_days)))
     df = pd.DataFrame({"pred": pred, "label": y, "trade_date": di})
     b = float(np.nanmean(AUDIT.daily_ic(df, "pred", "label", "spearman")))
     runp = os.path.join(OUT, f"run_{arm}_s{seed}.json")
     reported = None
     if os.path.exists(runp):
         with open(runp, encoding="utf-8") as fh:
-            reported = json.load(fh).get("test_rankic_mean")
+            reported = json.load(fh).get(REPORT_KEY[arm])
     return a, b, reported, d
 
 
@@ -97,35 +112,8 @@ def rel_diff(x, y):
     return abs(x - y) / max(abs(y), 1e-12)
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--check", action="store_true", help="只校验已落盘记录，不重算")
-    args = ap.parse_args()
-
-    if args.check:
-        if not os.path.exists(RES):
-            print("[FAIL] 缺 experiments/WORK-555/float32_quant_diag.json", file=sys.stderr)
-            return 1
-        with open(RES, encoding="utf-8") as fh:
-            rec = json.load(fh)
-        print(f"float32_quant_diag: {rec.get('n_rows')} 个臂/种子，"
-              f"建模侧函数与审计侧函数逐位相等 = {rec.get('model_audit_identical')}，"
-              f"越过 1e-6 判据 = {rec.get('n_over_tol')}")
-        for r in rec.get("rows", []):
-            g = r.get("rel_diff_func_vs_reported")
-            gs = "n/a" if g is None else f"{g:.3e}"
-            print(f"  {r.get('arm'):9s} s{r.get('seed')}  pred_dtype={r.get('pred_dtype')}  "
-                  f"rel_gap={gs}  {'OVER_TOL' if r.get('over_tol') else 'within_tol'}")
-        if rec.get("n_over_tol"):
-            print(f"[FAIL] {rec.get('n_over_tol')} 个臂/种子的「产物复算 vs 建模侧报告值」"
-                  f"相对差越过 {rec.get('tol')} 判据", file=sys.stderr)
-            return 1
-        if not rec.get("model_audit_identical"):
-            print("[FAIL] 建模侧函数与审计侧函数未逐位相等，说明两边实现口径分歧", file=sys.stderr)
-            return 1
-        print("[PASS] 全部臂/种子的产物复算值与建模侧报告值在 1e-6 判据内，且两侧实现逐位相等")
-        return 0
-
+def compute_rows():
+    """重算每个臂/种子的三方一致性行（--check 也走这里，避免只信落盘字段）。"""
     rows = []
     for arm in ARMS:
         for seed in SEEDS:
@@ -144,14 +132,75 @@ def main():
                 "rel_diff_func_vs_reported": gap,
                 "model_vs_audit_identical": a == b,
                 "over_tol": bool(gap is not None and gap > TOL),
-                "note": ("该臂的 run_*.json 不含 test_rankic_mean（诊断臂口径不同），"
-                         "故不参与「报告值 vs 产物复算值」比较" if reported is None else ""),
+                "note": (f"该臂的 run_*.json 缺字段 {REPORT_KEY[arm]}，"
+                         f"故不参与「报告值 vs 产物复算值」比较" if reported is None else ""),
                 "tol": TOL,
             })
-            gs = "n/a" if gap is None else f"{gap:.3e}"
-            print(f"  {arm:9s} s{seed}  pred={d['pred_dtype']:8s} "
-                  f"建模侧函数={a!r}  审计侧函数={b!r}  建模侧报告={reported!r}  "
-                  f"rel={gs} {'OVER_TOL' if gap is not None and gap > TOL else 'within_tol'}")
+    return rows
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--check", action="store_true",
+                    help="只校验：重算一遍并与已落盘记录比对（不写盘）")
+    args = ap.parse_args()
+
+    if args.check:
+        if not os.path.exists(RES):
+            print("[FAIL] 缺 experiments/WORK-555/float32_quant_diag.json", file=sys.stderr)
+            return 1
+        with open(RES, encoding="utf-8") as fh:
+            rec = json.load(fh)
+        # 第四轮审查 S4-1/S4-4：--check 原来只**读**落盘字段，改一个字段就能骗过门禁。
+        # 现在重算一遍，再与落盘记录逐行比对：既防「落盘陈旧」，也防「落盘被改」。
+        fresh = compute_rows()
+        stale = []
+        by_key = {(r.get("arm"), r.get("seed")): r for r in rec.get("rows", [])}
+        for r in fresh:
+            old = by_key.get((r["arm"], r["seed"]))
+            if old is None:
+                stale.append(f"{r['arm']} s{r['seed']} 落盘记录缺失")
+                continue
+            if old.get("model_side_func_value") != r["model_side_func_value"]:
+                stale.append(f"{r['arm']} s{r['seed']} 建模侧函数值与落盘不一致")
+            if old.get("rel_diff_func_vs_reported") != r["rel_diff_func_vs_reported"]:
+                stale.append(f"{r['arm']} s{r['seed']} 相对差与落盘不一致（落盘陈旧）")
+            if bool(old.get("over_tol")) != r["over_tol"]:
+                stale.append(f"{r['arm']} s{r['seed']} 越界判定与落盘不一致")
+        n_cmp = sum(1 for r in fresh if r.get("rel_diff_func_vs_reported") is not None)
+        print(f"float32_quant_diag: 重算 {len(fresh)} 个臂/种子（{n_cmp} 个参与"
+              f"「产物复算 vs 报告值」比较），"
+              f"建模侧函数与审计侧函数逐位相等 = {all(r['model_vs_audit_identical'] for r in fresh)}，"
+              f"越过 1e-6 判据 = {sum(1 for r in fresh if r['over_tol'])}")
+        for r in fresh:
+            g = r.get("rel_diff_func_vs_reported")
+            gs = "n/a" if g is None else f"{g:.3e}"
+            print(f"  {r.get('arm'):9s} s{r.get('seed')}  pred_dtype={r.get('pred_dtype')}  "
+                  f"rel_gap={gs}  {'OVER_TOL' if r.get('over_tol') else 'within_tol'}")
+        if stale:
+            for s in stale:
+                print(f"[FAIL] {s}", file=sys.stderr)
+            return 1
+        n_over = sum(1 for r in fresh if r["over_tol"])
+        if n_over:
+            print(f"[FAIL] {n_over} 个臂/种子的「产物复算 vs 建模侧报告值」"
+                  f"相对差越过 {TOL} 判据", file=sys.stderr)
+            return 1
+        if not all(r["model_vs_audit_identical"] for r in fresh):
+            print("[FAIL] 建模侧函数与审计侧函数未逐位相等，说明两边实现口径分歧", file=sys.stderr)
+            return 1
+        print(f"[PASS] {n_cmp}/{len(fresh)} 个臂/种子的产物复算值与建模侧报告值在 "
+              f"{TOL} 判据内（其余 {len(fresh)-n_cmp} 个未参与比较），"
+              f"且两侧实现逐位相等；落盘记录与本次重算一致")
+        return 0
+
+    rows = compute_rows()
+    for r in rows:
+        gs = "n/a" if r["rel_diff_func_vs_reported"] is None else f"{r['rel_diff_func_vs_reported']:.3e}"
+        print(f"  {r['arm']:9s} s{r['seed']}  pred={r['pred_dtype']:8s} "
+              f"建模侧函数={r['model_side_func_value']!r}  审计侧函数={r['audit_side_func_value']!r}  "
+              f"建模侧报告={r['model_reported_value']!r}  "
+              f"rel={gs} {'OVER_TOL' if r['over_tol'] else 'within_tol'}")
 
     # ---- ±1 ULP 扰动模拟：量化本身能造成多大抖动
     pert_stats = []
@@ -164,7 +213,7 @@ def main():
             y = d["y"].astype(np.float64)
             di = d["date_idx"]
             n_days = int(di.max()) + 1
-            base = float(np.nanmean(MODEL.rank_ic_by_day(pred, y, di, n_days)))
+            base = float(np.nanmean(rank_fn_for(arm)(pred, y, di, n_days)))
             rng = np.random.default_rng(0)
             # 扰动步长按**实际存储精度**取：float32 存 -> 用 float32 eps；
             # float64 存 -> 用 float64 eps（此时量化噪声应降到 ~1e-14 量级）
@@ -176,13 +225,13 @@ def main():
                 pert = (pred + rng.uniform(-1, 1, len(pred)) * eps)
                 pert = pert.astype(np.float32).astype(np.float64) if d["pred_dtype"] == "float32" \
                     else pert.astype(np.float64)
-                vals.append(float(np.nanmean(MODEL.rank_ic_by_day(pert, y, di, n_days))))
+                vals.append(float(np.nanmean(rank_fn_for(arm)(pert, y, di, n_days))))
             vals = np.array(vals)
             reported = None
             runp = os.path.join(OUT, f"run_{arm}_s{seed}.json")
             if os.path.exists(runp):
                 with open(runp, encoding="utf-8") as fh:
-                    reported = json.load(fh).get("test_rankic_mean")
+                    reported = json.load(fh).get(REPORT_KEY[arm])
             covered = None if reported is None else bool(vals.min() <= reported <= vals.max())
             pert_stats.append({
                 "arm": arm, "seed": seed, "base_from_npz": base,
@@ -192,7 +241,7 @@ def main():
                 "min": float(vals.min()), "max": float(vals.max()),
                 "model_reported_value": reported,
                 "reported_inside_perturb_range": covered,
-                "note": ("该臂 run_*.json 无 test_rankic_mean，未参与区间覆盖判定"
+                "note": (f"该臂 run_*.json 缺字段 {REPORT_KEY[arm]}，未参与区间覆盖判定"
                          if covered is None else ""),
             })
             print(f"  [ULP] {arm:9s} s{seed}  base={base:.9f}  std={vals.std():.3e}  "

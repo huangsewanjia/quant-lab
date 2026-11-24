@@ -419,19 +419,26 @@ def main():
         if os.path.exists(run_path):
             with open(run_path, encoding="utf-8") as fh:
                 run = json.load(fh)
-            for key, mine in (("test_rankic_mean", ric_mean), ("test_ic_mean", pic_mean)):
-                if key in run:
-                    d = rel_diff(mine, run[key])
-                    sev = "blocking" if d > TOL else "nit"
-                    if d > TOL:
-                        add(sev, f"ic::{tag}::{key}", mine, run[key], d,
-                            f"run_{arm}_s{seed}.json",
-                            "/tmp/w555venv/bin/python audit/recompute_work555.py")
-                    elif d > 0:
-                        findings.append({"severity": "pass", "item": f"ic::{tag}::{key}",
-                                         "measured": mine, "expected": run[key], "gap": d,
-                                         "location": f"run_{arm}_s{seed}.json",
-                                         "how_to_verify": "audit script output"})
+            # 键名按臂取：xgbfull（诊断臂）的报告字段是 test_rankic_mean_best_iter /
+            # test_ic_mean_best_iter；其余臂是 test_rankic_mean / test_ic_mean。
+            # 第四轮审查 B4-1 实测发现：原先只查 test_rankic_mean，xgbfull 的 IC
+            # 被「if key in run」静默跳过 —— 该臂在审计里零覆盖，秩口径分歧也没人挡。
+            for cands, mine in ((("test_rankic_mean", "test_rankic_mean_best_iter"), ric_mean),
+                                (("test_ic_mean", "test_ic_mean_best_iter"), pic_mean)):
+                key = next((k for k in cands if k in run), None)
+                if key is None:
+                    continue
+                d = rel_diff(mine, run[key])
+                sev = "blocking" if d > TOL else "nit"
+                if d > TOL:
+                    add(sev, f"ic::{tag}::{key}", mine, run[key], d,
+                        f"run_{arm}_s{seed}.json",
+                        "/tmp/w555venv/bin/python audit/recompute_work555.py")
+                elif d > 0:
+                    findings.append({"severity": "pass", "item": f"ic::{tag}::{key}",
+                                     "measured": mine, "expected": run[key], "gap": d,
+                                     "location": f"run_{arm}_s{seed}.json",
+                                     "how_to_verify": "audit script output"})
 
         # ---- 1b) 独立复算族消融子集（预注册 §4.6）
         fam_mine = recompute_family_subsets(p, df)

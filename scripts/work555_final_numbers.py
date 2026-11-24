@@ -405,9 +405,40 @@ def render_fl_12_4(n):
     return "\n".join(L)
 
 
+def review_rounds_summary():
+    """扫描 experiments/WORK-555/review_round*.json，返回按轮次排序的
+    [(轮次, verdict, {severity: 计数}, 文件名)]。
+
+    第四轮审查 S4-3 实测发现：registry / report 的「独立审查」留痕原先只写第一轮，
+    完全不提第二、三轮同样判 FAIL，读者会误以为第一轮后即闭环。
+    这里改成按盘上的留痕文件动态生成，份数与分级计数都不手打。
+    """
+    out = []
+    d = os.path.join(REPO, "experiments", "WORK-555")
+    if not os.path.isdir(d):
+        return out
+    for fn in sorted(os.listdir(d)):
+        if not (fn.startswith("review_round") and fn.endswith(".json")):
+            continue
+        try:
+            with open(os.path.join(d, fn), encoding="utf-8") as fh:
+                r = json.load(fh)
+        except Exception:
+            continue
+        cnt = {"blocking": 0, "suggestion": 0, "nit": 0}
+        for fd in r.get("findings", []):
+            sev = fd.get("severity")
+            if sev in cnt:
+                cnt[sev] += 1
+        out.append((r.get("round", fn), r.get("verdict", "?"), cnt, fn))
+    out.sort(key=lambda x: (x[0] if isinstance(x[0], int) else 0, str(x[3])))
+    return out
+
+
 def render_registry_row(n):
     p, port, au = n["primary"], n["port"], n.get("audit", {})
     v = n["verdict"]
+    _rounds = review_rounds_summary()
     dee = [port.get(f"dee_s{s}", {}) for s in SEEDS]
     mlp = [port.get(f"mlp_only_s{s}", {}) for s in SEEDS]
     xgb = [port.get(f"xgb_s{s}", {}) for s in SEEDS]
@@ -494,16 +525,22 @@ def render_registry_row(n):
         + " / ".join(f(port.get(f"xgbfull_s{s}", {}).get("rankic"), 6, sign=True) for s in SEEDS)
         + f" → 退化的是「用池化 MSE 做早停」在本面板的适配性，**不是实现缺陷**；"
           f"本单**不因此改协议**，该臂仅作参考、不参与进/退判词<br>"
-        f"⑤ **两种子不足以支撑主检验量**：MLP-only 基线自身极差 {f(p.get('rankic_range_mlp'), 4)} "
-        f"{'已超' if p.get('rankic_unstable_mlp') else '未超'}预注册 0.01 阈值，"
-        f"Δ_ic 的符号由基线噪声决定<br>"
-        f"⑥ **独立审查第一轮判 FAIL**（2 blocking + 3 suggestion + 4 nit）："
-        f"B1 审计脚本在 sha256 漂移路径崩溃（已修为显式 blocking）、"
+        + (f"⑤ **两种子不足以支撑主检验量**：MLP-only 基线自身极差 "
+           f"{f(p.get('rankic_range_mlp'), 4)} 已超预注册 0.01 阈值，"
+           f"Δ_ic 的符号由基线噪声决定<br>"
+           if p.get("rankic_unstable_mlp") else
+           f"⑤ **基线本身是稳的**：MLP-only 基线自身极差 "
+           f"{f(p.get('rankic_range_mlp'), 4)} 未超预注册 0.01 阈值 —— "
+           f"因此 Δ_ic 的方向由**相对表现**决定，而不是由基线的种子噪声决定<br>")
+        + f"⑥ **独立审查 {len(_rounds)} 轮全部判 FAIL**（"
+        + "；".join(f"第{rd}轮 {c['blocking']} blocking + {c['suggestion']} suggestion "
+                    f"+ {c['nit']} nit" for rd, _v, c, _fn in _rounds)
+        + "）：第一轮的 5 项（B1 审计脚本在 sha256 漂移路径崩溃（已修为显式 blocking）、"
         f"B2 快照 manifest 未锁事实层 panel_backtest.csv（已补，现 6 份逐份 MATCH）、"
         f"S1 梯度单测 worst 缩进漏检（已修 + 变异测试自证）、"
         f"S2 早停监控量与预注册「集成级」文字不符（已改并重跑）、"
-        f"S3 组合强制持有权重泄漏（已改现金账本口径 + 两道不变量闸门）；"
-        f"留痕见 `experiments/WORK-555/review_round1.json`<br>"
+        f"S3 组合强制持有权重泄漏（已改现金账本口径 + 两道不变量闸门））已逐项处置；"
+        f"留痕见 `experiments/WORK-555/review_round{{1..{len(_rounds)}}}.json`<br>"
         f"⑦ qlib 官方 Alpha158 因子与 CSI300 数据集**未取到**（未下载、未实测可达）；"
         f"tushare `bak_daily` / `sw_daily` / `ci_daily` **40203 无权限**；"
         f"`stock_zh_a_hist_em` **IP 限流**；论文官方代码**未取到**（DEE 全自实现）"
