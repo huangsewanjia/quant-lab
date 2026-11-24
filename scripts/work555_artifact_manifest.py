@@ -54,6 +54,8 @@ GROUPS = [
      "建模汇总：组合回测指标"),
     ("evidence", lambda f: f == "nomask_assert.json",
      "不可成交断言全 8 组合逐组实测记录（预注册 §7 失败判据第 4 条）"),
+    ("evidence", lambda f: f == "float32_quant_diag.json",
+     "产物精度诊断记录（产物复算值 vs 建模侧报告值，预注册 §7.2 的 1e-6 判据）"),
 ]
 
 
