@@ -7,8 +7,11 @@
 ## 0. 审查对象与边界
 
 - **仓库**：`/srv/share/quantdb/code/quant-lab`，分支 `agent/work-555-dee`。
-- **审查范围**：`9bbb1f1..HEAD`（本轮代码与证据链改动）+ **最终产物 commit**（产物落地后补入）。
+- **审查范围**：`9bbb1f1..HEAD`（本轮代码与证据链改动）+ **最终产物 commit `bb5c746`**
+  （`feat(WORK-555): v4 终版产物（float64 落盘）落地`；含 `experiments/WORK-555/` 全部产物、
+  `experiments/registry.md`、`figures/WORK-555/`，以及 `scripts/work555_final_comment.py`）。
   第三轮审查（`experiments/WORK-555/review_round3.json`）覆盖到 `7de12b6`，本轮要覆盖其后的一切。
+  提交顺序可核：`git log --oneline 9bbb1f1..bb5c746`。
 - **前置轮次留痕**：`experiments/WORK-555/review_round1.json`、`review_round2.json`、`review_round3.json`
   （三轮判决均为 FAIL）。**重点复核第三轮的 B1/B2/B3 三项 blocking 是否真的关闭**，以及
   第二轮 7 项与第一轮 9 项处置是否仍然有效（修复可能被后续改动破坏）。
@@ -96,14 +99,36 @@
   `scripts/work555_float32_quant_diag.py`（精度门禁）。
 - 复核：`--check` 全部退出 0；**做负控**：改一个数字看 `--check` 是否报错。
 
+### 2.4 生产者声称的 v4 结果（**请逐条独立核实，不要采信本段**）
+以下数字全部来自 commit `bb5c746` 的产物，用于给审查方一个核对靶子：
+
+| 声称 | 声称值 | 声称出处 |
+|---|---|---|
+| 独立复算判决 | PASS，blocking **0** / 共 **318** 项检查项 | `experiments/WORK-555/audit_findings.json` |
+| 审计绑定的清单 sha256 | `d2846eab2e8ef168…` | 同上 `artifact_manifest_sha256` |
+| Δ_ic 复算值 | `-0.2914861368509015`（声称与建模侧**逐位一致**） | 同上 `primary_test_recomputed` |
+| 精度诊断 | 8 个臂/种子相对差全部 `0.0`，`model_audit_identical=True` | `experiments/WORK-555/float32_quant_diag.json` |
+| DEE 两臂 RankIC | s42 `0.030327373520180168`、s43 `0.02163083350961915` | `run_dee_s{42,43}.json` |
+| 字节级复现 | 2/2 逐字节一致 | `experiments/WORK-555/repro_check.json` |
+| 不可成交断言 | 8/8 触发、退出码全为 1 | `experiments/WORK-555/nomask_assert.json` |
+| 权重不变量 | max Σw = 1.000000000、Σw>1 天数 = 0、max\|Σw+cash−1\| = 5.551e-16 | `bt_daily_*.csv` |
+| 快照 | 6/6 MATCH | `snapshot_manifest.json` |
+| 判词 | **未复现（退）**（Δ_ic 均值 −29.15%；DEE 净 Sharpe 均值 −0.5841 < 0） | `final_numbers.json` |
+
+**生产者的自陈局限**：第三轮 B1/B2/B3 三项 blocking 的关闭与否，本轮仍需审查方独立判断；
+`final_numbers.json` / `report.html` / `registry.md` / `failure_log.md` §12 生成块是否同源同值，
+也不能因为 `--check` 退出 0 就认为必然正确——请自行写脚本对齐。
+
 ## 3. 交付件与可复现性
 
 - `experiments/WORK-555/report.html`（单文件、内嵌 base64 图、无外链、断网可开）
 - `experiments/WORK-555/report_print.pdf`、`report_firstscreen_1440x900.png`
 - `figures/WORK-555/fig1..fig4*.png`
 - 快照 6 份 sha256：`experiments/WORK-555/snapshot_manifest.json`
-- 产物清单 43 份：`experiments/WORK-555/artifact_manifest.json`
-- 字节级复现：`experiments/WORK-555/repro_check.json`（沙箱重跑 vs 仓库产物逐份 sha256）
+- 产物清单 **44** 份：`experiments/WORK-555/artifact_manifest.json`
+  （含 evidence 组：`nomask_assert.json`、`float32_quant_diag.json`）
+- 字节级复现：`experiments/WORK-555/repro_check.json`（沙箱重跑 vs 仓库产物逐份 sha256，
+  实测 **2/2 逐字节一致**：`preds_dee_s42.npz`、`preds_mlp_only_s42.npz`）
 - **复核字节级复现**：看 `repro_check.json` 的每份 sha256 是否真的一致；
   如需自验，可在 `/srv/share` 下自建沙箱（拷 `scripts/` + 软链 `sample.npz`、
   `sample_meta.json`）重跑做对照。
