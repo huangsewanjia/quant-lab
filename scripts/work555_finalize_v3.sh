@@ -91,6 +91,10 @@ for f in "$HTML" experiments/WORK-555/report_print.pdf experiments/WORK-555/repo
   [ -f "$f" ] && printf "  %-58s %10d B  %s\n" "$f" "$(stat -c%s "$f")" "$(sha256sum "$f" | cut -c1-16)"
 done
 
+echo "=== [8b/9] 自证清单（8 项一次跑完；含审计新鲜度与 n_blocking=0） $(date -Is)"
+bash scripts/work555_selfcheck.sh 2>&1 | tail -22
+echo "  selfcheck exit=${PIPESTATUS[0]}"
+
 echo "=== [9/9] 快照 sha256 复核（6 份应逐份 MATCH） $(date -Is)"
 "$PY" - <<'PYEOF'
 import hashlib, json, os
@@ -104,7 +108,6 @@ PYEOF
 echo "=== [9b/9] 对外数字陈旧自检（--check，有陈旧即非 0） $(date -Is)"
 "$PY" scripts/work555_final_numbers.py --check
 echo "  final_numbers --check exit=$?"
-
 echo "=== [9c/9] 产物清单复核（--check，漂移即非 0） $(date -Is)"
 "$PY" scripts/work555_artifact_manifest.py --check
 echo "  artifact_manifest --check exit=$?"
