@@ -3,7 +3,7 @@
 ## 为什么需要脱离
 
 2026-11-25 00:11 实测：上一个 Multica run 终态时，**它持有的后台任务被平台一并带走**——
-GRU s42 训练在 epoch 21（1627 s）被殺，基线只在训练末尾写 parquet/json，故**产物未落盘**，
+GRU s42 训练在 epoch 21（1627 s）被杀，基线只在训练末尾写 parquet/json，故**产物未落盘**，
 该档 21 轮全部作废。Multica runtime 也明示「run 终态即孤立 run 持有的后台任务」。
 
 因此训练与后处理链改由 **Windows 计划任务**起：进程的父级是 Task Scheduler 服务，

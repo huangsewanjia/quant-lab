@@ -242,7 +242,7 @@ def usage_line() -> str:
         return "本 run 已用 <未取到> / 硬闸 25M（usage 读取失败: %r）" % (exc,)
 
 
-def notify_ready() -> dict:
+def notify_ready(prev_notify=None) -> dict:
     """链全部跑完后：生成段2正文 → 替换用量行 → 发布评论 → 置 issue 状态 in_review。
 
     为什么由脚本发评论（而不是留给下一轮智能体）：本单的后台任务在**上一个 run
@@ -255,16 +255,19 @@ def notify_ready() -> dict:
     非 ASCII）；数字全部来自产物 JSON/CSV；用 `{{USAGE_LINE}}` 占位符回填真实用量。
     """
     rec = {"body": None, "body_rc": None, "post_rc": None, "status_rc": None}
-    # 幂等保护：重跑 run_all.cmd / schtasks /run 不得再发一条几乎相同的评论
-    prev_path = os.path.join(EXP_DIR, "finish_summary.json")
-    prev = None
-    if os.path.exists(prev_path):
-        try:
-            with open(prev_path, encoding="utf-8") as fh:
-                prev = json.load(fh)
-        except Exception:
-            prev = None
-    prev_notify = (prev or {}).get("notify") or {}
+    # 幂等保护：重跑 run_all.cmd / schtasks /run 不得再发一条几乎相同的评论。
+    # 注意：main() 里 `_dump()` 会**覆写** finish_summary.json，所以上一轮的 notify
+    # 记录必须由 main() 在覆写前抓在手里传进来（否则幂等判定会读到空记录而重复发帖）。
+    if prev_notify is None:
+        prev_notify = {}
+        _prev_path = os.path.join(EXP_DIR, "finish_summary.json")
+        if os.path.exists(_prev_path):
+            try:
+                with open(_prev_path, encoding="utf-8") as fh:
+                    prev_notify = (json.load(fh) or {}).get("notify") or {}
+            except Exception:
+                prev_notify = {}
+    prev_notify = prev_notify or {}
     if prev_notify.get("posted_at"):
         log("已发过段2评论（%s，comment_id=%s），跳过重复发帖"
             % (prev_notify.get("posted_at"), prev_notify.get("comment_id")))
@@ -440,13 +443,23 @@ def main() -> int:
         with open(out, "w", encoding="utf-8") as fh:
             json.dump(summary, fh, ensure_ascii=False, indent=1, default=str)
 
+    # 幂等所需的**上一轮** notify 记录：必须在 `_dump()` 覆写文件之前抓在手里
+    prev_notify = {}
+    _prev_path = os.path.join(EXP_DIR, "finish_summary.json")
+    if os.path.exists(_prev_path):
+        try:
+            with open(_prev_path, encoding="utf-8") as fh:
+                prev_notify = (json.load(fh) or {}).get("notify") or {}
+        except Exception:
+            prev_notify = {}
+
     # 先落盘一次：正文生成器要读**本轮**的自检结果（`finish_summary.json`）；
     # 且**必须**在发帖之前写好 —— 否则链若在发帖那一步崩掉，整轮链记录全丢
     # （独立审查 2026-11-25 的严重缺陷）。
     _dump()
     if summary["ok"]:
         try:
-            summary["notify"] = notify_ready()
+            summary["notify"] = notify_ready(prev_notify)
         except Exception as exc:
             summary["notify_error"] = repr(exc)
             log("就绪信号异常：%r（链产物已落盘，链记录不丢）" % (exc,))
