@@ -665,6 +665,42 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
               f"账本偏差 max|Σw+cash−1| = <b>{ledger:.3e}</b>。"
               "这条闸门是第一轮独立审查暴露的旧实现缺陷（强制持有的旧权重与新买入的 1/K 直接叠加，"
               "实测 Σw 最高 1.44、974 天里 151 天 &gt; 1）的守门人。</p>")
+        # 产物精度：float32 量化导致的复算不一致（本单收口时最后一项 blocking 的根因与处置）
+        qd = jload(os.path.join(OUT, "float32_quant_diag.json"))
+        if qd:
+            A("<h3>产物精度：为什么最后一项 blocking 是「产物 float32 量化」，以及处置</h3>")
+            A("<p>收口审计一度剩最后 1 项 blocking（<span class=\"mono\">ic::dee_s43::test_rankic_mean</span>，"
+              "相对差 2.526e-06 &gt; 预注册 §7.2 的 1e-6 判据）。根因<b>不是算法分歧</b>："
+              "把建模侧函数（<span class=\"mono\">work555_dee.rank_ic_by_day</span>）与审计侧函数"
+              "（<span class=\"mono\">recompute_work555.daily_ic</span>，独立实现）指向同一份产物复算，"
+              f"<b>逐位相等</b>（{len(qd.get('rows', []))} 个臂/种子全部一致 = "
+              f"{qd.get('model_audit_identical')}）。差异来自<b>产物把预测存成 float32</b>，"
+              "而建模侧的指标是用内存里的 float64 算的：量化会在截面里偶尔翻转两个几乎相等的预测的"
+              "<b>秩位</b>，逐日 Spearman 随之偏移。</p>")
+            rowsq = qd.get("rows", [])
+            if rowsq:
+                A("<table><caption>表 6b · 产物复算值 vs 建模侧报告值（相对差，判据 1e-6）</caption>")
+                A("<thead><tr><th>臂/种子</th><th>产物 pred 精度</th><th>建模侧函数值</th>"
+                  "<th>审计侧函数值</th><th>建模侧报告值</th><th>相对差</th><th>判定</th></tr></thead><tbody>")
+                for r in rowsq:
+                    g = r.get("rel_diff_func_vs_reported")
+                    gs = "—" if g is None else f"{g:.3e}"
+                    A(f"<tr><td class=\"c\">{r.get('arm')} s{r.get('seed')}</td>"
+                      f"<td class=\"c\">{r.get('pred_dtype')}</td>"
+                      f"<td class=\"n\">{r.get('model_side_func_value')!r}</td>"
+                      f"<td class=\"n\">{r.get('audit_side_func_value')!r}</td>"
+                      f"<td class=\"n\">{r.get('model_reported_value')!r}</td>"
+                      f"<td class=\"n\">{gs}</td>"
+                      f"<td class=\"c\">{'<b>越界</b>' if r.get('over_tol') else '通过'}</td></tr>")
+                A("</tbody></table>")
+            A("<p>处置按预注册 §7.2「<b>以复算值为准，回退到对应阶段重做</b>」——"
+              "<b>不是</b>放宽审计阈值（那属于协议变更，预注册冻结后不可静默更改）。"
+              "具体做法是<b>让产物无损</b>：预测改按 float64 落盘，"
+              "<b>训练轨迹与指标计算完全未动</b>，因此建模侧的数值一个字节都没变，"
+              "变的是审计复算能与建模侧<b>逐位相等</b>（gap = 0，远严于 1e-6 判据）。"
+              "该诊断已固化为门禁：<span class=\"mono\">scripts/work555_float32_quant_diag.py</span>"
+              "（任一臂越界即非 0 退出），并接入 <span class=\"mono\">work555_selfcheck.sh</span>；"
+              "过程与实测见 <span class=\"mono\">failure_log.md</span> §15。</p>")
     else:
         A("<p>独立复算尚未产出。</p>")
 
@@ -784,7 +820,7 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
               "<b>集成级验证 MSE</b>。监控量决定<b>恢复哪一个参数快照</b>，"
               "快照一变，模型就变 → RankIC / Δ_ic / 判词都可能变，"
               "所以这不是「改个日志」而是<b>必须重跑</b>。下表是重跑前后的实测对照。</p>")
-            A("<table><caption>表 9c · S2 修复前后的实测对照（v2 参照 vs v3 重跑）</caption>")
+            A("<table><caption>表 9c · S2 修复前后的实测对照（v2 参照 vs 当前重跑）</caption>")
             A("<thead><tr><th class=\"l\">臂/种子</th><th class=\"c\">旧口径 best_step（v2）</th>"
               "<th class=\"c\">新 run 旧口径复算 best_step</th><th class=\"c\">新口径 best_step（集成级）</th>"
               "<th class=\"c\">steps_run 旧→新</th><th class=\"c\">测试 RankIC 旧→新</th>"
@@ -834,8 +870,9 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
       f"<td class=\"c\">{'通过' if (c4_ledger <= 1e-9 and c4_n_over == 0 and c4_max_sum_w <= 1 + 1e-9) else '不通过'}</td></tr>")
     A("</tbody></table>")
     A("<pre>cd /srv/share/quantdb/code/quant-lab\n"
-      "# 0) 复现前提：BLAS 线程必须固定为 1（float32 GEMM 归约顺序随线程数变化，\n"
-      "#    不固定时同命令同 seed 的结果不可复现：实测 T=1 与 committed 产物逐字节一致，T=4 不同）\n"
+      "# 0) 复现前提：BLAS 线程必须固定为 1（实测线程数会改变训练数值结果：\n"
+      "#    同代码/同 seed/同 60 步，T=1 与 T=4 的最优快照集成级验证损失相对差 3.569e-05；\n"
+      "#    该机制未被单独隔离验证，表述只到「线程数改变数值结果」，详见 failure_log §14）\n"
       "export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \\\n"
       "       NUMEXPR_NUM_THREADS=1\n"
       "# 1) 引擎原语单测（梯度校验 + SWRR 逐位对照协议附录 B + 口径自检）\n"
