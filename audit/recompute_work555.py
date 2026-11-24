@@ -280,8 +280,15 @@ def main():
         p = os.path.join(REPO, item["path"])
         got = sha256_of(p)
         if got != item["sha256"]:
+            # 注意：sha256 是十六进制串，**不能**送进 rel_diff（那里做 float()），
+            # 否则一旦真的漂移，这里会抛 ValueError 而不是报出 blocking。
             add("blocking", f"sha256::{item['name']}", got, item["sha256"],
-                rel_diff(got, item["sha256"]), item["path"], "sha256sum <file>")
+                "sha256 不一致", item["path"], "sha256sum <file>")
+        else:
+            findings.append({"severity": "pass", "item": f"sha256::{item['name']}",
+                             "measured": got, "expected": item["sha256"], "gap": 0.0,
+                             "location": item["path"],
+                             "how_to_verify": "sha256sum <file>"})
 
     bt = pd.read_csv(os.path.join(data_dir, "panel_backtest.csv"),
                      parse_dates=["trade_date"], dtype={"ts_code": "string"})

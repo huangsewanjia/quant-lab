@@ -1,7 +1,7 @@
 {
   "experiment": "WORK-555",
   "tolerance_rel_diff": 1e-06,
-  "n_findings": 255,
+  "n_findings": 261,
   "n_blocking": 0,
   "verdict": "PASS",
   "primary_test_recomputed": {
@@ -29,6 +29,60 @@
     ]
   },
   "findings": [
+    {
+      "severity": "pass",
+      "item": "sha256::panel_daily",
+      "measured": "619765cad57063a4f23cc139da6802340cfdc510aa396126c3c2efa1dfb64357",
+      "expected": "619765cad57063a4f23cc139da6802340cfdc510aa396126c3c2efa1dfb64357",
+      "gap": 0.0,
+      "location": "data/WORK-555/panel_daily.csv",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "sha256::panel_stk_limit",
+      "measured": "5a1761c29afb0fc93362cf14927dd54a94ca391f5941a4f3fbad05dc1b87d584",
+      "expected": "5a1761c29afb0fc93362cf14927dd54a94ca391f5941a4f3fbad05dc1b87d584",
+      "gap": 0.0,
+      "location": "data/WORK-555/panel_stk_limit.csv",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "sha256::panel_suspend",
+      "measured": "41969c4b23bd16514405f50a2df6a49bb2f6b82be1271aecc4846902db846570",
+      "expected": "41969c4b23bd16514405f50a2df6a49bb2f6b82be1271aecc4846902db846570",
+      "gap": 0.0,
+      "location": "data/WORK-555/panel_suspend.csv",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "sha256::panel_index_weight",
+      "measured": "d6eea91ae2623e45aaaf91c362ed60602de71bbb41c4157142d064af7e5c3cc0",
+      "expected": "d6eea91ae2623e45aaaf91c362ed60602de71bbb41c4157142d064af7e5c3cc0",
+      "gap": 0.0,
+      "location": "data/WORK-555/panel_index_weight.csv",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "sha256::panel_stock_basic",
+      "measured": "b3e11fc7e2b8b32efce8eae446894a468892e2b597b64b7cd2d48af18c60dad5",
+      "expected": "b3e11fc7e2b8b32efce8eae446894a468892e2b597b64b7cd2d48af18c60dad5",
+      "gap": 0.0,
+      "location": "data/WORK-555/panel_stock_basic.csv",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "sha256::panel_backtest",
+      "measured": "67ae31fe6fe23a7d12382a1cdddce455d2d9109dc7aaeba747f273690ff42f06",
+      "expected": "67ae31fe6fe23a7d12382a1cdddce455d2d9109dc7aaeba747f273690ff42f06",
+      "gap": 0.0,
+      "location": "data/WORK-555/panel_backtest.csv",
+      "how_to_verify": "sha256sum <file>"
+    },
     {
       "severity": "pass",
       "item": "label_integrity::dee_s42 (max_rel_dev)",

@@ -101,6 +101,17 @@
       "size_bytes": 33647,
       "n_ts_code": 820,
       "pk_duplicate_rows": 0
+    },
+    {
+      "name": "panel_backtest",
+      "path": "data/WORK-555/panel_backtest.csv",
+      "description": "回测事实层（加工层：由 panel_daily + stk_limit + suspend + index_weight 派生的测试段逐日可成交事实）",
+      "ok": true,
+      "rows": 750589,
+      "date_min": "2017-01-03",
+      "date_max": "2020-12-31",
+      "sha256": "67ae31fe6fe23a7d12382a1cdddce455d2d9109dc7aaeba747f273690ff42f06",
+      "note": "**加工层**，非端点原始快照；同样逐份 sha256 锁定，供独立复算核对事实层未漂移"
     }
   ],
   "universe_size": 821,
