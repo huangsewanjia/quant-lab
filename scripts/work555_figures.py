@@ -386,7 +386,7 @@ def fig4(runs, bts):
         ours.append(np.mean(vals) if vals else np.nan)
     ax.bar(np.arange(len(keys)) + 0.2, ours, width=0.38, color=C_BLUE,
            edgecolor="white", linewidth=0.8, zorder=3,
-           label="This study (48 factors, CSI300, net of nothing)")
+           label="This study (48 factors, CSI300)")
     ax.set_xticks(range(len(keys)))
     ax.set_xticklabels(keys, fontsize=7)
     ax.set_ylabel("Test-period RankIC")
