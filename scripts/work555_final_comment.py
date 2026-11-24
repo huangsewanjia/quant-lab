@@ -82,7 +82,7 @@ def main():
     A("")
     A(f"**判词：{v.get('verdict_word', '—')}**（严格按预注册 §6.2 机械规则，无自由裁量）")
     A("")
-    A("三条依据（逐条给出实测值）：")
+    A(f"依据（预注册 §6.2 逐条判据，每条给出实测值；共 {len(v.get('rules', []))} 条命中）：")
     A("")
     for i, r in enumerate(v.get("rules", []), 1):
         A(f"{i}. {r}")

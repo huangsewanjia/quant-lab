@@ -642,7 +642,7 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
               f"{len(inv)} 项检查（每臂 × 每种子 × 每成本档各一项），判据为 "
               f"<span class=\"mono\">Σw ≤ 1</span> 与 <span class=\"mono\">Σw + cash ≡ 1</span>。"
               f"实测最大 Σw = <b>{worst:.12f}</b>、Σw&gt;1 的项数 = <b>{n_over}</b>、"
-              f"账本偏差 max\\|Σw+cash−1\\| = <b>{ledger:.3e}</b>。"
+              f"账本偏差 max|Σw+cash−1| = <b>{ledger:.3e}</b>。"
               "这条闸门是第一轮独立审查暴露的旧实现缺陷（强制持有的旧权重与新买入的 1/K 直接叠加，"
               "实测 Σw 最高 1.44、974 天里 151 天 &gt; 1）的守门人。</p>")
     else:
@@ -756,6 +756,41 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
         if unv:
             A("<p class=\"small\"><b>审查方自述未能核实的项</b>（不藏）："
               + "；".join(unv) + "。</p>")
+        # ---- 8c S2 修复的实测影响（对照表由 v2 参照 + 新产物机器生成）
+        v2ref = jload(os.path.join(OUT, "rerun_v2_reference.json"))
+        if v2ref and runs:
+            A("<h3>S2 修复的实测影响：为什么必须重跑</h3>")
+            A("<p>S2 把早停监控量从「逐专家 MSE 的平均」改成预注册 §4.1/§4.3 写死的"
+              "<b>集成级验证 MSE</b>。监控量决定<b>恢复哪一个参数快照</b>，"
+              "快照一变，模型就变 → RankIC / Δ_ic / 判词都可能变，"
+              "所以这不是「改个日志」而是<b>必须重跑</b>。下表是重跑前后的实测对照。</p>")
+            A("<table><caption>表 9c · S2 修复前后的实测对照（v2 参照 vs v3 重跑）</caption>")
+            A("<thead><tr><th class=\"l\">臂/种子</th><th class=\"c\">旧口径 best_step（v2）</th>"
+              "<th class=\"c\">新 run 旧口径复算 best_step</th><th class=\"c\">新口径 best_step（集成级）</th>"
+              "<th class=\"c\">steps_run 旧→新</th><th class=\"c\">测试 RankIC 旧→新</th>"
+              "</tr></thead><tbody>")
+            for tag in ("dee_s42", "dee_s43", "mlp_only_s42", "mlp_only_s43"):
+                r = (v2ref.get("arms") or {}).get(tag)
+                cur = runs.get(tag)
+                if not (r and cur):
+                    continue
+                rt = r.get("train", {})
+                alt = ((cur.get("train") or {}).get("alt_monitor_mean_expert_mse") or {}).get("best_step")
+                nm = {"dee": "DEE", "mlp_only": "MLP-only"}[tag.split("_s")[0]]
+                A(f"<tr><td class=\"l\">{nm} s{tag.split('_s')[1]}</td>"
+                  f"<td class=\"c mono\">{rt.get('best_step')}</td>"
+                  f"<td class=\"c mono\">{alt if alt is not None else '—'}</td>"
+                  f"<td class=\"c mono\"><b>{fmt((cur.get('train') or {}).get('best_step'), 0)}</b></td>"
+                  f"<td class=\"c mono\">{rt.get('steps_run')} → "
+                  f"{fmt((cur.get('train') or {}).get('steps_run'), 0)}</td>"
+                  f"<td class=\"c mono\">{fmt(r.get('test_rankic_mean'), 6)} → "
+                  f"<b>{fmt(cur.get('test_rankic_mean'), 6)}</b></td></tr>")
+            A("</tbody></table>")
+            A("<p class=\"small\">第 2 列与第 3 列是<b>训练轨迹一致性的交叉验证</b>："
+              "新 run 里并行记录的「旧口径」best_step 与 v2 参照逐位吻合 —— "
+              "说明重跑的<b>训练轨迹本身没变</b>，变的只是「用哪个监控量决定恢复哪一步的快照」。"
+              "唯一例外是提前早停的臂：轨迹被截断后旧口径的最优步可能落在截断点之后。"
+              "完整的重跑前后对照见 <span class=\"mono\">failure_log.md</span> §13。</p>")
 
     # ---- 9 自证
     A("<h2><span class=\"num\">9</span>自证：勾稽与复跑命令</h2>")
