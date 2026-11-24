@@ -386,6 +386,15 @@ def main() -> int:
         summary["notify"] = notify_ready()
         log("就绪信号：body=%s status_rc=%s"
             % (summary["notify"].get("body"), summary["notify"].get("status_rc")))
+    else:
+        # 失败也必须把智能体叫醒：否则（训练被杀 / 自检不过）issue 会静默无回帖。
+        # 置 blocked → 对应一次性唤醒 `--until-status blocked`。
+        cli = os.environ.get("MULTICA_CLI_PATH") or "multica"
+        s = subprocess.run([cli, "issue", "status", EXP_ISSUE, "blocked",
+                            "--output", "json"], cwd=REPO, capture_output=True,
+                           text=True)
+        summary["failed_signal_rc"] = s.returncode
+        log("失败信号：status=blocked rc=%s" % s.returncode)
     out = os.path.join(EXP_DIR, "finish_summary.json")
     with open(out, "w", encoding="utf-8") as fh:
         json.dump(summary, fh, ensure_ascii=False, indent=1, default=str)
