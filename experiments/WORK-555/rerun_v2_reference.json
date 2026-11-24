@@ -1,0 +1,83 @@
+{
+  "note": "WORK-555 重跑前的参照状态（v2 产物），用于机器生成「S2/S3 修复带来的实测影响」对照表。",
+  "source_run_jsons": "/tmp/w555_backup/run_*.json（v3 重跑前的备份，2026-11-24 15:57）",
+  "source_backtest_jsons": "git show a378b71:experiments/WORK-555/backtest_*.json（修复前的回测产物）",
+  "arms": {
+    "dee_s42": {
+      "train": {
+        "steps_run": 8000,
+        "best_step": 7740,
+        "early_stopped": false,
+        "best_val_mse_old_monitor": 0.0009948294144123792,
+        "elapsed_sec": 5444.3
+      },
+      "test_rankic_mean": 0.030327373520180168,
+      "test_ic_mean": 0.031063414388615075,
+      "backtest_v2_leaky_engine": {
+        "sharpe_rf0_8bps": -0.2730729713549962,
+        "annualized_return_8bps": -0.07623820048831165,
+        "max_drawdown_8bps": -0.4278647216323216,
+        "turnover_daily_mean_8bps": 1.0054209445585218,
+        "sharpe_rf0_5bps": 0.08034491417134029,
+        "avg_holdings": 50.20225872689939
+      }
+    },
+    "dee_s43": {
+      "train": {
+        "steps_run": 8000,
+        "best_step": 8000,
+        "early_stopped": false,
+        "best_val_mse_old_monitor": 0.0010177685879170894,
+        "elapsed_sec": 5975.9
+      },
+      "test_rankic_mean": 0.023148644058997664,
+      "test_ic_mean": 0.03001877355854801,
+      "backtest_v2_leaky_engine": {
+        "sharpe_rf0_8bps": -0.3980232740152686,
+        "annualized_return_8bps": -0.1040082714647167,
+        "max_drawdown_8bps": -0.491498631688996,
+        "turnover_daily_mean_8bps": 1.0387679671457908,
+        "sharpe_rf0_5bps": -0.04522272821319098,
+        "avg_holdings": 50.100616016427104
+      }
+    },
+    "mlp_only_s42": {
+      "train": {
+        "steps_run": 8000,
+        "best_step": 7580,
+        "early_stopped": false,
+        "best_val_mse_old_monitor": 0.0010027197247836738,
+        "elapsed_sec": 1742.0
+      },
+      "test_rankic_mean": 0.010116964226472241,
+      "test_ic_mean": 0.02578359613460378,
+      "backtest_v2_leaky_engine": {
+        "sharpe_rf0_8bps": -0.32336544199408573,
+        "annualized_return_8bps": -0.09429008541941364,
+        "max_drawdown_8bps": -0.48943315861264813,
+        "turnover_daily_mean_8bps": 0.9251745379876798,
+        "sharpe_rf0_5bps": -0.022695863032860322,
+        "avg_holdings": 50.25770020533881
+      }
+    },
+    "mlp_only_s43": {
+      "train": {
+        "steps_run": 8000,
+        "best_step": 7820,
+        "early_stopped": false,
+        "best_val_mse_old_monitor": 0.0010275342734530567,
+        "elapsed_sec": 1766.3
+      },
+      "test_rankic_mean": 0.029023791668679445,
+      "test_ic_mean": 0.03702675781963252,
+      "backtest_v2_leaky_engine": {
+        "sharpe_rf0_8bps": -0.18855157941484435,
+        "annualized_return_8bps": -0.06485568879617976,
+        "max_drawdown_8bps": -0.44662924941690574,
+        "turnover_daily_mean_8bps": 0.9216016427104726,
+        "sharpe_rf0_5bps": 0.11650490913037276,
+        "avg_holdings": 50.24435318275154
+      }
+    }
+  }
+}

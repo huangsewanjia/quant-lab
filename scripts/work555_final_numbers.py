@@ -196,6 +196,7 @@ def collect():
     n["audit"] = {"verdict": au.get("verdict"), "n_findings": au.get("n_findings"),
                   "n_blocking": au.get("n_blocking"),
                   "primary_test_recomputed": au.get("primary_test_recomputed")}
+    n["v2_reference"] = jload(os.path.join(OUT, "rerun_v2_reference.json")) or {}
     man = jload(os.path.join(OUT, "snapshot_manifest.json")) or {}
     items = []
     for it in man.get("items", []):
@@ -436,10 +437,46 @@ def render_registry_row(n):
     return row
 
 
+def render_fl_13(n):
+    """S2 / S3 修复带来的实测影响（重跑前 vs 重跑后）。"""
+    ref = (n.get("v2_reference") or {}).get("arms", {})
+    port = n["port"]
+    L = ["| 臂/种子 | 旧口径 best_step | 新口径 best_step（集成级） | steps_run 旧→新 | 早停 旧→新 | "
+         "测试 RankIC 旧→新 | 净 Sharpe(8bps) 旧(泄漏口径)→新(现金账本) |",
+         "|---|---|---|---|---|---|---|"]
+    for tag in ("dee_s42", "dee_s43", "mlp_only_s42", "mlp_only_s43"):
+        r = ref.get(tag)
+        d = port.get(tag)
+        if not (r and d):
+            continue
+        rt, dt = r.get("train", {}), d
+        old_bt = r.get("backtest_v2_leaky_engine", {})
+        arm = tag.split("_s")[0]
+        name = {"dee": "DEE", "mlp_only": "MLP-only"}[arm]
+        L.append(f"| {name} s{tag.split('_s')[1]} | {rt.get('best_step')} | "
+                 f"{dt.get('best_step')} | {rt.get('steps_run')} → {dt.get('steps_run')} | "
+                 f"{'是' if rt.get('early_stopped') else '否'} → "
+                 f"{'是' if dt.get('early_stopped') else '否'} | "
+                 f"{f(r.get('test_rankic_mean'), 6)} → **{f(dt.get('rankic'), 6)}** | "
+                 f"{f(old_bt.get('sharpe_rf0_8bps'), 4, sign=True)} → "
+                 f"{f(dt.get('sharpe_8bps'), 4, sign=True)} |")
+    L.append("")
+    L.append("口径说明：")
+    L.append("")
+    L.append("- **S2（早停监控量）**：`best_step` 是「恢复哪个参数快照」的那一步。"
+             "旧实现监控逐专家 MSE 的平均，新实现监控集成级 MSE —— 两者选中的步不同，"
+             "恢复出来的权重就不同，测试段 RankIC 随之改变。")
+    L.append("- **S3（组合权重口径）**：旧引擎把「强制持有的旧权重」与「新买入的 1/K」直接叠加，"
+             "总权重最高 1.44（隐含杠杆 44%）；新引擎为现金账本口径，总敞口恒为 1。"
+             "两列 Sharpe 口径不同，不是同一口径下的前后对比。")
+    return "\n".join(L)
+
+
 BLOCKS = {
     "§12.2": render_fl_12_2,
     "§12.3": render_fl_12_3,
     "§12.4": render_fl_12_4,
+    "§13": render_fl_13,
 }
 
 

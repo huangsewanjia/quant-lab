@@ -33,70 +33,81 @@
   "train": {
     "pool_size": 295820,
     "n_train_rows": 336580,
-    "steps_run": 8000,
-    "best_step": 7820,
-    "best_ens_val_mse": 0.0010275342734530567,
-    "early_stopped": false,
-    "elapsed_sec": 1766.3,
-    "eval_count": 400
+    "steps_run": 7540,
+    "best_step": 6540,
+    "best_ens_val_mse": 0.0010110193069776206,
+    "early_stopped": true,
+    "elapsed_sec": 1947.0,
+    "eval_count": 377,
+    "loss_monitor": "ensemble_mse = MSE(mean_k f_k(x), y)  # 预注册 §4.1/§4.3「集成级验证 MSE」",
+    "alt_monitor_mean_expert_mse": {
+      "best_step": 7500,
+      "best_val": 0.0010290623875334858,
+      "note": "旧实现口径（逐专家 MSE 的平均）对照值，仅用于量化口径差异"
+    }
   },
   "val_loss_tail": [
     {
-      "step": 7920,
-      "ens_val_mse": 0.001030689018080011
+      "step": 7460,
+      "ens_val_mse": 0.0010117596836976602,
+      "mean_expert_val_mse": 0.0010298163047991692
     },
     {
-      "step": 7940,
-      "ens_val_mse": 0.0010314686573110522
+      "step": 7480,
+      "ens_val_mse": 0.0010126048478240033,
+      "mean_expert_val_mse": 0.0010307089309208096
     },
     {
-      "step": 7960,
-      "ens_val_mse": 0.0010299853864125907
+      "step": 7500,
+      "ens_val_mse": 0.0010117157482044533,
+      "mean_expert_val_mse": 0.0010290623875334858
     },
     {
-      "step": 7980,
-      "ens_val_mse": 0.0010311645281035453
+      "step": 7520,
+      "ens_val_mse": 0.001011794486368964,
+      "mean_expert_val_mse": 0.0010320134868379682
     },
     {
-      "step": 8000,
-      "ens_val_mse": 0.001029020978603512
+      "step": 7540,
+      "ens_val_mse": 0.0010119740344025864,
+      "mean_expert_val_mse": 0.0010321404377464205
     }
   ],
   "ic_filter": {
     "per_expert_valid_rankic": [
-      0.037596,
-      0.017784,
-      -0.036411,
-      0.065372,
-      -0.053236,
-      0.020296,
-      -0.013466,
-      0.030253,
-      0.005204,
-      0.039614,
-      -0.026154,
-      -0.004408,
-      0.049677,
-      0.033433,
-      -0.014738,
-      0.029605,
-      0.034309,
-      -0.027657,
-      -0.001559,
-      0.028579
+      0.014751,
+      -0.026769,
+      0.013043,
+      -0.019685,
+      0.007124,
+      0.008597,
+      0.030173,
+      0.050357,
+      0.030916,
+      0.036741,
+      0.038,
+      -0.041918,
+      0.026947,
+      -0.003293,
+      0.04603,
+      0.055137,
+      -0.007193,
+      0.020894,
+      0.017321,
+      0.015354
     ],
-    "threshold": -0.035674,
+    "threshold": -0.022032,
     "active_experts": [
       0,
-      1,
+      2,
       3,
+      4,
       5,
       6,
       7,
       8,
       9,
       10,
-      11,
       12,
       13,
       14,
@@ -110,24 +121,24 @@
     "degenerate_filter_fallback": false,
     "single_expert_degenerate": false
   },
-  "test_rankic_mean": 0.029023791668679445,
-  "test_ic_mean": 0.03702675781963252,
+  "test_rankic_mean": 0.036100158891923945,
+  "test_ic_mean": 0.03466942577270775,
   "test_rankic_daily_n": 974,
   "family_subsets": {
     "mlp_family": {
       "n_experts": 20,
       "n_active_after_ic_filter": 18,
-      "ic_filter_threshold": -0.035674,
-      "rankic": 0.029023791668679445,
-      "ic": 0.03702675781963252
+      "ic_filter_threshold": -0.022032,
+      "rankic": 0.036100158891923945,
+      "ic": 0.03466942577270775
     },
     "full_dee": {
       "n_experts": 20,
       "n_active_after_ic_filter": 18,
-      "ic_filter_threshold": -0.035674,
-      "rankic": 0.029023791668679445,
-      "ic": 0.03702675781963252
+      "ic_filter_threshold": -0.022032,
+      "rankic": 0.036100158891923945,
+      "ic": 0.03466942577270775
     }
   },
-  "elapsed_sec": 1782.6
+  "elapsed_sec": 1992.6
 }
