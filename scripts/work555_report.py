@@ -139,8 +139,8 @@ def build():
         verdict_word, verdict_cls = "退（未复现）", "negative"
         reasons.append(f"Δ_ic = {delta_mean:+.2%} 落在进带之外")
     if np.isfinite(net_sh_mean) and net_sh_mean < 0:
-        verdict_word, verdict_cls = "退（净 Sharpe < 0）", "negative"
-        reasons.append(f"DEE 净 Sharpe（rf=0，8 bps 主口径）= {net_sh_mean:+.3f} < 0，直接退")
+        verdict_word, verdict_cls = "退（净 Sharpe &lt; 0）", "negative"
+        reasons.append(f"DEE 净 Sharpe（rf=0，8 bps 主口径）= {net_sh_mean:+.3f} &lt; 0，直接退")
     if not np.isfinite(delta_mean) or ci_lo <= 0 <= ci_hi:
         reasons.append("95% CI 含 0 → 记为「未复现」（预注册 §6.2）")
     if ric_rng > 0.01:
@@ -181,6 +181,7 @@ def build():
                 "n_over_1": (int(np.sum(d["sum_w"].to_numpy() > 1.0 + 1e-9))
                              if "sum_w" in d.columns else 0),
                 "turn_ann_x": (float(d["turnover"].sum()) / max(1, len(d)) * 252.0),
+                "turn_daily": float(d["turnover"].mean()),
                 "daily_cost_bps": (float(d["cost"].sum()) / max(1, len(d)) * 1e4),
             })
     c1_max = max([t["c1"] for t in tie], default=0.0)
@@ -197,6 +198,8 @@ def build():
         if t.get("daily_cost_bps") is not None:
             _cost_bps.append(t["daily_cost_bps"])
     turn_ann_txt = (f"{np.mean(_turn_ann):.0f} 倍" if _turn_ann else "当前量级")
+    _turn_daily = [t.get("turn_daily") for t in tie if t.get("turn_daily") is not None]
+    turn_daily_txt = (f"{np.mean(_turn_daily):.3f}（占组合净值）" if _turn_daily else "当前量级")
     if len(deltas) >= 2:
         c3 = abs(delta_mean - float(np.sum(deltas) / len(deltas)))
     else:
@@ -342,7 +345,7 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
         ("5 成本与组合", "top-50 等权、日频调仓；单边成本主口径 8 bps + 卖出印花税 10 bps（附 5 bps 敏感性）；"
                          "涨停不可买、跌停不可卖（强制持有）、停牌不可成交；涨跌停价只用于成交判定、不进模型"),
         ("6 主检验量", "Δ_ic =（RankIC_DEE − RankIC_最佳单族）/ RankIC_最佳单族；"
-                       "进带 [+2%, +30%]；退：Δ_ic ≤ 0 或 > +50% 或净 Sharpe < 0"),
+                       "进带 [+2%, +30%]；退：Δ_ic ≤ 0 或 &gt; +50% 或净 Sharpe &lt; 0"),
         ("7 失败判据", "不可复现、独立复算不一致 >1e-6、前视/幸存者/退市偏差、掩码断言未生效、"
                        "数据缺口、协议变更——任一触发即退回，不靠文字补全"),
     ]:
@@ -536,7 +539,8 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
         ("fig3_net_equity",
          "<b>图 3 · 净净值与换手。</b>（a）扣除成本后的日频复利净值；"
          "（b）日均双边换手。<b>来源</b>：本单实测（<span class=\"mono\">bt_daily_*_main_8bps.csv</span>）。"
-         "<b>结论</b>：日频调仓 top-50 的年化双边换手超过 100%，8 bps 单边成本 + 10 bps 印花税"
+         f"<b>结论</b>：日频调仓 top-50 的<b>日均双边换手约 {turn_daily_txt}</b>"
+         f"（年化约 {turn_ann_txt} 倍），8 bps 单边成本 + 10 bps 印花税"
          "对毛收益的侵蚀是决定性的。"),
         ("fig4_paper_compare",
          "<b>图 4 · 与论文 Table 1 / Table 2 的对照。</b>（a）各方法测试段 RankIC；"
@@ -641,6 +645,12 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
         A(f"<p>判决：<span class=\"tag {'red' if audit['n_blocking'] else 'teal'}\">"
           f"{'BLOCKING ' + str(audit['n_blocking']) + ' 项' if audit['n_blocking'] else 'PASS'}</span>"
           f"共 {audit['n_findings']} 项检查项；不一致项一律以复算值为准。</p>")
+        if audit.get("generated_at"):
+            A(f"<p class=\"small\">审计运行时刻：<span class=\"mono\">{audit['generated_at']}</span>；"
+              f"本次审计所依据的产物清单 sha256："
+              f"<span class=\"mono\">{str(audit.get('artifact_manifest_sha256'))[:32]}</span>。"
+              "审计输出里带这两个字段，是为了让「产物在审计之后又变过」这件事<b>可被机器发现</b>"
+              "（`scripts/work555_final_numbers.py --check` 与 `scripts/work555_selfcheck.sh` 都会查）。</p>")
         # 组合权重不变量：现金账本口径的两道闸门
         inv = [f for f in audit.get("findings", [])
                if str(f.get("item", "")).startswith("weight_invariant")]
