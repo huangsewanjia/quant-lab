@@ -658,9 +658,10 @@ def main():
             "eval_metric": "mse(自定义 callable，冻结口径写的是 mse)",
             "base_score": (None if getattr(model, "base_score", None) is None
                            else float(getattr(model, "base_score"))),
-            "note": ("预注册 §4.6 冻结 early_stopping_rounds=50；本面板验证 RMSE 近乎平坦"
-                     "（round0 0.0318024 -> 最佳 0.0317868@87），patience 在第 0 轮即触发，"
-                     "sklearn predict() 自动截断到 1 棵树 -> 臂 C 退化为单树桩。"
+            "note": ("预注册 §4.6 冻结 early_stopping_rounds=50；本面板验证 RMSE 近乎平坦，"
+                     f"patience 在第 {best_it} 轮即触发，"
+                     f"sklearn predict() 自动截断到 {(best_it + 1) if best_it >= 0 else n_fitted} 棵树"
+                     " -> 臂 C 退化为近乎单树桩。"
                      "非预注册诊断对照（不用于进/退判词）见 run_xgbfull_s<seed>.json"),
         }
         np.savez_compressed(os.path.join(OUT, f"preds_xgb_s{args.seed}.npz"),

@@ -90,6 +90,10 @@ def main():
     A(f"> 预注册：`experiments/WORK-555/preregistration.md` v1.0（commit `9a85409`，**早于**任何回测产物 commit）。"
       f"本次交付的全部数字来自 v3 重跑后的产物；**中途因独立代码审查 FAIL 而重跑过一次**，"
       f"原因与影响见下文「独立审查」段。")
+    A("")
+    A("> **关于本单此前那条「首屏样张（版式先交，数字后补）」评论**：那条评论里的数字栏是"
+      "**当时的占位值**（训练未完成时填的），**已被本条终版评论全面取代**，请勿引用。"
+      "那条评论的用途只是先确认版式；本条才是数字与判词的正式交付。")
 
     # ---------------- 主检验量三档对照 ----------------
     A("")
@@ -243,19 +247,37 @@ def main():
       + ("、`experiments/WORK-555/review_round2.json`" if rv2 else "") + "。")
     A("")
 
+    # ---------------- 复现性（字节级）
+    rc = jload(os.path.join(OUT, "repro_check.json"))
+    if rc:
+        A("### 字节级可复现性（补上第一轮审查未能核实的项）")
+        A("")
+        A(f"在独立沙箱（`{rc.get('sandbox')}`）用**同一份代码、同一 seed、同一份面板**重跑，"
+          f"与仓库产物逐份比 sha256：")
+        A("")
+        A("| 产物 | 沙箱 sha256（前 16 位） | 与仓库一致 |")
+        A("|---|---|---|")
+        for r in rc.get("rows", []):
+            A(f"| `{r.get('artifact')}` | `{str(r.get('sandbox_sha256', ''))[:16]}` | "
+              f"{'**是**' if r.get('status') == 'identical' else r.get('status')} |")
+        A("")
+        A(f"**{rc.get('n_identical')}/{rc.get('n_checked')} 份逐字节一致**"
+          f"（复跑命令：`bash scripts/work555_run_arms_v3.sh`，"
+          f"线程固定为 1 —— 线程数会改变训练数值结果，见 `failure_log.md` §14）。")
+        A("")
+
     # ---------------- 复跑命令 ----------------
     A("### 复跑命令（全部可复跑）")
     A("")
     A("```bash")
     A("cd /srv/share/quantdb/code/quant-lab")
     A("export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1")
-    A("/tmp/w555venv/bin/python scripts/work555_test_primitives.py          # RESULT: PASS")
-    A("/tmp/w555venv/bin/python scripts/work555_gradcheck_mutation_test.py  # RESULT: PASS")
-    A("/tmp/w555venv/bin/python scripts/work555_tree_bruteforce.py           # RESULT: PASS")
-    A("bash scripts/work555_run_arms_v3.sh                                  # 三档 × 两种子重跑")
-    A("bash scripts/work555_finalize_v3.sh                                  # 回测→复算→图→报告→自检")
-    A("/tmp/w555venv/bin/python audit/recompute_work555.py                  # 独立复算闸门")
-    A("/tmp/w555venv/bin/python scripts/work555_final_numbers.py --check    # 对外数字陈旧自检")
+    A("bash scripts/work555_selfcheck.sh        # 自证清单：8 项一次跑完")
+    A("bash scripts/work555_run_arms_v3.sh      # 三档 × 两种子重跑（产物来源）")
+    A("bash scripts/work555_finalize_v3.sh      # 回测→产物清单→复算→图→报告→PNG/PDF→自检")
+    A("/tmp/w555venv/bin/python audit/recompute_work555.py            # 独立复算闸门")
+    A("/tmp/w555venv/bin/python scripts/work555_final_numbers.py --check  # 对外数字陈旧自检")
+    A("/tmp/w555venv/bin/python scripts/work555_artifact_manifest.py --check  # 产物清单复核")
     A("```")
     A("")
     A("**线程固定是复现前提**：float32 GEMM 的归约顺序随 BLAS 线程数变化，"

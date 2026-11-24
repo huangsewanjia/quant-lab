@@ -46,6 +46,14 @@ MARK = "work555_final_numbers"
 
 
 # ------------------------------------------------------------------ 采集
+def sha256_file(p):
+    h = hashlib.sha256()
+    with open(p, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def jload(p):
     if not os.path.exists(p):
         return None
@@ -90,9 +98,11 @@ def collect():
             "turn_ann_x": (turn_tot / nd * 252.0) if (turn_tot is not None and nd) else None,
             "daily_cost_bps": (cost_tot / nd * 1e4) if (cost_tot is not None and nd) else None,
             "friction_ann": (cost_tot / nd * 252.0) if (cost_tot is not None and nd) else None,
-            # XGBoost 臂早停退化的实际用树数
-            "n_trees_used": r.get("n_trees_used_in_predict"),
-            "n_trees_fitted": r.get("n_trees_fitted"),
+            # XGBoost 臂早停退化的实际用树数（**字段嵌在 run json 的 xgb 子字典里**）
+            "n_trees_used": (r.get("xgb") or {}).get("n_trees_used_in_predict",
+                                                      r.get("n_trees_used_in_predict")),
+            "n_trees_fitted": (r.get("xgb") or {}).get("n_trees_fitted",
+                                                        r.get("n_trees_fitted")),
             "elapsed_sec": r.get("elapsed_sec"),
             "best_step": (r.get("train") or {}).get("best_step"),
             "steps_run": (r.get("train") or {}).get("steps_run"),
@@ -196,8 +206,8 @@ def collect():
             d = pd.read_csv(p)
         except Exception:
             continue          # 半成品 / 0 字节文件：跳过，不崩（第二轮审查的 suggestion）
-        if "sum_w" not in d.columns or len(d) == 0:
-            continue
+        if "sum_w" not in d.columns or "cash" not in d.columns or len(d) == 0:
+            continue          # 半成品：缺 sum_w/cash 列的账本不参与不变量统计
         sw = d["sum_w"].to_numpy(dtype="float64")
         ca = d["cash"].to_numpy(dtype="float64")
         inv["n_files"] += 1
@@ -211,9 +221,21 @@ def collect():
 
     # ---- 独立复算 / 快照
     au = jload(os.path.join(OUT, "audit_findings.json")) or {}
+    # **审计新鲜度**：审计输出里记录它所依据的产物清单 sha256 与生成时间；
+    # 清单一变（产物重算）而审计没重跑 -> 审计即陈旧，必须显式报出来。
+    am_path = os.path.join(OUT, "artifact_manifest.json")
+    am_sha = None
+    if os.path.exists(am_path):
+        am_sha = sha256_file(am_path)
     n["audit"] = {"verdict": au.get("verdict"), "n_findings": au.get("n_findings"),
                   "n_blocking": au.get("n_blocking"),
-                  "primary_test_recomputed": au.get("primary_test_recomputed")}
+                  "primary_test_recomputed": au.get("primary_test_recomputed"),
+                  "generated_at": au.get("generated_at"),
+                  "artifact_manifest_sha256_recorded": au.get("artifact_manifest_sha256"),
+                  "artifact_manifest_sha256_current": am_sha,
+                  "stale": (au.get("artifact_manifest_sha256") is not None
+                            and am_sha is not None
+                            and au.get("artifact_manifest_sha256") != am_sha)}
     n["v2_reference"] = jload(os.path.join(OUT, "rerun_v2_reference.json")) or {}
     man = jload(os.path.join(OUT, "snapshot_manifest.json")) or {}
     items = []
@@ -276,9 +298,21 @@ def render_fl_12_2(n):
              f"{'含 0 → 记「未复现」' if p.get('ci_contains_zero') else '不含 0'}")
     L.append("  （Δ_ic 是**比值**，此处百分号 = ×100；区间极宽，仅作参考）")
     au = n.get("audit", {}).get("primary_test_recomputed") or {}
-    if au:
-        L.append(f"- 独立复算侧逐位一致：`audit_findings.json` → "
-                 f"`primary_test_recomputed.delta_ic_mean = {au.get('delta_ic_mean')!r}`")
+    mine = p.get("delta_ic_mean")
+    if au and au.get("delta_ic_mean") is not None and mine is not None:
+        diff = abs(float(au["delta_ic_mean"]) - float(mine))
+        rel = diff / max(abs(float(mine)), 1e-12)
+        same = "逐位一致" if diff == 0 else (
+            f"相对差 {rel:.2e}（float32 存储精度量级）" if rel <= 1e-6 else
+            f"**不一致：绝对差 {diff:.6g}、相对差 {rel:.3g}**")
+        L.append(f"- 独立复算侧：`audit_findings.json` → "
+                 f"`primary_test_recomputed.delta_ic_mean = {au.get('delta_ic_mean')!r}`；"
+                 f"与建模侧 {mine!r} → {same}")
+    if n.get("audit", {}).get("stale"):
+        L.append(f"- ⚠ **审计已陈旧**：审计记录所依据的产物清单 sha256 = "
+                 f"`{str(n['audit'].get('artifact_manifest_sha256_recorded'))[:16]}`，"
+                 f"当前清单 sha256 = `{str(n['audit'].get('artifact_manifest_sha256_current'))[:16]}`"
+                 f" —— 产物在审计之后又变过，**必须重跑审计**才能引用其结论")
     L.append("")
     L.append(f"**判词（严格按预注册 §6.2 机械规则）：{n['verdict'].get('verdict_word', '—')}。**")
     L.append(f"{len(n['verdict'].get('rules', []))} 条判据同时命中：")
@@ -307,9 +341,16 @@ def render_fl_12_2(n):
                  f"**{'也优于' if better else '并不优于'}** MLP-only（{mlp_ens}），"
                  f"即「异质集成{'确实' if better else '并未'}降了验证损失」这件事在本面板上"
                  f"{'是成立的' if better else '不成立'}；")
-        L.append("但**主检验量要求的是相对量在两个种子之间稳定**，"
-                 "而 MLP-only 基线自己的两种子极差就超过了预注册的 0.01 阈值，"
-                 "所以 Δ_ic 的符号由基线的种子噪声决定 → **这是「不可比」，不是「复现成功」**。")
+        if p.get("rankic_unstable_mlp"):
+            L.append("但**主检验量要求的是相对量在两个种子之间稳定**，"
+                     "而 MLP-only 基线自己的两种子极差就超过了预注册的 0.01 阈值，"
+                     "所以 Δ_ic 的符号由基线的种子噪声决定 → **这是「不可比」，不是「复现成功」**。")
+        else:
+            L.append(f"但**主检验量要求的是相对量在两个种子之间稳定**；"
+                     f"本次 MLP-only 基线自身的两种子 RankIC 极差为 "
+                     f"{f(p.get('rankic_range_mlp'), 4)}（未超过预注册的 0.01 阈值），"
+                     f"基线本身是稳的 —— 因此 Δ_ic 的方向由**相对表现**决定，"
+                     f"而不是由基线的种子噪声决定。")
     else:
         L.append("（因果方向段需要集成级验证损失对照值，本次产物未提供，略。）")
     return "\n".join(L)
@@ -319,11 +360,18 @@ def render_fl_12_3(n):
     p, port = n["primary"], n["port"]
     dee = [port.get(f"dee_s{s}", {}) for s in SEEDS]
     turn = " / ".join(f(d.get("turn_8bps"), 3) for d in dee if d)
+    turn_ann = " / ".join(f(d.get("turn_ann_x"), 1) for d in dee
+                           if d.get("turn_ann_x") is not None)
+    cost_bps = " / ".join(f(d.get("daily_cost_bps"), 1) for d in dee
+                          if d.get("daily_cost_bps") is not None)
+    fric = " / ".join(f(d.get("friction_ann", 0) * 100, 1) for d in dee
+                      if d.get("friction_ann") is not None)
     dps = " / ".join(f(ps["delta_ic"] * 100, 2, sign=True) + "%" for ps in p.get("per_seed", []))
     ric_m = " / ".join(f(ps["rankic_mlp"], 6) for ps in p.get("per_seed", []))
     L = ["| 原因 | 实测证据 |", "|---|---|"]
-    L.append(f"| 净 Sharpe < 0 | 年化双边换手 **{turn}**（日频调仓 top-50）→ "
-             f"单边 8 bps + 卖出印花税 10 bps 的日成本约 15~16 bps，**年化摩擦 ~39%**，毛收益扛不住 |")
+    L.append(f"| 净 Sharpe < 0 | 日均双边换手 **{turn}**（日频调仓 top-50，年化 **{turn_ann}** 倍）→ "
+             f"单边 8 bps + 卖出印花税 10 bps 下日均成本 **{cost_bps} bps**、"
+             f"**年化摩擦 {fric}%**，毛收益扛不住 |")
     L.append(f"| Δ_ic > +50% 不可比 | 逐种子 {dps}，"
              f"{'符号翻转' if p.get('sign_flip') else '同号'}；CI "
              f"[{f(p.get('ci_lo', 0) * 100, 1, sign=True)}%, {f(p.get('ci_hi', 0) * 100, 1, sign=True)}%] "
@@ -389,6 +437,16 @@ def render_registry_row(n):
         if any(d.get("daily_cost_bps") is not None for d in dee) else None
     dee_friction = np.mean([d.get("friction_ann") for d in dee if d.get("friction_ann") is not None]) \
         if any(d.get("friction_ann") is not None for d in dee) else None
+    # 复算值 vs 建模侧：实算比较后再措辞（不再无条件写「逐位一致」）
+    _au_delta = (au.get("primary_test_recomputed") or {}).get("delta_ic_mean")
+    if _au_delta is not None and p.get("delta_ic_mean") is not None:
+        _d = abs(float(_au_delta) - float(p["delta_ic_mean"]))
+        _r = _d / max(abs(float(p["delta_ic_mean"])), 1e-12)
+        cmp_txt = ("逐位一致" if _d == 0 else
+                   f"相对差 {_r:.2e}" if _r <= 1e-6 else
+                   f"**不一致（绝对差 {_d:.6g}、相对差 {_r:.3g}）**")
+    else:
+        cmp_txt = "（缺一侧数值，无法比较）"
     xgb42 = port.get("xgb_s42", {})
     xgb_trees_used = xgb42.get("n_trees_used") if xgb42.get("n_trees_used") is not None else "—"
     xgb_trees_fitted = xgb42.get("n_trees_fitted") if xgb42.get("n_trees_fitted") is not None else "—"
@@ -402,8 +460,10 @@ def render_registry_row(n):
         f"DEE 净 Sharpe(rf=0, 8 bps) **{sh_d}**（均值 {f(p.get('dee_net_sharpe_mean_8bps'), 4, sign=True)}）、"
         f"年化 {ann_d}、MDD {mdd_d}、日均双边换手 {turn_d}。"
         f"独立复算 **{au.get('verdict', '—')}（blocking {au.get('n_blocking', '—')} / {au.get('n_findings', '—')} 项检查）**，"
-        f"Δ_ic 复算值 {(au.get('primary_test_recomputed') or {}).get('delta_ic_mean')!r} 与建模侧逐位一致。"
-        f"组合权重不变量：全部 bt_daily 的 max Σw = {f(n['weight_invariant']['max_sum_w'], 9)}、"
+        f"Δ_ic 复算值 {(au.get('primary_test_recomputed') or {}).get('delta_ic_mean')!r}"
+        f"（与建模侧 {p.get('delta_ic_mean')!r} {cmp_txt}）。"
+        f"组合权重不变量：{n['weight_invariant']['n_files']} 份带账本列的 bt_daily 里 "
+        f"max Σw = {f(n['weight_invariant']['max_sum_w'], 9)}、"
         f"Σw>1 天数 = {n['weight_invariant']['n_days_over_1']}、"
         f"max\\|Σw+cash−1\\| = {n['weight_invariant']['max_ledger_dev']:.3e}（现金账本口径，无隐含杠杆）。"
         f"臂 C 早停退化已量化：XGBoost 实际只用 **{xgb_trees_used} 棵树**"
@@ -524,7 +584,7 @@ FALLBACK_ANCHORS = {
     "§12.2": "### §12.3",
     "§12.3": "### §12.4",
     "§12.4": "### §12.5",
-    "§13": "### §13.1",
+    "§13": "### §14",
 }
 
 
@@ -578,6 +638,27 @@ def main():
             bad.append("failure_log.md 生成块与产物不一致")
         if new_reg != reg_txt:
             bad.append("registry.md 的 WORK-555 行与产物不一致")
+        # final_numbers.json 自身也要与当前产物一致（第三轮审查的 S1：
+        # 之前 --check 从不读它，改坏了也照样 exit 0）
+        if os.path.exists(NUMS):
+            with open(NUMS, encoding="utf-8") as fh:
+                old_nums = json.load(fh)
+
+            def _stable(d):
+                # 去掉易变字段（时间戳），否则每次运行都判「不一致」
+                d = dict(d)
+                d.pop("generated_at", None)
+                return json.dumps(d, sort_keys=True, ensure_ascii=False)
+            if _stable(old_nums) != _stable(n):
+                bad.append("final_numbers.json 与当前产物不一致")
+        else:
+            bad.append("final_numbers.json 不存在")
+        # **审计新鲜度**：产物清单变了而审计没重跑 -> 审计结论不可引用
+        if n.get("audit", {}).get("stale"):
+            bad.append(f"审计已陈旧（产物清单 sha256 与审计记录不符："
+                       f"{str(n['audit'].get('artifact_manifest_sha256_recorded'))[:16]} vs "
+                       f"{str(n['audit'].get('artifact_manifest_sha256_current'))[:16]}）"
+                       f" -> 须重跑 audit/recompute_work555.py")
         if bad:
             print("[FAIL] " + "；".join(bad))
             print("       跑：/tmp/w555venv/bin/python scripts/work555_final_numbers.py")

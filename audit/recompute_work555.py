@@ -34,6 +34,7 @@ import hashlib
 import json
 import os
 import sys
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -577,8 +578,14 @@ def main():
             verdict["dee_net_sharpe_main_8bps"] = sh
 
     blocking = [f for f in findings if f["severity"] == "blocking"]
+    # **审计新鲜度**：把本次审计所依据的产物清单 sha256 与生成时间写进输出。
+    # 产物（清单）之后又变过而审计没重跑 -> 消费方（final_numbers --check / 报告）可据此判定审计陈旧。
+    am_path = os.path.join(out_dir, "artifact_manifest.json")
+    am_sha = sha256_of(am_path) if os.path.exists(am_path) else None
     report = {
         "experiment": args.exp,
+        "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "artifact_manifest_sha256": am_sha,
         "tolerance_rel_diff": TOL,
         "n_findings": len(findings),
         "n_blocking": len(blocking),

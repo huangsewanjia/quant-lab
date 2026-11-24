@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-24T16:55:26+08:00",
+  "generated_at": "2026-11-24T17:17:01+08:00",
   "experiment": "WORK-555",
   "seeds": [
     42,
@@ -603,11 +603,11 @@
         "early_stopping_rounds": 50,
         "eval_metric": "mse(自定义 callable，冻结口径写的是 mse)",
         "base_score": null,
-        "note": "预注册 §4.6 冻结 early_stopping_rounds=50；本面板验证 RMSE 近乎平坦（round0 0.0318024 -> 最佳 0.0317868@87），patience 在第 0 轮即触发，sklearn predict() 自动截断到 1 棵树 -> 臂 C 退化为单树桩。非预注册诊断对照（不用于进/退判词）见 run_xgbfull_s<seed>.json"
+        "note": "预注册 §4.6 冻结 early_stopping_rounds=50；本面板验证 RMSE 近乎平坦，patience 在第 0 轮即触发，sklearn predict() 自动截断到 1 棵树 -> 臂 C 退化为近乎单树桩。非预注册诊断对照（不用于进/退判词）见 run_xgbfull_s<seed>.json"
       },
       "test_rankic_mean": 0.014751702842600519,
       "test_ic_mean": 0.010329682518718646,
-      "elapsed_sec": 9.5
+      "elapsed_sec": 8.8
     },
     "xgb_s43": {
       "arm": "xgb",
@@ -624,11 +624,11 @@
         "early_stopping_rounds": 50,
         "eval_metric": "mse(自定义 callable，冻结口径写的是 mse)",
         "base_score": null,
-        "note": "预注册 §4.6 冻结 early_stopping_rounds=50；本面板验证 RMSE 近乎平坦（round0 0.0318024 -> 最佳 0.0317868@87），patience 在第 0 轮即触发，sklearn predict() 自动截断到 1 棵树 -> 臂 C 退化为单树桩。非预注册诊断对照（不用于进/退判词）见 run_xgbfull_s<seed>.json"
+        "note": "预注册 §4.6 冻结 early_stopping_rounds=50；本面板验证 RMSE 近乎平坦，patience 在第 1 轮即触发，sklearn predict() 自动截断到 2 棵树 -> 臂 C 退化为近乎单树桩。非预注册诊断对照（不用于进/退判词）见 run_xgbfull_s<seed>.json"
       },
       "test_rankic_mean": 0.01615758076331311,
       "test_ic_mean": 0.013172289372361309,
-      "elapsed_sec": 7.8
+      "elapsed_sec": 8.2
     },
     "xgbfull_s42": {
       "arm": "xgbfull",
@@ -1204,9 +1204,9 @@
       "turn_ann_x": 306.68451745379895,
       "daily_cost_bps": 15.815893223819309,
       "friction_ann": 0.39856050924024655,
-      "n_trees_used": null,
-      "n_trees_fitted": null,
-      "elapsed_sec": 9.5,
+      "n_trees_used": 1,
+      "n_trees_fitted": 51,
+      "elapsed_sec": 8.8,
       "best_step": null,
       "steps_run": null,
       "early_stopped": null,
@@ -1230,9 +1230,9 @@
       "turn_ann_x": 302.50349075975373,
       "daily_cost_bps": 15.600205338809042,
       "friction_ann": 0.39312517453798784,
-      "n_trees_used": null,
-      "n_trees_fitted": null,
-      "elapsed_sec": 7.8,
+      "n_trees_used": 2,
+      "n_trees_fitted": 52,
+      "elapsed_sec": 8.2,
       "best_step": null,
       "steps_run": null,
       "early_stopped": null,
@@ -1428,7 +1428,11 @@
         -0.30272401243421065,
         -0.4122368972586896
       ]
-    }
+    },
+    "generated_at": null,
+    "artifact_manifest_sha256_recorded": null,
+    "artifact_manifest_sha256_current": "feba80cf00882a04c273d0682373f13192723f5a82b5199e6dc785f67a892e9a",
+    "stale": false
   },
   "v2_reference": {
     "note": "WORK-555 重跑前的参照状态（v2 产物），用于机器生成「S2/S3 修复带来的实测影响」对照表。",

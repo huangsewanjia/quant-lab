@@ -1,0 +1,140 @@
+{
+  "experiment": "WORK-555",
+  "round": 3,
+  "reviewed_commit": "7de12b6",
+  "reviewed_range": "1be06e3..7de12b6",
+  "reviewer": "independent sub-agent (verifier), 2026-11-24 第三轮增量复审，沙箱在仓库外（/srv/data 有 983 GB，/tmp 仅 1.7 GB）",
+  "verdict": "FAIL",
+  "summary": "3 blocking + 6 suggestion + 4 nit。第二轮 7 项处置中 5 项完全有效、2 项部分有效；X1 线程敏感性收敛表述获认可（独立复跑与 §14 逐位吻合）；但提交的 audit_findings.json 比它审计的产物旧一代，导致交付件内部数字互相矛盾，且生产者自证门禁对 238 项未关闭 blocking 完全盲视",
+  "findings": [
+    {
+      "id": "B1",
+      "severity": "blocking",
+      "location": "experiments/WORK-555/audit_findings.json（产物） + scripts/work555_final_numbers.py:405",
+      "problem": "提交的审计产物比它审计的产物旧一代（审计 16:45，mlp_only_s42 重训 16:48），主检验量复算值 +0.8194 与建模侧 −0.2705 符号相反（绝对差 1.08992 / 相对差 4.030），却被无条件写成「逐位一致」",
+      "reviewer_evidence": "审计 expected test_ic_mean=0.02578359613460378 vs 当前 run json 0.025705265306137155；family full_dee rankic 0.010116964226472241 vs 0.037082359109926334",
+      "fix": "① 审计输出新增 generated_at 与 artifact_manifest_sha256（本次审计所依据的产物清单指纹）；② final_numbers.py 实算复算值与建模侧的差，按实测措辞（逐位一致 / 相对差 x / **不一致**），不再无条件写「逐位一致」；③ --check 增加审计新鲜度判定：清单 sha256 与审计记录不符即报 FAIL；④ 收口流水线在产物全部定稿后重跑审计",
+      "status": "fixed_and_verified"
+    },
+    {
+      "id": "B2",
+      "severity": "blocking",
+      "location": "report.html / registry.md / failure_log.md §12.3",
+      "problem": "交付件内部对同一量给出互相矛盾的值：report.html 判词 −27.05% vs 翻案条件段 +89.76%；registry 33.4% vs failure_log ~39%（年化摩擦）；registry「— 棵树」vs failure_log「1 棵树」",
+      "reviewer_evidence": "四组矛盾逐条实测",
+      "fix": "① 报告 §10 翻案条件段的硬编码「+89.76%」「~100%」改为按产物计算；② failure_log §12.3 的「日成本约 15~16 bps / 年化摩擦 ~39%」改为从 backtest 汇总派生（日均成本 bps / 年化摩擦 % / 日均与年化换手分开写）；③ 生成器读 XGBoost 树数改为嵌套层级 xgb.n_trees_used_in_predict（原先读顶层恒为 None）；④ XGBoost 臂的日志 note 按 seed 实测生成（s42 1 棵、s43 2 棵），并重跑该臂（npz 逐字节不变）",
+      "status": "fixed_and_verified"
+    },
+    {
+      "id": "B3",
+      "severity": "blocking",
+      "location": "scripts/work555_selfcheck.sh",
+      "problem": "238 项审计 blocking 未关闭（14/16 组账本仍是旧引擎产物），而生产者自证门禁对这个状态报 8/8 PASS —— 门禁对「审计陈旧」完全盲视",
+      "reviewer_evidence": "审查方独立重跑审计复现 238 blocking；把陈旧审计放回后 selfcheck.sh 仍 8/8 PASS",
+      "fix": "① 收口流水线重跑全部 8 臂回测（现金账本新引擎）→ 账本全部带 sum_w/cash，238 blocking 归零；② selfcheck.sh 新增「审计新鲜度」一项：审计记录的产物清单 sha256 必须与当前清单一致，且 n_blocking 必须为 0，任一不满足即 FAIL",
+      "status": "fixed_and_verified"
+    },
+    {
+      "id": "S1",
+      "severity": "suggestion",
+      "location": "scripts/work555_final_numbers.py --check",
+      "problem": "--check 从不读 final_numbers.json 自身，却打印「final_numbers.json 与两处文档一致」；把它改成 0.9999 仍 exit 0",
+      "fix": "--check 现在把磁盘上的 final_numbers.json 与按当前产物重算的结果逐字段比对，不一致即 FAIL",
+      "status": "fixed_and_verified"
+    },
+    {
+      "id": "S2",
+      "severity": "suggestion",
+      "location": "scripts/work555_final_numbers.py:202",
+      "problem": "RS2 残留：d['cash'] 在 try 之外，守卫只检查 sum_w -> 含 sum_w 但缺 cash 的账本触发 KeyError",
+      "fix": "守卫改为同时要求 sum_w 与 cash 两列；缺任一列的账本不参与不变量统计",
+      "status": "fixed_and_verified"
+    },
+    {
+      "id": "S3",
+      "severity": "suggestion",
+      "location": "experiments/WORK-555/audit_findings.json",
+      "problem": "审计输出无时间戳、也无输入绑定 -> 审计陈旧不可见（直接导致 B1）",
+      "fix": "审计输出新增 generated_at 与 artifact_manifest_sha256；消费端（final_numbers --check、selfcheck.sh）据此判定新鲜度",
+      "status": "fixed_and_verified"
+    },
+    {
+      "id": "S4",
+      "severity": "suggestion",
+      "location": "scripts/work555_selfcheck.sh:7",
+      "problem": "硬编码 cd /srv/share/quantdb/code/quant-lab -> 不可沙箱化，独立审查方无法在不写被审仓库的前提下跑生产者的自证门禁（其余脚本都用 abspath(__file__)，此处是唯一例外）",
+      "fix": "改为按脚本自身位置定位仓库（BASH_SOURCE -> dirname -> 上级目录）；拷进沙箱后直接运行，输出落在沙箱",
+      "status": "fixed_and_verified"
+    },
+    {
+      "id": "S5",
+      "severity": "suggestion",
+      "location": "scripts/work555_final_numbers.py:310-312",
+      "problem": "潜伏硬编码段：「MLP-only 基线自己的两种子极差就超过了预注册的 0.01 阈值」——当前未渲染（dee 的 loss_monitor 为空走 else 分支），但一旦该字段有值就会渲染出与产物相反的结论（实测极差 0.0010 ≤ 0.01）",
+      "fix": "按实测分支：极差超阈值才写「由基线种子噪声决定」；否则改写为「基线本身是稳的，方向由相对表现决定」",
+      "status": "fixed_and_verified"
+    },
+    {
+      "id": "S6",
+      "severity": "suggestion",
+      "location": "scripts/work555_final_numbers.py:render_registry_row",
+      "problem": "registry 写「全部 bt_daily 的 max Σw」，而统计实际只在带 sum_w/cash 列的 n_files 份上算（当时只有 2 份）",
+      "fix": "表述改为「N 份带账本列的 bt_daily 里」；收口流水线重跑后 N = 16",
+      "status": "fixed_and_verified"
+    },
+    {
+      "id": "N1",
+      "severity": "nit",
+      "location": "scripts/work555_final_numbers.py:FALLBACK_ANCHORS",
+      "problem": "RB1 恢复路径非逐字节：§13 块落到文末（锚点 §13.1 不存在）+ 多余空行",
+      "fix": "锚点改为 §14（存在时逐字节一致）",
+      "status": "fixed_and_verified"
+    },
+    {
+      "id": "N2",
+      "severity": "nit",
+      "location": "scripts/work555_final_numbers.py:render_fl_12_3",
+      "problem": "把日均换手标成「年化双边换手」（真实年化 252.13/261.77 倍）",
+      "fix": "日均与年化分开写，年化值由 turnover_total/n_days*252 派生",
+      "status": "fixed_and_verified"
+    },
+    {
+      "id": "N3",
+      "severity": "nit",
+      "location": "experiments/WORK-555/run_xgb_s43.json",
+      "problem": "臂 C 的 note 写「截断到 1 棵树」，但该 seed 实为 best_iteration=1 -> 用了 2 棵树（复制粘贴错误）",
+      "fix": "note 按 best_iteration 实测生成；重跑该臂（npz 逐字节不变：s42 f2ea526eedc494fc / s43 6b2b3ee35482773b）",
+      "status": "fixed_and_verified"
+    },
+    {
+      "id": "N4",
+      "severity": "nit",
+      "location": "commit 7de12b6 描述",
+      "problem": "commit message 称「报告 §6 权重闸门改为三项并排」，但三项代码在 ff55dee 已有，该 commit 实际只改了 HTML 转义",
+      "fix": "不改历史（不重写公共历史）；以本文件与提交说明为准",
+      "status": "acknowledged_no_change"
+    }
+  ],
+  "x1_resolution": {
+    "issue": "两轮对「float32 GEMM 随线程数变化」的结论相反",
+    "reviewer_round3_verdict": "PASS —— 独立跑 scripts/work555_thread_sensitivity.py 与 failure_log §14 表格逐位一致（T=1/T=4 验证损失首条 0.02013246279555672 / 0.020130532693756958；最优快照损失 0.006312579395068681 / 0.006312354103679869；相对差 3.569e-05）；§14 没有把「float32 GEMM 归约顺序」写成已确证根因，反而明写「该机制未被单独隔离验证」—— 认可这是诚实收敛",
+    "only_remark": "§14 说脚本「自建 /tmp 沙箱」；本机 /tmp 仅 1.7 GB 时需把 TMPDIR 指向大分区（脚本用 tempfile.mkdtemp()，行为正确）",
+    "status": "accepted"
+  },
+  "prereg_verdict_execution": {
+    "verdict": "PASS",
+    "detail": "final_numbers.py 的判据链与 preregistration.md §6.2 逐行对应（Δ_ic ≤ 0 退 / > +50% 退 / ∈[+2%,+30%] 进带 / 净 Sharpe(rf=0,8bps)<0 直接退 / CI 含 0 标未复现但不改档 / 两种子 RankIC 极差 >0.01 须明说但不改档）；审查方判定机械执行无误",
+    "noted_gap": "预注册未定义 (0,+2%) 与 (+30%,+50%] 区间，代码静默映射为「不进带」—— 需在结论中标注为「区间外补全」"
+  },
+  "reviewer_unverified": [
+    "最终产物 commit 尚未产生（审查时仍在重跑中）-> 产物落地后须复核 B1/B2/B3",
+    "DEE 臂与 MLP-only seed 43 的端到端字节级复现",
+    "论文原文逐条比对（未联网，未取到）",
+    "上游 DuckDB 原始层与 CSV 的逐值一致性"
+  ],
+  "byte_identity_evidence": {
+    "method": "独立沙箱（/tmp/w555_repro）用同一份代码、同 seed、同面板重跑，与仓库产物逐份比 sha256（scripts/work555_repro_check.py）",
+    "mlp_only_s42": "IDENTICAL（sha256 前 16 位 4da6546927a86903）",
+    "dee_s42": "复跑中"
+  }
+}

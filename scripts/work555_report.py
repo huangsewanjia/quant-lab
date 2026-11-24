@@ -180,6 +180,8 @@ def build():
                               if "sum_w" in d.columns else float("nan")),
                 "n_over_1": (int(np.sum(d["sum_w"].to_numpy() > 1.0 + 1e-9))
                              if "sum_w" in d.columns else 0),
+                "turn_ann_x": (float(d["turnover"].sum()) / max(1, len(d)) * 252.0),
+                "daily_cost_bps": (float(d["cost"].sum()) / max(1, len(d)) * 1e4),
             })
     c1_max = max([t["c1"] for t in tie], default=0.0)
     c2_max = max([t["c2"] for t in tie], default=0.0)
@@ -187,6 +189,14 @@ def build():
     c4_max_sum_w = max([t["max_sum_w"] for t in tie if np.isfinite(t["max_sum_w"])],
                         default=float("nan"))
     c4_n_over = sum([t["n_over_1"] for t in tie])
+    # 年化双边换手（倍）与日均成本（bps）—— 由逐日账派生，避免叙述里出现手打数字
+    _turn_ann, _cost_bps = [], []
+    for t in tie:
+        if t.get("turn_ann_x") is not None:
+            _turn_ann.append(t["turn_ann_x"])
+        if t.get("daily_cost_bps") is not None:
+            _cost_bps.append(t["daily_cost_bps"])
+    turn_ann_txt = (f"{np.mean(_turn_ann):.0f} 倍" if _turn_ann else "当前量级")
     if len(deltas) >= 2:
         c3 = abs(delta_mean - float(np.sum(deltas) / len(deltas)))
     else:
@@ -874,12 +884,13 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
     A("<p><b>要翻案需要什么：</b>"
       "① <b>先解决基线不稳</b>：把种子数从 2 提到论文同量级（≥10），"
       "并按预注册口径报 mean ± std，看 MLP-only 的 RankIC 极差是否收敛到 0.01 以内；"
-      "在此之前任何 Δ_ic 数值（包括本单这个 +89.76%）都不可解读；"
+      f"在此之前任何 Δ_ic 数值（包括本单这个 {delta_mean*100:+.2f}%）都不可解读；"
       "② 把因子集从 48 列补到接近论文的 Alpha158 规模（偏离 D2 的反向），"
       "在相同协议下重跑三档，看 Δ_ic 是否稳定进入 [+2%, +30%]；"
       "③ 或改用对排序敏感的损失（如截面秩回归）重训三族，使 MSE 早停不再退化为第 0 轮"
       "（这属于协议变更，须另开预注册版本）；"
-      "④ 或把调仓频率从日频降到周频，把年化双边换手从 ~100% 压到可承受区间，再看净 Sharpe 是否转正。"
+      f"④ 或把调仓频率从日频降到周频，把年化双边换手从 {turn_ann_txt} 压到可承受区间，"
+      "再看净 Sharpe 是否转正。"
       "以上四条都超出本单冻结协议，不能在本单内改，必须另开版本重跑。</p>")
     A("<div class=\"keybox\"><h3>本单结论边界</h3><p>本单只检验了论文主张中的「异质性相对贡献」"
       "这一个相对量，且是在自建面板、自实现因子、2 个种子、含 A 股交易成本的条件下测的。"
