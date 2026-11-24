@@ -20,7 +20,6 @@ import os
 import random
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import pandas as pd
@@ -161,12 +160,14 @@ def main():
     _groups_cache = {}
 
     def _groups_of(ds):
-        key = id(ds)
-        if key not in _groups_cache:
+        # 键用 dataset 对象本身（而不是 id(ds)）：id 会在对象被回收后复用，
+        # 极端情况下会把 A 的分组缓存错配给 B（独立审查 2026-11-24 发现）。
+        # 用对象当键同时持有一份强引用，杜绝 id 复用。
+        if ds not in _groups_cache:
             _idx = ds.index.reset_index()
             _idx["date"] = _idx["datetime"]
-            _groups_cache[key] = list(_idx.groupby("date", sort=True).groups.values())
-        return _groups_cache[key]
+            _groups_cache[ds] = list(_idx.groupby("date", sort=True).groups.values())
+        return _groups_cache[ds]
 
     # 逐样本取数**保持串行**：实测线程池反而更慢（executor.map 每样本要过一次
     # 队列 + 锁，而每样本的真实 numpy 工作量只有 ~30 us，GIL 争用把省下的
@@ -246,7 +247,7 @@ def main():
         test_ds.cal_pos[test_ds.rows[r][1]]] for r in rows])
     df["label"] = label[:, TARGET]
     df = df.sort_values(["datetime", "instrument"])
-    out = os.path.join(out_dir, f"{args.kind}_s{args.seed}.parquet")
+    out = os.path.join(out_dir, f"{args.kind}_s{args.seed}{args.out_suffix}.parquet")
     df.to_parquet(out)
 
     # RankIC on the test set (paper appendix C)

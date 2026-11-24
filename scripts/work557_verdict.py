@@ -522,10 +522,13 @@ def main():
 
     cmp_rows = []
     # 差异原因（派单卡交付物 #7：论文数字（标表号）/ 本单数字 / 差异原因）
+    # WORK-557：训练窗/轮数已对齐论文（2009–2019、每阶段 ≤50 轮、GPU），
+    # 剩下的差异只来自数据底座、先验来源与掩码三处 —— 照实写，不沿用 WORK-503
+    # 的「缩窗 + 无 GPU」理由（那是 WORK-503 的历史原因，不是本单的）。
     REASON = {
-        "full": "训练段 2015-2019（论文 2009-2019）、≤6 轮（论文 ≤50）、本机无 GPU；"
-                "先验为自建 6 个 A 股因子（论文为 JKP 13 因子）；逐日施加涨跌停/停牌掩码；"
-                "数据底座为公开源重建（非 Qlib cn_data）",
+        "full": "训练段 2009-2019、每阶段 ≤50 轮（已对齐论文口径）；"
+                "剩余差异来源：先验为自建 6 个 A 股因子（论文为 JKP 13 因子）；"
+                "逐日施加涨跌停/停牌掩码；数据底座为 quantdb（tushare 系）重建而非 Qlib cn_data",
         "no_moe": "同上（仅去掉 MoE）",
         "no_prior": "同上；且先验被整档置零 —— 本档降幅**不能**用来支持「码本有效」",
         "no_vq": "同上（仅去掉 VQ 码本，H1 的分母档）",
@@ -538,7 +541,7 @@ def main():
                 continue
             v = per_run[key]
             cmp_rows.append({
-                "source": "WORK-503", "system": arm, "seed": seed,
+                "source": args.exp, "system": arm, "seed": seed,
                 "rankic": v["rankic"], "rankicir": v["rankicir"],
                 "ar": v["ar"], "mdd": v["mdd"], "sr": v["sr"],
                 "turnover": v.get("turnover_both_sides"),
