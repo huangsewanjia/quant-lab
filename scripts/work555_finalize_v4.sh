@@ -1,23 +1,31 @@
 #!/usr/bin/env bash
-# WORK-555 · v3 收口流水线（独立审查修复后重跑）
+# WORK-555 · v4 收口流水线（v3 修复后再修「产物 float32 量化」一项）
 #
-# 与 work555_finalize.sh 的差别：
+# 与 work555_finalize_v3.sh 的差别：
+#   0) 新增 [0/9] **产物精度诊断**（scripts/work555_float32_quant_diag.py）：
+#      证明「审计复算值 == 建模侧报告值」在 float64 落盘下逐位成立；
 #   1) 回测覆盖**全部 4 臂 × 2 种子**（旧版只重跑 dee）——
 #      S3 把回测引擎改成现金账本口径，xgb / xgbfull 的 preds 没变但回测产物必须重算；
 #   2) 追加**组合权重不变量**检查（Σw ≤ 1、Σw + cash ≡ 1）；
 #   3) 追加独立复算闸门（原样调用 audit/recompute_work555.py，含新增的
 #      weight_invariant::* 项）；
 #   4) 追加「快照 6 份 sha256 逐份 MATCH」检查；
-#   5) 追加交付件外链 / 内嵌图检查。
+#   5) 追加交付件外链 / 内嵌图检查；
+#   6) 追加**不可成交断言全 8 组合**逐组实测（work555_nomask_all.py）。
 #
-# 顺序固定：回测 → 断言演示 → 独立复算 → 配图 → HTML → PNG/PDF → 自检
-# 用法：bash scripts/work555_finalize_v3.sh
+# 顺序固定：产物精度诊断 → 回测 → 断言演示 → 产物清单 → 独立复算 → 对外数字
+#          → 配图 → HTML → PNG/PDF → 自检 → 三项 --check → 主检验量直算
+# 用法：bash scripts/work555_finalize_v4.sh
 set -u
 cd /srv/share/quantdb/code/quant-lab
 PY=/tmp/w555venv/bin/python
 LOG=/tmp/w555logs
 mkdir -p "$LOG"
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1
+
+echo "=== [0/9] 产物精度诊断（float64 落盘 → 审计复算与建模侧逐位相等） $(date -Is)"
+"$PY" scripts/work555_float32_quant_diag.py 2>&1 | tail -12
+echo "  quant_diag exit=$?"
 
 echo "=== [1/9] 组合回测（全部臂 × 两种子；现金账本口径） $(date -Is)"
 for arm in dee mlp_only xgb xgbfull; do

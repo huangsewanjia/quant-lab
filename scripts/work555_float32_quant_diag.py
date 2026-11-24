@@ -112,8 +112,18 @@ def main():
               f"建模侧函数与审计侧函数逐位相等 = {rec.get('model_audit_identical')}，"
               f"越过 1e-6 判据 = {rec.get('n_over_tol')}")
         for r in rec.get("rows", []):
+            g = r.get("rel_diff_func_vs_reported")
+            gs = "n/a" if g is None else f"{g:.3e}"
             print(f"  {r.get('arm'):9s} s{r.get('seed')}  pred_dtype={r.get('pred_dtype')}  "
-                  f"rel_gap={r.get('rel_gap'):.3e}  {'OVER_TOL' if r.get('over_tol') else 'within_tol'}")
+                  f"rel_gap={gs}  {'OVER_TOL' if r.get('over_tol') else 'within_tol'}")
+        if rec.get("n_over_tol"):
+            print(f"[FAIL] {rec.get('n_over_tol')} 个臂/种子的「产物复算 vs 建模侧报告值」"
+                  f"相对差越过 {rec.get('tol')} 判据", file=sys.stderr)
+            return 1
+        if not rec.get("model_audit_identical"):
+            print("[FAIL] 建模侧函数与审计侧函数未逐位相等，说明两边实现口径分歧", file=sys.stderr)
+            return 1
+        print("[PASS] 全部臂/种子的产物复算值与建模侧报告值在 1e-6 判据内，且两侧实现逐位相等")
         return 0
 
     rows = []
@@ -209,6 +219,13 @@ def main():
         json.dump(rec, fh, ensure_ascii=False, indent=1)
     print(f"  -> {os.path.relpath(RES, REPO)}  "
           f"model==audit 逐位相等: {rec['model_audit_identical']}  越过 1e-6: {rec['n_over_tol']}")
+    if rec["n_over_tol"]:
+        print(f"[FAIL] {rec['n_over_tol']} 个臂/种子的「产物复算 vs 建模侧报告值」"
+              f"相对差越过 {TOL} 判据（预注册 §7.2）", file=sys.stderr)
+        return 1
+    if not rec["model_audit_identical"]:
+        print("[FAIL] 建模侧函数与审计侧函数未逐位相等", file=sys.stderr)
+        return 1
     return 0
 
 

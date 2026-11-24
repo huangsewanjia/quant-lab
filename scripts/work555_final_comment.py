@@ -282,7 +282,7 @@ def main():
               f"{'**是**' if r.get('status') == 'identical' else r.get('status')} |")
         A("")
         A(f"**{rc.get('n_identical')}/{rc.get('n_checked')} 份逐字节一致**"
-          f"（复跑命令：`bash scripts/work555_run_arms_v3.sh`，"
+          f"（复跑命令：`bash scripts/work555_run_arms_v4.sh`，"
           f"线程固定为 1 —— 线程数会改变训练数值结果，见 `failure_log.md` §14）。")
         A("")
 
@@ -293,8 +293,9 @@ def main():
     A("cd /srv/share/quantdb/code/quant-lab")
     A("export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1")
     A("bash scripts/work555_selfcheck.sh        # 自证清单：8 项一次跑完")
-    A("bash scripts/work555_run_arms_v3.sh      # 三档 × 两种子重跑（产物来源）")
-    A("bash scripts/work555_finalize_v3.sh      # 回测→产物清单→复算→图→报告→PNG/PDF→自检")
+    A("bash scripts/work555_run_arms_v4.sh      # 4 臂 × 2 种子重跑（产物来源，float64 落盘）")
+    A("bash scripts/work555_finalize_v4.sh      # 回测→产物清单→复算→图→报告→PNG/PDF→自检")
+    A("/tmp/w555venv/bin/python scripts/work555_float32_quant_diag.py   # 产物精度诊断")
     A("/tmp/w555venv/bin/python audit/recompute_work555.py            # 独立复算闸门")
     A("/tmp/w555venv/bin/python scripts/work555_final_numbers.py --check  # 对外数字陈旧自检")
     A("/tmp/w555venv/bin/python scripts/work555_artifact_manifest.py --check  # 产物清单复核")

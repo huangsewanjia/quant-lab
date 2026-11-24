@@ -44,6 +44,8 @@ run thread_sens       "BLAS 线程敏感性实测（T=1 vs T=4）" \
     "$PY" scripts/work555_thread_sensitivity.py
 run artifact_manifest "产物清单逐份 sha256 一致（锁住审计的直接输入）" \
     "$PY" scripts/work555_artifact_manifest.py --check
+run quant_diag        "产物精度诊断（产物复算值与建模侧报告值在 1e-6 判据内且两侧实现逐位相等）" \
+    "$PY" scripts/work555_float32_quant_diag.py --check
 run final_numbers     "对外数字与文档同源（failure_log 生成块 + registry 行 + 审计新鲜度）" \
     "$PY" scripts/work555_final_numbers.py --check
 

@@ -451,6 +451,9 @@ MSE 只对线性部分敏感 → 模型能看到的信息远少于排序信息�
 - **重跑方式**：`scripts/work555_run_arms_v3.sh` —— dee × 2 种子 + mlp_only × 2 种子全部重跑，
   固定 BLAS 线程（线程数会改变训练数值结果，见下）。
   XGBoost 臂走 sklearn 自带早停、不经过 `train_ensemble`，**不受 S2 影响**、无需重跑。
+- **后续第四轮重跑**：`scripts/work555_run_arms_v4.sh` —— 因「产物 float32 量化导致审计复算
+  与建模侧不一致」这一项（见 §15），4 臂 × 2 种子再全部重跑一次，落盘精度改 float64。
+  **训练轨迹与指标计算未动，故本表的建模侧数值与 v3 逐位相同。**
 
 <!-- BEGIN GENERATED:work555_final_numbers:§13 -->
 | 臂/种子 | 旧口径 best_step（v2 参照） | 新 run 里旧口径复算 best_step | 新口径 best_step（集成级） | steps_run 旧→新 | 早停 旧→新 | 测试 RankIC 旧→新 | 净 Sharpe(8bps) 旧(泄漏口径)→新(现金账本) |
