@@ -128,8 +128,10 @@ def main():
     ic_best = pearson_ic_by_day(pred_best, y[te], te_day_remap, len(te_days))
     ic_full = pearson_ic_by_day(pred_full, y[te], te_day_remap, len(te_days))
 
+    # 预测按 float64 落盘（2026-11-24 v4 修正）：与 work555_dee.py 同一口径，
+    # 使「审计从落盘产物复算」与「建模侧报告值」逐位相等（详见 work555_dee.py 落盘处注释）
     np.savez_compressed(os.path.join(OUT, f"preds_xgbfull_s{args.seed}.npz"),
-                        pred=pred_best.astype(np.float32),
+                        pred=pred_best.astype(np.float64),
                         row=bt_row_id[te].astype(np.int64),
                         date_idx=te_day_remap.astype(np.int32))
 

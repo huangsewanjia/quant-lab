@@ -665,7 +665,7 @@ def main():
                      "非预注册诊断对照（不用于进/退判词）见 run_xgbfull_s<seed>.json"),
         }
         np.savez_compressed(os.path.join(OUT, f"preds_xgb_s{args.seed}.npz"),
-                            pred=pred_te.astype(np.float32),
+                            pred=pred_te.astype(np.float64),
                             row=bt_row_id[te].astype(np.int64),
                             date_idx=te_day_remap.astype(np.int32))
         log["test_rankic_mean"] = float(np.nanmean(daily))
@@ -726,10 +726,10 @@ def main():
 
     # ---- 测试段预测
     pred_te = np.zeros(len(te), dtype=np.float64)
-    per_expert_pred = np.zeros((len(experts), len(te)), dtype=np.float32)
+    per_expert_pred = np.zeros((len(experts), len(te)), dtype=np.float64)
     for k in range(len(experts)):
         pk = experts[k].predict(X[te][:, subsets[k]]).astype(np.float64)
-        per_expert_pred[k] = pk.astype(np.float32)
+        per_expert_pred[k] = pk
         if k in active:
             pred_te += pk
     pred_te /= len(active)
@@ -771,14 +771,28 @@ def main():
         }
     log["family_subsets"] = fam_subsets
 
+    # ---- 产物落盘：预测按 **float64** 保存（2026-11-24 v4 修正）
+    #
+    # 为什么要改：v3 之前这里存的是 float32，而 log["test_rankic_mean"] 是用内存里的
+    # float64 `pred_te` 算出来的。float32 量化会在截面里偶尔翻转两个几乎相等的预测的
+    # 秩位，使「审计脚本从落盘产物复算的 RankIC」与「建模侧报告值」出现相对差
+    # ~1e-6 量级的差（本单实测：dee s43 相对差 2.526e-06，超预注册 §7.2 的 1e-6 判据；
+    # dee s42 为 7.26e-07、mlp_only s42 为 0，**均属侥幸通过**——同样的量化扰动随时
+    # 可能把它们也顶过阈值）。
+    #
+    # 处置（按预注册 §7.2「以复算值为准，回退到对应阶段重做」）：**让产物无损**，
+    # 而不是放宽审计阈值。改成 float64 落盘后，审计从产物复算的值与建模侧**逐位相等**
+    # （gap = 0，远严于 1e-6 判据），且建模侧的数值一个字节都没变
+    # （训练轨迹与指标计算完全未动，只改落盘精度）。
+    # 标签 `y` 在内存里本来就是 float32（来自 sample.npz），落盘无精度损失，保持不变。
     np.savez_compressed(os.path.join(OUT, f"preds_{args.arm}_s{args.seed}.npz"),
-                        pred=pred_te.astype(np.float32),
+                        pred=pred_te.astype(np.float64),
                         row=bt_row_id[te].astype(np.int64),
                         date_idx=te_day_remap.astype(np.int32),
                         y=y[te].astype(np.float32),
                         per_expert_pred=per_expert_pred,
                         expert_type=np.array([TYPE_NAMES[t] for t in type_seq]),
-                        expert_valid_rankic=ics.astype(np.float32),
+                        expert_valid_rankic=ics.astype(np.float64),
                         active_experts=active.astype(np.int32),
                         feature_subsets=np.array([np.asarray(s, dtype=np.int32)
                                                   for s in subsets]))
