@@ -26,6 +26,7 @@ import time
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 EXP = "WORK-557"
+EXP_ISSUE = "01a20cc7-07ec-722d-8671-a6201a12dd79"
 EXP_DIR = os.path.join(REPO, "experiments", EXP)
 LOG_DIR = os.path.join(EXP_DIR, "logs")
 VENV_PY = os.path.join(REPO, ".venv", "Scripts", "python.exe")
@@ -195,6 +196,32 @@ def validate_cost_json(fname: str) -> tuple:
     return True, "%s：%d 档（full 档 %s）" % (fname, len(d), ",".join(sorted(fulls)))
 
 
+def notify_ready() -> dict:
+    """链全部跑完后：生成段2正文文件 + 把 issue 状态置为 in_review 作「产物就绪」信号。
+
+    **只发信号、不发评论**：正文由下一轮 run 审阅后由智能体署名发布（不自动把
+    未审的数字推出去）。状态改成 in_review 是平台级的「有产物待验收」信号，
+    对应 wakeup 的 `--until-status in_review` 条件（一次性唤醒，避免 20 分钟
+    轮询烧额度 —— 本单已过 100M 额度闸）。
+    """
+    rec = {"body": None, "status_rc": None, "status_out": ""}
+    body = os.path.join(EXP_DIR, "comment_stage2.md")
+    gen = [VENV_PY, os.path.join("experiments", EXP, "work557_comment_stage2.py"), body]
+    p = subprocess.run(gen, cwd=REPO, capture_output=True, text=True)
+    rec["body_rc"] = p.returncode
+    rec["body"] = body if os.path.exists(body) else None
+    if p.returncode != 0:
+        rec["body_err"] = (p.stderr or "")[-500:]
+        return rec
+    cli = os.environ.get("MULTICA_CLI_PATH") or "multica"
+    q = subprocess.run([cli, "issue", "status", EXP_ISSUE, "in_review",
+                        "--output", "json"], cwd=REPO, capture_output=True,
+                       text=True)
+    rec["status_rc"] = q.returncode
+    rec["status_out"] = (q.stdout or q.stderr or "")[-300:]
+    return rec
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--exp", default=EXP)
@@ -314,6 +341,10 @@ def main() -> int:
 
     summary["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%S%z")
     summary["ok"] = all(s["rc"] == 0 for s in summary["steps"])
+    if summary["ok"]:
+        summary["notify"] = notify_ready()
+        log("就绪信号：body=%s status_rc=%s"
+            % (summary["notify"].get("body"), summary["notify"].get("status_rc")))
     out = os.path.join(EXP_DIR, "finish_summary.json")
     with open(out, "w", encoding="utf-8") as fh:
         json.dump(summary, fh, ensure_ascii=False, indent=1, default=str)
