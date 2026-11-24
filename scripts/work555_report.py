@@ -146,7 +146,9 @@ def build():
         reasons.append(f"两种子 RankIC 极差 {ric_rng:.4f} > 0.01 → 结果不稳定，须在结论中明说")
     if ric_rng_mlp > 0.01:
         reasons.append(f"<b>最佳单族基线自身</b>两种子 RankIC 极差 {ric_rng_mlp:.4f} > 0.01 → "
-                       f"基线在本面板上就已不稳定，DEE 与基线的相对差不可比")
+                       f"基线在本面板上就已不稳定，DEE 与基线的相对差不可比"
+                       f"（对照：论文用 <b>10 个种子</b>、Table 1/2 的 ± 值均在 0.002 量级，"
+                       f"本单 2 个种子的极差比论文的种子间标准差还大一个量级）")
     if delta_flip:
         reasons.append(f"Δ_ic 逐种子<b>符号翻转</b>（{', '.join(f'{d*100:+.1f}%' for d in deltas)}）"
                        f"→ 均值 {delta_mean*100:+.2f}% 不代表任何可复现的方向")
@@ -357,12 +359,14 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
       "<th class=\"c\">IC</th><th class=\"c\">年化</th><th class=\"c\">Sharpe(rf=0)</th>"
       "<th class=\"c\">MDD</th><th class=\"c\">日均双边换手</th></tr></thead><tbody>")
     for arm, label in ARMS:
+        rows = []
         for s in SEEDS:
             r = runs.get(f"{arm}_s{s}")
             b = bts.get(f"{arm}_s{s}")
             if not r:
                 continue
             m = b["metrics"]["main_8bps"] if b else None
+            rows.append((r, m))
             A(f"<tr><td class=\"l\">{label}</td><td class=\"c mono\">{s}</td>"
               f"<td class=\"c mono\">{fmt(r['test_rankic_mean'],4,False,True)}</td>"
               f"<td class=\"c mono\">{fmt(r['test_ic_mean'],4,False,True)}</td>"
@@ -370,6 +374,29 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
               f"<td class=\"c mono\">{fmt(m['sharpe_rf0'],3,False,True) if m else '—'}</td>"
               f"<td class=\"c mono\">{fmt(m['max_drawdown']*100,2,True,True) if m else '—'}</td>"
               f"<td class=\"c mono\">{fmt(m['turnover_daily_mean'],3) if m else '—'}</td></tr>")
+        # 工单验收第 4 条要求「只报 mean ± range」：每臂补一行两种子的 mean ± range
+        if rows:
+            def mr(vals, scale=1.0, nd=4):
+                vals = [v for v in vals if v is not None]
+                if not vals:
+                    return "—"
+                mean = float(np.mean(vals))
+                rng = (max(vals) - min(vals)) if len(vals) > 1 else 0.0
+                return f"{mean*scale:.{nd}f} ± {rng*scale:.{nd}f}"
+
+            def pick(key, scale=1.0, nd=4):
+                return mr([(r["test_rankic_mean"] if key == "rankic" else
+                             r["test_ic_mean"] if key == "ic" else
+                             m[key]) if m else None
+                           for r, m in rows], scale, nd)
+            A(f"<tr class=\"tot\"><td class=\"l\">{label}（两种子 mean ± range）</td>"
+              f"<td class=\"c mono\">42/43</td>"
+              f"<td class=\"c mono\">{pick('rankic')}</td>"
+              f"<td class=\"c mono\">{pick('ic')}</td>"
+              f"<td class=\"c mono\">{pick('annualized_return',100,2)}</td>"
+              f"<td class=\"c mono\">{pick('sharpe_rf0',1,3)}</td>"
+              f"<td class=\"c mono\">{pick('max_drawdown',100,2)}</td>"
+              f"<td class=\"c mono\">{pick('turnover_daily_mean',1,3)}</td></tr>")
     A("</tbody></table>")
     A("<p class=\"small\">IC = 每个交易日预测分数与次日收益的 Pearson 相关，再对测试期取时间均值；"
       "MDD = 日频净净值曲线的最大回撤（负值）；换手 = 当日买入额 + 卖出额（占组合净值比重）。</p>")
