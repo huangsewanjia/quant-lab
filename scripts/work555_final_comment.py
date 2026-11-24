@@ -71,6 +71,16 @@ def main():
     rv1 = jload(os.path.join(OUT, "review_round1.json")) or {}
     rv2 = jload(os.path.join(OUT, "review_round2.json")) or {}
     rv3 = jload(os.path.join(OUT, "review_round3.json")) or {}
+    # 按目录自动发现全部 review_round*.json（第四轮及以后无需再改本脚本）
+    reviews = []
+    for fn in sorted(os.listdir(OUT)):
+        if fn.startswith("review_round") and fn.endswith(".json"):
+            r = jload(os.path.join(OUT, fn))
+            if r:
+                reviews.append(r)
+    reviews.sort(key=lambda r: r.get("round", 0))
+    if not reviews:
+        reviews = [r for r in (rv1, rv2, rv3) if r]
 
     p = n["primary"]
     v = n["verdict"]
@@ -230,11 +240,9 @@ def main():
     A(f"实现完成后交给**独立子代理**审查（隔离沙箱、零 import 建模函数、自带一套从头写的复算实现）。"
       f"主循环不参与审查判决；每轮修复后交回同一审查方**复审增量**。")
     A("")
-    for label, rv in (("第一轮", rv1), ("第二轮", rv2), ("第三轮", rv3)):
-        if not rv:
-            A(f"**{label}**：留痕文件缺失，未取到判决。")
-            A("")
-            continue
+    for rv in reviews:
+        label = {1: "第一轮", 2: "第二轮", 3: "第三轮", 4: "第四轮"}.get(rv.get("round"),
+                                                                   f"第 {rv.get('round')} 轮")
         A(f"**{label}**（增量复审范围 `{rv.get('reviewed_range', '—')}`）："
           f"判决 **{rv.get('verdict', '—')}**")
         A("")

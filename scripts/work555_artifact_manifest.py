@@ -52,6 +52,8 @@ GROUPS = [
      "建模汇总：训练日志与统计"),
     ("model_output", lambda f: f.startswith("backtest_") and f.endswith(".json"),
      "建模汇总：组合回测指标"),
+    ("evidence", lambda f: f == "nomask_assert.json",
+     "不可成交断言全 8 组合逐组实测记录（预注册 §7 失败判据第 4 条）"),
 ]
 
 
