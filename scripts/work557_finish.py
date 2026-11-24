@@ -64,7 +64,14 @@ def driver_alive() -> bool:
     try:
         out = subprocess.run(["powershell", "-NoProfile", "-Command", PS_ALIVE],
                              capture_output=True, text=True, timeout=90)
-        return int((out.stdout or "0").strip() or 0) > 0
+        if out.returncode != 0:
+            # 探测命令本身失败（powershell 报错 / 超时）→ 保守当成「还活着」。
+            # 旧实现把「rc≠0 + stdout 空」当成 0 → 误判驱动已死（复审发现）。
+            return True
+        try:
+            return int((out.stdout or "0").strip() or 0) > 0
+        except ValueError:
+            return True
     except Exception:
         return True          # 查不到就当还活着：宁可多等，不要误判
 
@@ -116,6 +123,30 @@ def run_step(name: str, cmd: list, critical: bool = True) -> dict:
             "cmd": cmd, "critical": critical}
 
 
+EXPECTED_RUNS = ["%s_s%d" % (a, s)
+                 for a in ("full", "no_vq", "no_moe", "no_prior", "gru")
+                 for s in (42, 2024)]
+
+# 成本点回测步骤 → (产物文件, 是否预注册点)。预注册点自检不过就中断链。
+COST_OUTPUTS = {
+    "backtest_8bps": ("backtest_cost_8bps.json", True),
+    "backtest_30bps": ("backtest_cost_30bps.json", True),
+    "backtest_gross": ("backtest_gross_diagnostic.json", False),
+}
+
+
+def artifacts_missing() -> list:
+    """训练产物（每档每 seed 的 json + parquet）缺哪些。"""
+    preds = os.path.join(EXP_DIR, "preds")
+    missing = []
+    for k in EXPECTED_RUNS:
+        if not os.path.exists(os.path.join(preds, k + ".json")):
+            missing.append(k + ".json")
+        elif not os.path.exists(os.path.join(preds, k + ".parquet")):
+            missing.append(k + ".parquet")
+    return missing
+
+
 def validate_backtest() -> tuple:
     """回测产物自检：**空结果也返回 rc=0**（`work557_backtest.py` 全部档缺失时
     只打印 “missing … skipped”，`main()` 返回 None → 退出码 0），所以这里必须
@@ -140,6 +171,28 @@ def validate_backtest() -> tuple:
                        "（现有键: %s）" % ",".join(sorted(d)))
     return True, ("最小完整集齐备：seed %s 可做 H1/H2；共 %d 档"
                   % (",".join(str(s) for s in ok_seeds), len(d)))
+
+
+def validate_cost_json(fname: str) -> tuple:
+    """成本点回测产物自检：非空且含至少一个 `full_s*` 档。
+
+    `work557_cost_sensitivity.py` 只挑 `full_` 开头的键，产物为空时它会**静默跳过**
+    该成本点而 rc 仍为 0（复审 2026-11-25 发现）→ 成本表缺档却报 ok=True。
+    """
+    p = os.path.join(EXP_DIR, fname)
+    if not os.path.exists(p):
+        return False, "%s 缺失" % fname
+    try:
+        with open(p, encoding="utf-8") as fh:
+            d = json.load(fh)
+    except Exception as exc:
+        return False, "%s 解析失败: %r" % (fname, exc)
+    if not d:
+        return False, "%s 为空（该成本点的回测全缺）" % fname
+    fulls = [k for k in d if k.startswith("full_")]
+    if not fulls:
+        return False, "%s 里没有 full_s* 档（现有键 %s）" % (fname, ",".join(sorted(d)))
+    return True, "%s：%d 档（full 档 %s）" % (fname, len(d), ",".join(sorted(fulls)))
 
 
 def main() -> int:
@@ -173,6 +226,23 @@ def main() -> int:
                   encoding="utf-8") as fh:
             json.dump(summary, fh, ensure_ascii=False, indent=1, default=str)
         return 1
+
+    if summary["wait"].get("reason") == "driver_process_gone_without_training_log":
+        # 驱动进程消失了却没写 training_log.json：要么崩在收尾前，要么被判死。
+        # 只有**全部 10 档产物齐**才继续（崩溃发生在 collect() 之后的情形）；
+        # 否则按「训练未收尾」处理，不跑后处理（复审 2026-11-25 发现）。
+        miss = artifacts_missing()
+        summary["artifacts_missing"] = miss
+        if miss:
+            log("驱动消失且产物不全（缺 %d 项）——不跑后处理链：%s"
+                % (len(miss), ",".join(miss)))
+            summary["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%S%z")
+            summary["ok"] = False
+            with open(os.path.join(EXP_DIR, "finish_summary.json"), "w",
+                      encoding="utf-8") as fh:
+                json.dump(summary, fh, ensure_ascii=False, indent=1, default=str)
+            return 1
+        log("驱动消失但 10 档产物齐全（崩在收尾写日志前）——继续后处理链")
 
     if args.wait_only:
         summary["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%S%z")
@@ -228,6 +298,19 @@ def main() -> int:
                 rec["note"] = "backtest 自检不通过：%s" % why
                 log("回测产物自检不通过，停止后续链")
                 break
+        if name in COST_OUTPUTS and rec["rc"] == 0:
+            fname, prereg = COST_OUTPUTS[name]
+            ok2, why2 = validate_cost_json(fname)
+            summary.setdefault("cost_validation", {})[fname] = {"ok": ok2,
+                                                                "detail": why2,
+                                                                "pre_registered": prereg}
+            log("成本点产物自检 %s：%s —— %s" % (fname, "通过" if ok2 else "不通过", why2))
+            if not ok2:
+                rec["rc"] = 1
+                rec["note"] = "成本点自检不通过：%s" % why2
+                if prereg:
+                    log("预注册成本点 %s 自检不通过，停止后续链" % fname)
+                    break
 
     summary["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%S%z")
     summary["ok"] = all(s["rc"] == 0 for s in summary["steps"])
