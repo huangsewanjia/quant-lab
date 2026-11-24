@@ -83,6 +83,7 @@ def build():
     audit = jload(os.path.join(OUT, "audit_findings.json"))
     man = jload(os.path.join(OUT, "snapshot_manifest.json"))
     meta = jload(os.path.join(OUT, "sample_meta.json"))
+    leak = jload(os.path.join(OUT, "leakage_diag.json"))
 
     # ---------------- 主检验量 ----------------
     per_seed = []
@@ -106,6 +107,11 @@ def build():
     ric_dee = [runs[f"dee_s{s}"]["test_rankic_mean"] for s in SEEDS if f"dee_s{s}" in runs]
     ric_mlp = [runs[f"mlp_only_s{s}"]["test_rankic_mean"] for s in SEEDS if f"mlp_only_s{s}" in runs]
     ric_rng = (max(ric_dee) - min(ric_dee)) if len(ric_dee) > 1 else 0.0
+    # 基线（最佳单族）自身的两种子极差：基线不稳 → Δ_ic 不可比，必须一起披露
+    ric_rng_mlp = (max(ric_mlp) - min(ric_mlp)) if len(ric_mlp) > 1 else 0.0
+    # Δ_ic 逐种子的符号翻转检查
+    delta_signs = {1 if d > 0 else (-1 if d < 0 else 0) for d in deltas}
+    delta_flip = len(delta_signs) > 1
 
     net_sh = []
     for s in SEEDS:
@@ -138,6 +144,12 @@ def build():
         reasons.append("95% CI 含 0 → 记为「未复现」（预注册 §6.2）")
     if ric_rng > 0.01:
         reasons.append(f"两种子 RankIC 极差 {ric_rng:.4f} > 0.01 → 结果不稳定，须在结论中明说")
+    if ric_rng_mlp > 0.01:
+        reasons.append(f"<b>最佳单族基线自身</b>两种子 RankIC 极差 {ric_rng_mlp:.4f} > 0.01 → "
+                       f"基线在本面板上就已不稳定，DEE 与基线的相对差不可比")
+    if delta_flip:
+        reasons.append(f"Δ_ic 逐种子<b>符号翻转</b>（{', '.join(f'{d*100:+.1f}%' for d in deltas)}）"
+                       f"→ 均值 {delta_mean*100:+.2f}% 不代表任何可复现的方向")
 
     # ---------------- 勾稽自检 ----------------
     tie = []
@@ -362,6 +374,54 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
     A("<p class=\"small\">IC = 每个交易日预测分数与次日收益的 Pearson 相关，再对测试期取时间均值；"
       "MDD = 日频净净值曲线的最大回撤（负值）；换手 = 当日买入额 + 卖出额（占组合净值比重）。</p>")
 
+    # ---- 3b 臂 C 早停退化：实测 + 非预注册诊断对照
+    xgb42 = runs.get("xgb_s42", {}).get("xgb", {})
+    diag = {s: runs.get(f"xgbfull_s{s}") for s in SEEDS}
+    diag = {s: v for s, v in diag.items() if v}
+    if xgb42 or diag:
+        A("<h3>臂 C（XGBoost）的早停退化：实测与诊断对照</h3>")
+        A("<p>这一段是本单唯一一处<b>协议内但结果反常</b>的地方，必须单独摊开讲。"
+          "预注册 §4.6 冻结的臂 C 超参（2000 棵、lr 0.05、深度 6、早停 patience 50 监控验证 MSE）"
+          "在<b>本面板</b>上退化成了单树桩，机理是下面三步，全部有实测值：</p>")
+        A("<ol>"
+          "<li>验证 RMSE 曲线<b>近乎平坦</b>：第 0 轮 "
+          f"<span class=\"mono\">{fmt((runs.get('xgbfull_s42') or {}).get('valid_rmse_at_round0'), 8)}</span>"
+          "，全曲线最优在第 "
+          f"<span class=\"mono\">{(runs.get('xgbfull_s42') or {}).get('best_round_selected_on_valid', '—')}</span> "
+          f"轮（<span class=\"mono\">{fmt((runs.get('xgbfull_s42') or {}).get('valid_rmse_at_best'), 8)}</span>）"
+          "——50 轮内没有任何一轮严格优于第 0 轮，patience 立刻耗尽。</li>"
+          "<li>xgboost 命中早停后，sklearn 的 <span class=\"mono\">predict()</span> 会"
+          "<b>自动截断到 best_iteration+1 轮</b>。实测 "
+          "<span class=\"mono\">predict(X) == booster.predict(DMatrix(X), iteration_range=(0,1))</span>"
+          "（逐元素 max|diff| = 0），与全树预测 max|diff| = 1.8e-2。"
+          f"于是本单臂 C 实际只用了 <b><span class=\"mono\">{xgb42.get('n_trees_used_in_predict', '—')}</span> 棵树</b>"
+          f"（共拟合 {xgb42.get('n_trees_fitted', '—')} 棵）。</li>"
+          "<li>结果：臂 C 的测试段 RankIC 停在 "
+          f"<span class=\"mono\">{fmt(runs.get('xgb_s42', {}).get('test_rankic_mean'), 4, False, True)}</span>，"
+          "组合层面被日频换手成本吃掉（见 §3 表 3）。</li>"
+          "</ol>")
+        if diag:
+            A("<table><caption>表 3b · 非预注册诊断对照：关掉早停、用<b>验证曲线</b>选轮次的 XGBoost"
+              "（<span class=\"mono\">scripts/work555_xgb_diag.py</span>）——"
+              "<b>不参与进 / 退判词</b>，只用来把早停病态的影响量化出来</caption>")
+            A("<thead><tr><th class=\"l\">臂</th><th class=\"c\">种子</th><th class=\"c\">选中的树数</th>"
+              "<th class=\"c\">测试 RankIC</th><th class=\"c\">测试 IC</th><th class=\"c\">满 2000 棵 RankIC</th>"
+              "<th class=\"l\">口径</th></tr></thead><tbody>")
+            for s, v in sorted(diag.items()):
+                A(f"<tr><td class=\"l\">XGBoost（无早停，诊断）</td><td class=\"c mono\">{s}</td>"
+                  f"<td class=\"c mono\">{v.get('best_round_selected_on_valid', '—')}</td>"
+                  f"<td class=\"c mono\">{fmt(v.get('test_rankic_mean_best_iter'), 4, False, True)}</td>"
+                  f"<td class=\"c mono\">{fmt(v.get('test_ic_mean_best_iter'), 4, False, True)}</td>"
+                  f"<td class=\"c mono\">{fmt(v.get('test_rankic_mean_full_2000'), 4, False, True)}</td>"
+                  f"<td class=\"l small\">轮次只在验证段上选；测试段不参与任何选择</td></tr>")
+            A("</tbody></table>")
+            A("<p class=\"small\">读法：<b>同一份面板、同一套超参，只把「用池化 MSE 做早停」换成"
+              "「用验证曲线选轮次」，臂 C 的 RankIC 就从 "
+              f"<span class=\"mono\">{fmt(runs.get('xgb_s42', {}).get('test_rankic_mean'), 4, False, True)}</span> "
+              "抬到上表的水平</b>。也就是说退化的是「池化 MSE 早停」这个做法在本面板上的适配性，"
+              "不是本单的实现缺陷。<b>但本单不因此改协议</b>——臂 C 按预注册原样报数，"
+              "主检验量 Δ_ic 只用 DEE vs MLP-only，不经过臂 C。</p>")
+
     # ---- 4 主检验量
     A("<h2><span class=\"num\">4</span>主检验量 Δ_ic 与判据逐条对照</h2>")
     A("<table><caption>表 4 · Δ_ic 逐种子与判据（判据先写死再跑，见预注册 §6.2）</caption>")
@@ -388,8 +448,13 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
          "是" if delta_mean > 0.50 else "否"),
         ("净 Sharpe(rf=0, 8bps) < 0 → 直接退", f"{net_sh_mean:+.3f}",
          "是" if net_sh_mean < 0 else "否"),
-        ("两种子 RankIC 极差 > 0.01 → 不稳定", f"{ric_rng:.4f}",
+        ("两种子 RankIC 极差 > 0.01 → 不稳定（DEE 自身）", f"{ric_rng:.4f}",
          "是" if ric_rng > 0.01 else "否"),
+        ("两种子 RankIC 极差 > 0.01 → 不稳定（最佳单族基线）", f"{ric_rng_mlp:.4f}",
+         "是" if ric_rng_mlp > 0.01 else "否"),
+        ("Δ_ic 逐种子符号翻转 → 均值不代表可复现方向",
+         f"{', '.join(f'{d*100:+.1f}%' for d in deltas)}",
+         "是" if delta_flip else "否"),
         ("95% CI 含 0 → 记「未复现」",
          f"[{ci_lo*100:+.1f}%, {ci_hi*100:+.1f}%]（t 近似，df=1，区间极宽）",
          "是" if (not np.isfinite(ci_lo) or ci_lo <= 0 <= ci_hi) else "否"),
@@ -461,19 +526,22 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
           f"<td class=\"c mono\">{prc:.3f}</td><td class=\"c mono\">{oic}</td>"
           f"<td class=\"c mono\">{orc}</td><td class=\"l small\">{reason}</td></tr>")
     A("</tbody></table>")
-    A("<table><caption>表 7 · 与论文 Table 2（族消融）对照——<b>这就是主检验量的来源</b></caption>")
+    A("<table><caption>表 7 · 与论文 Table 2（族消融）对照——<b>这就是主检验量的来源</b>；"
+      "本单列为 DEE 臂<b>两种子均值</b>，族内各自 IC 过滤 + 等权平均（预注册 §4.6）</caption>")
     A("<thead><tr><th class=\"l\">族</th><th class=\"c\">论文 IC</th><th class=\"c\">论文 RankIC</th>"
       "<th class=\"c\">本单 IC</th><th class=\"c\">本单 RankIC</th><th class=\"c\">本单专家数</th></tr></thead><tbody>")
-    fam = None
-    for k in sorted(runs):
-        if k.startswith("dee_") and "family_subsets" in runs[k]:
-            fam = runs[k]["family_subsets"]
-            break
+    fam_sets = {k: v["family_subsets"] for k, v in runs.items()
+                 if k.startswith("dee_") and "family_subsets" in v}
     fmap = {"Linear only": "linear_family", "Tree only": "tree_family",
             "MLP only": "mlp_family", "Full DEE (6 types)": "full_dee"}
     for name, pic, prc in PAPER_T2:
         key = fmap.get(name)
-        v = fam.get(key) if (fam and key) else None
+        vals = [fs[key] for fs in fam_sets.values() if key in fs]
+        v = None
+        if vals:
+            v = {"ic": float(np.mean([x["ic"] for x in vals])),
+                 "rankic": float(np.mean([x["rankic"] for x in vals])),
+                 "n_experts": vals[0]["n_experts"]}
         A(f"<tr><td class=\"l\">{name}</td><td class=\"c mono\">{pic:.3f}</td>"
           f"<td class=\"c mono\">{prc:.3f}</td>"
           f"<td class=\"c mono\">{fmt(v['ic'],4,False,True) if v else '—'}</td>"
@@ -484,15 +552,19 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
       f"<td class=\"c mono\">本单 Δ_ic = {delta_mean*100:+.2f}%</td>"
       f"<td class=\"c mono\">—</td><td class=\"c mono\">—</td></tr>")
     A("</tbody></table>")
-    A("<table><caption>表 8 · 与论文 Table 3（组合）对照</caption>")
+    A("<table><caption>表 8 · 与论文 Table 3（组合）对照——本单列为<b>两种子均值</b>"
+      "（8 bps 单边 + 10 bps 印花税净额口径），论文为毛值</caption>")
     A("<thead><tr><th class=\"l\">方法</th><th class=\"c\">论文年化%</th><th class=\"c\">论文 Sharpe</th>"
       "<th class=\"c\">论文 MDD%</th><th class=\"c\">本单年化%</th><th class=\"c\">本单 Sharpe</th>"
       "<th class=\"c\">本单 MDD%</th><th class=\"l\">差异原因</th></tr></thead><tbody>")
     t3map = {"MLP": "mlp_only", "XGBoost": "xgb", "DEE": "dee"}
     for name, ann, sh, mdd in PAPER_T3:
         arm = t3map.get(name)
-        b = bts.get(f"{arm}_s42") if arm else None
-        m = b["metrics"]["main_8bps"] if b else None
+        ms = [bts[f"{arm}_s{s}"]["metrics"]["main_8bps"]
+              for s in SEEDS if f"{arm}_s{s}" in bts]
+        m = None
+        if ms:
+            m = {k: float(np.mean([x[k] for x in ms])) for k in ms[0]}
         A(f"<tr><td class=\"l\">{name}</td><td class=\"c mono\">{ann:.2f}</td>"
           f"<td class=\"c mono\">{sh:.3f}</td><td class=\"c mono\">{mdd:.2f}</td>"
           f"<td class=\"c mono\">{fmt(m['annualized_return']*100,2,True,True) if m else '—'}</td>"
@@ -521,21 +593,49 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
     A("<p>论文 Table 1 的 DEE RankIC 是 0.060，本单明显更低。这不是「复现失败」一句话能带过的，"
       "下面把可测量的机制列出来。</p>")
     A("<ol>")
-    A("<li><b>面板本身无前视泄漏。</b>把当日标签在截面内打乱后重算，各因子 |RankIC| 从 "
-      "0.023~0.057 塌到 0.0017（placebo）；把特征(t) 拿去预测<b>已实现</b>的过去收益(t−1→t)，"
-      "量/波类 20 个因子的 |IC| 中位只有 0.012，而价/动量类 28 个因子的 |IC| 中位高达 0.318"
-      "——后者是动量因子「本来就是滞后收益」的机械相关，不是泄漏。</li>")
-    A("<li><b>信号是排序驱动的，不是线性驱动。</b>测试段 ROC_5 的 Spearman 相关 −0.0369，"
-      "但 Pearson 相关只有 −0.0055；MA_DEV_10 的 Spearman −0.0328，Pearson +0.0008。"
-      "而 DEE 三个模型族（含论文原版 XGBoost）全部按 <b>MSE</b> 目标训练，"
-      "MSE 只看线性部分，看不见排序信息。</li>")
-    A("<li><b>论文原版 XGBoost 在本面板上同样退化。</b>按预注册冻结的 XGBoost 配置"
+    if leak:
+        d1 = leak["D1_placebo"]
+        d2 = leak["D2_backward_realized_return"]
+        d3 = leak["D3_rank_vs_linear"]
+        A(f"<li><b>面板本身无前视泄漏。</b>把当日标签在截面内打乱后重算，各因子 |RankIC| 从 "
+          f"<span class=\"mono\">{d1['real_mean_abs_rankic_by_factor_min']:.4f}~"
+          f"{d1['real_mean_abs_rankic_by_factor_max']:.4f}</span> 塌到中位 "
+          f"<span class=\"mono\">{d1['placebo_mean_abs_rankic_median']:.4f}</span>（placebo，"
+          f"最大也只有 {d1['placebo_mean_abs_rankic_max']:.4f}）；"
+          f"把特征(t) 拿去预测<b>已实现</b>的过去收益(t−1→t)，"
+          f"量/波类因子的 |IC| 中位只有 <span class=\"mono\">{d2['median_abs_rankic_by_group']['volume_volatility']:.4f}</span>，"
+          f"而价/动量类因子的 |IC| 中位高达 "
+          f"<span class=\"mono\">{d2['median_abs_rankic_by_group']['price_momentum']:.4f}</span>"
+          "——后者是动量因子「本来就是滞后收益」的机械相关，不是泄漏。</li>")
+        rc = d3.get("ROC_5", {})
+        md = d3.get("MA_DEV_10", {})
+        A(f"<li><b>信号是排序驱动的，不是线性驱动。</b>测试段 ROC_5 的 Spearman 相关 "
+          f"<span class=\"mono\">{rc.get('mean_spearman_ic', float('nan')):+.4f}</span>，"
+          f"但 Pearson 相关只有 <span class=\"mono\">{rc.get('mean_pearson_ic', float('nan')):+.4f}</span>；"
+          f"MA_DEV_10 的 Spearman <span class=\"mono\">{md.get('mean_spearman_ic', float('nan')):+.4f}</span>，"
+          f"Pearson <span class=\"mono\">{md.get('mean_pearson_ic', float('nan')):+.4f}</span>。"
+          "而 DEE 三个模型族（含论文原版 XGBoost）全部按 <b>MSE</b> 目标训练，"
+          "MSE 只看线性部分，看不见排序信息。</li>")
+    else:
+        A("<li><b>面板本身无前视泄漏</b>、<b>信号是排序驱动的</b>——"
+          "机制诊断脚本未产出，本段留空，不做无据陈述。</li>")
+    xgb42 = runs.get("xgb_s42", {}).get("xgb", {})
+    dg = runs.get("xgbfull_s42", {})
+    A(f"<li><b>论文原版 XGBoost 在本面板上同样退化。</b>按预注册冻结的 XGBoost 配置"
       "（2000 棵、lr 0.05、深度 6、早停 patience 50 监控验证 MSE）跑，"
-      "验证 MSE 从第 0 轮起就是平的，最佳迭代停在第 0~1 轮，模型近乎常数预测器；"
-      "关掉早停改跑 600 棵时，测试段 RankIC 升到 0.024、验证段 0.044。"
-      "换句话说，<b>退化的是「用池化 MSE 做早停」这个协议在本面板上的适配性，不是本单的实现</b>。</li>")
+      f"验证 RMSE 从第 0 轮起就是平的（{fmt(dg.get('valid_rmse_at_round0'), 8)}），"
+      f"最佳迭代停在第 {xgb42.get('best_iteration', '—')} 轮，"
+      f"实际只有 <b>{xgb42.get('n_trees_used_in_predict', '—')} 棵树</b>参与预测；"
+      f"关掉早停、用验证曲线选到第 {dg.get('best_round_selected_on_valid', '—')} 轮时，"
+      f"测试段 RankIC 从 <span class=\"mono\">{fmt(runs.get('xgb_s42', {}).get('test_rankic_mean'), 4, False, True)}</span> "
+      f"升到 <span class=\"mono\">{fmt(dg.get('test_rankic_mean_best_iter'), 4, False, True)}</span>。"
+      "换句话说，<b>退化的是「用池化 MSE 做早停」这个协议在本面板上的适配性，不是本单的实现</b>。"
+      "详见 §3「臂 C 的早停退化」。</li>")
     A("</ol>")
-    A("<p class=\"small\">以上三条均可由本单脚本复跑核对（命令见 §9）。</p>")
+    A("<p class=\"small\">以上三条均由 <span class=\"mono\">scripts/work555_leakage_diag.py</span> "
+      "与 <span class=\"mono\">scripts/work555_xgb_diag.py</span> 一条命令复跑核对（命令见 §9），"
+      "原始结果落 <span class=\"mono\">experiments/WORK-555/leakage_diag.json</span> "
+      "与 <span class=\"mono\">run_xgbfull_s42.json</span>。</p>")
 
     # ---- 8 偏离与失败
     A("<h2><span class=\"num\">8</span>偏离清单与失败记录</h2>")
@@ -584,15 +684,21 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
       "/tmp/w555venv/bin/python scripts/work555_test_primitives.py\n"
       "# 2) 因子 + 标签 + 样本装配（加工层可重建）\n"
       "/tmp/w555venv/bin/python scripts/work555_features.py\n"
-      "# 3) 三档对照臂 × 两种子\n"
-      "bash scripts/work555_run_all.sh\n"
+      "# 3) 三档对照臂 × 两种子（同一份代码版本）\n"
+      "bash scripts/work555_run_arms.sh\n"
+      "# 3b) 臂 C 早停退化的非预注册诊断对照（不参与判词）\n"
+      "/tmp/w555venv/bin/python scripts/work555_xgb_diag.py --seed 42\n"
+      "# 3c) 配图（matplotlib 只在系统 python3 里，venv 里没有 matplotlib）\n"
+      "python3 scripts/work555_figures.py\n"
       "# 4) 组合回测（掩码断言开启）\n"
       "/tmp/w555venv/bin/python scripts/work555_backtest.py --arm dee --seed 42\n"
       "# 5) 断言演示：刻意关闭掩码，必须报 UNTRADABLE_PRICE_READ\n"
       "/tmp/w555venv/bin/python scripts/work555_backtest.py --arm dee --seed 42 --no-mask\n"
       "# 6) 独立复算（不 import 建模函数）\n"
       "/tmp/w555venv/bin/python audit/recompute_work555.py\n"
-      "# 7) 快照 sha256 复核\n"
+      "# 7) 机制诊断（placebo / 反向检验 / 排序 vs 线性）\n"
+      "/tmp/w555venv/bin/python scripts/work555_leakage_diag.py\n"
+      "# 8) 快照 sha256 复核\n"
       "sha256sum data/WORK-555/*.csv</pre>")
     A("<p class=\"small\">统计时点：全部数字取自本仓库 "
       "<span class=\"mono\">experiments/WORK-555/</span> 下的产物；"
@@ -602,16 +708,34 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
     # ---- 10 结论
     A("<h2><span class=\"num\">10</span>结论与翻案条件</h2>")
     A(f"<p><b>判词：{verdict_word}。</b>" + "；".join(reasons) + "。</p>")
-    A("<p><b>卡在哪一项：</b>主检验量 Δ_ic 落在预注册进带之外"
-      + ("；同时 DEE 的净 Sharpe（rf=0，8 bps 主口径）为负，按 §6.2 直接退" if net_sh_mean < 0 else "")
-      + "。</p>")
+    blockers = []
+    if delta_mean > 0.50:
+        blockers.append(f"① 主检验量 Δ_ic = {delta_mean*100:+.2f}% <b>超过 +50% 上限</b>——"
+                        f"按预注册 §6.2 属「单族基线本身跑坏、横向不可比」，不是「复现成功」")
+    elif delta_mean <= 0:
+        blockers.append(f"① 主检验量 Δ_ic = {delta_mean*100:+.2f}% ≤ 0——DEE 不优于最佳单族")
+    else:
+        blockers.append(f"① 主检验量 Δ_ic = {delta_mean*100:+.2f}% 落在预注册进带 [+2%, +30%] 之外")
+    if net_sh_mean < 0:
+        blockers.append(f"② DEE 的净 Sharpe（rf=0，8 bps 主口径）= {net_sh_mean:+.3f} < 0——"
+                        f"按 §6.2 <b>直接退</b>（净额口径含 A 股交易成本）")
+    if ric_rng_mlp > 0.01:
+        blockers.append(f"③ 最佳单族基线自身两种子 RankIC 极差 {ric_rng_mlp:.4f} > 0.01，"
+                        f"基线先不稳、相对量才不可比——这是本单最根本的卡点")
+    if delta_flip:
+        blockers.append(f"④ Δ_ic 逐种子符号翻转（{', '.join(f'{d*100:+.1f}%' for d in deltas)}），"
+                        f"两种子均值 {delta_mean*100:+.2f}% 不构成可复现结论")
+    A("<p><b>卡在哪一项：</b>" + "；".join(blockers) + "。</p>")
     A("<p><b>要翻案需要什么：</b>"
-      "① 把因子集从 48 列补到接近论文的 Alpha158 规模（偏离 D2 的反向），"
-      "在相同协议下重跑三档，看 Δ_ic 是否进入 [+2%, +30%]；"
-      "② 或改用对排序敏感的损失（如截面秩回归）重训三族，使 MSE 早停不再退化为第 0 轮"
+      "① <b>先解决基线不稳</b>：把种子数从 2 提到论文同量级（≥10），"
+      "并按预注册口径报 mean ± std，看 MLP-only 的 RankIC 极差是否收敛到 0.01 以内；"
+      "在此之前任何 Δ_ic 数值（包括本单这个 +89.76%）都不可解读；"
+      "② 把因子集从 48 列补到接近论文的 Alpha158 规模（偏离 D2 的反向），"
+      "在相同协议下重跑三档，看 Δ_ic 是否稳定进入 [+2%, +30%]；"
+      "③ 或改用对排序敏感的损失（如截面秩回归）重训三族，使 MSE 早停不再退化为第 0 轮"
       "（这属于协议变更，须另开预注册版本）；"
-      "③ 或把调仓频率从日频降到周频，把年化双边换手从 >100% 压到可承受区间，再看净 Sharpe 是否转正。"
-      "以上三条都超出本单冻结协议，不能在本单内改，必须另开版本重跑。</p>")
+      "④ 或把调仓频率从日频降到周频，把年化双边换手从 ~100% 压到可承受区间，再看净 Sharpe 是否转正。"
+      "以上四条都超出本单冻结协议，不能在本单内改，必须另开版本重跑。</p>")
     A("<div class=\"keybox\"><h3>本单结论边界</h3><p>本单只检验了论文主张中的「异质性相对贡献」"
       "这一个相对量，且是在自建面板、自实现因子、2 个种子、含 A 股交易成本的条件下测的。"
       "它既不能证明论文的结论成立，也不能证伪论文——"

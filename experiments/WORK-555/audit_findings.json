@@ -1,11 +1,1411 @@
 {
   "experiment": "WORK-555",
   "tolerance_rel_diff": 1e-06,
-  "n_findings": 28,
+  "n_findings": 255,
   "n_blocking": 0,
   "verdict": "PASS",
-  "primary_test_recomputed": {},
+  "primary_test_recomputed": {
+    "per_seed": [
+      {
+        "seed": 42,
+        "rankic_dee": 0.030327351504239576,
+        "rankic_mlp": 0.010116964226472241,
+        "delta_ic": 1.9976730989009974
+      },
+      {
+        "seed": 43,
+        "rankic_dee": 0.023148644058997664,
+        "rankic_mlp": 0.029023791668679445,
+        "delta_ic": -0.20242522675015792
+      }
+    ],
+    "delta_ic_mean": 0.8976239360754198,
+    "delta_ic_range": 2.2000983256511555,
+    "rankic_unstable": true,
+    "n_seeds": 2,
+    "dee_net_sharpe_main_8bps": [
+      -0.2730729713549962,
+      -0.3980232740152686
+    ]
+  },
   "findings": [
+    {
+      "severity": "pass",
+      "item": "label_integrity::dee_s42 (max_rel_dev)",
+      "measured": 3.5364939350316015e-08,
+      "expected": 0.0,
+      "gap": 3.5364939350316015e-08,
+      "location": "sample.npz vs panel_backtest.csv",
+      "how_to_verify": "audit script output; float32 存储精度上限 ~6e-8"
+    },
+    {
+      "severity": "pass",
+      "item": "ic::dee_s42::test_rankic_mean",
+      "measured": 0.030327351504239576,
+      "expected": 0.030327373520180168,
+      "gap": 7.2594287061406e-07,
+      "location": "run_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "ic::dee_s42::test_ic_mean",
+      "measured": 0.031063414450009402,
+      "expected": 0.031063414388615075,
+      "gap": 1.976419148028864e-09,
+      "location": "run_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s42::linear_family::rankic",
+      "measured": 0.025786911553896355,
+      "expected": 0.025786911553896355,
+      "gap": 0.0,
+      "location": "run_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s42::linear_family::ic",
+      "measured": 0.023567052408006387,
+      "expected": 0.023567052408006384,
+      "gap": 1.4721599001387827e-16,
+      "location": "run_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s42::linear_family::n_experts",
+      "measured": 8,
+      "expected": 8,
+      "gap": 0.0,
+      "location": "run_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s42::linear_family::n_active_after_ic_filter",
+      "measured": 7,
+      "expected": 7,
+      "gap": 0.0,
+      "location": "run_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s42::mlp_family::rankic",
+      "measured": 0.031830318096103066,
+      "expected": 0.031830318096103066,
+      "gap": 0.0,
+      "location": "run_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s42::mlp_family::ic",
+      "measured": 0.027039998882446944,
+      "expected": 0.027039998882446944,
+      "gap": 0.0,
+      "location": "run_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s42::mlp_family::n_experts",
+      "measured": 6,
+      "expected": 6,
+      "gap": 0.0,
+      "location": "run_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s42::mlp_family::n_active_after_ic_filter",
+      "measured": 5,
+      "expected": 5,
+      "gap": 0.0,
+      "location": "run_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s42::tree_family::rankic",
+      "measured": 0.03250646585117187,
+      "expected": 0.03250646585117187,
+      "gap": 0.0,
+      "location": "run_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s42::tree_family::ic",
+      "measured": 0.007818234033432545,
+      "expected": 0.007818234033432543,
+      "gap": 2.2188175341883286e-16,
+      "location": "run_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s42::tree_family::n_experts",
+      "measured": 6,
+      "expected": 6,
+      "gap": 0.0,
+      "location": "run_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s42::tree_family::n_active_after_ic_filter",
+      "measured": 5,
+      "expected": 5,
+      "gap": 0.0,
+      "location": "run_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s42::full_dee::rankic",
+      "measured": 0.030327373520180168,
+      "expected": 0.030327373520180168,
+      "gap": 0.0,
+      "location": "run_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s42::full_dee::ic",
+      "measured": 0.03106341438861507,
+      "expected": 0.031063414388615075,
+      "gap": 1.11689169405189e-16,
+      "location": "run_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s42::full_dee::n_experts",
+      "measured": 20,
+      "expected": 20,
+      "gap": 0.0,
+      "location": "run_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s42::full_dee::n_active_after_ic_filter",
+      "measured": 19,
+      "expected": 19,
+      "gap": 0.0,
+      "location": "run_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s42::main_8bps::n_days",
+      "measured": 974,
+      "expected": 974,
+      "gap": 0.0,
+      "location": "backtest_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s42::main_8bps::total_return",
+      "measured": -0.271501639927492,
+      "expected": -0.271501639927492,
+      "gap": 0.0,
+      "location": "backtest_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s42::main_8bps::annualized_return",
+      "measured": -0.07623820048831165,
+      "expected": -0.07623820048831165,
+      "gap": 0.0,
+      "location": "backtest_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s42::main_8bps::annualized_vol",
+      "measured": 0.21507827878374727,
+      "expected": 0.21507827878374727,
+      "gap": 0.0,
+      "location": "backtest_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s42::main_8bps::sharpe_rf0",
+      "measured": -0.2730729713549962,
+      "expected": -0.2730729713549962,
+      "gap": 0.0,
+      "location": "backtest_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s42::main_8bps::sharpe_rf1p5",
+      "measured": -0.3428150210162821,
+      "expected": -0.3428150210162821,
+      "gap": 0.0,
+      "location": "backtest_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s42::main_8bps::max_drawdown",
+      "measured": -0.4278647216323216,
+      "expected": -0.4278647216323216,
+      "gap": 0.0,
+      "location": "backtest_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s42::main_8bps::turnover_daily_mean",
+      "measured": 1.0054209445585218,
+      "expected": 1.0054209445585218,
+      "gap": 0.0,
+      "location": "backtest_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s42::main_8bps::turnover_total",
+      "measured": 979.2800000000002,
+      "expected": 979.2800000000002,
+      "gap": 0.0,
+      "location": "backtest_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s42::main_8bps::cost_total",
+      "measured": 1.2725640000000003,
+      "expected": 1.2725640000000003,
+      "gap": 0.0,
+      "location": "backtest_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s42::main_8bps::gross_return_total",
+      "measured": 1.0455599088087313,
+      "expected": 1.0455599088087313,
+      "gap": 0.0,
+      "location": "backtest_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s42::main_8bps::avg_holdings",
+      "measured": 50.20225872689939,
+      "expected": 50.20225872689939,
+      "gap": 0.0,
+      "location": "backtest_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s42::sens_5bps::n_days",
+      "measured": 974,
+      "expected": 974,
+      "gap": 0.0,
+      "location": "backtest_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s42::sens_5bps::total_return",
+      "measured": -0.022620652510656813,
+      "expected": -0.022620652510656813,
+      "gap": 0.0,
+      "location": "backtest_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s42::sens_5bps::annualized_return",
+      "measured": -0.005711573824358274,
+      "expected": -0.005711573824358274,
+      "gap": 0.0,
+      "location": "backtest_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s42::sens_5bps::annualized_vol",
+      "measured": 0.21504483420546472,
+      "expected": 0.21504483420546472,
+      "gap": 0.0,
+      "location": "backtest_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s42::sens_5bps::sharpe_rf0",
+      "measured": 0.08034491417134029,
+      "expected": 0.08034491417134029,
+      "gap": 0.0,
+      "location": "backtest_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s42::sens_5bps::sharpe_rf1p5",
+      "measured": 0.010592017965201992,
+      "expected": 0.010592017965201992,
+      "gap": 0.0,
+      "location": "backtest_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s42::sens_5bps::max_drawdown",
+      "measured": -0.3449222289376861,
+      "expected": -0.3449222289376861,
+      "gap": 0.0,
+      "location": "backtest_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s42::sens_5bps::turnover_daily_mean",
+      "measured": 1.0054209445585218,
+      "expected": 1.0054209445585218,
+      "gap": 0.0,
+      "location": "backtest_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s42::sens_5bps::turnover_total",
+      "measured": 979.2800000000002,
+      "expected": 979.2800000000002,
+      "gap": 0.0,
+      "location": "backtest_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s42::sens_5bps::cost_total",
+      "measured": 0.9787800000000003,
+      "expected": 0.9787800000000003,
+      "gap": 0.0,
+      "location": "backtest_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s42::sens_5bps::gross_return_total",
+      "measured": 1.0455599088087313,
+      "expected": 1.0455599088087313,
+      "gap": 0.0,
+      "location": "backtest_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s42::sens_5bps::avg_holdings",
+      "measured": 50.20225872689939,
+      "expected": 50.20225872689939,
+      "gap": 0.0,
+      "location": "backtest_dee_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "label_integrity::dee_s43 (max_rel_dev)",
+      "measured": 3.5364939350316015e-08,
+      "expected": 0.0,
+      "gap": 3.5364939350316015e-08,
+      "location": "sample.npz vs panel_backtest.csv",
+      "how_to_verify": "audit script output; float32 存储精度上限 ~6e-8"
+    },
+    {
+      "severity": "pass",
+      "item": "ic::dee_s43::test_ic_mean",
+      "measured": 0.030018773516220544,
+      "expected": 0.03001877355854801,
+      "gap": 1.4100331037023724e-09,
+      "location": "run_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s43::linear_family::rankic",
+      "measured": 0.028249995723106252,
+      "expected": 0.028249995723106252,
+      "gap": 0.0,
+      "location": "run_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s43::linear_family::ic",
+      "measured": 0.022844223416875753,
+      "expected": 0.022844223416875753,
+      "gap": 0.0,
+      "location": "run_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s43::linear_family::n_experts",
+      "measured": 8,
+      "expected": 8,
+      "gap": 0.0,
+      "location": "run_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s43::linear_family::n_active_after_ic_filter",
+      "measured": 8,
+      "expected": 8,
+      "gap": 0.0,
+      "location": "run_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s43::mlp_family::rankic",
+      "measured": 0.012572231232392877,
+      "expected": 0.012572231232392877,
+      "gap": 0.0,
+      "location": "run_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s43::mlp_family::ic",
+      "measured": 0.024503012869287587,
+      "expected": 0.024503012869287587,
+      "gap": 0.0,
+      "location": "run_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s43::mlp_family::n_experts",
+      "measured": 6,
+      "expected": 6,
+      "gap": 0.0,
+      "location": "run_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s43::mlp_family::n_active_after_ic_filter",
+      "measured": 5,
+      "expected": 5,
+      "gap": 0.0,
+      "location": "run_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s43::tree_family::rankic",
+      "measured": 0.03042043614356328,
+      "expected": 0.03042043614356328,
+      "gap": 0.0,
+      "location": "run_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s43::tree_family::ic",
+      "measured": 0.008335119877178377,
+      "expected": 0.008335119877178375,
+      "gap": 2.0812219878522606e-16,
+      "location": "run_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s43::tree_family::n_experts",
+      "measured": 6,
+      "expected": 6,
+      "gap": 0.0,
+      "location": "run_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s43::tree_family::n_active_after_ic_filter",
+      "measured": 5,
+      "expected": 5,
+      "gap": 0.0,
+      "location": "run_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s43::full_dee::rankic",
+      "measured": 0.023148644058997664,
+      "expected": 0.023148644058997664,
+      "gap": 0.0,
+      "location": "run_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s43::full_dee::ic",
+      "measured": 0.030018773558548005,
+      "expected": 0.03001877355854801,
+      "gap": 1.1557590603050038e-16,
+      "location": "run_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s43::full_dee::n_experts",
+      "measured": 20,
+      "expected": 20,
+      "gap": 0.0,
+      "location": "run_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::dee_s43::full_dee::n_active_after_ic_filter",
+      "measured": 18,
+      "expected": 18,
+      "gap": 0.0,
+      "location": "run_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s43::main_8bps::n_days",
+      "measured": 974,
+      "expected": 974,
+      "gap": 0.0,
+      "location": "backtest_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s43::main_8bps::total_return",
+      "measured": -0.35512257976644324,
+      "expected": -0.35512257976644324,
+      "gap": 0.0,
+      "location": "backtest_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s43::main_8bps::annualized_return",
+      "measured": -0.1040082714647167,
+      "expected": -0.1040082714647167,
+      "gap": 0.0,
+      "location": "backtest_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s43::main_8bps::annualized_vol",
+      "measured": 0.22259257720788056,
+      "expected": 0.22259257720788056,
+      "gap": 0.0,
+      "location": "backtest_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s43::main_8bps::sharpe_rf0",
+      "measured": -0.3980232740152686,
+      "expected": -0.3980232740152686,
+      "gap": 0.0,
+      "location": "backtest_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s43::main_8bps::sharpe_rf1p5",
+      "measured": -0.465410965860857,
+      "expected": -0.465410965860857,
+      "gap": 0.0,
+      "location": "backtest_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s43::main_8bps::max_drawdown",
+      "measured": -0.491498631688996,
+      "expected": -0.491498631688996,
+      "gap": 0.0,
+      "location": "backtest_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s43::main_8bps::turnover_daily_mean",
+      "measured": 1.0387679671457908,
+      "expected": 1.0387679671457908,
+      "gap": 0.0,
+      "location": "backtest_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s43::main_8bps::turnover_total",
+      "measured": 1011.7600000000002,
+      "expected": 1011.7600000000002,
+      "gap": 0.0,
+      "location": "backtest_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s43::main_8bps::cost_total",
+      "measured": 1.3147880000000003,
+      "expected": 1.3147880000000003,
+      "gap": 0.0,
+      "location": "backtest_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s43::main_8bps::gross_return_total",
+      "measured": 0.972353461640354,
+      "expected": 0.972353461640354,
+      "gap": 0.0,
+      "location": "backtest_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s43::main_8bps::avg_holdings",
+      "measured": 50.100616016427104,
+      "expected": 50.100616016427104,
+      "gap": 0.0,
+      "location": "backtest_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s43::sens_5bps::n_days",
+      "measured": 974,
+      "expected": 974,
+      "gap": 0.0,
+      "location": "backtest_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s43::sens_5bps::total_return",
+      "measured": -0.126325622113167,
+      "expected": -0.126325622113167,
+      "gap": 0.0,
+      "location": "backtest_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s43::sens_5bps::annualized_return",
+      "measured": -0.033243055698307766,
+      "expected": -0.033243055698307766,
+      "gap": 0.0,
+      "location": "backtest_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s43::sens_5bps::annualized_vol",
+      "measured": 0.2225909057963273,
+      "expected": 0.2225909057963273,
+      "gap": 0.0,
+      "location": "backtest_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s43::sens_5bps::sharpe_rf0",
+      "measured": -0.04522272821319098,
+      "expected": -0.04522272821319098,
+      "gap": 0.0,
+      "location": "backtest_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s43::sens_5bps::sharpe_rf1p5",
+      "measured": -0.11261092606582535,
+      "expected": -0.11261092606582535,
+      "gap": 0.0,
+      "location": "backtest_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s43::sens_5bps::max_drawdown",
+      "measured": -0.3804012931052717,
+      "expected": -0.3804012931052717,
+      "gap": 0.0,
+      "location": "backtest_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s43::sens_5bps::turnover_daily_mean",
+      "measured": 1.0387679671457908,
+      "expected": 1.0387679671457908,
+      "gap": 0.0,
+      "location": "backtest_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s43::sens_5bps::turnover_total",
+      "measured": 1011.7600000000002,
+      "expected": 1011.7600000000002,
+      "gap": 0.0,
+      "location": "backtest_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s43::sens_5bps::cost_total",
+      "measured": 1.0112600000000003,
+      "expected": 1.0112600000000003,
+      "gap": 0.0,
+      "location": "backtest_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s43::sens_5bps::gross_return_total",
+      "measured": 0.972353461640354,
+      "expected": 0.972353461640354,
+      "gap": 0.0,
+      "location": "backtest_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::dee_s43::sens_5bps::avg_holdings",
+      "measured": 50.100616016427104,
+      "expected": 50.100616016427104,
+      "gap": 0.0,
+      "location": "backtest_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "label_integrity::mlp_only_s42 (max_rel_dev)",
+      "measured": 3.5364939350316015e-08,
+      "expected": 0.0,
+      "gap": 3.5364939350316015e-08,
+      "location": "sample.npz vs panel_backtest.csv",
+      "how_to_verify": "audit script output; float32 存储精度上限 ~6e-8"
+    },
+    {
+      "severity": "pass",
+      "item": "ic::mlp_only_s42::test_ic_mean",
+      "measured": 0.025783596075403196,
+      "expected": 0.02578359613460378,
+      "gap": 2.2960560515914533e-09,
+      "location": "run_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::mlp_only_s42::mlp_family::rankic",
+      "measured": 0.010116964226472241,
+      "expected": 0.010116964226472241,
+      "gap": 0.0,
+      "location": "run_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::mlp_only_s42::mlp_family::ic",
+      "measured": 0.02578359613460378,
+      "expected": 0.02578359613460378,
+      "gap": 0.0,
+      "location": "run_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::mlp_only_s42::mlp_family::n_experts",
+      "measured": 20,
+      "expected": 20,
+      "gap": 0.0,
+      "location": "run_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::mlp_only_s42::mlp_family::n_active_after_ic_filter",
+      "measured": 20,
+      "expected": 20,
+      "gap": 0.0,
+      "location": "run_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::mlp_only_s42::full_dee::rankic",
+      "measured": 0.010116964226472241,
+      "expected": 0.010116964226472241,
+      "gap": 0.0,
+      "location": "run_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::mlp_only_s42::full_dee::ic",
+      "measured": 0.02578359613460378,
+      "expected": 0.02578359613460378,
+      "gap": 0.0,
+      "location": "run_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::mlp_only_s42::full_dee::n_experts",
+      "measured": 20,
+      "expected": 20,
+      "gap": 0.0,
+      "location": "run_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::mlp_only_s42::full_dee::n_active_after_ic_filter",
+      "measured": 20,
+      "expected": 20,
+      "gap": 0.0,
+      "location": "run_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s42::main_8bps::n_days",
+      "measured": 974,
+      "expected": 974,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s42::main_8bps::total_return",
+      "measured": -0.326725753918116,
+      "expected": -0.326725753918116,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s42::main_8bps::annualized_return",
+      "measured": -0.09429008541941364,
+      "expected": -0.09429008541941364,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s42::main_8bps::annualized_vol",
+      "measured": 0.23262594093806085,
+      "expected": 0.23262594093806085,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s42::main_8bps::sharpe_rf0",
+      "measured": -0.32336544199408573,
+      "expected": -0.32336544199408573,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s42::main_8bps::sharpe_rf1p5",
+      "measured": -0.3878466427557579,
+      "expected": -0.3878466427557579,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s42::main_8bps::max_drawdown",
+      "measured": -0.48943315861264813,
+      "expected": -0.48943315861264813,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s42::main_8bps::turnover_daily_mean",
+      "measured": 0.9251745379876798,
+      "expected": 0.9251745379876798,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s42::main_8bps::turnover_total",
+      "measured": 901.1200000000001,
+      "expected": 901.1200000000001,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s42::main_8bps::cost_total",
+      "measured": 1.1709560000000003,
+      "expected": 1.1709560000000003,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s42::main_8bps::gross_return_total",
+      "measured": 0.8802123997410827,
+      "expected": 0.8802123997410827,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s42::main_8bps::avg_holdings",
+      "measured": 50.25770020533881,
+      "expected": 50.25770020533881,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s42::sens_5bps::n_days",
+      "measured": 974,
+      "expected": 974,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s42::sens_5bps::total_return",
+      "measured": -0.11766077989425905,
+      "expected": -0.11766077989425905,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s42::sens_5bps::annualized_return",
+      "measured": -0.030851639697630273,
+      "expected": -0.030851639697630273,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s42::sens_5bps::annualized_vol",
+      "measured": 0.23264130256747048,
+      "expected": 0.23264130256747048,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s42::sens_5bps::sharpe_rf0",
+      "measured": -0.022695863032860322,
+      "expected": -0.022695863032860322,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s42::sens_5bps::sharpe_rf1p5",
+      "measured": -0.08717280601098738,
+      "expected": -0.08717280601098738,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s42::sens_5bps::max_drawdown",
+      "measured": -0.4132786499334321,
+      "expected": -0.4132786499334321,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s42::sens_5bps::turnover_daily_mean",
+      "measured": 0.9251745379876798,
+      "expected": 0.9251745379876798,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s42::sens_5bps::turnover_total",
+      "measured": 901.1200000000001,
+      "expected": 901.1200000000001,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s42::sens_5bps::cost_total",
+      "measured": 0.9006200000000003,
+      "expected": 0.9006200000000003,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s42::sens_5bps::gross_return_total",
+      "measured": 0.8802123997410827,
+      "expected": 0.8802123997410827,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s42::sens_5bps::avg_holdings",
+      "measured": 50.25770020533881,
+      "expected": 50.25770020533881,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "label_integrity::mlp_only_s43 (max_rel_dev)",
+      "measured": 3.5364939350316015e-08,
+      "expected": 0.0,
+      "gap": 3.5364939350316015e-08,
+      "location": "sample.npz vs panel_backtest.csv",
+      "how_to_verify": "audit script output; float32 存储精度上限 ~6e-8"
+    },
+    {
+      "severity": "pass",
+      "item": "ic::mlp_only_s43::test_ic_mean",
+      "measured": 0.037026757719029434,
+      "expected": 0.03702675781963252,
+      "gap": 2.717037469226244e-09,
+      "location": "run_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::mlp_only_s43::mlp_family::rankic",
+      "measured": 0.029023791668679445,
+      "expected": 0.029023791668679445,
+      "gap": 0.0,
+      "location": "run_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::mlp_only_s43::mlp_family::ic",
+      "measured": 0.03702675781963252,
+      "expected": 0.03702675781963252,
+      "gap": 0.0,
+      "location": "run_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::mlp_only_s43::mlp_family::n_experts",
+      "measured": 20,
+      "expected": 20,
+      "gap": 0.0,
+      "location": "run_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::mlp_only_s43::mlp_family::n_active_after_ic_filter",
+      "measured": 18,
+      "expected": 18,
+      "gap": 0.0,
+      "location": "run_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::mlp_only_s43::full_dee::rankic",
+      "measured": 0.029023791668679445,
+      "expected": 0.029023791668679445,
+      "gap": 0.0,
+      "location": "run_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::mlp_only_s43::full_dee::ic",
+      "measured": 0.03702675781963252,
+      "expected": 0.03702675781963252,
+      "gap": 0.0,
+      "location": "run_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::mlp_only_s43::full_dee::n_experts",
+      "measured": 20,
+      "expected": 20,
+      "gap": 0.0,
+      "location": "run_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "family::mlp_only_s43::full_dee::n_active_after_ic_filter",
+      "measured": 18,
+      "expected": 18,
+      "gap": 0.0,
+      "location": "run_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s43::main_8bps::n_days",
+      "measured": 974,
+      "expected": 974,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s43::main_8bps::total_return",
+      "measured": -0.2349778583921197,
+      "expected": -0.2349778583921197,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s43::main_8bps::annualized_return",
+      "measured": -0.06485568879617976,
+      "expected": -0.06485568879617976,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s43::main_8bps::annualized_vol",
+      "measured": 0.228388783074872,
+      "expected": 0.228388783074872,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s43::main_8bps::sharpe_rf0",
+      "measured": -0.18855157941484435,
+      "expected": -0.18855157941484435,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s43::main_8bps::sharpe_rf1p5",
+      "measured": -0.2542290605855487,
+      "expected": -0.2542290605855487,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s43::main_8bps::max_drawdown",
+      "measured": -0.44662924941690574,
+      "expected": -0.44662924941690574,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s43::main_8bps::turnover_daily_mean",
+      "measured": 0.9216016427104726,
+      "expected": 0.9216016427104726,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s43::main_8bps::turnover_total",
+      "measured": 897.6400000000003,
+      "expected": 897.6400000000003,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s43::main_8bps::cost_total",
+      "measured": 1.1664320000000004,
+      "expected": 1.1664320000000004,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s43::main_8bps::gross_return_total",
+      "measured": 0.9999898330976315,
+      "expected": 0.9999898330976315,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s43::main_8bps::avg_holdings",
+      "measured": 50.24435318275154,
+      "expected": 50.24435318275154,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s43::sens_5bps::n_days",
+      "measured": 974,
+      "expected": 974,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s43::sens_5bps::total_return",
+      "measured": 0.0014950263315240964,
+      "expected": 0.0014950263315240964,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s43::sens_5bps::annualized_return",
+      "measured": 0.000374059379469438,
+      "expected": 0.000374059379469438,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s43::sens_5bps::annualized_vol",
+      "measured": 0.22840255074344437,
+      "expected": 0.22840255074344437,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s43::sens_5bps::sharpe_rf0",
+      "measured": 0.11650490913037276,
+      "expected": 0.11650490913037276,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s43::sens_5bps::sharpe_rf1p5",
+      "measured": 0.05083138687251973,
+      "expected": 0.05083138687251973,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s43::sens_5bps::max_drawdown",
+      "measured": -0.3838526338099809,
+      "expected": -0.3838526338099809,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s43::sens_5bps::turnover_daily_mean",
+      "measured": 0.9216016427104726,
+      "expected": 0.9216016427104726,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s43::sens_5bps::turnover_total",
+      "measured": 897.6400000000003,
+      "expected": 897.6400000000003,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s43::sens_5bps::cost_total",
+      "measured": 0.8971400000000004,
+      "expected": 0.8971400000000004,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s43::sens_5bps::gross_return_total",
+      "measured": 0.9999898330976315,
+      "expected": 0.9999898330976315,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::mlp_only_s43::sens_5bps::avg_holdings",
+      "measured": 50.24435318275154,
+      "expected": 50.24435318275154,
+      "gap": 0.0,
+      "location": "backtest_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
     {
       "severity": "pass",
       "item": "label_integrity::xgb_s42 (max_rel_dev)",
@@ -256,6 +1656,672 @@
       "expected": 0.013172289372361309,
       "gap": 2.633898219115474e-16,
       "location": "run_xgb_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s43::main_8bps::n_days",
+      "measured": 974,
+      "expected": 974,
+      "gap": 0.0,
+      "location": "backtest_xgb_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s43::main_8bps::total_return",
+      "measured": -0.5925740517631783,
+      "expected": -0.5925740517631783,
+      "gap": 0.0,
+      "location": "backtest_xgb_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s43::main_8bps::annualized_return",
+      "measured": -0.20130947060380644,
+      "expected": -0.20130947060380644,
+      "gap": 0.0,
+      "location": "backtest_xgb_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s43::main_8bps::annualized_vol",
+      "measured": 0.22092254927662022,
+      "expected": 0.22092254927662022,
+      "gap": 0.0,
+      "location": "backtest_xgb_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s43::main_8bps::sharpe_rf0",
+      "measured": -0.9399781023194598,
+      "expected": -0.9399781023194598,
+      "gap": 0.0,
+      "location": "backtest_xgb_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s43::main_8bps::sharpe_rf1p5",
+      "measured": -1.0078752004161249,
+      "expected": -1.0078752004161249,
+      "gap": 0.0,
+      "location": "backtest_xgb_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s43::main_8bps::max_drawdown",
+      "measured": -0.6381864738694217,
+      "expected": -0.6381864738694217,
+      "gap": 0.0,
+      "location": "backtest_xgb_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s43::main_8bps::turnover_daily_mean",
+      "measured": 1.2004106776180703,
+      "expected": 1.2004106776180703,
+      "gap": 0.0,
+      "location": "backtest_xgb_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s43::main_8bps::turnover_total",
+      "measured": 1169.2000000000005,
+      "expected": 1169.2000000000005,
+      "gap": 0.0,
+      "location": "backtest_xgb_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s43::main_8bps::cost_total",
+      "measured": 1.5194600000000007,
+      "expected": 1.5194600000000007,
+      "gap": 0.0,
+      "location": "backtest_xgb_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s43::main_8bps::gross_return_total",
+      "measured": 0.7168285027608305,
+      "expected": 0.7168285027608305,
+      "gap": 0.0,
+      "location": "backtest_xgb_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s43::main_8bps::avg_holdings",
+      "measured": 50.2135523613963,
+      "expected": 50.2135523613963,
+      "gap": 0.0,
+      "location": "backtest_xgb_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s43::sens_5bps::n_days",
+      "measured": 974,
+      "expected": 974,
+      "gap": 0.0,
+      "location": "backtest_xgb_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s43::sens_5bps::total_return",
+      "measured": -0.42119751634091707,
+      "expected": -0.42119751634091707,
+      "gap": 0.0,
+      "location": "backtest_xgb_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s43::sens_5bps::annualized_return",
+      "measured": -0.12793026318581124,
+      "expected": -0.12793026318581124,
+      "gap": 0.0,
+      "location": "backtest_xgb_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s43::sens_5bps::annualized_vol",
+      "measured": 0.22087148460768907,
+      "expected": 0.22087148460768907,
+      "gap": 0.0,
+      "location": "backtest_xgb_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s43::sens_5bps::sharpe_rf0",
+      "measured": -0.5293182667212385,
+      "expected": -0.5293182667212385,
+      "gap": 0.0,
+      "location": "backtest_xgb_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s43::sens_5bps::sharpe_rf1p5",
+      "measured": -0.5972310623754304,
+      "expected": -0.5972310623754304,
+      "gap": 0.0,
+      "location": "backtest_xgb_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s43::sens_5bps::max_drawdown",
+      "measured": -0.5238164397626,
+      "expected": -0.5238164397626,
+      "gap": 0.0,
+      "location": "backtest_xgb_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s43::sens_5bps::turnover_daily_mean",
+      "measured": 1.2004106776180703,
+      "expected": 1.2004106776180703,
+      "gap": 0.0,
+      "location": "backtest_xgb_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s43::sens_5bps::turnover_total",
+      "measured": 1169.2000000000005,
+      "expected": 1169.2000000000005,
+      "gap": 0.0,
+      "location": "backtest_xgb_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s43::sens_5bps::cost_total",
+      "measured": 1.1687000000000003,
+      "expected": 1.1687000000000003,
+      "gap": 0.0,
+      "location": "backtest_xgb_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s43::sens_5bps::gross_return_total",
+      "measured": 0.7168285027608305,
+      "expected": 0.7168285027608305,
+      "gap": 0.0,
+      "location": "backtest_xgb_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s43::sens_5bps::avg_holdings",
+      "measured": 50.2135523613963,
+      "expected": 50.2135523613963,
+      "gap": 0.0,
+      "location": "backtest_xgb_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "label_integrity::xgbfull_s42 (max_rel_dev)",
+      "measured": 3.5364939350316015e-08,
+      "expected": 0.0,
+      "gap": 3.5364939350316015e-08,
+      "location": "sample.npz vs panel_backtest.csv",
+      "how_to_verify": "audit script output; float32 存储精度上限 ~6e-8"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s42::main_8bps::n_days",
+      "measured": 974,
+      "expected": 974,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s42::main_8bps::total_return",
+      "measured": -0.5943012729216561,
+      "expected": -0.5943012729216561,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s42::main_8bps::annualized_return",
+      "measured": -0.20215846338907817,
+      "expected": -0.20215846338907817,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s42::main_8bps::annualized_vol",
+      "measured": 0.2242499687572094,
+      "expected": 0.2242499687572094,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s42::main_8bps::sharpe_rf0",
+      "measured": -0.9276431787562096,
+      "expected": -0.9276431787562096,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s42::main_8bps::sharpe_rf1p5",
+      "measured": -0.9945328201823816,
+      "expected": -0.9945328201823816,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s42::main_8bps::max_drawdown",
+      "measured": -0.6608285573737225,
+      "expected": -0.6608285573737225,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s42::main_8bps::turnover_daily_mean",
+      "measured": 1.2935934291581115,
+      "expected": 1.2935934291581115,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s42::main_8bps::turnover_total",
+      "measured": 1259.9600000000005,
+      "expected": 1259.9600000000005,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s42::main_8bps::cost_total",
+      "measured": 1.6374480000000007,
+      "expected": 1.6374480000000007,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s42::main_8bps::gross_return_total",
+      "measured": 0.8334189085169985,
+      "expected": 0.8334189085169985,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s42::main_8bps::avg_holdings",
+      "measured": 50.25564681724846,
+      "expected": 50.25564681724846,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s42::sens_5bps::n_days",
+      "measured": 974,
+      "expected": 974,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s42::sens_5bps::total_return",
+      "measured": -0.40776169188155353,
+      "expected": -0.40776169188155353,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s42::sens_5bps::annualized_return",
+      "measured": -0.12290596312994517,
+      "expected": -0.12290596312994517,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s42::sens_5bps::annualized_vol",
+      "measured": 0.2242558085201374,
+      "expected": 0.2242558085201374,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s42::sens_5bps::sharpe_rf0",
+      "measured": -0.4915292555272526,
+      "expected": -0.4915292555272526,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s42::sens_5bps::sharpe_rf1p5",
+      "measured": -0.5584171551049041,
+      "expected": -0.5584171551049041,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s42::sens_5bps::max_drawdown",
+      "measured": -0.5398041120274905,
+      "expected": -0.5398041120274905,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s42::sens_5bps::turnover_daily_mean",
+      "measured": 1.2935934291581115,
+      "expected": 1.2935934291581115,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s42::sens_5bps::turnover_total",
+      "measured": 1259.9600000000005,
+      "expected": 1259.9600000000005,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s42::sens_5bps::cost_total",
+      "measured": 1.2594600000000005,
+      "expected": 1.2594600000000005,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s42::sens_5bps::gross_return_total",
+      "measured": 0.8334189085169985,
+      "expected": 0.8334189085169985,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s42::sens_5bps::avg_holdings",
+      "measured": 50.25564681724846,
+      "expected": 50.25564681724846,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "label_integrity::xgbfull_s43 (max_rel_dev)",
+      "measured": 3.5364939350316015e-08,
+      "expected": 0.0,
+      "gap": 3.5364939350316015e-08,
+      "location": "sample.npz vs panel_backtest.csv",
+      "how_to_verify": "audit script output; float32 存储精度上限 ~6e-8"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s43::main_8bps::n_days",
+      "measured": 974,
+      "expected": 974,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s43::main_8bps::total_return",
+      "measured": -0.5902294556579692,
+      "expected": -0.5902294556579692,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s43::main_8bps::annualized_return",
+      "measured": -0.20016132181811874,
+      "expected": -0.20016132181811874,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s43::main_8bps::annualized_vol",
+      "measured": 0.2233600339169193,
+      "expected": 0.2233600339169193,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s43::main_8bps::sharpe_rf0",
+      "measured": -0.9207395876337974,
+      "expected": -0.9207395876337974,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s43::main_8bps::sharpe_rf1p5",
+      "measured": -0.9878957378946779,
+      "expected": -0.9878957378946779,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s43::main_8bps::max_drawdown",
+      "measured": -0.6482881663631271,
+      "expected": -0.6482881663631271,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s43::main_8bps::turnover_daily_mean",
+      "measured": 1.3429158110882962,
+      "expected": 1.3429158110882962,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s43::main_8bps::turnover_total",
+      "measured": 1308.0000000000005,
+      "expected": 1308.0000000000005,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s43::main_8bps::cost_total",
+      "measured": 1.6999000000000009,
+      "expected": 1.6999000000000009,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s43::main_8bps::gross_return_total",
+      "measured": 0.9050215934168685,
+      "expected": 0.9050215934168685,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s43::main_8bps::avg_holdings",
+      "measured": 50.10164271047228,
+      "expected": 50.10164271047228,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s43::sens_5bps::n_days",
+      "measured": 974,
+      "expected": 974,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s43::sens_5bps::total_return",
+      "measured": -0.3931071962742685,
+      "expected": -0.3931071962742685,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s43::sens_5bps::annualized_return",
+      "measured": -0.11752244294161818,
+      "expected": -0.11752244294161818,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s43::sens_5bps::annualized_vol",
+      "measured": 0.2233202939935015,
+      "expected": 0.2233202939935015,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s43::sens_5bps::sharpe_rf0",
+      "measured": -0.4662898670878973,
+      "expected": -0.4662898670878973,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s43::sens_5bps::sharpe_rf1p5",
+      "measured": -0.5334579678089025,
+      "expected": -0.5334579678089025,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s43::sens_5bps::max_drawdown",
+      "measured": -0.5197950180701223,
+      "expected": -0.5197950180701223,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s43::sens_5bps::turnover_daily_mean",
+      "measured": 1.3429158110882962,
+      "expected": 1.3429158110882962,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s43::sens_5bps::turnover_total",
+      "measured": 1308.0000000000005,
+      "expected": 1308.0000000000005,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s43::sens_5bps::cost_total",
+      "measured": 1.3075000000000006,
+      "expected": 1.3075000000000006,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s43::sens_5bps::gross_return_total",
+      "measured": 0.9050215934168685,
+      "expected": 0.9050215934168685,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgbfull_s43::sens_5bps::avg_holdings",
+      "measured": 50.10164271047228,
+      "expected": 50.10164271047228,
+      "gap": 0.0,
+      "location": "backtest_xgbfull_s43.json",
       "how_to_verify": "audit script output"
     }
   ]

@@ -1,0 +1,29 @@
+{
+  "arm": "xgbfull",
+  "status": "diagnostic_only_non_preregistered",
+  "seed": 43,
+  "purpose": "诊断对照：臂 C 因 early_stopping_rounds=50 在近乎平坦的验证曲线上退化为单树桩；本臂关早停、用验证曲线选轮次，给出未被早停病态扭曲的参照",
+  "not_used_for": "进/退判词与主检验量 Δ_ic（那只用 DEE vs MLP-only）",
+  "selection_data": "仅验证段（验证曲线 argmin），测试段不参与任何选择",
+  "params": {
+    "n_estimators": 2000,
+    "learning_rate": 0.05,
+    "max_depth": 6,
+    "subsample": 0.8,
+    "colsample_bylevel": 0.8,
+    "colsample_bytree": 0.8,
+    "reg_lambda": 1,
+    "objective": "reg:squarederror",
+    "tree_method": "hist"
+  },
+  "eval_metric": "mse(自定义 callable)",
+  "n_trees_fitted": 2000,
+  "best_round_selected_on_valid": 160,
+  "valid_rmse_at_round0": 0.03180422771492659,
+  "valid_rmse_at_best": 0.0317940480222316,
+  "test_rankic_mean_best_iter": 0.022893500968214395,
+  "test_ic_mean_best_iter": 0.030186945673746312,
+  "test_rankic_mean_full_2000": 0.02416263351049699,
+  "test_ic_mean_full_2000": 0.028786317375827725,
+  "elapsed_sec": 160.1
+}

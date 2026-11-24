@@ -1,0 +1,147 @@
+{
+  "arm": "dee",
+  "seed": 43,
+  "n_feat": 48,
+  "n_train": 336580,
+  "n_valid": 122331,
+  "n_test": 275961,
+  "prereg": "experiments/WORK-555/preregistration.md v1.0 (commit 9a85409)",
+  "type_seq": [
+    "mlp",
+    "tree",
+    "linear",
+    "lasso",
+    "mlp",
+    "tree",
+    "linear",
+    "ridge",
+    "mlp",
+    "tree",
+    "elasticnet",
+    "mlp",
+    "tree",
+    "linear",
+    "lasso",
+    "mlp",
+    "tree",
+    "linear",
+    "mlp",
+    "tree"
+  ],
+  "coverage_repairs": [],
+  "coverage_missing_after": [],
+  "train": {
+    "pool_size": 295820,
+    "n_train_rows": 336580,
+    "steps_run": 8000,
+    "best_step": 8000,
+    "best_ens_val_mse": 0.0010177685879170894,
+    "early_stopped": false,
+    "elapsed_sec": 5975.9,
+    "eval_count": 400
+  },
+  "val_loss_tail": [
+    {
+      "step": 7920,
+      "ens_val_mse": 0.0010188119718804955
+    },
+    {
+      "step": 7940,
+      "ens_val_mse": 0.001018962386297062
+    },
+    {
+      "step": 7960,
+      "ens_val_mse": 0.0010181040968745946
+    },
+    {
+      "step": 7980,
+      "ens_val_mse": 0.0010192698158789427
+    },
+    {
+      "step": 8000,
+      "ens_val_mse": 0.0010177685879170894
+    }
+  ],
+  "ic_filter": {
+    "per_expert_valid_rankic": [
+      -0.000316,
+      0.0421,
+      0.001396,
+      0.062165,
+      0.00613,
+      0.038245,
+      0.00659,
+      0.019627,
+      0.028215,
+      0.065427,
+      0.07553,
+      0.032779,
+      0.051078,
+      0.016477,
+      0.069794,
+      -0.012184,
+      0.042927,
+      0.067983,
+      -0.030112,
+      -0.047848
+    ],
+    "threshold": -0.023645,
+    "active_experts": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ],
+    "n_active": 18,
+    "degenerate_filter_fallback": false,
+    "single_expert_degenerate": false
+  },
+  "test_rankic_mean": 0.023148644058997664,
+  "test_ic_mean": 0.03001877355854801,
+  "test_rankic_daily_n": 974,
+  "family_subsets": {
+    "linear_family": {
+      "n_experts": 8,
+      "n_active_after_ic_filter": 8,
+      "ic_filter_threshold": -0.004423,
+      "rankic": 0.028249995723106252,
+      "ic": 0.022844223416875753
+    },
+    "mlp_family": {
+      "n_experts": 6,
+      "n_active_after_ic_filter": 5,
+      "ic_filter_threshold": -0.028682,
+      "rankic": 0.012572231232392877,
+      "ic": 0.024503012869287587
+    },
+    "tree_family": {
+      "n_experts": 6,
+      "n_active_after_ic_filter": 5,
+      "ic_filter_threshold": -0.023185,
+      "rankic": 0.03042043614356328,
+      "ic": 0.008335119877178375
+    },
+    "full_dee": {
+      "n_experts": 20,
+      "n_active_after_ic_filter": 18,
+      "ic_filter_threshold": -0.023645,
+      "rankic": 0.023148644058997664,
+      "ic": 0.03001877355854801
+    }
+  },
+  "elapsed_sec": 6084.1
+}

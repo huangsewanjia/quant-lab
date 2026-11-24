@@ -1,0 +1,135 @@
+{
+  "arm": "mlp_only",
+  "seed": 42,
+  "n_feat": 48,
+  "n_train": 336580,
+  "n_valid": 122331,
+  "n_test": 275961,
+  "prereg": "experiments/WORK-555/preregistration.md v1.0 (commit 9a85409)",
+  "type_seq": [
+    "mlp",
+    "mlp",
+    "mlp",
+    "mlp",
+    "mlp",
+    "mlp",
+    "mlp",
+    "mlp",
+    "mlp",
+    "mlp",
+    "mlp",
+    "mlp",
+    "mlp",
+    "mlp",
+    "mlp",
+    "mlp",
+    "mlp",
+    "mlp",
+    "mlp",
+    "mlp"
+  ],
+  "coverage_repairs": [],
+  "coverage_missing_after": [],
+  "train": {
+    "pool_size": 295820,
+    "n_train_rows": 336580,
+    "steps_run": 8000,
+    "best_step": 7580,
+    "best_ens_val_mse": 0.0010027197247836738,
+    "early_stopped": false,
+    "elapsed_sec": 1742.0,
+    "eval_count": 400
+  },
+  "val_loss_tail": [
+    {
+      "step": 7920,
+      "ens_val_mse": 0.001004178705625236
+    },
+    {
+      "step": 7940,
+      "ens_val_mse": 0.0010031019686721266
+    },
+    {
+      "step": 7960,
+      "ens_val_mse": 0.0010040662833489477
+    },
+    {
+      "step": 7980,
+      "ens_val_mse": 0.0010031833895482122
+    },
+    {
+      "step": 8000,
+      "ens_val_mse": 0.0010064779547974468
+    }
+  ],
+  "ic_filter": {
+    "per_expert_valid_rankic": [
+      0.069945,
+      -0.003998,
+      0.016478,
+      0.038022,
+      -0.009233,
+      -0.002779,
+      0.012949,
+      0.00753,
+      -0.012876,
+      -0.009411,
+      -0.024079,
+      -0.026145,
+      0.045684,
+      -0.029521,
+      0.049124,
+      -0.008651,
+      0.04217,
+      0.052141,
+      0.017893,
+      -0.034987
+    ],
+    "threshold": -0.03566,
+    "active_experts": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19
+    ],
+    "n_active": 20,
+    "degenerate_filter_fallback": false,
+    "single_expert_degenerate": false
+  },
+  "test_rankic_mean": 0.010116964226472241,
+  "test_ic_mean": 0.02578359613460378,
+  "test_rankic_daily_n": 974,
+  "family_subsets": {
+    "mlp_family": {
+      "n_experts": 20,
+      "n_active_after_ic_filter": 20,
+      "ic_filter_threshold": -0.03566,
+      "rankic": 0.010116964226472241,
+      "ic": 0.02578359613460378
+    },
+    "full_dee": {
+      "n_experts": 20,
+      "n_active_after_ic_filter": 20,
+      "ic_filter_threshold": -0.03566,
+      "rankic": 0.010116964226472241,
+      "ic": 0.02578359613460378
+    }
+  },
+  "elapsed_sec": 1769.4
+}

@@ -111,30 +111,66 @@ def daily_series(arm, seed):
     return out
 
 
+_FACT_CACHE = {}
+
+
+def _load_facts():
+    """读事实层（磁盘缓存优先）。
+
+    `panel_backtest.csv` 有 95 MB / 750,589 行。原实现用 `csv.reader` 每次重新解析，
+    实测**单次 ~233 秒**，而 `daily_rankic()` 会被调用 9 次 → 整轮配图 ~30 分钟
+    （实测有一次跑 29 分钟仍未产出 fig2）。
+
+    现在改为：先读 `experiments/WORK-555/facts_cache.npz`
+    （由 `scripts/work555_facts_cache.py` 用 pandas 一次性生成，实测 **1.3 秒**），
+    缓存缺失时回退到 `csv.reader` 直读（慢，但保证脚本能独立跑通）。
+
+    标签列对非测试段行可能是空串：缓存里一律记为 NaN，
+    与原「只对测试段行做 float()」的语义一致（空标签不进任何统计）。
+    """
+    if "facts" in _FACT_CACHE:
+        return _FACT_CACHE["facts"]
+    cache = os.path.join(OUT, "facts_cache.npz")
+    if os.path.exists(cache):
+        d = np.load(cache)
+        out = (d["ts_code"], d["trade_date"], d["label"])
+    else:
+        bt_path = os.path.join(DATA, "panel_backtest.csv")
+        print(f"[warn] 未找到 {cache}，回退到 csv.reader 直读（慢约 200 s/次）；"
+              f"建议先跑 scripts/work555_facts_cache.py")
+        ts, dt, lab = [], [], []
+        with open(bt_path, encoding="utf-8") as fh:
+            rd = csv.reader(fh)
+            head = next(rd)
+            i_ts, i_d, i_lab = head.index("ts_code"), head.index("trade_date"), head.index("label")
+            for row in rd:
+                ts.append(row[i_ts])
+                dt.append(row[i_d])
+                lab.append(float(row[i_lab]) if row[i_lab] else np.nan)
+        out = (np.asarray(ts, dtype=str), np.asarray(dt, dtype=str),
+               np.asarray(lab, dtype="float64"))
+    _FACT_CACHE["facts"] = out
+    return out
+
+
 def daily_rankic(arm, seed):
     """逐日截面 RankIC（建模侧口径，与 run_*.json 的均值对应）。
 
-    事实层用 csv 直读（不依赖 pandas），预测值用 numpy 从 npz 读。
+    事实层从缓存读（numpy 数组），预测值从 npz 读。
     """
-    bt_path = os.path.join(DATA, "panel_backtest.csv")
     pr = np.load(os.path.join(OUT, f"preds_{arm}_s{seed}.npz"))
-    want = set(int(r) for r in pr["row"].tolist())
-    rows = {}
-    with open(bt_path, encoding="utf-8") as fh:
-        rd = csv.reader(fh)
-        head = next(rd)
-        i_ts = head.index("ts_code")
-        i_d = head.index("trade_date")
-        i_lab = head.index("label")
-        for k, row in enumerate(rd):
-            if k in want:
-                rows[k] = (row[i_ts], row[i_d], float(row[i_lab]))
+    ts_all, dt_all, lab_all = _load_facts()
+    rid = pr["row"].astype("int64")
+    labs = lab_all[rid]
+    dts = dt_all[rid]
+    preds = pr["pred"].astype("float64")
     per_day = {}
-    for i, r in enumerate(pr["row"].tolist()):
-        ts, d, lab = rows[int(r)]
-        per_day.setdefault(d, ([], []))
-        per_day[d][0].append(float(pr["pred"][i]))
-        per_day[d][1].append(lab)
+    for i in range(len(rid)):
+        lst = per_day.get(dts[i])
+        if lst is None:
+            lst = per_day[dts[i]] = ([], [])
+        lst[0].append(preds[i])
+        lst[1].append(labs[i])
     out = []
     for d in sorted(per_day):
         p_arr, t_arr = per_day[d]

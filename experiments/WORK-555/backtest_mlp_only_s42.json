@@ -1,0 +1,48 @@
+{
+  "arm": "mlp_only",
+  "seed": 42,
+  "protocol": {
+    "topk": 50,
+    "cost_main_bps": 8.0,
+    "cost_sens_bps": 5.0,
+    "stamp_bps": 10.0,
+    "rf_main": 0.0,
+    "rf_alt": 0.015,
+    "annualization_days": 365.25,
+    "vol_trading_days": 252,
+    "mask_enabled": true,
+    "prereg": "experiments/WORK-555/preregistration.md v1.0 (commit 9a85409)"
+  },
+  "metrics": {
+    "main_8bps": {
+      "n_days": 974,
+      "total_return": -0.326725753918116,
+      "annualized_return": -0.09429008541941364,
+      "annualized_vol": 0.23262594093806085,
+      "sharpe_rf0": -0.32336544199408573,
+      "sharpe_rf1p5": -0.3878466427557579,
+      "max_drawdown": -0.48943315861264813,
+      "turnover_daily_mean": 0.9251745379876798,
+      "turnover_total": 901.1200000000001,
+      "cost_total": 1.1709560000000003,
+      "gross_return_total": 0.8802123997410827,
+      "avg_holdings": 50.25770020533881
+    },
+    "sens_5bps": {
+      "n_days": 974,
+      "total_return": -0.11766077989425905,
+      "annualized_return": -0.030851639697630273,
+      "annualized_vol": 0.23264130256747048,
+      "sharpe_rf0": -0.022695863032860322,
+      "sharpe_rf1p5": -0.08717280601098738,
+      "max_drawdown": -0.4132786499334321,
+      "turnover_daily_mean": 0.9251745379876798,
+      "turnover_total": 901.1200000000001,
+      "cost_total": 0.9006200000000003,
+      "gross_return_total": 0.8802123997410827,
+      "avg_holdings": 50.25770020533881
+    }
+  },
+  "guard_violations": [],
+  "n_guard_violations": 0
+}

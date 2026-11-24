@@ -8,9 +8,14 @@
   "prereg": "experiments/WORK-555/preregistration.md v1.0 (commit 9a85409)",
   "xgb": {
     "best_iteration": 1,
-    "n_estimators_used": 2
+    "n_trees_fitted": 52,
+    "n_trees_used_in_predict": 2,
+    "early_stopping_rounds": 50,
+    "eval_metric": "mse(自定义 callable，冻结口径写的是 mse)",
+    "base_score": null,
+    "note": "预注册 §4.6 冻结 early_stopping_rounds=50；本面板验证 RMSE 近乎平坦（round0 0.0318024 -> 最佳 0.0317868@87），patience 在第 0 轮即触发，sklearn predict() 自动截断到 1 棵树 -> 臂 C 退化为单树桩。非预注册诊断对照（不用于进/退判词）见 run_xgbfull_s<seed>.json"
   },
   "test_rankic_mean": 0.01615758076331311,
   "test_ic_mean": 0.013172289372361309,
-  "elapsed_sec": 8.7
+  "elapsed_sec": 7.8
 }

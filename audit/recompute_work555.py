@@ -53,6 +53,15 @@ RF_MAIN = 0.0
 RF_ALT = 0.015
 TD = 252
 YD = 365.25
+KAPPA = 1.5              # 预注册 §4.1：IC 过滤容差
+
+# 预注册 §4.6：族消融子集的定义（族 -> 专家类型集合；None = 全部专家）
+FAMILY_SPEC = (
+    ("linear_family", {"linear", "ridge", "lasso", "elasticnet"}),
+    ("mlp_family", {"mlp"}),
+    ("tree_family", {"tree"}),
+    ("full_dee", None),
+)
 
 findings = []
 
@@ -221,6 +230,41 @@ def agg_metrics(daily):
     }
 
 
+# ---------------------------------------------------------------- 独立实现：族消融子集
+def recompute_family_subsets(npz, df, label_col="label"):
+    """独立复算族消融子集：族内**各自**做 IC 过滤 + 等权平均（预注册 §4.6）。
+
+    只用 npz 里落的 per_expert_pred / expert_type / expert_valid_rankic，
+    过滤阈值由本脚本自己算，**不复用建模阶段的任何函数**。
+    """
+    if "per_expert_pred" not in npz.files:
+        return None
+    per = npz["per_expert_pred"].astype("float64")
+    types = [str(x) for x in npz["expert_type"]]
+    ics = npz["expert_valid_rankic"].astype("float64")
+    out = {}
+    for fam, kinds in FAMILY_SPEC:
+        idx = (list(range(len(types))) if kinds is None
+               else [k for k in range(len(types)) if types[k] in kinds])
+        if not idx:
+            continue
+        sub = ics[idx]
+        thr = float(np.mean(sub) - KAPPA * np.std(sub, ddof=0))
+        act = [k for k in idx if ics[k] >= thr]
+        if not act:                       # 退化保护（预注册 §4.4 同规则）
+            act = list(idx)
+        d = df.copy()
+        d["pred"] = per[act].mean(axis=0)
+        out[fam] = {
+            "rankic": float(np.nanmean(daily_ic(d, "pred", label_col, "spearman"))),
+            "ic": float(np.nanmean(daily_ic(d, "pred", label_col, "pearson"))),
+            "n_experts": len(idx),
+            "n_active_after_ic_filter": len(act),
+            "ic_filter_threshold": thr,
+        }
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--exp", default=EXP)
@@ -309,6 +353,31 @@ def main():
                     elif d > 0:
                         findings.append({"severity": "pass", "item": f"ic::{tag}::{key}",
                                          "measured": mine, "expected": run[key], "gap": d,
+                                         "location": f"run_{arm}_s{seed}.json",
+                                         "how_to_verify": "audit script output"})
+
+        # ---- 1b) 独立复算族消融子集（预注册 §4.6）
+        fam_mine = recompute_family_subsets(p, df)
+        if fam_mine and os.path.exists(run_path):
+            with open(run_path, encoding="utf-8") as fh:
+                run2 = json.load(fh)
+            for fam, mine in fam_mine.items():
+                claimed = run2.get("family_subsets", {}).get(fam)
+                if not claimed:
+                    continue
+                for key in ("rankic", "ic", "n_experts", "n_active_after_ic_filter"):
+                    if key not in claimed:
+                        continue
+                    dd = rel_diff(mine[key], claimed[key])
+                    item = f"family::{tag}::{fam}::{key}"
+                    if dd > TOL:
+                        add("blocking", item, mine[key], claimed[key], dd,
+                            f"run_{arm}_s{seed}.json",
+                            "/tmp/w555venv/bin/python audit/recompute_work555.py")
+                    else:
+                        findings.append({"severity": "pass", "item": item,
+                                         "measured": mine[key], "expected": claimed[key],
+                                         "gap": dd,
                                          "location": f"run_{arm}_s{seed}.json",
                                          "how_to_verify": "audit script output"})
 

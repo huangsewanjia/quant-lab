@@ -1,0 +1,8 @@
+{
+  "cache": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/facts_cache.npz",
+  "source": "/srv/share/quantdb/code/quant-lab/data/WORK-555/panel_backtest.csv",
+  "n_rows": 750589,
+  "n_label_nan": 20856,
+  "label_nan_note": "非测试段行的空标签（不在任何统计口径内）",
+  "elapsed_sec": 1.3
+}

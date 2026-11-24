@@ -605,8 +605,24 @@ def main():
         pred_va = model.predict(X[va]).astype(np.float64)
         daily = rank_ic_by_day(pred_te, y[te], te_day_remap, len(te_days))
         ic_d = pearson_ic_by_day(pred_te, y[te], te_day_remap, len(te_days))
-        log["xgb"] = {"best_iteration": int(getattr(model, "best_iteration", -1)),
-                      "n_estimators_used": int(getattr(model, "best_iteration", -1)) + 1}
+        best_it = int(getattr(model, "best_iteration", -1))
+        n_fitted = int(model.get_booster().num_boosted_rounds())
+        # xgboost 的 sklearn predict() 在早停后会**自动截断到 best_iteration+1 轮**：
+        # 实测 predict(X) == booster.predict(DMatrix(X), iteration_range=(0,1))（max|diff| = 0），
+        # 且与全树预测 max|diff| = 1.8e-2 —— 故「用了多少棵树」必须同时报两个数。
+        log["xgb"] = {
+            "best_iteration": best_it,
+            "n_trees_fitted": n_fitted,
+            "n_trees_used_in_predict": (best_it + 1) if best_it >= 0 else n_fitted,
+            "early_stopping_rounds": XGB_PARAMS["early_stopping_rounds"],
+            "eval_metric": "mse(自定义 callable，冻结口径写的是 mse)",
+            "base_score": (None if getattr(model, "base_score", None) is None
+                           else float(getattr(model, "base_score"))),
+            "note": ("预注册 §4.6 冻结 early_stopping_rounds=50；本面板验证 RMSE 近乎平坦"
+                     "（round0 0.0318024 -> 最佳 0.0317868@87），patience 在第 0 轮即触发，"
+                     "sklearn predict() 自动截断到 1 棵树 -> 臂 C 退化为单树桩。"
+                     "非预注册诊断对照（不用于进/退判词）见 run_xgbfull_s<seed>.json"),
+        }
         np.savez_compressed(os.path.join(OUT, f"preds_xgb_s{args.seed}.npz"),
                             pred=pred_te.astype(np.float32),
                             row=bt_row_id[te].astype(np.int64),
@@ -663,8 +679,12 @@ def main():
 
     # ---- 测试段预测
     pred_te = np.zeros(len(te), dtype=np.float64)
-    for k in active:
-        pred_te += experts[k].predict(X[te][:, subsets[k]])
+    per_expert_pred = np.zeros((len(experts), len(te)), dtype=np.float32)
+    for k in range(len(experts)):
+        pk = experts[k].predict(X[te][:, subsets[k]]).astype(np.float64)
+        per_expert_pred[k] = pk.astype(np.float32)
+        if k in active:
+            pred_te += pk
     pred_te /= len(active)
 
     daily = rank_ic_by_day(pred_te, y[te], te_day_remap, len(te_days))
@@ -674,23 +694,31 @@ def main():
     log["test_rankic_daily_n"] = int(np.sum(~np.isnan(daily)))
 
     # ---- 附加免费对照：从同一批专家按族切分（§4.6）
+    # 预注册 §4.6：「各自跑**同一套 IC 过滤 + 等权聚合**」——
+    # 因此每个族子集要单独按自己的专家集合重算 IC_k、单独定阈值、单独过滤后再等权平均。
     fam_subsets = {}
     for fam, kinds in (("linear_family", {"linear", "ridge", "lasso", "elasticnet"}),
                        ("mlp_family", {"mlp"}), ("tree_family", {"tree"}),
                        ("full_dee", None)):
         if kinds is None:
-            idx = [k for k in range(len(experts))
-                   if TYPE_NAMES[type_seq[k]] in ("linear", "ridge", "lasso", "elasticnet", "mlp", "tree")]
+            idx = [k for k in range(len(experts))]
         else:
             idx = [k for k in range(len(experts)) if TYPE_NAMES[type_seq[k]] in kinds]
         if not idx:
             continue
+        sub_ics = ics[idx]
+        sub_thr = float(np.mean(sub_ics) - KAPPA * np.std(sub_ics, ddof=0))
+        sub_active = [k for k in idx if ics[k] >= sub_thr]
+        if not sub_active:                      # 退化保护（与 §4.4 同规则）
+            sub_active = list(idx)
         p = np.zeros(len(te))
-        for k in idx:
+        for k in sub_active:
             p += experts[k].predict(X[te][:, subsets[k]])
-        p /= len(idx)
+        p /= len(sub_active)
         fam_subsets[fam] = {
             "n_experts": len(idx),
+            "n_active_after_ic_filter": len(sub_active),
+            "ic_filter_threshold": round(sub_thr, 6),
             "rankic": float(np.nanmean(rank_ic_by_day(p, y[te], te_day_remap, len(te_days)))),
             "ic": float(np.nanmean(pearson_ic_by_day(p, y[te], te_day_remap, len(te_days)))),
         }
@@ -700,7 +728,13 @@ def main():
                         pred=pred_te.astype(np.float32),
                         row=bt_row_id[te].astype(np.int64),
                         date_idx=te_day_remap.astype(np.int32),
-                        y=y[te].astype(np.float32))
+                        y=y[te].astype(np.float32),
+                        per_expert_pred=per_expert_pred,
+                        expert_type=np.array([TYPE_NAMES[t] for t in type_seq]),
+                        expert_valid_rankic=ics.astype(np.float32),
+                        active_experts=active.astype(np.int32),
+                        feature_subsets=np.array([np.asarray(s, dtype=np.int32)
+                                                  for s in subsets]))
     log["elapsed_sec"] = round(time.time() - t0, 1)
     with open(os.path.join(OUT, f"run_{args.arm}_s{args.seed}.json"), "w", encoding="utf-8") as fh:
         json.dump(log, fh, ensure_ascii=False, indent=2)
