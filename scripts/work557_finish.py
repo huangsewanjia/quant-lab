@@ -27,6 +27,7 @@ import time
 REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 EXP = "WORK-557"
 EXP_ISSUE = "01a20cc7-07ec-722d-8671-a6201a12dd79"
+TRIGGER_COMMENT = "01a20e19-bf19-732d-b57f-e8e05364375e"
 EXP_DIR = os.path.join(REPO, "experiments", EXP)
 LOG_DIR = os.path.join(EXP_DIR, "logs")
 VENV_PY = os.path.join(REPO, ".venv", "Scripts", "python.exe")
@@ -196,29 +197,69 @@ def validate_cost_json(fname: str) -> tuple:
     return True, "%s：%d 档（full 档 %s）" % (fname, len(d), ",".join(sorted(fulls)))
 
 
-def notify_ready() -> dict:
-    """链全部跑完后：生成段2正文文件 + 把 issue 状态置为 in_review 作「产物就绪」信号。
+def usage_line() -> str:
+    """用量行：口径 = cache-read + input + output（另列 input+output）。
 
-    **只发信号、不发评论**：正文由下一轮 run 审阅后由智能体署名发布（不自动把
-    未审的数字推出去）。状态改成 in_review 是平台级的「有产物待验收」信号，
-    对应 wakeup 的 `--until-status in_review` 条件（一次性唤醒，避免 20 分钟
-    轮询烧额度 —— 本单已过 100M 额度闸）。
+    数字来自会话日志里每条 assistant 记录自带的 `usage` 字段，非估算。
     """
-    rec = {"body": None, "status_rc": None, "status_out": ""}
+    try:
+        sys.path.insert(0, os.path.join(REPO, "experiments", EXP))
+        import work557_usage                      # noqa: E402
+        tot, _n_req, _n_files = work557_usage.collect(work557_usage.DEFAULT_BASE)
+        grand = tot["input"] + tot["output"] + tot["cacheRead"] + tot["cacheWrite"]
+        io_sum = tot["input"] + tot["output"]
+        return ("本 run 已用 %.1fM / 硬闸 25M（累计 = 61.9M + 本轮增量 = %.1fM；"
+                "其中 input+output = %.2fM）"
+                % (grand / 1e6, (grand - 61.9e6) / 1e6, io_sum / 1e6))
+    except Exception as exc:
+        return "本 run 已用 <未取到> / 硬闸 25M（usage 读取失败: %r）" % (exc,)
+
+
+def notify_ready() -> dict:
+    """链全部跑完后：生成段2正文 → 替换用量行 → 发布评论 → 置 issue 状态 in_review。
+
+    为什么由脚本发评论（而不是留给下一轮智能体）：本单的后台任务在**上一个 run
+    终态时被平台一并带走**（2026-11-25 00:11 实测：训练在 epoch 21 被杀、产物未落盘），
+    训练与链必须从 run 生命周期里剥离（Windows 计划任务）才能跑完。若把发评论也留给
+    下一轮，链结束后还需要一轮智能体唤醒去发帖，而每次唤醒都按当前上下文量级烧额度
+    （本单已过 100M 额度闸）。
+
+    发帖纪律仍由脚本保证：正文**先落文件**再 `--content-file` 发（PowerShell 管道会丢
+    非 ASCII）；数字全部来自产物 JSON/CSV；用 `{{USAGE_LINE}}` 占位符回填真实用量。
+    """
+    rec = {"body": None, "body_rc": None, "post_rc": None, "status_rc": None}
     body = os.path.join(EXP_DIR, "comment_stage2.md")
     gen = [VENV_PY, os.path.join("experiments", EXP, "work557_comment_stage2.py"), body]
     p = subprocess.run(gen, cwd=REPO, capture_output=True, text=True)
     rec["body_rc"] = p.returncode
     rec["body"] = body if os.path.exists(body) else None
-    if p.returncode != 0:
+    if p.returncode != 0 or not rec["body"]:
         rec["body_err"] = (p.stderr or "")[-500:]
         return rec
+    # 回填真实用量行
+    try:
+        with open(body, encoding="utf-8") as fh:
+            txt = fh.read()
+        txt = txt.replace("{{USAGE_LINE}}", usage_line())
+        with open(body, "w", encoding="utf-8") as fh:
+            fh.write(txt)
+    except Exception as exc:
+        rec["usage_err"] = repr(exc)
+        return rec
     cli = os.environ.get("MULTICA_CLI_PATH") or "multica"
-    q = subprocess.run([cli, "issue", "status", EXP_ISSUE, "in_review",
+    q = subprocess.run([cli, "issue", "comment", "add", EXP_ISSUE,
+                        "--parent", TRIGGER_COMMENT, "--content-file", body,
+                        "--output", "table"], cwd=REPO, capture_output=True,
+                       text=True)
+    rec["post_rc"] = q.returncode
+    rec["post_out"] = (q.stdout or q.stderr or "")[-300:]
+    if q.returncode != 0:
+        return rec                      # 发帖失败：正文留在文件里，不删
+    s = subprocess.run([cli, "issue", "status", EXP_ISSUE, "in_review",
                         "--output", "json"], cwd=REPO, capture_output=True,
                        text=True)
-    rec["status_rc"] = q.returncode
-    rec["status_out"] = (q.stdout or q.stderr or "")[-300:]
+    rec["status_rc"] = s.returncode
+    rec["status_out"] = (s.stdout or s.stderr or "")[-300:]
     return rec
 
 

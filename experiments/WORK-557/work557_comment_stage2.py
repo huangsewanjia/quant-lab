@@ -79,7 +79,7 @@ def env_block(tlog):
              % (gpu.get("torch", "<未取到>"), gpu.get("cuda", "<未取到>"),
                 gpu.get("device", "<未取到>")))
     L.append("nproc=%s | disk_free(GiB)=%s"
-             % (sh(["nproc"]) or "<未取到>",
+             % (os.cpu_count() or "<未取到>",
                 sh(["powershell", "-NoProfile", "-Command",
                     "[math]::Round((Get-PSDrive C).Free/1GB,1)"]) or "<未取到>"))
     L.append("git_HEAD=%s | 预注册_commit=%s"
