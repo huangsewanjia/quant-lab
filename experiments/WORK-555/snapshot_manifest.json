@@ -1,0 +1,108 @@
+{
+  "experiment": "WORK-555",
+  "generated_at": "2026-11-24T10:44:17.666024+08:00",
+  "window": {
+    "start": "2006-01-01",
+    "end": "2021-01-29"
+  },
+  "paths_are": "repo-relative (relative to repository root)",
+  "source_db": {
+    "path": "/srv/share/quantdb/db/quantdb.duckdb",
+    "access": "duckdb read_only=True",
+    "views_used": [
+      "v_daily_hfq"
+    ]
+  },
+  "prereg": "experiments/WORK-555/preregistration.md v1.0 (commit 9a85409)",
+  "items": [
+    {
+      "name": "panel_daily",
+      "description": "个股日线 + hfq 复权价（视图 v_daily_hfq）+ 成交量/成交额",
+      "sql": "SELECT d.ts_code, d.trade_date, d.open_hfq, d.high_hfq, d.low_hfq, d.close_hfq, d.\"close\" AS close_raw, d.pre_close, d.vol, d.amount, d.pct_chg FROM v_daily_hfq d JOIN (SELECT DISTINCT con_code AS ts_code FROM index_weight WHERE index_code='000300.SH' AND trade_date BETWEEN '2006-01-01' AND '2021-01-29') u ON d.ts_code = u.ts_code WHERE d.trade_date BETWEEN '2006-01-01' AND '2021-01-29' ORDER BY d.ts_code, d.trade_date",
+      "primary_key": [
+        "ts_code",
+        "trade_date"
+      ],
+      "path": "data/WORK-555/panel_daily.csv",
+      "ok": true,
+      "rows": 2367374,
+      "sha256": "619765cad57063a4f23cc139da6802340cfdc510aa396126c3c2efa1dfb64357",
+      "size_bytes": 208935838,
+      "date_min": "2006-01-04",
+      "date_max": "2021-01-29",
+      "n_ts_code": 820,
+      "pk_duplicate_rows": 0
+    },
+    {
+      "name": "panel_stk_limit",
+      "description": "涨跌停价（up_limit/down_limit），仅用于回测可成交判定，不进模型特征",
+      "sql": "SELECT s.ts_code, s.trade_date, s.up_limit, s.down_limit FROM stk_limit s JOIN (SELECT DISTINCT con_code AS ts_code FROM index_weight WHERE index_code='000300.SH' AND trade_date BETWEEN '2006-01-01' AND '2021-01-29') u ON s.ts_code = u.ts_code WHERE s.trade_date BETWEEN '2006-01-01' AND '2021-01-29' ORDER BY s.ts_code, s.trade_date",
+      "primary_key": [
+        "ts_code",
+        "trade_date"
+      ],
+      "path": "data/WORK-555/panel_stk_limit.csv",
+      "ok": true,
+      "rows": 2361473,
+      "sha256": "5a1761c29afb0fc93362cf14927dd54a94ca391f5941a4f3fbad05dc1b87d584",
+      "size_bytes": 75196149,
+      "date_min": "2007-01-04",
+      "date_max": "2021-01-29",
+      "n_ts_code": 816,
+      "pk_duplicate_rows": 0
+    },
+    {
+      "name": "panel_suspend",
+      "description": "停复牌事件（suspend_d），仅用于可成交判定与标签有效性",
+      "sql": "SELECT s.ts_code, s.trade_date, s.suspend_type, s.suspend_timing FROM suspend_d s JOIN (SELECT DISTINCT con_code AS ts_code FROM index_weight WHERE index_code='000300.SH' AND trade_date BETWEEN '2006-01-01' AND '2021-01-29') u ON s.ts_code = u.ts_code WHERE s.trade_date BETWEEN '2006-01-01' AND '2021-01-29' ORDER BY s.ts_code, s.trade_date",
+      "primary_key": [
+        "ts_code",
+        "trade_date"
+      ],
+      "path": "data/WORK-555/panel_suspend.csv",
+      "ok": true,
+      "rows": 123100,
+      "sha256": "41969c4b23bd16514405f50a2df6a49bb2f6b82be1271aecc4846902db846570",
+      "size_bytes": 2957777,
+      "date_min": "2006-01-04",
+      "date_max": "2021-01-29",
+      "n_ts_code": 812,
+      "pk_duplicate_rows": 0
+    },
+    {
+      "name": "panel_index_weight",
+      "description": "沪深300 成分权重月末快照（PIT 成分来源）",
+      "sql": "SELECT index_code, con_code, trade_date, weight FROM index_weight WHERE index_code='000300.SH' AND trade_date BETWEEN '2006-01-01' AND '2021-01-29' ORDER BY trade_date, con_code",
+      "primary_key": [
+        "con_code",
+        "trade_date"
+      ],
+      "path": "data/WORK-555/panel_index_weight.csv",
+      "ok": true,
+      "rows": 54298,
+      "sha256": "d6eea91ae2623e45aaaf91c362ed60602de71bbb41c4157142d064af7e5c3cc0",
+      "size_bytes": 1989672,
+      "date_min": "2006-01-25",
+      "date_max": "2021-01-29",
+      "n_ts_code": 821,
+      "pk_duplicate_rows": 0
+    },
+    {
+      "name": "panel_stock_basic",
+      "description": "股票主档（含 list_date，用于上市满 60 个交易日过滤）",
+      "sql": "SELECT b.ts_code, b.name, b.list_date, b.market FROM stock_basic b JOIN (SELECT DISTINCT con_code AS ts_code FROM index_weight WHERE index_code='000300.SH' AND trade_date BETWEEN '2006-01-01' AND '2021-01-29') u ON b.ts_code = u.ts_code ORDER BY b.ts_code",
+      "primary_key": [
+        "ts_code"
+      ],
+      "path": "data/WORK-555/panel_stock_basic.csv",
+      "ok": true,
+      "rows": 820,
+      "sha256": "b3e11fc7e2b8b32efce8eae446894a468892e2b597b64b7cd2d48af18c60dad5",
+      "size_bytes": 33647,
+      "n_ts_code": 820,
+      "pk_duplicate_rows": 0
+    }
+  ],
+  "universe_size": 821,
+  "elapsed_sec": 24.5
+}
