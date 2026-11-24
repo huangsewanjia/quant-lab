@@ -160,41 +160,55 @@ def run_backtest(days, scores_by_day, cost_bps, guard, topk=TOPK):
         sel = [i for _, i in cand[:topk]]
         target = {codes[i]: 1.0 / len(sel) for i in sel} if sel else {}
 
-        # ---- 2) 目标权重 vs 实际持仓 -> 买卖
+        # ---- 2) 卖出阶段：把持仓往目标权重调；卖不掉（跌停/停牌/缺 limit）则强制持有
+        # 记账用现金账本（cash）：组合总敞口恒为 1，卖出的份额变成现金，买入消耗现金。
+        # 这修掉一个真实缺陷：旧实现里「强制持有的旧权重」与「新买入的 1/K」直接叠加，
+        # 使 Σw 最高到 1.44（隐含杠杆 44%），实测 151/974 天 > 1。
+        # 现金约束下自然得到「top-50 等权、总权重 1」：卖不掉的仓位占用资金，
+        # 买不到的额度就留成现金（0 收益，与主口径 rf=0 一致）。
         buys = 0.0
         sells = 0.0
-        new_holdings = dict(holdings)
+        cash = 1.0 - sum(holdings.values())      # 期初现金（上一日未投出部分）
+        new_holdings = {}
         for c, w_old in holdings.items():
             i = idx_of.get(c)
             w_new = target.get(c, 0.0)
-            d_w = w_new - w_old
-            if d_w < -1e-12:
+            if w_new < w_old - 1e-12:
                 if i is not None and sell_ok[i]:
                     ok, reason = _tradable(i, day, "sell")
                     if not ok and reason != "limit_missing":
                         guard.check(c, d, reason, "sell_fill")
-                    sells += -d_w
-                    new_holdings.pop(c, None)
+                    sells += w_old - w_new
+                    cash += w_old - w_new
+                    if w_new > 1e-15:
+                        new_holdings[c] = w_new
                 else:
                     # 卖不掉（停牌/跌停/缺 limit）-> 强制持有，这是合法结果，不是违规
                     new_holdings[c] = w_old
+            else:
+                # 保留原权重；若目标更高，留到买入阶段补
+                new_holdings[c] = w_old
+
+        # ---- 3) 买入阶段：按分数从高到低（target 的插入序即 sel 的分数序），
+        #      买入额受**可用现金**约束 —— 卖不掉的部分不能凭空变成买入额度
         for c, w_new in target.items():
-            w_old = holdings.get(c, 0.0)
-            d_w = w_new - w_old
-            if d_w > 1e-12:
-                i = idx_of.get(c)
-                if i is not None and buy_ok[i]:
-                    ok, reason = _tradable(i, day, "buy")
-                    if not ok and reason != "limit_missing":
-                        guard.check(c, d, reason, "buy_fill")
-                    buys += d_w
-                    new_holdings[c] = w_new
-                else:
-                    # 买不进 -> 维持原权重（原本没有则不进组合），合法结果
-                    if c in holdings:
-                        new_holdings[c] = w_old
-                    else:
-                        new_holdings.pop(c, None)
+            w_cur = new_holdings.get(c, 0.0)
+            need = w_new - w_cur
+            if need <= 1e-12:
+                continue
+            i = idx_of.get(c)
+            if i is None or not buy_ok[i]:
+                # 买不进 -> 不买（维持原权重；原本没有则不进组合），合法结果
+                continue
+            amt = min(need, cash)
+            if amt <= 1e-15:
+                break            # 现金耗尽，后续买不进
+            ok, reason = _tradable(i, day, "buy")
+            if not ok and reason != "limit_missing":
+                guard.check(c, d, reason, "buy_fill")
+            buys += amt
+            cash -= amt
+            new_holdings[c] = w_cur + amt
 
         # ---- 3) 结算收益（按实际成交后的持仓）
         gross = 0.0
@@ -217,6 +231,8 @@ def run_backtest(days, scores_by_day, cost_bps, guard, topk=TOPK):
             "trade_date": d, "n_hold": len(new_holdings), "n_target": len(target),
             "gross_ret": gross, "cost": cost, "net_ret": net,
             "buys": buys, "sells": sells, "turnover": buys + sells,
+            # 账本列：Σw + cash ≡ 1（现金账本口径），供审计侧做「无隐含杠杆」闸门
+            "sum_w": float(sum(new_holdings.values())), "cash": float(cash),
         })
         holdings = new_holdings
     return pd.DataFrame(rows)

@@ -16,6 +16,11 @@ WORK-555 · DEE 引擎（量化研究员阶段）
   experiments/WORK-555/dee_run_log.json            全部随机源与运行诊断
 
 运行：
+  # **必须固定 BLAS 线程数**：float32 GEMM 的归约顺序随线程数变化，
+  # 不固定时同一命令 + 同一 seed 的结果**不可复现**（实测 T=1 与 T=4 结果不同）。
+  #   T=1 与 committed 产物逐字节一致；T=4 得到不同的 RankIC。
+  export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+         NUMEXPR_NUM_THREADS=1
   /tmp/w555venv/bin/python scripts/work555_dee.py --arm dee --seed 42
 """
 import argparse
@@ -49,6 +54,10 @@ TREE_MAX_LEAVES = 256      # 附录 D6：目标 <= 256 叶
 N_EXPERTS = 20             # 附录 D1：N=50 -> 20
 TYPE_RATIO_DEE = [4, 1, 2, 1, 6, 6]        # linear/ridge/lasso/elasticnet/mlp/tree
 TYPE_NAMES = ["linear", "ridge", "lasso", "elasticnet", "mlp", "tree"]
+# 预注册附录 B 冻结的 N=20 类型序列（机器断言用，防止 SWRR 实现漂移）
+FROZEN_TYPE_SEQ_N20 = ["mlp", "tree", "linear", "lasso", "mlp", "tree", "linear", "ridge",
+                       "mlp", "tree", "elasticnet", "mlp", "tree", "linear", "lasso",
+                       "mlp", "tree", "linear", "mlp", "tree"]
 
 ADAM_B1, ADAM_B2, ADAM_EPS = 0.9, 0.999, 1e-8
 BN_MOMENTUM = 0.1
@@ -359,7 +368,19 @@ def make_expert(kind, n_feat, rng, tree_fit=None):
 
 # ================================================================ 随机化协议
 def swrr_types(ratios, n):
-    """平滑加权轮转（预注册 §4.2 第 3 条 + 附录 B）。"""
+    """平滑加权轮转（预注册 §4.2 第 3 条 + 附录 B）。
+
+    规则：`credit_i` 初始 0；每步先对所有类型 `credit_i += q_i`，再取 credit 最大者入选，
+    然后 `credit_i -= N`。
+
+    **并列 tie-break**：预注册附录 B 写的是「并列时按 linear → ridge → lasso → elasticnet
+    → MLP → soft tree 的固定序号取小者」。本函数用 `np.argmax(credit)`，numpy 的 argmax
+    返回**首个**最大值下标 —— 而 `ratios` 的入参顺序固定为 TYPE_NAMES
+    = [linear, ridge, lasso, elasticnet, mlp, tree]（与上述固定序号完全一致），
+    故「首个最大值」≡「固定序号取小者」，两者等价。
+
+    另见 FROZEN_TYPE_SEQ_N20：出参与预注册附录 B 的 N=20 冻结序列逐位比对（机器断言）。
+    """
     q = np.asarray(ratios, dtype=np.float64)
     credit = np.zeros(len(q), dtype=np.float64)
     order = []
@@ -489,10 +510,12 @@ def train_ensemble(Xtr, ytr, tr_idx, Xva, yva, va_idx, n_val_days, n_feat,
     # ---- 固定验证子样本
     val_sub = seeds["val"].choice(len(Xva), size=min(VAL_SUBSAMPLE, len(Xva)), replace=False)
     Xvs = Xva[val_sub]
-    yvs = yva[val_sub]
+    yvs = yva[val_sub]          # 保持原 dtype：逐专家对照曲线要能与旧 run 逐位比较
 
     # ---- 同步循环
     best_loss, best_step, best_snap, bad = np.inf, 0, None, 0
+    # 对照口径（仅用于量化「旧口径 vs 预注册口径」的差异，不参与早停决策）
+    alt_loss, alt_step = np.inf, 0
     history = []
     t0 = time.time()
     for step in range(1, max_steps + 1):
@@ -507,13 +530,23 @@ def train_ensemble(Xtr, ytr, tr_idx, Xva, yva, va_idx, n_val_days, n_feat,
             grads = ex.backward(Xb, pred, dy)
             ex.opt.step(grads, ex.opt_weight_decay())
         if step % EVAL_EVERY == 0:
+            # ---- 早停监控量：预注册 §4.1/§4.3「集成级验证 MSE」
+            #   vloss = MSE( mean_k f_k(x_{F_k}), y )   <- 集成输出对标签的 MSE（**不是**单专家损失）
+            #   同时记录 vloss_mean_expert = mean_k MSE(f_k(x_{F_k}), y)（旧口径，仅作对照）
+            # 两条曲线同时落盘，用于量化「口径差异对早停/快照选择的影响」。
             tot, cnt = 0.0, 0
+            ens_acc = None
             for k in range(n):
                 p = experts[k].forward(Xvs[:, subsets[k]], training=False)
                 tot += float(np.mean((p - yvs) ** 2))
                 cnt += 1
-            vloss = tot / cnt
-            history.append({"step": step, "ens_val_mse": vloss})
+                p64 = p.astype(np.float64)
+                ens_acc = p64 if ens_acc is None else ens_acc + p64
+            ens_pred = ens_acc / n
+            vloss = float(np.mean((ens_pred - yvs.astype(np.float64)) ** 2))
+            vloss_mean_expert = tot / cnt
+            history.append({"step": step, "ens_val_mse": vloss,
+                            "mean_expert_val_mse": vloss_mean_expert})
             if vloss < best_loss - 1e-12:
                 best_loss, best_step, bad = vloss, step, 0
                 best_snap = [ex.opt.snapshot() for ex in experts]
@@ -521,6 +554,8 @@ def train_ensemble(Xtr, ytr, tr_idx, Xva, yva, va_idx, n_val_days, n_feat,
                 bad += 1
                 if bad >= PATIENCE:
                     break
+            if vloss_mean_expert < alt_loss - 1e-12:
+                alt_loss, alt_step = vloss_mean_expert, step
     for k, ex in enumerate(experts):
         if best_snap is not None:
             ex.opt.restore(best_snap[k])
@@ -529,6 +564,11 @@ def train_ensemble(Xtr, ytr, tr_idx, Xva, yva, va_idx, n_val_days, n_feat,
         "best_step": best_step, "best_ens_val_mse": best_loss,
         "early_stopped": bool(bad >= PATIENCE), "elapsed_sec": round(time.time() - t0, 1),
         "eval_count": len(history),
+        "loss_monitor": "ensemble_mse = MSE(mean_k f_k(x), y)  # 预注册 §4.1/§4.3「集成级验证 MSE」",
+        "alt_monitor_mean_expert_mse": {
+            "best_step": alt_step, "best_val": alt_loss,
+            "note": "旧实现口径（逐专家 MSE 的平均）对照值，仅用于量化口径差异",
+        },
     }
     log["val_loss_tail"] = history[-5:]
     return experts, subsets, boot
@@ -641,6 +681,12 @@ def main():
     else:
         type_seq = swrr_types([0, 0, 0, 0, N_EXPERTS, 0], N_EXPERTS)
     log["type_seq"] = [TYPE_NAMES[t] for t in type_seq]
+    if args.arm == "dee":
+        # 与预注册附录 B 的冻结序列逐位比对（SWRR 实现漂移的机器闸门）
+        if log["type_seq"] != FROZEN_TYPE_SEQ_N20:
+            raise AssertionError(
+                f"SWRR 类型序列与预注册附录 B 冻结序列不一致:\n"
+                f"  got    = {log['type_seq']}\n  frozen = {FROZEN_TYPE_SEQ_N20}")
 
     # ---- 每专家子随机源
     def substream(key):

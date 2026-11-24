@@ -84,6 +84,7 @@ def build():
     man = jload(os.path.join(OUT, "snapshot_manifest.json"))
     meta = jload(os.path.join(OUT, "sample_meta.json"))
     leak = jload(os.path.join(OUT, "leakage_diag.json"))
+    review = jload(os.path.join(OUT, "review_round1.json"))
 
     # ---------------- 主检验量 ----------------
     per_seed = []
@@ -173,9 +174,19 @@ def build():
                 "nav": nav, "turn_sum": turn_sum, "bs": bs,
                 "c1": abs(gross - cost - net_sum),
                 "c2": abs(turn_sum - bs),
+                "c3": (float(np.max(np.abs(d["sum_w"].to_numpy() + d["cash"].to_numpy() - 1.0)))
+                       if ("sum_w" in d.columns and "cash" in d.columns) else 0.0),
+                "max_sum_w": (float(np.max(d["sum_w"].to_numpy()))
+                              if "sum_w" in d.columns else float("nan")),
+                "n_over_1": (int(np.sum(d["sum_w"].to_numpy() > 1.0 + 1e-9))
+                             if "sum_w" in d.columns else 0),
             })
     c1_max = max([t["c1"] for t in tie], default=0.0)
     c2_max = max([t["c2"] for t in tie], default=0.0)
+    c4_ledger = max([t["c3"] for t in tie], default=0.0)
+    c4_max_sum_w = max([t["max_sum_w"] for t in tie if np.isfinite(t["max_sum_w"])],
+                        default=float("nan"))
+    c4_n_over = sum([t["n_over_1"] for t in tie])
     if len(deltas) >= 2:
         c3 = abs(delta_mean - float(np.sum(deltas) / len(deltas)))
     else:
@@ -400,6 +411,14 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
     A("</tbody></table>")
     A("<p class=\"small\">IC = 每个交易日预测分数与次日收益的 Pearson 相关，再对测试期取时间均值；"
       "MDD = 日频净净值曲线的最大回撤（负值）；换手 = 当日买入额 + 卖出额（占组合净值比重）。</p>")
+    A("<p class=\"small\"><b>组合记账口径：现金账本。</b>卖出释放现金、买入消耗现金，任意一天 "
+      "<span class=\"mono\">Σw + cash ≡ 1</span>，组合总敞口恒为 1，<b>不存在隐含杠杆</b>；"
+      "卖不掉（跌停 / 停牌 / 缺 limit）的仓位<b>强制保留原权重并占用资金</b>，"
+      "买不到的部分留成现金（0 收益，与主口径 rf=0 一致）。"
+      "这条口径是独立审查阶段的实现缺陷修复：早期版本把「强制持有的旧权重」与「新买入的 1/K」"
+      "直接叠加，实测 Σw 最高 1.44（隐含杠杆 44%）、974 个交易日里 151 天 > 1；"
+      "修复后审计侧新增 <span class=\"mono\">Σw ≤ 1</span> 与 <span class=\"mono\">Σw + cash = 1</span> "
+      "两道闸门逐日检查。</p>")
 
     # ---- 3b 臂 C 早停退化：实测 + 非预注册诊断对照
     xgb42 = runs.get("xgb_s42", {}).get("xgb", {})
@@ -612,6 +631,18 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
         A(f"<p>判决：<span class=\"tag {'red' if audit['n_blocking'] else 'teal'}\">"
           f"{'BLOCKING ' + str(audit['n_blocking']) + ' 项' if audit['n_blocking'] else 'PASS'}</span>"
           f"共 {audit['n_findings']} 项检查项；不一致项一律以复算值为准。</p>")
+        # 组合权重不变量：现金账本口径的两道闸门
+        inv = [f for f in audit.get("findings", [])
+               if str(f.get("item", "")).startswith("weight_invariant")]
+        if inv:
+            worst = max(float(f.get("measured", 0.0)) for f in inv)
+            n_over = sum(1 for f in inv if float(f.get("measured", 0.0)) > 1.0 + 1e-9)
+            A(f"<p class=\"small\"><b>组合权重不变量（独立复算侧的额外闸门）：</b>"
+              f"{len(inv)} 项检查（每臂 × 每种子 × 每成本档各一项），判据为 "
+              f"<span class=\"mono\">Σw ≤ 1</span> 且 <span class=\"mono\">Σw + cash ≡ 1</span>。"
+              f"实测最大 Σw = <b>{worst:.12f}</b>，超过 1 的项数 = <b>{n_over}</b>。"
+              "这条闸门是第一轮独立审查暴露的旧实现缺陷（强制持有的旧权重与新买入的 1/K 直接叠加，"
+              "实测 Σw 最高 1.44、974 天里 151 天 &gt; 1）的守门人。</p>")
     else:
         A("<p>独立复算尚未产出。</p>")
 
@@ -690,6 +721,40 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
     A("<p class=\"small\">完整的跑挂尝试、口径改动版本与未取到的数据记录在 "
       "<span class=\"mono\">experiments/WORK-555/failure_log.md</span>，不藏。</p>")
 
+    # ---- 8b 独立代码审查第一轮：发现与处置
+    if review:
+        A("<h3>独立代码审查第一轮：发现与处置</h3>")
+        A(f"<p>本单实现完成后交给<b>独立子代理</b>做代码审查（隔离沙箱、零 import 建模函数、"
+          f"自带一套从头写的复算实现）。第一轮判决 <b>{review.get('verdict', '—')}</b>："
+          f"{review.get('summary', '—')}。"
+          "下表逐条列问题、修复与<b>可复跑的验证</b>；机器可读留痕见 "
+          "<span class=\"mono\">experiments/WORK-555/review_round1.json</span>。</p>")
+        A("<table><caption>表 9b · 独立审查第一轮：2 blocking + 3 suggestion + 4 nit 的处置</caption>")
+        A("<thead><tr><th class=\"c\" style=\"width:5%\">#</th><th class=\"c\" style=\"width:9%\">级别</th>"
+          "<th class=\"l\">问题</th><th class=\"l\">修复</th><th class=\"l\">验证（可复跑）</th>"
+          "</tr></thead><tbody>")
+        sev_tag = {"blocking": "red", "suggestion": "blue", "nit": "teal"}
+        for f in review.get("findings", []):
+            sev = f.get("severity", "")
+            A(f"<tr><td class=\"c mono\">{f.get('id', '—')}</td>"
+              f"<td class=\"c\"><span class=\"tag {sev_tag.get(sev, 'teal')}\">{sev}</span></td>"
+              f"<td class=\"l small\">{f.get('problem', '')}<br>"
+              f"<span class=\"mono small\">{f.get('location', '')}</span></td>"
+              f"<td class=\"l small\">{f.get('fix', '')}</td>"
+              f"<td class=\"l small\">{f.get('verification', '')}</td></tr>")
+        A("</tbody></table>")
+        extra = review.get("reviewer_extra_findings", [])
+        if extra:
+            A("<p class=\"small\">审查方另发现 2 项（本单自认并修复）："
+              + "；".join(f"<b>{e.get('id', '')}</b> {e.get('problem', '')} → {e.get('fix', '')}"
+                          + (f"（验证：{e.get('verification', '')}）" if e.get("verification") else "")
+                          for e in extra)
+              + "</p>")
+        unv = review.get("reviewer_unverified", [])
+        if unv:
+            A("<p class=\"small\"><b>审查方自述未能核实的项</b>（不藏）："
+              + "；".join(unv) + "。</p>")
+
     # ---- 9 自证
     A("<h2><span class=\"num\">9</span>自证：勾稽与复跑命令</h2>")
     A("<p>按工单「自证纪律」，凡分项数字表都附勾稽自检结果与统计时点。</p>")
@@ -705,24 +770,40 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
     A(f"<tr><td class=\"l\">Δ_ic 均值 = 逐种子 Δ_ic 的算术平均</td>"
       f"<td class=\"l mono\">mean(Δ_seed) = Δ_mean</td>"
       f"<td class=\"c mono\">{c3:.3e}</td><td class=\"c\">{'通过' if c3 <= 1e-12 else '不通过'}</td></tr>")
+    A(f"<tr><td class=\"l\">组合账本恒等（现金账本口径，无隐含杠杆）</td>"
+      f"<td class=\"l mono\">Σw + cash ≡ 1；Σw ≤ 1</td>"
+      f"<td class=\"c mono\">账本偏差 {c4_ledger:.3e}<br>max Σw = {c4_max_sum_w:.9f}<br>"
+      f"Σw&gt;1 天数 = {c4_n_over}</td>"
+      f"<td class=\"c\">{'通过' if (c4_ledger <= 1e-9 and c4_n_over == 0 and c4_max_sum_w <= 1 + 1e-9) else '不通过'}</td></tr>")
     A("</tbody></table>")
     A("<pre>cd /srv/share/quantdb/code/quant-lab\n"
+      "# 0) 复现前提：BLAS 线程必须固定为 1（float32 GEMM 归约顺序随线程数变化，\n"
+      "#    不固定时同命令同 seed 的结果不可复现：实测 T=1 与 committed 产物逐字节一致，T=4 不同）\n"
+      "export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \\\n"
+      "       NUMEXPR_NUM_THREADS=1\n"
       "# 1) 引擎原语单测（梯度校验 + SWRR 逐位对照协议附录 B + 口径自检）\n"
       "/tmp/w555venv/bin/python scripts/work555_test_primitives.py\n"
+      "# 1b) 梯度校验的变异测试（自证：可分辨下标的污染必被抓到、不可分辨下标不虚报）\n"
+      "/tmp/w555venv/bin/python scripts/work555_gradcheck_mutation_test.py\n"
+      "# 1c) 软树梯度的独立全路径暴力实现对照（与建模侧的逐层反向传播是不同推导路径）\n"
+      "/tmp/w555venv/bin/python scripts/work555_tree_bruteforce.py\n"
       "# 2) 因子 + 标签 + 样本装配（加工层可重建）\n"
       "/tmp/w555venv/bin/python scripts/work555_features.py\n"
-      "# 3) 三档对照臂 × 两种子（同一份代码版本）\n"
-      "bash scripts/work555_run_arms.sh\n"
+      "# 3) 三档对照臂 × 两种子（同一份代码版本；本次产出由 v3 runner 生成）\n"
+      "bash scripts/work555_run_arms_v3.sh\n"
       "# 3b) 臂 C 早停退化的非预注册诊断对照（不参与判词）\n"
       "/tmp/w555venv/bin/python scripts/work555_xgb_diag.py --seed 42\n"
       "# 3c) 配图（matplotlib 只在系统 python3 里，venv 里没有 matplotlib）\n"
       "python3 scripts/work555_figures.py\n"
-      "# 4) 组合回测（掩码断言开启）\n"
+      "# 4) 组合回测（掩码断言开启；现金账本口径，Σw + cash ≡ 1）\n"
       "/tmp/w555venv/bin/python scripts/work555_backtest.py --arm dee --seed 42\n"
       "# 5) 断言演示：刻意关闭掩码，必须报 UNTRADABLE_PRICE_READ\n"
       "/tmp/w555venv/bin/python scripts/work555_backtest.py --arm dee --seed 42 --no-mask\n"
       "# 6) 独立复算（不 import 建模函数）\n"
       "/tmp/w555venv/bin/python audit/recompute_work555.py\n"
+      "# 6b) 对外数字唯一真源：重生成 failure_log §12 与 registry 行；--check 可判陈旧\n"
+      "/tmp/w555venv/bin/python scripts/work555_final_numbers.py\n"
+      "/tmp/w555venv/bin/python scripts/work555_final_numbers.py --check\n"
       "# 7) 机制诊断（placebo / 反向检验 / 排序 vs 线性）\n"
       "/tmp/w555venv/bin/python scripts/work555_leakage_diag.py\n"
       "# 8) 快照 sha256 复核\n"

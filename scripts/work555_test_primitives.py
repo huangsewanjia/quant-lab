@@ -51,8 +51,10 @@ def grad_check(expert, X, y, tag):
     dy = (2.0 / len(y)) * (pred - y)
     grads = expert.backward(Xd, pred, dy)
     worst, worst_k, worst_detail = 0.0, None, ""
+    worst_i = -1
     n_checked = [0]
     n_unresolvable = [0]
+    n_fam_checked = []
     assert set(grads.keys()) <= set(expert.params.keys()), "梯度键必须是参数键的子集"
     for k in grads:
         p = expert.params[k]
@@ -63,8 +65,15 @@ def grad_check(expert, X, y, tag):
         else:
             idxs = list(range(flat.size))
         skip_small = tag in ("lasso", "elasticnet")
+        rel = 0.0
+        gnum = 0.0
+        ga = 0.0
+        i = -1
+        n_k_checked = 0
+        n_k_kink = 0
         for i in idxs:
             if skip_small and abs(float(flat[i])) < 1e-2:
+                n_k_kink += 1
                 continue   # L1 次梯度在 0 处不连续，跳过拐点邻域
             eps = 1e-5 * max(1.0, abs(float(flat[i])))
             orig = float(flat[i])
@@ -98,16 +107,43 @@ def grad_check(expert, X, y, tag):
             else:
                 rel = abs(gnum - ga) / max(1e-12, abs(gnum) + abs(ga))
             n_checked[0] += 1
-        if rel > worst:
+            n_k_checked += 1
+            # **worst 必须在每个抽样下标上更新**（缩进在 for i 循环体内）。
+            # 旧实现把 if rel > worst 放在 for i 之外 -> 每个参数族只比较最后一个下标，
+            # 变异测试证明其余下标上的梯度错误可被完全漏检。
+            if rel > worst:
                 worst, worst_k = rel, k
+                worst_i = i
                 worst_detail = f"gnum={gnum:.3e} g={ga:.3e} i={i}"
+        # 每个参数族的可分辨下标数下限：低于 min(3, 该族元素总数) 则该族等于没被检过。
+        # 标量参数（如偏置 b 只有 1 个元素）天然只检 1 个下标，不算覆盖度不足。
+        # L1 拐点跳过的族（n_k_kink 覆盖了该族全部抽样下标）属于「无法数值校验」，
+        # 单独标注但不计入覆盖度门（它在 §4.5 惩罚变体的解析梯度里已被单独推导）。
+        kink_only = n_k_kink > 0 and n_k_checked == 0
+        n_fam_checked.append((k, n_k_checked, min(3, flat.size), kink_only))
     # 还原 dtype
     for k in expert.params:
         expert.params[k] = expert.params[k].astype(orig_dtype[k])
-    ok = worst < 2e-2 and n_checked[0] >= 3
+    # 覆盖度门：每个参数族至少要有 min(3, 族元素数) 个可分辨下标，否则该族等于没被检过
+    thin = [(k, c, need) for k, c, need, kink_only in n_fam_checked
+            if c < need and not kink_only]
+    ok = worst < 2e-2 and n_checked[0] >= 3 and not thin
     check(f"grad_check[{tag}]", ok,
           f"max_rel={worst:.3e} param={worst_k} checked={n_checked[0]} "
-          f"fd_unresolvable={n_unresolvable[0]} {worst_detail}")
+          f"fd_unresolvable={n_unresolvable[0]} {worst_detail}"
+          + (f" THIN_FAMILY={thin}" if thin else ""))
+    # 结构化返回，供变异测试脚本精确判定「最差下标 == 被污染下标」
+    return {
+        "ok": bool(ok),
+        "worst": float(worst),
+        "worst_param": worst_k,
+        "worst_index": worst_i,
+        "n_checked": int(n_checked[0]),
+        "n_unresolvable": int(n_unresolvable[0]),
+        "thin": thin,
+        "per_family": [{"param": k, "checked": c, "need": need, "kink_only": ko}
+                       for k, c, need, ko in n_fam_checked],
+    }
 
 
 def main():

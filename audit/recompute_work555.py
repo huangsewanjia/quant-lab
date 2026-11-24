@@ -132,7 +132,19 @@ def daily_ic(df, pred_col, label_col, method):
 
 # ---------------------------------------------------------------- 独立实现：组合账
 def portfolio_daily(bt, scores_by_day, cost_bps):
-    """独立实现的逐日组合账：选股 -> 掩码 -> 强制持有 -> 成本 -> 结算。"""
+    """独立实现的逐日组合账：选股 -> 掩码 -> **现金账本调仓** -> 成本 -> 结算。
+
+    口径与建模脚本 scripts/work555_backtest.py 一致，但**代码路径独立**（本脚本零 import 建模函数）：
+      1) 目标组合：在「可买入」且有有效分数的股票里取分数最高 TOPK，等权；
+      2) 卖出：能卖则卖到目标权重；卖不掉（停牌 / 跌停 / 缺 limit）则**强制保留原权重**；
+      3) 买入：买入额受**可用现金**约束；cash = 1 - Σw（上日未投出部分），
+         卖不掉的部分不能凭空变成买入额度；
+      4) 结算：按实际成交后的持仓加权 fwd_ret；成本 = (buys+sells)*c + sells*stamp。
+
+    不变量：任意一天 Σw ≤ 1 且 Σw + cash ≡ 1（无隐含杠杆）。
+    （早期实现把「强制持有的旧权重」与「新买入的 1/K」直接叠加，Σw 最高到 1.44，
+      隐含杠杆 44% —— 本函数记录 sum_w / cash 供主流程做闸门检查。）
+    """
     holdings = {}
     rows = []
     for d, g in bt.groupby("trade_date", sort=True):
@@ -144,7 +156,6 @@ def portfolio_daily(bt, scores_by_day, cost_bps):
         up = g["up_limit"].to_numpy(dtype="float64")
         dn = g["down_limit"].to_numpy(dtype="float64")
         fwd = g["fwd_ret_hfq"].to_numpy(dtype="float64")
-        n = len(code)
         pos = {c: i for i, c in enumerate(code)}
         miss = np.isnan(up) | np.isnan(dn)
         can_buy = (member & listed & has_trade & (~miss)
@@ -152,39 +163,45 @@ def portfolio_daily(bt, scores_by_day, cost_bps):
         can_sell = has_trade & (~miss) & ~(close_raw <= dn)
 
         sc = scores_by_day.get(d, {})
-        scored = np.array([c in sc for c in code], dtype=bool)
         svals = np.array([sc.get(c, np.nan) for c in code], dtype="float64")
-        ok = can_buy & scored & np.isfinite(svals)
+        ok = can_buy & np.array([c in sc for c in code], dtype=bool) & np.isfinite(svals)
         idx = np.where(ok)[0]
-        # 分数降序；同分按代码序（稳定）
+        # 分数降序；同分按代码序（事实层日内 ts_code 已是字典序，等价于建模侧的索引序）
         order = sorted(idx.tolist(), key=lambda i: (-svals[i], code[i]))
         pick = order[:TOPK]
         target = {code[i]: 1.0 / len(pick) for i in pick} if pick else {}
 
         buys = sells = 0.0
-        newh = dict(holdings)
-        for c, w_old in list(holdings.items()):
+        cash = 1.0 - float(sum(holdings.values()))      # 期初现金（上日未投出部分）
+        newh = {}
+        # ---- 卖出阶段：能卖则卖到目标权重；卖不掉则强制持有原权重
+        for c, w_old in holdings.items():
             w_new = target.get(c, 0.0)
-            d_w = w_new - w_old
-            if d_w < -1e-12:
-                i = pos[c]
-                if can_sell[i]:
-                    sells += -d_w
-                    del newh[c]
-                else:
-                    newh[c] = w_old
-        for c, w_new in target.items():
-            w_old = holdings.get(c, 0.0)
-            d_w = w_new - w_old
-            if d_w > 1e-12:
-                i = pos[c]
-                if can_buy[i]:
-                    buys += d_w
+            i = pos[c]
+            if w_new < w_old - 1e-12 and can_sell[i]:
+                sold = w_old - w_new
+                sells += sold
+                cash += sold
+                if w_new > 1e-15:
                     newh[c] = w_new
-                elif c in holdings:
-                    newh[c] = w_old
-                else:
-                    newh.pop(c, None)
+            else:
+                newh[c] = w_old
+        # ---- 买入阶段：按分数序买入，受可用现金约束
+        for c, w_new in target.items():
+            w_cur = newh.get(c, 0.0)
+            need = w_new - w_cur
+            if need <= 1e-12:
+                continue
+            i = pos[c]
+            if not can_buy[i]:
+                continue                       # 买不进 -> 不买（合法结果）
+            amt = need if need <= cash else cash
+            if amt <= 1e-15:
+                break                          # 现金耗尽，后续买不进
+            buys += amt
+            cash -= amt
+            newh[c] = w_cur + amt
+
         gross = 0.0
         for c, w in newh.items():
             i = pos[c]
@@ -193,11 +210,30 @@ def portfolio_daily(bt, scores_by_day, cost_bps):
                 r = 0.0
             gross += w * r
         cost = (buys + sells) * (cost_bps / 1e4) + sells * (STAMP_BPS / 1e4)
+        sum_w = float(sum(newh.values()))
         rows.append({"trade_date": d, "n_hold": len(newh), "gross_ret": gross,
                      "cost": cost, "net_ret": gross - cost, "buys": buys,
-                     "sells": sells, "turnover": buys + sells})
+                     "sells": sells, "turnover": buys + sells,
+                     "sum_w": sum_w, "cash": cash})
         holdings = newh
     return pd.DataFrame(rows)
+
+
+def weight_invariants(daily):
+    """组合权重不变量检查（现金账本口径的闸门）。
+
+    返回 dict：
+      max_sum_w        —— 每日 Σw 的最大值（必须 ≤ 1 + 1e-9，否则存在隐含杠杆）
+      n_days_over_1   —— Σw > 1 + 1e-9 的天数（必须为 0）
+      max_ledger_dev   —— max |Σw + cash - 1|（账本恒等式，必须 ≈ 0）
+    """
+    sw = daily["sum_w"].to_numpy(dtype="float64")
+    cash = daily["cash"].to_numpy(dtype="float64")
+    return {
+        "max_sum_w": float(np.max(sw)) if len(sw) else 0.0,
+        "n_days_over_1": int(np.sum(sw > 1.0 + 1e-9)),
+        "max_ledger_dev": float(np.max(np.abs(sw + cash - 1.0))) if len(sw) else 0.0,
+    }
 
 
 def agg_metrics(daily):
@@ -408,15 +444,42 @@ def main():
                         add("blocking", f"daily_rows::{tag}::{mtag}", len(mine_daily),
                             len(side), "row count", side_path, "diff the two CSVs")
                     else:
-                        for col in ("gross_ret", "cost", "net_ret", "buys", "sells", "turnover"):
-                            d = float(np.max(np.abs(mine_daily[col].to_numpy()
-                                                    - side[col].to_numpy())))
-                            scale = max(1e-12, float(np.max(np.abs(side[col].to_numpy()))))
-                            rd = d / scale
-                            if rd > TOL:
+                        for col in ("gross_ret", "cost", "net_ret", "buys", "sells",
+                                   "turnover", "sum_w", "cash"):
+                            if col not in side.columns:
+                                continue
+                            a_mine = mine_daily[col].to_numpy(dtype="float64")
+                            a_side = side[col].to_numpy(dtype="float64")
+                            d = float(np.max(np.abs(a_mine - a_side)))
+                            scale = max(1e-12, float(np.max(np.abs(a_side))))
+                            if scale <= 1e-9:
+                                # **近零列**（如 cash 多数交易日为 0）：相对差判据会把
+                                # 1e-16 的浮点尾差放大成假 blocking，改用绝对差判据。
+                                rd, ok = d, d <= 1e-12
+                            else:
+                                rd = d / scale
+                                ok = rd <= TOL
+                            if not ok:
                                 add("blocking", f"daily::{tag}::{mtag}::{col}",
-                                    float(np.max(mine_daily[col].to_numpy())), d, rd,
+                                    float(np.max(a_mine)), d, rd,
                                     side_path, "diff the two CSVs")
+                # ---- 2b) 组合权重不变量（现金账本闸门：Σw ≤ 1，Σw + cash ≡ 1）
+                inv = weight_invariants(mine_daily)
+                inv["item"] = f"weight_invariant::{tag}::{mtag}"
+                if inv["n_days_over_1"] > 0 or inv["max_sum_w"] > 1.0 + 1e-9:
+                    add("blocking", inv["item"], inv["max_sum_w"], 1.0,
+                        inv["max_sum_w"] - 1.0, side_path,
+                        "/tmp/w555venv/bin/python audit/recompute_work555.py")
+                elif inv["max_ledger_dev"] > 1e-9:
+                    add("blocking", inv["item"] + "::ledger", inv["max_ledger_dev"], 0.0,
+                        inv["max_ledger_dev"], side_path,
+                        "/tmp/w555venv/bin/python audit/recompute_work555.py")
+                else:
+                    findings.append({"severity": "pass", "item": inv["item"],
+                                     "measured": inv["max_sum_w"], "expected": 1.0,
+                                     "gap": abs(inv["max_sum_w"] - 1.0),
+                                     "location": side_path,
+                                     "how_to_verify": "audit script output; sum_w+cash==1"})
                 mine_m = agg_metrics(mine_daily)
                 claimed = bj["metrics"].get(mtag, {})
                 for k, v in mine_m.items():
@@ -453,10 +516,23 @@ def main():
             ds = [x["delta_ic"] for x in per_seed]
             rng = max(ds) - min(ds)
             mean_d = float(np.mean(ds))
+            # 预注册 §6.2：「两种子 max − min > 0.01（**RankIC 绝对量**）」判不稳定。
+            # 早期实现误把 **Δ_ic** 的极差填进 rankic_unstable（字段语义错，nit 项），
+            # 现在拆成两组量：Δ_ic 极差 与 各臂 RankIC 绝对量极差。
+            ric_d = [x["rankic_dee"] for x in per_seed]
+            ric_b = [x["rankic_mlp"] for x in per_seed]
+            rng_d = float(max(ric_d) - min(ric_d))
+            rng_b = float(max(ric_b) - min(ric_b))
             verdict = {
                 "per_seed": per_seed, "delta_ic_mean": mean_d,
                 "delta_ic_range": float(rng),
-                "rankic_unstable": bool(rng > 0.01),
+                "rankic_range_dee": rng_d,
+                "rankic_range_mlp_baseline": rng_b,
+                "rankic_unstable": bool(rng_d > 0.01 or rng_b > 0.01),
+                "rankic_unstable_detail": {
+                    "dee": bool(rng_d > 0.01), "mlp_baseline": bool(rng_b > 0.01),
+                    "threshold": 0.01, "metric": "RankIC 绝对量 max-min（预注册 §6.2）",
+                },
                 "n_seeds": len(ds),
             }
             # 净 Sharpe < 0 -> 直接退

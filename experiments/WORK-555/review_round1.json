@@ -1,0 +1,131 @@
+{
+  "experiment": "WORK-555",
+  "round": 1,
+  "reviewed_commit": "8fd1bb3",
+  "reviewer": "independent sub-agent (verifier), 2026-11-24, 隔离沙箱 /tmp/work555_review/（符号链接只读输入 + 可写输出）",
+  "verdict": "FAIL",
+  "summary": "2 blocking + 3 suggestion + 4 nit；核心链路数值经审查方独立复算全部一致（RankIC/Sharpe/MDD/年化/换手/成本 rd <= 1e-9）",
+  "findings": [
+    {
+      "id": "B1",
+      "severity": "blocking",
+      "location": "audit/recompute_work555.py:284（被审版本）",
+      "problem": "快照 sha256 十六进制串被送进 rel_diff() -> float() 抛 ValueError，脚本崩溃、不写 audit_findings.json，旧 PASS 留在盘上被报告层读取",
+      "reviewer_evidence": "ValueError: could not convert string to float: 'e4461e1037970023...'；崩溃后 audit_findings.json 未生成",
+      "fix": "改为字符串比较 + 显式 blocking 分支（不送 rel_diff），并补 else 分支写 pass finding",
+      "fixed_in_commit": "23a0fea",
+      "verification": "HEAD 上用漂移 sha256 复现：走 'sha256 不一致' 分支写 blocking，不再进 rel_diff；6 份 sha256 正常时全部 MATCH",
+      "status": "fixed_and_verified"
+    },
+    {
+      "id": "B2",
+      "severity": "blocking",
+      "location": "experiments/WORK-555/snapshot_manifest.json（被审版本）",
+      "problem": "manifest 只锁 5 份原始层 CSV，未锁事实层 panel_backtest.csv（95 MB，全部结论的直接输入）",
+      "reviewer_evidence": "git show 8fd1bb3:snapshot_manifest.json | grep -c panel_backtest -> 0",
+      "fix": "补入第 6 份 panel_backtest.csv 并逐份 sha256 锁定",
+      "fixed_in_commit": "23a0fea",
+      "verification": "HEAD manifest 6 份条目 / 6 份 sha256 逐份 MATCH（含 panel_backtest=67ae31fe6fe23a7d…）",
+      "status": "fixed_and_verified"
+    },
+    {
+      "id": "S1",
+      "severity": "suggestion",
+      "location": "scripts/work555_test_primitives.py:101（被审版本）",
+      "problem": "`if rel > worst:` 缩进在 `for i in idxs:` 循环体之外 -> 每个参数族只比对最后一个抽样下标，其余抽样点的梯度错误完全漏检",
+      "reviewer_evidence": "变异测试：污染下标 0 -> PASS（漏检）；污染下标 11 -> FAIL；软树 a/b/mu 在下标 0/154 多个点 MISSED",
+      "fix": "把 worst 更新移入 for i 循环体；新增每参数族覆盖度门（min(3, 族元素数) 个可分辨下标）；grad_check 返回结构化 dict（worst/worst_param/worst_index/per_family）",
+      "fixed_in_commit": "（本次提交）",
+      "verification": "scripts/work555_test_primitives.py -> RESULT: PASS（修复前漏检的 ridge 误差 6.086e-03 现被检出）；新增 scripts/work555_gradcheck_mutation_test.py 变异测试自证：可分辨下标 14/14 CAUGHT、不可分辨下标 0/10 虚报 -> RESULT: PASS",
+      "status": "fixed_and_verified"
+    },
+    {
+      "id": "S2",
+      "severity": "suggestion",
+      "location": "scripts/work555_dee.py:513（被审版本）",
+      "problem": "预注册 §4.1/§4.3 写死「监控集成级验证损失（不是单专家损失）」，实现监控的是 mean_k MSE(f_k, y)（逐专家 MSE 的平均）",
+      "reviewer_evidence": "600 步同种子对照：两条曲线 corr 0.9959、argmin 同一步（600）——审查方判定本次无影响",
+      "fix": "按预注册改为集成级验证 MSE = MSE(mean_k f_k(x), y)；并行记录旧口径作对照（loss_monitor / alt_monitor_mean_expert_mse）",
+      "fixed_in_commit": "（本次提交）",
+      "verification": "必须重跑：恢复哪个参数快照由监控量决定 -> 直接改变模型 -> 改变 RankIC/Δ_ic/判词。旧 run 的 best_step=7740/8000（dee s42）、7580/7820（mlp_only），两种口径的 argmin 步在 8000 步内极可能不同。v3 重跑 dee×2 + mlp_only×2",
+      "status": "fixed_and_rerun"
+    },
+    {
+      "id": "S3",
+      "severity": "suggestion",
+      "location": "scripts/work555_backtest.py:180,195,212（被审版本）",
+      "problem": "强制持有的旧权重与新买入的 1/K 直接叠加，总权重不做归一 -> 组合带隐含杠杆（实测 Σw 最高 1.44、974 天里 151 天 > 1）；独立复算脚本用了同样写法故查不出",
+      "reviewer_evidence": "dee_s42 总权重 mean=1.004045 / max=1.440000；最坏日 2020-02-03 n_hold=72；归一化敏感性 Sharpe 偏移 <= 0.025，不翻转结论",
+      "fix": "回测引擎改为现金账本口径（卖出释放现金、买入受可用现金约束，总敞口恒为 1）；审计侧独立重写同一口径；新增 Σw <= 1 与 Σw + cash ≡ 1 两道闸门",
+      "fixed_in_commit": "（本次提交）",
+      "verification": "dee_s42 实测：max Σw = 1.000000000000、Σw>1 天数 = 0、max|Σw+cash-1| = 5.551e-16、max n_hold = 50（旧口径曾达 72）；审计侧 16 项 weight_invariant 全部 pass；审计对旧产物（其余 7 臂）判 238 项 blocking —— 证明闸门不是 fail-open",
+      "status": "fixed_and_verified"
+    },
+    {
+      "id": "N1",
+      "severity": "nit",
+      "location": "audit/recompute_work555.py:459（被审版本）",
+      "problem": "字段 rankic_unstable 实际装的是 Δ_ic 极差，而预注册 §6.2 阈值指的是 RankIC 绝对量极差",
+      "reviewer_evidence": "audit_findings.json 里 rankic_unstable=true, delta_ic_range=2.2001；DEE 自身 RankIC 极差 0.0072 < 0.01、MLP 基线 0.0189 > 0.01",
+      "fix": "拆成 rankic_range_dee / rankic_range_mlp_baseline 两项，rankic_unstable 改由 RankIC 极差 > 0.01 判定，并附 rankic_unstable_detail 说明指标与阈值",
+      "fixed_in_commit": "（本次提交）",
+      "verification": "报告层 work555_report.py 原本就分开算 ric_rng / ric_rng_mlp，口径一致",
+      "status": "fixed_and_verified"
+    },
+    {
+      "id": "N2",
+      "severity": "nit",
+      "location": "experiments/WORK-555/failure_log.md:359,381（被审版本）",
+      "problem": "95% CI 写成 [-13.08%, +14.87%]，实为比值未乘 100；按百分比应为 [-1307.9%, +1487.4%]",
+      "reviewer_evidence": "HTML 报告口径正确，failure_log 与 commit message 三处写错；结论（含 0 -> 未复现）不受影响",
+      "fix": "failure_log 两处 CI 改正为百分数，并写明「Δ_ic 是比值，百分号 = ×100」",
+      "fixed_in_commit": "（本次提交）",
+      "verification": "v3 重跑后按新 Δ_ic 重算 CI 并再次核对",
+      "status": "fixed_and_verified"
+    },
+    {
+      "id": "N3",
+      "severity": "nit",
+      "location": "experiments/registry.md:18（被审版本）",
+      "problem": "「5 bps 敏感性下 MLP-only seed 43 的 Sharpe 转正 +0.117，其余仍为负」不准确——dee s42 在 5 bps 也是正的（+0.0803）",
+      "reviewer_evidence": "审查方实测 backtest_*.json 的 sens_5bps sharpe_rf0",
+      "fix": "改为逐臂逐种子列举 5 bps 净 Sharpe（2 正 5 负）",
+      "fixed_in_commit": "（本次提交）",
+      "verification": "v3 重跑后按新产物重新列举",
+      "status": "fixed_and_verified"
+    },
+    {
+      "id": "N4",
+      "severity": "nit",
+      "location": "scripts/work555_dee.py:361-371（被审版本）",
+      "problem": "swrr_types 注释里的并列打破序（linear→ridge→lasso→elasticnet→MLP→soft tree）在代码中未显式实现（np.argmax 取首个最大值）",
+      "reviewer_evidence": "审查方指出本次 20/50 两种子序列未触发并列，不影响结果",
+      "fix": "注释补上等价性论证（ratios 入参顺序 == 预注册固定序号，argmax 取首个最大值 ≡ 取小者）；并新增 FROZEN_TYPE_SEQ_N20 机器断言",
+      "fixed_in_commit": "（本次提交）",
+      "verification": "生成序列与预注册附录 B 逐位一致：mlp,tree,linear,lasso,mlp,tree,linear,ridge,mlp,tree,elasticnet,mlp,tree,linear,lasso,mlp,tree,linear,mlp,tree",
+      "status": "fixed_and_verified"
+    }
+  ],
+  "reviewer_extra_findings": [
+    {
+      "id": "X1",
+      "problem": "单臂复现命令未固定 BLAS 线程数 -> float32 GEMM 归约顺序随线程数变化，同命令同 seed 结果不可复现",
+      "reviewer_evidence": "T=1 得 0.010116964226472241（与 committed 逐字节一致），T=4 得不同值；根因定位到 X@w1 的 float32 GEMM",
+      "fix": "work555_dee.py docstring 与报告 §9 命令块显式写 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1；runner 脚本本就固定",
+      "status": "fixed_and_verified"
+    },
+    {
+      "id": "X2",
+      "problem": "failure_log §3.4 引用的「全路径暴力实现」不在仓库任何 commit，无法复跑",
+      "fix": "新增 scripts/work555_tree_bruteforce.py（子树期望值 + 到达概率分解，与建模侧逐层反向传播是不同推导路径）",
+      "verification": "forward max|diff| = 2.080e-07；梯度 a 2.054e-06 / b 5.411e-07 / mu 3.872e-06 -> RESULT: PASS",
+      "status": "fixed_and_verified"
+    }
+  ],
+  "reviewer_unverified": [
+    "DEE 两臂与 MLP-only seed 43 的端到端字节级重跑（审查方时间预算不足；本次由 v3 重跑 + 线程固定覆盖）",
+    "failure_log 中若干历史时点声明（§11.1/§11.2 的旧 sha256 前值）",
+    "上游 DuckDB 原始层（v_daily_hfq / index_weight）与 CSV 的逐值一致性",
+    "论文原文逐条比对（仓库内 PAPER_T1/T2/T3 常量未联网取原文核对）"
+  ]
+}
