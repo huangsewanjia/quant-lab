@@ -13,9 +13,12 @@
   （三轮判决均为 FAIL）。**重点复核第三轮的 B1/B2/B3 三项 blocking 是否真的关闭**，以及
   第二轮 7 项与第一轮 9 项处置是否仍然有效（修复可能被后续改动破坏）。
 - **写盘禁令**：审查方**不得写入被审仓库**。所有脚本副本、日志、沙箱产物写到仓库外的
-  临时目录（`/srv/data` 或 `/tmp` 下自建；`/tmp` 空间有限，产物大的场景用 `/srv/data`）。
-  审查开始前先记录仓库工作区基线（`git status --porcelain` + `git rev-parse HEAD`），
+  临时目录。审查开始前先记录仓库工作区基线（`git status --porcelain` + `git rev-parse HEAD`），
   结束时复核仓库未被改动。
+- **沙箱可用目录（实测，别踩坑）**：`/srv/data` **对当前用户不可写**
+  （`touch /srv/data/.wtest` → `Permission denied`；它虽有 982 GB 空闲）；
+  请用 `/srv/share`（可写、余 1.6 TB，如 `/srv/share/w555_review_<你的名字>/`）
+  或 `/tmp`（**仅剩约 1.7 GB**，小件够用）。
 
 ## 1. 必查项：第三轮 B1/B2/B3 的复核
 
@@ -102,8 +105,12 @@
 - 产物清单 43 份：`experiments/WORK-555/artifact_manifest.json`
 - 字节级复现：`experiments/WORK-555/repro_check.json`（沙箱重跑 vs 仓库产物逐份 sha256）
 - **复核字节级复现**：看 `repro_check.json` 的每份 sha256 是否真的一致；
-  如需自验，可在 `/srv/data` 下自建沙箱（拷 `scripts/` + 软链 `sample.npz`、
-  `sample_meta.json`）重跑一个臂做对照。
+  如需自验，可在 `/srv/share` 下自建沙箱（拷 `scripts/` + 软链 `sample.npz`、
+  `sample_meta.json`）重跑做对照。
+  **注意耗时**：`xgb` 臂重跑约 **6 秒**、`xgbfull` 约 3 分钟、`mlp_only` 约 50 分钟、
+  `dee` 约 **2 小时 15 分**（单核、线程固定为 1）。若时间有限，**优先重跑 `xgb` 臂**
+  验证「同代码同 seed 逐字节一致」这一机制，再对 `dee` 臂直接核对
+  `repro_check.json` 里已记录的 sha256。
 
 ## 4. 必须独立重算、不得复用建模函数的部分
 
@@ -145,6 +152,6 @@
 ## 7. 纪律
 
 - 不修改被审仓库的任何文件（含 `experiments/` 下的产物）；需要跑脚本就把仓库**拷到沙箱**再跑。
-- 沙箱用 `/srv/data`（空间充足）；`/tmp` 仅约 1.7 GB。
+- 沙箱用 `/srv/share` 或 `/tmp`（`/srv/data` 不可写，见 §0）；`/tmp` 仅约 1.7 GB。
 - 每条 finding 都要有你自己跑出来的证据，不能引用主循环的叙述。
 - 没查到就写「未取到」，不要推断补全。

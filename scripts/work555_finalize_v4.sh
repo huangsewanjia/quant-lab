@@ -72,9 +72,9 @@ echo "=== [3b/9] 产物清单（把审计的直接输入也纳入 sha256 覆盖�
 "$PY" scripts/work555_artifact_manifest.py --build 2>&1 | tail -8
 
 echo "=== [4/9] 独立复算（不 import 建模函数） $(date -Is)"
-"$PY" audit/recompute_work555.py > "$LOG/audit_v3.log" 2>&1
+"$PY" audit/recompute_work555.py > "$LOG/audit_v4.log" 2>&1
 AUDIT_RC=$?
-tail -14 "$LOG/audit_v3.log"
+tail -14 "$LOG/audit_v4.log"
 echo "  audit exit=$AUDIT_RC"
 
 echo "=== [4b/9] 对外数字唯一真源：重生成 failure_log §12.2/§12.3/§12.4 + registry WORK-555 行 $(date -Is)"
@@ -102,7 +102,7 @@ for f in "$HTML" experiments/WORK-555/report_print.pdf experiments/WORK-555/repo
   [ -f "$f" ] && printf "  %-58s %10d B  %s\n" "$f" "$(stat -c%s "$f")" "$(sha256sum "$f" | cut -c1-16)"
 done
 
-echo "=== [8b/9] 自证清单（8 项一次跑完；含审计新鲜度与 n_blocking=0） $(date -Is)"
+echo "=== [8b/9] 自证清单（11 项一次跑完；含审计新鲜度与 n_blocking=0） $(date -Is)"
 bash scripts/work555_selfcheck.sh 2>&1 | tail -22
 echo "  selfcheck exit=${PIPESTATUS[0]}"
 
@@ -151,4 +151,4 @@ if ds:
     print(f"  DEE 净 Sharpe(8bps) mean={statistics.mean(sh):+.4f}  -> {'直接退' if statistics.mean(sh) < 0 else '未触发退档'}")
 PYEOF
 
-echo "FINALIZE V3 DONE $(date -Is)"
+echo "FINALIZE V4 DONE $(date -Is)"

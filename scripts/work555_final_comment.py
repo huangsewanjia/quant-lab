@@ -246,7 +246,7 @@ def main():
     A("")
 
     # ---------------- 独立审查 ----------------
-    A("### 独立代码审查（三轮，全部 FAIL → 逐项处置 → 增量复审）")
+    A(f"### 独立代码审查（{len(reviews)} 轮，全部 FAIL → 逐项处置 → 增量复审）")
     A("")
     A(f"实现完成后交给**独立子代理**审查（隔离沙箱、零 import 建模函数、自带一套从头写的复算实现）。"
       f"主循环不参与审查判决；每轮修复后交回同一审查方**复审增量**。")
@@ -294,7 +294,7 @@ def main():
     A("```bash")
     A("cd /srv/share/quantdb/code/quant-lab")
     A("export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1")
-    A("bash scripts/work555_selfcheck.sh        # 自证清单：8 项一次跑完")
+    A("bash scripts/work555_selfcheck.sh        # 自证清单：11 项一次跑完")
     A("bash scripts/work555_run_arms_v4.sh      # 4 臂 × 2 种子重跑（产物来源，float64 落盘）")
     A("bash scripts/work555_finalize_v4.sh      # 回测→产物清单→复算→图→报告→PNG/PDF→自检")
     A("/tmp/w555venv/bin/python scripts/work555_float32_quant_diag.py   # 产物精度诊断")
