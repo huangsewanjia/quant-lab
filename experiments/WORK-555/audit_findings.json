@@ -1,7 +1,7 @@
 {
   "experiment": "WORK-555",
-  "generated_at": "2026-11-24T22:09:51+08:00",
-  "artifact_manifest_sha256": "1a8bf9fd81da29992b8d9e6a11b40a32276005c6cacb6926d71e02954a7fb80f",
+  "generated_at": "2026-11-24T22:17:38+08:00",
+  "artifact_manifest_sha256": "75e0706b569c84081775a4277fa16fd8ee5d7143e3f3fa400feb3572e23650f8",
   "tolerance_rel_diff": 1e-06,
   "n_findings": 330,
   "n_blocking": 0,

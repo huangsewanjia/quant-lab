@@ -1,0 +1,173 @@
+{
+  "experiment": "WORK-555",
+  "round": 8,
+  "reviewed_commit": "6f2ad07",
+  "reviewed_range": "8ec570b..6f2ad07（第七轮处置 + 产物重出单 commit；仅改 scripts/work555_final_comment.py / scripts/work555_final_numbers.py 与文字层产物；未改动 audit/recompute_work555.py、scripts/work555_report.py、scripts/work555_selfcheck.sh、任何 run_*.json / backtest_*.json）",
+  "reviewer": "independent sub-agent (verifier)，2026-11-24 第八轮增量复审；沙箱 /srv/share/w555_review_r8/（仓库外，被审仓库只读）。基线：开始与结束各记一次 git rev-parse HEAD = 6f2ad07630ff746dea3da6ce1c6e4a662cc5017a、git status --porcelain = 空，两次一致；本轮全部脚本在沙箱内跑（pristine = 全部 6f2ad07 git blob + 工作区按清单 sha256 提供的 25 份被 gitignore 的 npz/csv 实体副本；nc_dyn8 = 指针动态性实验用完整副本），未写入被审仓库",
+  "verdict": "PASS",
+  "summary": "0 blocking + 1 suggestion + 1 nit。第七轮遗留 2 项处置经审查方独立验证全部闭合：S7-1 **已闭合（实验确认）** —— scripts/work555_final_comment.py 新增 `_latest_section_ref()`，扫盘上 failure_log.md 的 `^## §(\\d+)` 取实际最大章节号；审查方在沙箱做了三步实验：基线渲染「§19」→ 追加 `## §20 …` 后重生成变为「§20」→ 删掉 §20 回落「§19」→ 再删掉 §19 回落「§18」，指针完全跟随盘上文件，无写死。N7-1 **已闭合** —— 三份交付件的审查轮次段现为同源同值：轮数 7、FAIL 4 / PASS 3，逐轮判决与分级计数与盘上 7 份 review_round*.json 逐项一致；report 与 registry 的逐轮列表逐字相同，comment 标题口径一致；§19.4 的留痕索引 7 行与盘上真值逐行一致。**§19.3「处置后的复跑结果（实测）」逐项核实为真**：精度诊断 8/8 行 rel=0.0、审计 PASS/blocking 0/330 项、Δ_ic 复算值 −0.2914861368509015 与建模侧逐位一致、8 臂回测 n_guard_violations 全 0、不可成交断言 n_combinations=8/n_triggered=8/all_triggered=true、权重不变量 16 项 max Σw=1.0、n_days_over_1=0、ledger_max_dev=5.551115123125783e-16、自证清单 13/13 exit 0、清单 44 份逐份 sha256 一致、快照 6/6 MATCH —— 唯一不符项是本轮收口时间戳：§19.3 写「（2026-11-24 22:2x）」，而本轮产物的 generated_at 实为清单 22:09:31 / 审计 22:09:51 / 数字 22:09:51（见 S8-1）。本轮无 blocking：提交态 pristine 沙箱自证清单 13/13 全过且连续两次 exit 0（幂等）、审计重跑与提交逐条一致（330 项、0 blocking、项集合相同、共有项差异 0）、四道 --check（final_numbers / artifact_manifest / comment / report）在干净沙箱全部 exit 0、审查方自写复算 352 项 0 blocking、跨交付件同量对齐 195 项零不一致；判词「未复现（退）」仍按预注册 §6.2 机械得出，判词相关量在本增量内逐字节未动（`git diff --name-only 8ec570b 6f2ad07` 不含任何 run_*.json / backtest_*.json；final_numbers.json 剔除时间戳类字段后逐字段相同）。本轮新增 1 suggestion + 1 nit，均属叙述/记录层：S8-1 §19.3 的收口时间戳与产物时间戳不符；N8-1 §19.2 的 N7-1 处置 cell 引用的样式举例仍用上一轮的「6 轮…第6轮 PASS」，与本轮实际渲染「7 轮…第7轮 PASS」不同。",
+  "findings": [
+    {
+      "id": "S8-1",
+      "severity": "suggestion",
+      "location": "experiments/WORK-555/failure_log.md:883（§19.3「处置后的复跑结果（实测）」首行「重跑 `scripts/work555_finalize_v4.sh`（2026-11-24 22:2x）」）",
+      "problem": "§19.3 是本轮唯一标「实测」的复跑记录，其内容（精度诊断、审计项数、Δ_ic、guard、不可成交断言、权重不变量、自证 13/13、四道 --check、清单 44 份、快照 6/6）经审查方逐项复核**全部为真**；但它记录的**收口时间**「2026-11-24 22:2x」与本轮产物自带的 generated_at 不符（清单 22:09:31 / 审计 22:09:51 / 数字 22:09:51），且「22:2x」本身不是合法时间戳。同一文档的前两处复跑记录写的是精确时间（§16.5「21:19~21:21」、§17.4「21:41」），本处的写法与之不一致。触发条件：凡是写复跑时间的段落若用模糊占位符，第三方按产物时间戳核对时必然对不上；影响仅限这一行记录的可核对性，不触及任何数值、审计结论、判词与可复现性。",
+      "evidence": "① 产物时间戳实测（提交态 6f2ad07）：`git show 6f2ad07:experiments/WORK-555/artifact_manifest.json | grep generated_at` → 2026-11-24T22:00:58→**2026-11-24T22:09:31+08:00**；audit_findings.json → **2026-11-24T22:09:51+08:00**；final_numbers.json → **2026-11-24T22:09:51+08:00**；report_print.pdf 二进制 1,527,373 → 1,527,725 bytes（收口确实在本轮发生过）。② 文本实测：`git show 6f2ad07:experiments/WORK-555/failure_log.md | grep -n '重跑 .scripts/work555_finalize_v4.sh'` → 743 行「（2026-11-24 21:19~21:21）」、797 行「（2026-11-24 21:41）」、**883 行「（2026-11-24 22:2x）」** —— 前两处为精确时间，本处为带 'x' 的占位形式。③ 对照：22:09 不落在「22:2x」的分钟区间内，故该字符串与产物时间戳**不一致**，且无法被解析为时间。④ §19.3 其余各项经审查方独立复核**全部为真**（精度诊断 n_rows=8 / n_over_tol=0 且 8 行 rel 全 0.0；8 臂 n_guard_violations 全 0；nomask_assert n_combinations=8 / n_triggered=8 / all_triggered=true；审计 PASS / 0 blocking / 330 项、weight_invariant 16 项 measured=1.0、n_days_over_1=0、ledger_max_dev=5.551115123125783e-16；final_numbers.verdict=未复现（退）、delta_ic_mean=−0.2914861368509015；审查方自跑四道 --check 全部 exit 0、清单 44/44、快照 6/6、自证 13/13 ×2 exit 0）。",
+      "fix": "把 §19.3 的时间改为与产物一致的精确值（如「2026-11-24 22:09:31~22:09:51」，或直接写「本轮收口时间见 `artifact_manifest.json` 的 `generated_at`」）；若刻意不写分钟数，则改成「（2026-11-24 22 时，见产物 `generated_at`）」这类可核对的表述，不要写 '22:2x' 这种既不精确也不合法的形式；改完重跑三道 --check 闸门与自证清单。",
+      "status": "open"
+    },
+    {
+      "id": "N8-1",
+      "severity": "nit",
+      "location": "experiments/WORK-555/failure_log.md:846（§19.2 的 N7-1 处置 cell：registry ⑥ 改为与 comment/report 同一句口径：「6 轮，其中 4 轮判 FAIL、2 轮判 PASS（第1轮 FAIL（…）；…；第6轮 PASS（…））」）",
+      "problem": "该处置 cell 用**上一轮的数字**作为「改成什么样式」的引文，而本轮实际渲染已是「7 轮，其中 4 轮判 FAIL、3 轮判 PASS（第1轮 FAIL（…）；…；第7轮 PASS（…））」。作为处置说明的**格式举例**并不算错（同一行的「问题」列写「6 轮，其中 4 轮判 FAIL」正是当时的问题状态），但引文未标注时点，读者可能把引号里的串当成现值 —— 这正是 S6-1/S7-1 一类「指认失真」的同类风险点。仅陈述性、未影响任何数值或判词，且 registry/comment/report 三处的**实际**渲染本身正确且一致。",
+      "evidence": "① 文本实测：`git show 6f2ad07:experiments/WORK-555/failure_log.md | sed -n '846p'` → 「| N7-1 | registry ⑥ 只给「6 轮，其中 4 轮判 FAIL」，不给 PASS 计数、逐轮不列判决，与 comment/report 口径不一 | registry ⑥ 改为与 comment/report **同一句口径**：「6 轮，其中 4 轮判 FAIL、2 轮判 PASS（第1轮 FAIL（…）；…；第6轮 PASS（…））」 |」。② 本轮实际渲染实测：`git show 6f2ad07:experiments/registry.md | grep -o '独立审查 [0-9]* 轮，其中 [0-9]* 轮判 FAIL、 [0-9]* 轮判 PASS'` → 「独立审查 7 轮，其中 4 轮判 FAIL、3 轮判 PASS」；final_comment.md:93 → 「### 独立代码审查（7 轮，其中 4 轮判 FAIL、3 轮判 PASS → 逐项处置 → 增量复审）」；report.html → 「共 7 轮，其中 4 轮判 FAIL、 3 轮判 PASS」。三份**现值**一致且正确（详见 round7_findings_disposition / independent_alignment）。③ 全仓库扫描：提交态 `grep -o '[0-9]+ 轮[^，。；、]{0,18}'` 于 failure_log.md 命中「2 轮判 PASS（第1轮 FAIL（…）」1 处（即本条），其余「轮」字样均为历史叙述或模型轮次（0 轮 / 50 轮 / 2000 轮）。",
+      "fix": "把 §19.2 的 N7-1 处置 cell 的引文改成不带具体轮数的格式模板（如「N 轮，其中 M 轮判 FAIL、K 轮判 PASS（第1轮 <判决>（…）；…）」）或补上时点标注；改完重跑 final_numbers --check 与自证清单。",
+      "status": "open"
+    }
+  ],
+  "round7_findings_disposition": {
+    "S7-1": {
+      "severity_in_round7": "suggestion",
+      "conclusion": "已关闭",
+      "evidence": "① 实现：scripts/work555_final_comment.py:61-75 新增 `_latest_section_ref()`——`nums = [int(m) for m in re.findall(r\"^## §(\\d+)\", fh.read(), flags=re.M)]`，返回 f\"§{max(nums)}\"（文件缺失或无匹配时返回「（末节）」）；provenance 末句改为 f\"最新一轮收口见 `failure_log.md` {_latest_section_ref()}。\"（第 124 行）。② **动态性实验（沙箱 /srv/share/w555_review_r8/nc_dyn8，完整副本）**：基线 → 「最新一轮收口见 `failure_log.md` §19。」；追加 `## §20 临时追加章节` 后重生成 → 「§20。」；删掉 §20 → 回落「§19。」；再删掉 §19（当前最大 18）→ 回落「§18。」—— 指针随盘上文件双向跟随，确由数据驱动。③ 提交态渲染实测：`git show 6f2ad07:experiments/WORK-555/final_comment.md | sed -n '11p'` 末句 → 「…最新一轮收口见 `failure_log.md` §19。」；盘上 failure_log 实际最大章节实测为 §19（`grep -n '^## §' failure_log.md` → 末节 883 行起的 §19），两者一致。④ 指针唯一性：`git show 6f2ad07:experiments/WORK-555/report.html | grep -c '最新一轮收口见'` = 0、`git show 6f2ad07:experiments/registry.md | grep -c '最新一轮收口见'` = 0 —— 该指针只存在于 final_comment.md，report/registry 无此类指认，故不存在跨交付件指认不一致；生成器中其余 § 字面量经逐条核对均为**预注册章节号**（§6.2/§6.3/§7.2/§4.6/§8 等）或**failure_log 历史章节**（§12.2/§12.3/§12.4/§13/§14/§15），对应章节均真实存在，非「最新」类指针。",
+      "residual": "无"
+    },
+    "N7-1": {
+      "severity_in_round7": "nit",
+      "conclusion": "已关闭",
+      "evidence": "① 实现：scripts/work555_final_numbers.py:542-549 的 registry ⑥ 改为「**独立审查 {N} 轮，其中 {FAIL 数} 轮判 FAIL、PASS 数 轮判 PASS**（第{rd}轮 {判决}（{blocking} blocking + {suggestion} suggestion + {nit} nit）；…）」，逐轮带判决与分级计数。② **三份同源同值实测**（沙箱 pristine，脚本对照盘上 7 份 review_round*.json 真值）：真值 = 7 轮、FAIL×4 / PASS×3，逐轮 = [(1,FAIL,2,3,4), (2,FAIL,1,4,2), (3,FAIL,3,6,4), (4,FAIL,2,4,3), (5,PASS,0,2,2), (6,PASS,0,1,1), (7,PASS,0,1,1)]；comment 标题「7 轮，其中 4 轮判 FAIL、3 轮判 PASS」、report「共 7 轮，其中 4 轮判 FAIL、3 轮判 PASS」、registry「独立审查 7 轮，其中 4 轮判 FAIL、3 轮判 PASS」—— 三方计数与真值一致；report 逐轮列表 == registry 逐轮列表 == 盘上真值（逐项比较均为 True）。③ §19.4 的留痕索引 7 行（1 FAIL 2+3+4 / 2 FAIL 1+4+2 / 3 FAIL 3+6+4 / 4 FAIL 2+4+3 / 5 PASS 0+2+2 / 6 PASS 0+1+1 / 7 PASS 0+1+1）与盘上真值逐行一致（实测 True）。",
+      "residual": "N8-1（§19.2 的处置 cell 引文仍用上一轮数字；现值渲染本身正确）"
+    }
+  },
+  "dynamic_pointer_test": {
+    "purpose": "验证 S7-1 的处置是否真的「随盘上 failure_log.md 变化」，而非把 §19 写死",
+    "sandbox": "/srv/share/w555_review_r8/nc_dyn8（pristine 的完整副本）",
+    "steps": [
+      "① 基线：failure_log.md 最大章节 §19 → 评论渲染「最新一轮收口见 `failure_log.md` §19。」",
+      "② 追加「## §20 临时追加章节（审查方实验用）」→ 重生成 → 渲染变为「§20。」",
+      "③ 删除 §20（当前最大 19）→ 重生成 → 回落「§19。」",
+      "④ 删除 §19（当前最大 18）→ 重生成 → 回落「§18。」"
+    ],
+    "result": "DYNAMIC CONFIRMED —— 指针在追加与删除两个方向都随盘上文件同步变化，三次改动后各回落一次，无写死、无缓存残留。",
+    "note": "实验只在沙箱内进行，未触碰被审仓库；被审仓库的 review_round7.json 与我方副本 sha256 逐位相同（86f857e4144f51c0…），确认生产者为逐字抄入。"
+  },
+  "section_19_3_verification": {
+    "target": "failure_log.md §19.3「处置后的复跑结果（实测）」逐项核对",
+    "items": [
+      {
+        "claim": "精度诊断 8/8 行 rel = 0.0",
+        "verified": true,
+        "evidence": "float32_quant_diag.json：n_rows=8、n_over_tol=0，且 8 行的 rel_diff_func_vs_reported 全为 0.0（实测）"
+      },
+      {
+        "claim": "独立复算 PASS / blocking 0 / 330 项",
+        "verified": true,
+        "evidence": "提交态 audit_findings.json：verdict=PASS、n_blocking=0、n_findings=330；沙箱独立重跑同样 PASS/0/330 且项集合与提交相同"
+      },
+      {
+        "claim": "Δ_ic 复算值 −0.2914861368509015 与建模侧逐位一致",
+        "verified": true,
+        "evidence": "final_numbers.json 的 primary.delta_ic_mean = −0.2914861368509015；审查方独立复算 −0.2914861368509014（1 ULP = 3.4e-16，远低于 1e-6 判据）"
+      },
+      {
+        "claim": "8 臂回测 n_guard_violations = 0",
+        "verified": true,
+        "evidence": "backtest_*.json 8 份的 n_guard_violations 实测全为 0"
+      },
+      {
+        "claim": "不可成交断言 8/8",
+        "verified": true,
+        "evidence": "nomask_assert.json：n_combinations=8、n_triggered=8、all_triggered=true、rows=8"
+      },
+      {
+        "claim": "权重不变量 max Σw = 1.000000000、max|Σw+cash−1| = 5.551e-16",
+        "verified": true,
+        "evidence": "audit_findings.json 的 weight_invariant 16 项：measured=1.0、ledger_max_dev=5.551115123125783e-16、n_days_over_1=0（实测）"
+      },
+      {
+        "claim": "自证清单 13 项全过（exit 0）",
+        "verified": true,
+        "evidence": "审查方在 pristine 沙箱实跑 scripts/work555_selfcheck.sh → 13 段全部 PASS、exit=0；连续两次跑均 exit=0（幂等）"
+      },
+      {
+        "claim": "final_numbers / artifact_manifest / comment / report 四道 --check 均 exit 0",
+        "verified": true,
+        "evidence": "干净沙箱实跑：final_numbers --check → [OK] …判词 未复现（退）exit 0；artifact_manifest --check → [OK] 产物清单 44 份 exit 0；comment --check → [PASS] 22,349 字符 exit 0；report --check → [PASS] 1,330,712 字符 exit 0"
+      },
+      {
+        "claim": "产物清单 44 份逐份 sha256 一致",
+        "verified": true,
+        "evidence": "artifact_manifest.json n_items=44；审查方逐份 sha256 实测不一致 0 项；work555_artifact_manifest.py --check exit 0"
+      },
+      {
+        "claim": "快照 6/6 MATCH",
+        "verified": true,
+        "evidence": "自证清单快照段 6 份全 MATCH；final_numbers --check 亦报「快照 6/6 份 sha256 MATCH」"
+      },
+      {
+        "claim": "重跑 scripts/work555_finalize_v4.sh（2026-11-24 22:2x）",
+        "verified": false,
+        "evidence": "**与产物时间戳不符**：本轮产物 generated_at 为清单 22:09:31、审计 22:09:51、数字 22:09:51；「22:2x」不是合法时间戳。该项单列为 S8-1（suggestion），其余各项均为真"
+      }
+    ],
+    "summary": "10 项核实为真、1 项（收口时间戳）核实为假 → S8-1。"
+  },
+  "independent_recompute_conclusion": {
+    "verdict": "PASS",
+    "n_checks": 352,
+    "n_blocking": 0,
+    "implementation": "审查方自带从头写的复算实现 /srv/share/w555_review_r8/indep_recompute_r8.py（沿用第五至七轮同一实现，仅改路径常量；不 import scripts/work555_dee.py / scripts/work555_backtest.py / audit/recompute_work555.py；scipy.rankdata 平均并列秩 + 手写 Pearson + 独立现金账本回测）",
+    "coverage": "DEE / MLP-only / XGBoost / XGBoost(无早停诊断) × 种子 42,43 共 8 组，逐日截面 Spearman 与 Pearson IC、两档成本(main_8bps / sens_5bps) 的组合账本与年化/Sharpe/MDD、权重不变量（max Σw、Σw>1 天数、max|Σw+cash−1|）、Δ_ic 逐种子与均值、CI、RankIC 极差、DEE 净 Sharpe 均值",
+    "result": "352 项检查全部通过、0 blocking（脚本首行输出 {\"verdict\": \"PASS\", \"n_checks\": 352, \"n_blocking\": 0}，末行「blocking items: 0」）；Δ_ic 均值 −0.2914861368509014、DEE 净 Sharpe 均值 −0.5841348775267191（与交付件一致）。",
+    "caveat": "Δ_ic 的 1 ULP 差异来自审查方 scipy.rankdata 与建模侧秩实现的浮点求和次序，与前几轮同源，远低于 1e-6 判据。"
+  },
+  "independent_alignment": {
+    "verdict": "PASS",
+    "n_checks": 195,
+    "n_mismatch": 0,
+    "method": "沿用第五至七轮脚本：/srv/share/w555_review_r8/align_check2_r8.py（181 项）+ /srv/share/w555_review_r8/align_comment_r8.py（14 项，含 final_comment.md），均指向本轮 pristine 沙箱",
+    "result": "align_check2 → 「总检查项 181；不一致 0」；align_comment → 「final_comment.md 同量对齐：共 14 项，不一致 0」→ 合计 195 项零不一致。",
+    "extra": "另做三方同源同值专项比对（轮数 / FAIL·PASS 计数 / 逐轮判决与分级计数）：三份交付件均等于盘上 7 份 review_round*.json 的真值；§19.4 留痕索引 7 行与真值逐行一致；旧哈希 0be40bf5ebf74097 / ade3543a1031bfd4 已无残留（实测 71312f83b28b19d2 / db2214ff8009dade）。"
+  },
+  "prereg_verdict_execution": {
+    "verdict": "PASS",
+    "detail": "审查方未重下判词，只核对交付件判词是否与产物一致、是否按预注册 §6.2 机械得出。逐条机械复算：① Δ_ic ∈ [+2%,+30%] → 不命中；② Δ_ic ≤ 0 → 命中（−0.2914861368509015 = −29.15%）；③ Δ_ic > +50% → 不命中；④ 净 Sharpe(rf=0, 主口径 8 bps) < 0 → 命中（DEE 两种子 −0.30272401243421065 / −0.8655457426192276，均值 −0.5841348775267191）；⑤ 两种子 RankIC 绝对量 max−min > 0.01 → 不命中（DEE 0.008696540010561016、MLP-only 0.0009822002180023895），故不标「不稳定」；⑥ 95% CI 含 0 → 命中，写明「未复现」。交付件 final_numbers.json 的 verdict 实测 = {delta_ic_bucket: 退（≤ 0）, sharpe_negative: true, verdict: 退, verdict_word: 未复现（退）}，rules 三条与命中项逐条对应。",
+    "increment_impact_on_verdict": "判词相关量在本增量内**逐字节未动**：① `git diff --name-only 8ec570b 6f2ad07` 共 11 个文件，**不含任何 run_*.json / backtest_*.json**（实测 grep 为空），改动只有两个生成器 + 文字层产物 + 复审留痕；② 两版 final_numbers.json 剔除 generated_at / 审计时间戳 / 清单 sha256 后**逐字段完全相同**（实测 True）；③ delta_ic_mean −0.2914861368509015、delta_ic_range 0.21864887293208402、rankic_range_dee 0.008696540010561016、verdict_word「未复现（退）」、rules 三条逐项相同；④ 审计 n_findings 330 / n_blocking 0 未变；⑤ 预注册不在 diff 内。",
+    "noted_gap": "预注册仍未定义 (0,+2%) 与 (+30%,+50%] 两个区间（第三至七轮均提，仍未补）；本单实测落在 ≤0 分支，不影响判词。",
+    "prereg_immutability": "预注册逐字节未改：本增量 diff 不含 experiments/WORK-555/preregistration.md。"
+  },
+  "total_ledger_answer": {
+    "question": "八轮下来，本单是否还存在会改变判词（Δ_ic 均值 或 DEE 净 Sharpe 均值口径）的未关闭问题？",
+    "answer": "**没有。** 明确回答：不存在任何未关闭的问题会改变判词。本轮新增的 S8-1（§19.3 收口时间戳与产物不符）与 N8-1（§19.2 处置 cell 引文用上一轮数字），以及本轮闭合的 S7-1 / N7-1，全部落在**记录与指认**层面，不触及 Δ_ic、DEE 净 Sharpe、判词或任何研究数值。",
+    "basis": [
+      "① 判词相关量逐字节未动：本增量 diff 不含任何 run_*.json / backtest_*.json；final_numbers.json 剔除时间戳类字段后逐字段相同（实测 True）；verdict/rules 逐项相同。",
+      "② 本增量只改文字层（两个生成器 + 交付件重出），未重跑任何臂、未改任何数值；审计 330 项 / 0 blocking 未变。",
+      "③ 独立复算（审查方自带实现，352 项 0 blocking）复现的 Δ_ic 均值与 DEE 净 Sharpe 均值与交付件一致，§6.2 各条命中项不变。",
+      "④ 审计侧：提交态审计重跑 PASS / 0 blocking / 330 项，与提交逐条一致（项集合相同、共有项差异 0、severity 全 pass）。",
+      "⑤ 交付件之间 195 项同量对齐零不一致；自证清单 13/13 全过且幂等；四道 --check 在干净沙箱全 exit 0；产物清单 44/44 逐份 sha256 一致；预注册逐字节未改。"
+    ],
+    "caveat": "该回答只覆盖「是否改变判词」。本轮遗留 S8-1（suggestion）与 N8-1（nit）属记录层：S8-1 是 §19.3「（实测）」段里的收口时间写成非法的「22:2x」且与产物 generated_at（22:09:31/22:09:51）不符；N8-1 是 §19.2 的 N7-1 处置 cell 引用的样式举例沿用上一轮数字（「6 轮…第6轮 PASS」）。两者都不改变判词、不改变任何数值，也不影响可复现性。"
+  },
+  "byte_identity_evidence": {
+    "method": "① 在 pristine 沙箱（全部 6f2ad07 git blob + 工作区按清单 sha256 提供的 25 份被 gitignore 的 npz/csv 实体副本）独立重跑 audit/recompute_work555.py 并与提交逐条比对；② 同一沙箱跑 scripts/work555_selfcheck.sh 两次（幂等）；③ 在**未重跑审计的干净沙箱**跑四道 --check；④ 负控与动态性实验另在 nc_dyn8 副本进行（改盘上 review_round*.json 与 failure_log.md，不触碰被审仓库）。",
+    "audit_findings": "IDENTICAL —— 沙箱独立重跑：verdict=PASS、n_blocking=0、n_findings=330、severity 分布 {'pass': 330}；与提交态比对：**项集合完全相同**（仅提交有 = []、仅重跑有 = []），318 项共有项的 severity/measured/expected/gap **逐项差异 0**，唯一差异是 generated_at（提交 22:09:51 / 重跑 22:13:47）。ic::* = 16 项、其中 12 项 gap 恰为 0.0。",
+    "selfcheck_committed_state": "PASS 13/13、EXIT=0 —— pristine 沙箱实跑 scripts/work555_selfcheck.sh：primitives / mutation_test / tree_bruteforce / thread_sens / artifact_manifest / quant_diag / final_numbers / comment_check / report_check 九个 run 项 + nomask_all 一个 run 项 + 审计新鲜度 / no-mask 断言 / 快照 sha256 三个内联段全部 PASS；**连续两次跑均 exit=0**（幂等，run2 末行「自证清单：全部通过」）。",
+    "four_check_gates": "PASS ×4 —— 干净沙箱（audit_findings.json 用提交态 blob，避免审查方重跑审计造成 generated_at 漂移）实跑：final_numbers --check → 「[OK] final_numbers.json 与两处文档一致；快照 6/6 份 sha256 MATCH；判词 未复现（退）」exit 0；artifact_manifest --check → 「[OK] 产物清单 44 份逐份 sha256 一致」exit 0；comment --check → 「[PASS] final_comment.md 与生成器输出逐字节一致（22,349 字符）」exit 0；report --check → 「[PASS] report.html 与生成器输出逐字节一致（1,330,712 字符）」exit 0。",
+    "deliverable_hashes": "交付评论表内声明与仓库实测一致：report.html 71312f83b28b19d2 / 1,346,374 B、report_print.pdf db2214ff8009dade / 1,527,725 B、report_firstscreen_1440x900.png 4ca2acfe2c3cb2ce（sha256sum 与 stat 实测逐一吻合）。",
+    "review_trail": "第七轮留痕一致性：仓库内 experiments/WORK-555/review_round7.json 的 sha256 = 86f857e4144f51c0b47053f0d561192d550bc8b2a4e9cf6b2753e2dc9d99cbca，与审查方第七轮沙箱副本 /srv/share/w555_review_r7/review_round7.json **逐字节相同**；其 summary 字段亦逐字出现在 final_comment.md 的第 7 轮条目中（实测 True）。"
+  },
+  "reviewer_unverified": [
+    "scripts/work555_finalize_v4.sh 的端到端执行过程 —— 未取到：审查方未在沙箱跑完整 finalize_v4.sh（会重算 8 臂回测并重写全部产物）。已间接核实：收口确已发生（清单 22:09:31 / 审计 22:09:51 / 数字 22:09:51），且收口后的四道 --check 与自证清单在提交态全绿。",
+    "experiments/WORK-555/report_print.pdf 与 report.html 的渲染一致性（PDF 是否与 HTML 同版）—— 未取到：生成 PDF 需浏览器/打印环境，审查方未逐页比对；只核了哈希（db2214ff8009dade）与评论表内声明一致。",
+    "第 5 轮之前各轮的原始留痕（review_round1..6.json）的独立重演 —— 本轮按交办范围未重做，只在必要处引用（各轮 verdict 以 git blob 核对：FAIL/FAIL/FAIL/FAIL/PASS/PASS/PASS）。",
+    "预注册 (0,+2%) 与 (+30%,+50%] 两个未定义区间 —— 仍未补（前几轮已提），不影响本单判词（实测落在 ≤0 分支）。",
+    "**观察（非本增量引入，不计为发现）**：交付评论的轮次标签写法不统一——生成器 scripts/work555_final_comment.py:288 的 label 映射把第 1~4 轮写成中文数字（「第一轮」…「第四轮」），第 5 轮起为「第 N 轮」；事实无误，仅排版风格不一致，自第五轮即如此，本轮未变更。"
+  ],
+  "publication_readiness": {
+    "question": "在本次增量之后，本单是否具备「可以对外发布终版交付评论」的条件？",
+    "answer": "**具备发布条件。** 本轮无 blocking；第七轮 2 项遗留（S7-1 动态章节指针、N7-1 registry 口径统一）均经审查方实验/比对**独立验证为真**；判词「未复现（退）」按预注册 §6.2 机械得出且判词相关量逐字节未动；提交态 pristine 沙箱自证清单 13/13 全过且幂等；审计 330 项 0 blocking 与提交逐条一致；四道 --check 在干净沙箱全部 exit 0；产物清单 44/44 逐份 sha256 一致；快照 6/6 MATCH；跨交付件 195 项同量对齐零不一致；预注册逐字节未改。",
+    "not_blocking_but_advisable": "S8-1（suggestion）：§19.3「（实测）」里的收口时间写成「2026-11-24 22:2x」，与产物 generated_at（22:09:31 / 22:09:51）不符且不是合法时间戳 —— 这是要对外发布的一处**记录不可核对**，建议发布前顺手改成与产物一致的精确值或改为引用 `generated_at`；但不构成发布阻塞（该段其余 10 项实测声明经审查方逐项复核**全部为真**，不影响数字、判词、审计结论与可复现性）。N8-1（nit）：§19.2 的 N7-1 处置 cell 引用的样式举例沿用上一轮数字（「6 轮…第6轮 PASS」），实际渲染是「7 轮…第7轮 PASS」；建议改成不带具体轮数的模板，但不阻塞发布。",
+    "note": "以上两条均为记录/措辞层，不改变本轮的 PASS 判决；建议的修改只涉及 failure_log.md 文字与（可选）生成器模板，不需重跑任何臂、不触碰任何数值。"
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-24T22:09:51+08:00",
+  "generated_at": "2026-11-24T22:17:38+08:00",
   "experiment": "WORK-555",
   "seeds": [
     42,
@@ -1460,9 +1460,9 @@
         -0.8655457426192276
       ]
     },
-    "generated_at": "2026-11-24T22:09:51+08:00",
-    "artifact_manifest_sha256_recorded": "1a8bf9fd81da29992b8d9e6a11b40a32276005c6cacb6926d71e02954a7fb80f",
-    "artifact_manifest_sha256_current": "1a8bf9fd81da29992b8d9e6a11b40a32276005c6cacb6926d71e02954a7fb80f",
+    "generated_at": "2026-11-24T22:17:38+08:00",
+    "artifact_manifest_sha256_recorded": "75e0706b569c84081775a4277fa16fd8ee5d7143e3f3fa400feb3572e23650f8",
+    "artifact_manifest_sha256_current": "75e0706b569c84081775a4277fa16fd8ee5d7143e3f3fa400feb3572e23650f8",
     "stale": false
   },
   "v2_reference": {
