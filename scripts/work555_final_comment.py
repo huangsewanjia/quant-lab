@@ -166,10 +166,17 @@ def main():
     A("")
     A("| 论文主张 | 论文值 | 本单实测 | 判定 |")
     A("|---|---|---|---|")
+    _deltas = [x["delta_ic"] for x in p.get("per_seed", [])]
+    _all_neg = bool(_deltas) and all(d < 0 for d in _deltas)
+    _all_pos = bool(_deltas) and all(d > 0 for d in _deltas)
+    _vs_paper = ("**与论文 +9.1% 符号相反**（本单两种子均为负）" if _all_neg else
+                 "**与论文 +9.1% 符号相同**（本单两种子均为正）" if _all_pos else
+                 "本单两种子符号不一致")
+    _within = ("两种子符号翻转" if p.get("sign_flip") else "两种子同号")
     A("| Table 2：Full DEE vs MLP only 的 Δ | +9.1% ((0.060−0.055)/0.055) | "
       f"Δ_ic 两种子 {' / '.join(nf(x['delta_ic']*100, 2, pct=True, sign=True) for x in p.get('per_seed', []))}"
-      f"（mean {nf(p.get('delta_ic_mean', 0)*100, 2, pct=True, sign=True)}） | **未复现**（符号"
-      f"{'翻转' if p.get('sign_flip') else '一致'}，均值不代表方向） |")
+      f"（mean {nf(p.get('delta_ic_mean', 0)*100, 2, pct=True, sign=True)}） | **未复现**"
+      f"（{_vs_paper}；{_within}；均值 {nf(p.get('delta_ic_mean', 0)*100, 2, pct=True, sign=True)} 不代表方向） |")
     A("| Table 1：DEE RankIC | 0.060 | "
       f"{nf(sum(port[f'dee_s{s}']['rankic'] for s in (42,43))/2, 4)}（两种子均值） | "
       "**绝对水平远低**（因子 48 vs 158、自建面板、PIT 口径、含 A 股成本） |")

@@ -1,0 +1,146 @@
+{
+ "purpose": "预注册 §7 失败判据第 4 条：刻意关闭可成交掩码必须报错",
+ "protocol": {
+  "arms": [
+   "dee",
+   "mlp_only",
+   "xgb",
+   "xgbfull"
+  ],
+  "seeds": [
+   42,
+   43
+  ],
+  "threads": {
+   "OMP_NUM_THREADS": "1",
+   "OPENBLAS_NUM_THREADS": "1",
+   "MKL_NUM_THREADS": "1",
+   "NUMEXPR_NUM_THREADS": "1"
+  }
+ },
+ "n_combinations": 8,
+ "n_triggered": 8,
+ "all_triggered": true,
+ "rows": [
+  {
+   "arm": "dee",
+   "seed": 42,
+   "exit_code": 1,
+   "triggered": true,
+   "message_line": "UntradablePriceRead: UNTRADABLE_PRICE_READ ts_code=300017.SZ trade_date=2017-01-16 00:00:00 reason=limit_down purpose=sell_fill",
+   "fields": {
+    "ts_code": "300017.SZ",
+    "trade_date": "2017-01-16",
+    "reason": "limit_down",
+    "purpose": "sell_fill"
+   },
+   "stderr_sha256": "1df963b68bfa993d3ea5822c9961289711e247ea56b6058401ae81f9db3bb78f",
+   "cmd": "/tmp/w555venv/bin/python scripts/work555_backtest.py --arm dee --seed 42 --no-mask"
+  },
+  {
+   "arm": "dee",
+   "seed": 43,
+   "exit_code": 1,
+   "triggered": true,
+   "message_line": "UntradablePriceRead: UNTRADABLE_PRICE_READ ts_code=300017.SZ trade_date=2017-01-16 00:00:00 reason=limit_down purpose=sell_fill",
+   "fields": {
+    "ts_code": "300017.SZ",
+    "trade_date": "2017-01-16",
+    "reason": "limit_down",
+    "purpose": "sell_fill"
+   },
+   "stderr_sha256": "1df963b68bfa993d3ea5822c9961289711e247ea56b6058401ae81f9db3bb78f",
+   "cmd": "/tmp/w555venv/bin/python scripts/work555_backtest.py --arm dee --seed 43 --no-mask"
+  },
+  {
+   "arm": "mlp_only",
+   "seed": 42,
+   "exit_code": 1,
+   "triggered": true,
+   "message_line": "UntradablePriceRead: UNTRADABLE_PRICE_READ ts_code=000839.SZ trade_date=2017-02-17 00:00:00 reason=limit_up purpose=buy_fill",
+   "fields": {
+    "ts_code": "000839.SZ",
+    "trade_date": "2017-02-17",
+    "reason": "limit_up",
+    "purpose": "buy_fill"
+   },
+   "stderr_sha256": "a5ff43ca657de9e3f4ee319923ed1dd9a92ff94f94db29cc23a3fb44892387a4",
+   "cmd": "/tmp/w555venv/bin/python scripts/work555_backtest.py --arm mlp_only --seed 42 --no-mask"
+  },
+  {
+   "arm": "mlp_only",
+   "seed": 43,
+   "exit_code": 1,
+   "triggered": true,
+   "message_line": "UntradablePriceRead: UNTRADABLE_PRICE_READ ts_code=002797.SZ trade_date=2017-02-08 00:00:00 reason=limit_up purpose=buy_fill",
+   "fields": {
+    "ts_code": "002797.SZ",
+    "trade_date": "2017-02-08",
+    "reason": "limit_up",
+    "purpose": "buy_fill"
+   },
+   "stderr_sha256": "020041e6cc4224d2af34a0e50a5e9ff94e365e061d0f95e58f6f1e6bdbb4bc60",
+   "cmd": "/tmp/w555venv/bin/python scripts/work555_backtest.py --arm mlp_only --seed 43 --no-mask"
+  },
+  {
+   "arm": "xgb",
+   "seed": 42,
+   "exit_code": 1,
+   "triggered": true,
+   "message_line": "UntradablePriceRead: UNTRADABLE_PRICE_READ ts_code=000839.SZ trade_date=2017-02-17 00:00:00 reason=limit_up purpose=buy_fill",
+   "fields": {
+    "ts_code": "000839.SZ",
+    "trade_date": "2017-02-17",
+    "reason": "limit_up",
+    "purpose": "buy_fill"
+   },
+   "stderr_sha256": "a5ff43ca657de9e3f4ee319923ed1dd9a92ff94f94db29cc23a3fb44892387a4",
+   "cmd": "/tmp/w555venv/bin/python scripts/work555_backtest.py --arm xgb --seed 42 --no-mask"
+  },
+  {
+   "arm": "xgb",
+   "seed": 43,
+   "exit_code": 1,
+   "triggered": true,
+   "message_line": "UntradablePriceRead: UNTRADABLE_PRICE_READ ts_code=000839.SZ trade_date=2017-02-17 00:00:00 reason=limit_up purpose=buy_fill",
+   "fields": {
+    "ts_code": "000839.SZ",
+    "trade_date": "2017-02-17",
+    "reason": "limit_up",
+    "purpose": "buy_fill"
+   },
+   "stderr_sha256": "a5ff43ca657de9e3f4ee319923ed1dd9a92ff94f94db29cc23a3fb44892387a4",
+   "cmd": "/tmp/w555venv/bin/python scripts/work555_backtest.py --arm xgb --seed 43 --no-mask"
+  },
+  {
+   "arm": "xgbfull",
+   "seed": 42,
+   "exit_code": 1,
+   "triggered": true,
+   "message_line": "UntradablePriceRead: UNTRADABLE_PRICE_READ ts_code=002797.SZ trade_date=2017-02-08 00:00:00 reason=limit_up purpose=buy_fill",
+   "fields": {
+    "ts_code": "002797.SZ",
+    "trade_date": "2017-02-08",
+    "reason": "limit_up",
+    "purpose": "buy_fill"
+   },
+   "stderr_sha256": "020041e6cc4224d2af34a0e50a5e9ff94e365e061d0f95e58f6f1e6bdbb4bc60",
+   "cmd": "/tmp/w555venv/bin/python scripts/work555_backtest.py --arm xgbfull --seed 42 --no-mask"
+  },
+  {
+   "arm": "xgbfull",
+   "seed": 43,
+   "exit_code": 1,
+   "triggered": true,
+   "message_line": "UntradablePriceRead: UNTRADABLE_PRICE_READ ts_code=002797.SZ trade_date=2017-02-08 00:00:00 reason=limit_up purpose=buy_fill",
+   "fields": {
+    "ts_code": "002797.SZ",
+    "trade_date": "2017-02-08",
+    "reason": "limit_up",
+    "purpose": "buy_fill"
+   },
+   "stderr_sha256": "020041e6cc4224d2af34a0e50a5e9ff94e365e061d0f95e58f6f1e6bdbb4bc60",
+   "cmd": "/tmp/w555venv/bin/python scripts/work555_backtest.py --arm xgbfull --seed 43 --no-mask"
+  }
+ ]
+}

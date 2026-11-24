@@ -35,31 +35,42 @@
     "n_train_rows": 336580,
     "steps_run": 8000,
     "best_step": 7740,
-    "best_ens_val_mse": 0.0009948294144123792,
+    "best_ens_val_mse": 0.000988070924294008,
     "early_stopped": false,
-    "elapsed_sec": 5444.3,
-    "eval_count": 400
+    "elapsed_sec": 8294.9,
+    "eval_count": 400,
+    "loss_monitor": "ensemble_mse = MSE(mean_k f_k(x), y)  # 预注册 §4.1/§4.3「集成级验证 MSE」",
+    "alt_monitor_mean_expert_mse": {
+      "best_step": 7740,
+      "best_val": 0.0009948294144123792,
+      "note": "旧实现口径（逐专家 MSE 的平均）对照值，仅用于量化口径差异"
+    }
   },
   "val_loss_tail": [
     {
       "step": 7920,
-      "ens_val_mse": 0.0009955584828276187
+      "ens_val_mse": 0.0009888854107946872,
+      "mean_expert_val_mse": 0.0009955584828276187
     },
     {
       "step": 7940,
-      "ens_val_mse": 0.0009958422277122736
+      "ens_val_mse": 0.0009888864409837224,
+      "mean_expert_val_mse": 0.0009958422277122736
     },
     {
       "step": 7960,
-      "ens_val_mse": 0.0009966961690224708
+      "ens_val_mse": 0.0009892980708336272,
+      "mean_expert_val_mse": 0.0009966961690224708
     },
     {
       "step": 7980,
-      "ens_val_mse": 0.0009970517188776285
+      "ens_val_mse": 0.000989541587716884,
+      "mean_expert_val_mse": 0.0009970517188776285
     },
     {
       "step": 8000,
-      "ens_val_mse": 0.0009975192078854889
+      "ens_val_mse": 0.0009886622785863135,
+      "mean_expert_val_mse": 0.0009975192078854889
     }
   ],
   "ic_filter": {
@@ -144,5 +155,5 @@
       "ic": 0.031063414388615075
     }
   },
-  "elapsed_sec": 5573.0
+  "elapsed_sec": 8426.6
 }

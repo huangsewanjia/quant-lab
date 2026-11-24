@@ -1,39 +1,41 @@
 {
   "experiment": "WORK-555",
+  "generated_at": "2026-11-24T20:57:23+08:00",
+  "artifact_manifest_sha256": "d2846eab2e8ef168d288e23ccb38dfc9956a14f63f4165fa1660a5dc6311b246",
   "tolerance_rel_diff": 1e-06,
-  "n_findings": 361,
-  "n_blocking": 238,
-  "verdict": "BLOCKING",
+  "n_findings": 318,
+  "n_blocking": 0,
+  "verdict": "PASS",
   "primary_test_recomputed": {
     "per_seed": [
       {
         "seed": 42,
-        "rankic_dee": 0.030327351504239576,
-        "rankic_mlp": 0.010116964226472241,
-        "delta_ic": 1.9976730989009974
+        "rankic_dee": 0.030327373520180168,
+        "rankic_mlp": 0.037082359109926334,
+        "delta_ic": -0.18216170038485952
       },
       {
         "seed": 43,
-        "rankic_dee": 0.023148644058997664,
+        "rankic_dee": 0.02163083350961915,
         "rankic_mlp": 0.036100158891923945,
-        "delta_ic": -0.3587661448167115
+        "delta_ic": -0.40081057331694353
       }
     ],
-    "delta_ic_mean": 0.819453477042143,
-    "delta_ic_range": 2.356439243717709,
-    "rankic_range_dee": 0.007178707445241912,
-    "rankic_range_mlp_baseline": 0.025983194665451702,
-    "rankic_unstable": true,
+    "delta_ic_mean": -0.2914861368509015,
+    "delta_ic_range": 0.21864887293208402,
+    "rankic_range_dee": 0.008696540010561016,
+    "rankic_range_mlp_baseline": 0.0009822002180023895,
+    "rankic_unstable": false,
     "rankic_unstable_detail": {
       "dee": false,
-      "mlp_baseline": true,
+      "mlp_baseline": false,
       "threshold": 0.01,
       "metric": "RankIC 绝对量 max-min（预注册 §6.2）"
     },
     "n_seeds": 2,
     "dee_net_sharpe_main_8bps": [
       -0.30272401243421065,
-      -0.4122368972586896
+      -0.8655457426192276
     ]
   },
   "findings": [
@@ -93,6 +95,402 @@
     },
     {
       "severity": "pass",
+      "item": "artifact_sha256::preds_dee_s42.npz",
+      "measured": "52048ef19cfc5e21177d58a0cef4cf1b96222aa6c5cd2886bbaf2ce85f0676f9",
+      "expected": "52048ef19cfc5e21177d58a0cef4cf1b96222aa6c5cd2886bbaf2ce85f0676f9",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/preds_dee_s42.npz",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::preds_dee_s43.npz",
+      "measured": "7424cbcef47cdd01fc83e577caf278ea5271740fa222edf2ed29ad5ca2d6d970",
+      "expected": "7424cbcef47cdd01fc83e577caf278ea5271740fa222edf2ed29ad5ca2d6d970",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/preds_dee_s43.npz",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::preds_mlp_only_s42.npz",
+      "measured": "cfda7e05165c63d917a0c434105ee22b1b509ba152bcddc0cdb5e403d7a247d2",
+      "expected": "cfda7e05165c63d917a0c434105ee22b1b509ba152bcddc0cdb5e403d7a247d2",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/preds_mlp_only_s42.npz",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::preds_mlp_only_s43.npz",
+      "measured": "41330ef66ba3dc36802c669f041024f004935213341d312fffe1b588537aedc3",
+      "expected": "41330ef66ba3dc36802c669f041024f004935213341d312fffe1b588537aedc3",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/preds_mlp_only_s43.npz",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::preds_xgb_s42.npz",
+      "measured": "208fbb1b221eabb8a139a05f6057d0314b9cd63a978684e99c58696a9adfe525",
+      "expected": "208fbb1b221eabb8a139a05f6057d0314b9cd63a978684e99c58696a9adfe525",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/preds_xgb_s42.npz",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::preds_xgb_s43.npz",
+      "measured": "abc385b958435a0bc4d31446e21f058b303080ca27b7c89382ba4de34e653e7f",
+      "expected": "abc385b958435a0bc4d31446e21f058b303080ca27b7c89382ba4de34e653e7f",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/preds_xgb_s43.npz",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::preds_xgbfull_s42.npz",
+      "measured": "e1f8b191ba33580632cb305084a886beb13c3c9553a285e2fabc5254615fb939",
+      "expected": "e1f8b191ba33580632cb305084a886beb13c3c9553a285e2fabc5254615fb939",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/preds_xgbfull_s42.npz",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::preds_xgbfull_s43.npz",
+      "measured": "e3e982ac9e79038415c72006d3449cca0f9f80c3a1c1d4fc9318e1adcb33d4ea",
+      "expected": "e3e982ac9e79038415c72006d3449cca0f9f80c3a1c1d4fc9318e1adcb33d4ea",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/preds_xgbfull_s43.npz",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::bt_daily_dee_s42_main_8bps.csv",
+      "measured": "44cb4b3f0290bb76d689cada35198957033d7573d454bcf54c5d1335e2c01de2",
+      "expected": "44cb4b3f0290bb76d689cada35198957033d7573d454bcf54c5d1335e2c01de2",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/bt_daily_dee_s42_main_8bps.csv",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::bt_daily_dee_s42_sens_5bps.csv",
+      "measured": "9f32d11e726c7f2a767ef5f20aedc94e1586d9eac6157d5762d805daa7c2170a",
+      "expected": "9f32d11e726c7f2a767ef5f20aedc94e1586d9eac6157d5762d805daa7c2170a",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/bt_daily_dee_s42_sens_5bps.csv",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::bt_daily_dee_s43_main_8bps.csv",
+      "measured": "3398a24630a20353cf2e38da1432836b0f61d49af24df9bc7688973ad40cdcca",
+      "expected": "3398a24630a20353cf2e38da1432836b0f61d49af24df9bc7688973ad40cdcca",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/bt_daily_dee_s43_main_8bps.csv",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::bt_daily_dee_s43_sens_5bps.csv",
+      "measured": "bab6b40fdaad97dc0b1dfb65df3bf9a31175def120f09a9e55082ae9989d49e2",
+      "expected": "bab6b40fdaad97dc0b1dfb65df3bf9a31175def120f09a9e55082ae9989d49e2",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/bt_daily_dee_s43_sens_5bps.csv",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::bt_daily_mlp_only_s42_main_8bps.csv",
+      "measured": "64bb897782736e0f9c18ca2c140aaefe29df7faef8cda3321328e5ea13ec8c09",
+      "expected": "64bb897782736e0f9c18ca2c140aaefe29df7faef8cda3321328e5ea13ec8c09",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/bt_daily_mlp_only_s42_main_8bps.csv",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::bt_daily_mlp_only_s42_sens_5bps.csv",
+      "measured": "171b479745f8d40b19e2bcb30a1788ae8b22f2f12c0be8280dc624c4bab951d0",
+      "expected": "171b479745f8d40b19e2bcb30a1788ae8b22f2f12c0be8280dc624c4bab951d0",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/bt_daily_mlp_only_s42_sens_5bps.csv",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::bt_daily_mlp_only_s43_main_8bps.csv",
+      "measured": "d441e2f575af11cb7464384ee007e28c7aba80ff3e88ade8a336428b5971a4bc",
+      "expected": "d441e2f575af11cb7464384ee007e28c7aba80ff3e88ade8a336428b5971a4bc",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/bt_daily_mlp_only_s43_main_8bps.csv",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::bt_daily_mlp_only_s43_sens_5bps.csv",
+      "measured": "5d63a82b824abed8f821ac75b8183b7024142d9a518d4a3e2d95608fef459a80",
+      "expected": "5d63a82b824abed8f821ac75b8183b7024142d9a518d4a3e2d95608fef459a80",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/bt_daily_mlp_only_s43_sens_5bps.csv",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::bt_daily_xgb_s42_main_8bps.csv",
+      "measured": "a0aac0dabcc9e28ae34264a59a3d3785015c1ef4644dbb82ca90936c60cc9a37",
+      "expected": "a0aac0dabcc9e28ae34264a59a3d3785015c1ef4644dbb82ca90936c60cc9a37",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/bt_daily_xgb_s42_main_8bps.csv",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::bt_daily_xgb_s42_sens_5bps.csv",
+      "measured": "d3a49caff4e46f9c024d34df562ae9dcdc6b706e9916516d2fd41841ee2ac005",
+      "expected": "d3a49caff4e46f9c024d34df562ae9dcdc6b706e9916516d2fd41841ee2ac005",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/bt_daily_xgb_s42_sens_5bps.csv",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::bt_daily_xgb_s43_main_8bps.csv",
+      "measured": "e6540f934376e8b3fc39903f8410d8271b63b29a6c251418769b4fdf5f7a24a8",
+      "expected": "e6540f934376e8b3fc39903f8410d8271b63b29a6c251418769b4fdf5f7a24a8",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/bt_daily_xgb_s43_main_8bps.csv",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::bt_daily_xgb_s43_sens_5bps.csv",
+      "measured": "d607b2b07e452f91e512a417b537c6621159a2833465976bef51b20ca12ed534",
+      "expected": "d607b2b07e452f91e512a417b537c6621159a2833465976bef51b20ca12ed534",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/bt_daily_xgb_s43_sens_5bps.csv",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::bt_daily_xgbfull_s42_main_8bps.csv",
+      "measured": "c6fb2428e5788d1eef7efd338de16ff6cd1aa1105a4c0edde5d9d7383dd1a0e8",
+      "expected": "c6fb2428e5788d1eef7efd338de16ff6cd1aa1105a4c0edde5d9d7383dd1a0e8",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/bt_daily_xgbfull_s42_main_8bps.csv",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::bt_daily_xgbfull_s42_sens_5bps.csv",
+      "measured": "e344e9031dd4abeb995d645a8ca049f244298966305130eaf43b1ad8c6c70b76",
+      "expected": "e344e9031dd4abeb995d645a8ca049f244298966305130eaf43b1ad8c6c70b76",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/bt_daily_xgbfull_s42_sens_5bps.csv",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::bt_daily_xgbfull_s43_main_8bps.csv",
+      "measured": "7dd1789fccaaed0faa9632468bda62a42e948cd17d034e8f9161ed0b2e0ab8d5",
+      "expected": "7dd1789fccaaed0faa9632468bda62a42e948cd17d034e8f9161ed0b2e0ab8d5",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/bt_daily_xgbfull_s43_main_8bps.csv",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::bt_daily_xgbfull_s43_sens_5bps.csv",
+      "measured": "371482de09fcb8918a281ea25d92a6c4d8392a8603e9c8df4ab7977cbce6db49",
+      "expected": "371482de09fcb8918a281ea25d92a6c4d8392a8603e9c8df4ab7977cbce6db49",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/bt_daily_xgbfull_s43_sens_5bps.csv",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::sample.npz",
+      "measured": "2ad2f9df766ecc8563440ace3c49eabca2fd917fb90bd19bf0560523d20174d8",
+      "expected": "2ad2f9df766ecc8563440ace3c49eabca2fd917fb90bd19bf0560523d20174d8",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/sample.npz",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::sample_meta.json",
+      "measured": "9b6e06b4dcb3d39c7b782bed2795309330a44c576663ac4f8578bd090c7f6fac",
+      "expected": "9b6e06b4dcb3d39c7b782bed2795309330a44c576663ac4f8578bd090c7f6fac",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/sample_meta.json",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::run_dee_s42.json",
+      "measured": "d4b8cc306435eaef3ff27d6d30b08eea881b0262f0d0d8edcd201860d6a6a22d",
+      "expected": "d4b8cc306435eaef3ff27d6d30b08eea881b0262f0d0d8edcd201860d6a6a22d",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/run_dee_s42.json",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::run_dee_s43.json",
+      "measured": "54184a2399c4af7a854e4ebd46a4dad46bebc787969b68e2aaa67f28f4d2dced",
+      "expected": "54184a2399c4af7a854e4ebd46a4dad46bebc787969b68e2aaa67f28f4d2dced",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/run_dee_s43.json",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::run_mlp_only_s42.json",
+      "measured": "b6b379cd633d708fdebca6226196ce744074b9aeb7a2dd5a85a26b931d606018",
+      "expected": "b6b379cd633d708fdebca6226196ce744074b9aeb7a2dd5a85a26b931d606018",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/run_mlp_only_s42.json",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::run_mlp_only_s43.json",
+      "measured": "e09beffbe4078d6fafd7e9ca745eb34c35162372c4cc63fbc46c4b47d32becc3",
+      "expected": "e09beffbe4078d6fafd7e9ca745eb34c35162372c4cc63fbc46c4b47d32becc3",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/run_mlp_only_s43.json",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::run_xgb_s42.json",
+      "measured": "dac5c262bf2a9b50b229d3c5542c1a401e040148ddaec27e13028b29c33fd952",
+      "expected": "dac5c262bf2a9b50b229d3c5542c1a401e040148ddaec27e13028b29c33fd952",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/run_xgb_s42.json",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::run_xgb_s43.json",
+      "measured": "eee4a1049452a6edebba9cd81721746ff441f6bf3b7cadf613dac0dbf77953a9",
+      "expected": "eee4a1049452a6edebba9cd81721746ff441f6bf3b7cadf613dac0dbf77953a9",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/run_xgb_s43.json",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::run_xgbfull_s42.json",
+      "measured": "1e36a854b4b8c14473b7a149879daca0db9d07698808aa6699cd34d42868132c",
+      "expected": "1e36a854b4b8c14473b7a149879daca0db9d07698808aa6699cd34d42868132c",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/run_xgbfull_s42.json",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::run_xgbfull_s43.json",
+      "measured": "32bdac7b98e72dd9676c86b0a26fd15ae3c39c1441af695ce4c22e7676eb3bfd",
+      "expected": "32bdac7b98e72dd9676c86b0a26fd15ae3c39c1441af695ce4c22e7676eb3bfd",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/run_xgbfull_s43.json",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::backtest_dee_s42.json",
+      "measured": "3dc64f222f832b8fa46013b8a0fa14c0e64be825dfc37dd3e3c0604762c53f9b",
+      "expected": "3dc64f222f832b8fa46013b8a0fa14c0e64be825dfc37dd3e3c0604762c53f9b",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/backtest_dee_s42.json",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::backtest_dee_s43.json",
+      "measured": "2566d31780d13ac788390c265d037d1ad7e15470544c50f7a262851f0d6c5e40",
+      "expected": "2566d31780d13ac788390c265d037d1ad7e15470544c50f7a262851f0d6c5e40",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/backtest_dee_s43.json",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::backtest_mlp_only_s42.json",
+      "measured": "b191a98988a0908f7189a3a9034ab00a35f048a18719a573c6c1878bba19a7d5",
+      "expected": "b191a98988a0908f7189a3a9034ab00a35f048a18719a573c6c1878bba19a7d5",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/backtest_mlp_only_s42.json",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::backtest_mlp_only_s43.json",
+      "measured": "76b6ec317bc1787a2823ae90fe85889a096f7d9e0087eb91b94b054af8c1eec6",
+      "expected": "76b6ec317bc1787a2823ae90fe85889a096f7d9e0087eb91b94b054af8c1eec6",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/backtest_mlp_only_s43.json",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::backtest_xgb_s42.json",
+      "measured": "e0c091ed3496800d08d107690bac747e89f6e2dd633b2ffcdd72f3adbc221a43",
+      "expected": "e0c091ed3496800d08d107690bac747e89f6e2dd633b2ffcdd72f3adbc221a43",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/backtest_xgb_s42.json",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::backtest_xgb_s43.json",
+      "measured": "b72bd752d8ed3849a3046f8f967226841f06dd1c7d0d9a83bd6da2bf9f83b4d2",
+      "expected": "b72bd752d8ed3849a3046f8f967226841f06dd1c7d0d9a83bd6da2bf9f83b4d2",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/backtest_xgb_s43.json",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::backtest_xgbfull_s42.json",
+      "measured": "cbe84547e91dc3f6ced066cee2f1faf417b6ecdda2bb388b5b1e3061d6bad26b",
+      "expected": "cbe84547e91dc3f6ced066cee2f1faf417b6ecdda2bb388b5b1e3061d6bad26b",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/backtest_xgbfull_s42.json",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::backtest_xgbfull_s43.json",
+      "measured": "ba14e179ea062d42cddf91de275c7740761a6040256839249ce48e7cafb2ce1d",
+      "expected": "ba14e179ea062d42cddf91de275c7740761a6040256839249ce48e7cafb2ce1d",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/backtest_xgbfull_s43.json",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::nomask_assert.json",
+      "measured": "7474f721b66ce6194fb649265b13820d6ee81d3fb95a4ba5699a157e9a21aefa",
+      "expected": "7474f721b66ce6194fb649265b13820d6ee81d3fb95a4ba5699a157e9a21aefa",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/nomask_assert.json",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
+      "item": "artifact_sha256::float32_quant_diag.json",
+      "measured": "f37821b38a74d1e6233c553697f5e227c995d861ed46c0ec189a0be03d1c36ff",
+      "expected": "f37821b38a74d1e6233c553697f5e227c995d861ed46c0ec189a0be03d1c36ff",
+      "gap": 0.0,
+      "location": "experiments/WORK-555/float32_quant_diag.json",
+      "how_to_verify": "sha256sum <file>"
+    },
+    {
+      "severity": "pass",
       "item": "label_integrity::dee_s42 (max_rel_dev)",
       "measured": 3.5364939350316015e-08,
       "expected": 0.0,
@@ -102,19 +500,10 @@
     },
     {
       "severity": "pass",
-      "item": "ic::dee_s42::test_rankic_mean",
-      "measured": 0.030327351504239576,
-      "expected": 0.030327373520180168,
-      "gap": 7.2594287061406e-07,
-      "location": "run_dee_s42.json",
-      "how_to_verify": "audit script output"
-    },
-    {
-      "severity": "pass",
       "item": "ic::dee_s42::test_ic_mean",
-      "measured": 0.031063414450009402,
+      "measured": 0.03106341438861507,
       "expected": 0.031063414388615075,
-      "gap": 1.976419148028864e-09,
+      "gap": 1.11689169405189e-16,
       "location": "run_dee_s42.json",
       "how_to_verify": "audit script output"
     },
@@ -268,6 +657,8 @@
       "measured": 1.0,
       "expected": 1.0,
       "gap": 0.0,
+      "ledger_max_dev": 5.551115123125783e-16,
+      "n_days_over_1": 0,
       "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_dee_s42_main_8bps.csv",
       "how_to_verify": "audit script output; sum_w+cash==1"
     },
@@ -385,6 +776,8 @@
       "measured": 1.0,
       "expected": 1.0,
       "gap": 0.0,
+      "ledger_max_dev": 5.551115123125783e-16,
+      "n_days_over_1": 0,
       "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_dee_s42_sens_5bps.csv",
       "how_to_verify": "audit script output; sum_w+cash==1"
     },
@@ -507,18 +900,9 @@
     },
     {
       "severity": "pass",
-      "item": "ic::dee_s43::test_ic_mean",
-      "measured": 0.030018773516220544,
-      "expected": 0.03001877355854801,
-      "gap": 1.4100331037023724e-09,
-      "location": "run_dee_s43.json",
-      "how_to_verify": "audit script output"
-    },
-    {
-      "severity": "pass",
       "item": "family::dee_s43::linear_family::rankic",
-      "measured": 0.028249995723106252,
-      "expected": 0.028249995723106252,
+      "measured": 0.012181107099339478,
+      "expected": 0.012181107099339478,
       "gap": 0.0,
       "location": "run_dee_s43.json",
       "how_to_verify": "audit script output"
@@ -526,8 +910,8 @@
     {
       "severity": "pass",
       "item": "family::dee_s43::linear_family::ic",
-      "measured": 0.022844223416875753,
-      "expected": 0.022844223416875753,
+      "measured": 0.015959831027016598,
+      "expected": 0.015959831027016598,
       "gap": 0.0,
       "location": "run_dee_s43.json",
       "how_to_verify": "audit script output"
@@ -544,8 +928,8 @@
     {
       "severity": "pass",
       "item": "family::dee_s43::linear_family::n_active_after_ic_filter",
-      "measured": 8,
-      "expected": 8,
+      "measured": 7,
+      "expected": 7,
       "gap": 0.0,
       "location": "run_dee_s43.json",
       "how_to_verify": "audit script output"
@@ -553,8 +937,8 @@
     {
       "severity": "pass",
       "item": "family::dee_s43::mlp_family::rankic",
-      "measured": 0.012572231232392877,
-      "expected": 0.012572231232392877,
+      "measured": 0.02043448357684144,
+      "expected": 0.02043448357684144,
       "gap": 0.0,
       "location": "run_dee_s43.json",
       "how_to_verify": "audit script output"
@@ -562,8 +946,8 @@
     {
       "severity": "pass",
       "item": "family::dee_s43::mlp_family::ic",
-      "measured": 0.024503012869287587,
-      "expected": 0.024503012869287587,
+      "measured": 0.014737848982156862,
+      "expected": 0.014737848982156862,
       "gap": 0.0,
       "location": "run_dee_s43.json",
       "how_to_verify": "audit script output"
@@ -580,8 +964,8 @@
     {
       "severity": "pass",
       "item": "family::dee_s43::mlp_family::n_active_after_ic_filter",
-      "measured": 5,
-      "expected": 5,
+      "measured": 6,
+      "expected": 6,
       "gap": 0.0,
       "location": "run_dee_s43.json",
       "how_to_verify": "audit script output"
@@ -589,8 +973,8 @@
     {
       "severity": "pass",
       "item": "family::dee_s43::tree_family::rankic",
-      "measured": 0.03042043614356328,
-      "expected": 0.03042043614356328,
+      "measured": 0.030438574691557637,
+      "expected": 0.030438574691557637,
       "gap": 0.0,
       "location": "run_dee_s43.json",
       "how_to_verify": "audit script output"
@@ -598,9 +982,9 @@
     {
       "severity": "pass",
       "item": "family::dee_s43::tree_family::ic",
-      "measured": 0.008335119877178377,
-      "expected": 0.008335119877178375,
-      "gap": 2.0812219878522606e-16,
+      "measured": 0.008126250502744521,
+      "expected": 0.00812625050274452,
+      "gap": 2.134715728232756e-16,
       "location": "run_dee_s43.json",
       "how_to_verify": "audit script output"
     },
@@ -625,8 +1009,8 @@
     {
       "severity": "pass",
       "item": "family::dee_s43::full_dee::rankic",
-      "measured": 0.023148644058997664,
-      "expected": 0.023148644058997664,
+      "measured": 0.02163083350961915,
+      "expected": 0.02163083350961915,
       "gap": 0.0,
       "location": "run_dee_s43.json",
       "how_to_verify": "audit script output"
@@ -634,9 +1018,9 @@
     {
       "severity": "pass",
       "item": "family::dee_s43::full_dee::ic",
-      "measured": 0.030018773558548005,
-      "expected": 0.03001877355854801,
-      "gap": 1.1557590603050038e-16,
+      "measured": 0.01720424408500592,
+      "expected": 0.01720424408500592,
+      "gap": 0.0,
       "location": "run_dee_s43.json",
       "how_to_verify": "audit script output"
     },
@@ -652,65 +1036,11 @@
     {
       "severity": "pass",
       "item": "family::dee_s43::full_dee::n_active_after_ic_filter",
-      "measured": 18,
-      "expected": 18,
+      "measured": 17,
+      "expected": 17,
       "gap": 0.0,
       "location": "run_dee_s43.json",
       "how_to_verify": "audit script output"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::dee_s43::main_8bps::gross_ret",
-      "measured": 0.05983909882127012,
-      "expected": 0.008499345775879363,
-      "gap": 0.09621260732764378,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_dee_s43_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::dee_s43::main_8bps::cost",
-      "measured": 0.0019240000000000008,
-      "expected": 0.00039200000000000085,
-      "gap": 0.18148148148148177,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_dee_s43_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::dee_s43::main_8bps::net_ret",
-      "measured": 0.05890309882127012,
-      "expected": 0.008163345775879363,
-      "gap": 0.09122768088097367,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_dee_s43_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::dee_s43::main_8bps::buys",
-      "measured": 0.9999999999999999,
-      "expected": 0.42000000000000026,
-      "gap": 0.4200000000000001,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_dee_s43_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::dee_s43::main_8bps::sells",
-      "measured": 0.7400000000000003,
-      "expected": 0.28000000000000025,
-      "gap": 0.29166666666666674,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_dee_s43_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::dee_s43::main_8bps::turnover",
-      "measured": 1.4800000000000004,
-      "expected": 0.42000000000000026,
-      "gap": 0.27631578947368424,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_dee_s43_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
     },
     {
       "severity": "pass",
@@ -718,6 +1048,8 @@
       "measured": 1.0,
       "expected": 1.0,
       "gap": 0.0,
+      "ledger_max_dev": 5.551115123125783e-16,
+      "n_days_over_1": 0,
       "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_dee_s43_main_8bps.csv",
       "how_to_verify": "audit script output; sum_w+cash==1"
     },
@@ -731,157 +1063,103 @@
       "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::dee_s43::main_8bps::total_return",
-      "measured": -0.3623368016955234,
-      "expected": -0.35512257976644324,
-      "gap": 0.019910265519047045,
+      "measured": -0.5708769616823395,
+      "expected": -0.5708769616823395,
+      "gap": 0.0,
       "location": "backtest_dee_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::dee_s43::main_8bps::annualized_return",
-      "measured": -0.10652815493891976,
-      "expected": -0.1040082714647167,
-      "gap": 0.023654624222562537,
+      "measured": -0.1908676904178893,
+      "expected": -0.1908676904178893,
+      "gap": 0.0,
       "location": "backtest_dee_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::dee_s43::main_8bps::annualized_vol",
-      "measured": 0.2221910316756547,
-      "expected": 0.22259257720788056,
-      "gap": 0.0018039484391738907,
+      "measured": 0.22371000535111776,
+      "expected": 0.22371000535111776,
+      "gap": 0.0,
       "location": "backtest_dee_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::dee_s43::main_8bps::sharpe_rf0",
-      "measured": -0.4122368972586896,
-      "expected": -0.3980232740152686,
-      "gap": 0.03447926019708417,
+      "measured": -0.8655457426192276,
+      "expected": -0.8655457426192276,
+      "gap": 0.0,
       "location": "backtest_dee_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::dee_s43::main_8bps::sharpe_rf1p5",
-      "measured": -0.4797463727171608,
-      "expected": -0.465410965860857,
-      "gap": 0.02988121989356943,
+      "measured": -0.9325968339481879,
+      "expected": -0.9325968339481879,
+      "gap": 0.0,
       "location": "backtest_dee_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::dee_s43::main_8bps::max_drawdown",
-      "measured": -0.4971632680461294,
-      "expected": -0.491498631688996,
-      "gap": 0.011393915683665995,
+      "measured": -0.641306524655093,
+      "expected": -0.641306524655093,
+      "gap": 0.0,
       "location": "backtest_dee_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::dee_s43::main_8bps::turnover_daily_mean",
-      "measured": 1.0361396303901438,
-      "expected": 1.0387679671457908,
-      "gap": 0.0025302443267179726,
+      "measured": 1.0627926078028749,
+      "expected": 1.0627926078028749,
+      "gap": 0.0,
       "location": "backtest_dee_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::dee_s43::main_8bps::turnover_total",
-      "measured": 1009.2,
-      "expected": 1011.7600000000002,
-      "gap": 0.0025302443267179687,
+      "measured": 1035.16,
+      "expected": 1035.16,
+      "gap": 0.0,
       "location": "backtest_dee_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::dee_s43::main_8bps::cost_total",
-      "measured": 1.3114600000000003,
-      "expected": 1.3147880000000003,
-      "gap": 0.0025312065519308034,
+      "measured": 1.345208,
+      "expected": 1.345208,
+      "gap": 0.0,
       "location": "backtest_dee_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::dee_s43::main_8bps::gross_return_total",
-      "measured": 0.9574367356437878,
-      "expected": 0.972353461640354,
-      "gap": 0.015340847320481285,
+      "measured": 0.596807879355369,
+      "expected": 0.596807879355369,
+      "gap": 0.0,
       "location": "backtest_dee_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::dee_s43::main_8bps::avg_holdings",
       "measured": 50.0,
-      "expected": 50.100616016427104,
-      "gap": 0.0020082790278289895,
+      "expected": 50.0,
+      "gap": 0.0,
       "location": "backtest_dee_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::dee_s43::sens_5bps::gross_ret",
-      "measured": 0.05983909882127012,
-      "expected": 0.008499345775879363,
-      "gap": 0.09621260732764378,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_dee_s43_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::dee_s43::sens_5bps::cost",
-      "measured": 0.0014800000000000004,
-      "expected": 0.0003500000000000005,
-      "gap": 0.20467836257309957,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_dee_s43_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::dee_s43::sens_5bps::net_ret",
-      "measured": 0.05911909882127012,
-      "expected": 0.008289345775879364,
-      "gap": 0.09290987585708248,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_dee_s43_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::dee_s43::sens_5bps::buys",
-      "measured": 0.9999999999999999,
-      "expected": 0.42000000000000026,
-      "gap": 0.4200000000000001,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_dee_s43_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::dee_s43::sens_5bps::sells",
-      "measured": 0.7400000000000003,
-      "expected": 0.28000000000000025,
-      "gap": 0.29166666666666674,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_dee_s43_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::dee_s43::sens_5bps::turnover",
-      "measured": 1.4800000000000004,
-      "expected": 0.42000000000000026,
-      "gap": 0.27631578947368424,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_dee_s43_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
+      "how_to_verify": "audit script output"
     },
     {
       "severity": "pass",
@@ -889,6 +1167,8 @@
       "measured": 1.0,
       "expected": 1.0,
       "gap": 0.0,
+      "ledger_max_dev": 5.551115123125783e-16,
+      "n_days_over_1": 0,
       "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_dee_s43_sens_5bps.csv",
       "how_to_verify": "audit script output; sum_w+cash==1"
     },
@@ -902,103 +1182,103 @@
       "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::dee_s43::sens_5bps::total_return",
-      "measured": -0.13675722977486293,
-      "expected": -0.126325622113167,
-      "gap": 0.07627829021448446,
+      "measured": -0.41443504257372943,
+      "expected": -0.41443504257372943,
+      "gap": 0.0,
       "location": "backtest_dee_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::dee_s43::sens_5bps::annualized_return",
-      "measured": -0.036145786629682375,
-      "expected": -0.033243055698307766,
-      "gap": 0.08030620445789191,
+      "measured": -0.12539064650087184,
+      "expected": -0.12539064650087184,
+      "gap": 0.0,
       "location": "backtest_dee_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::dee_s43::sens_5bps::annualized_vol",
-      "measured": 0.2221858774820802,
-      "expected": 0.2225909057963273,
-      "gap": 0.0018196085450933883,
+      "measured": 0.22367016241349952,
+      "expected": 0.22367016241349952,
+      "gap": 0.0,
       "location": "backtest_dee_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::dee_s43::sens_5bps::sharpe_rf0",
-      "measured": -0.05969409752541071,
-      "expected": -0.04522272821319098,
-      "gap": 0.24242546436118786,
+      "measured": -0.5064784696389617,
+      "expected": -0.5064784696389617,
+      "gap": 0.0,
       "location": "backtest_dee_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::dee_s43::sens_5bps::sharpe_rf1p5",
-      "measured": -0.12720513904608424,
-      "expected": -0.11261092606582535,
-      "gap": 0.11472974354417917,
+      "measured": -0.5735415049501692,
+      "expected": -0.5735415049501692,
+      "gap": 0.0,
       "location": "backtest_dee_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::dee_s43::sens_5bps::max_drawdown",
-      "measured": -0.38127632252084764,
-      "expected": -0.3804012931052717,
-      "gap": 0.0022950006698307076,
+      "measured": -0.5447365831053191,
+      "expected": -0.5447365831053191,
+      "gap": 0.0,
       "location": "backtest_dee_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::dee_s43::sens_5bps::turnover_daily_mean",
-      "measured": 1.0361396303901438,
-      "expected": 1.0387679671457908,
-      "gap": 0.0025302443267179726,
+      "measured": 1.0627926078028749,
+      "expected": 1.0627926078028749,
+      "gap": 0.0,
       "location": "backtest_dee_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::dee_s43::sens_5bps::turnover_total",
-      "measured": 1009.2,
-      "expected": 1011.7600000000002,
-      "gap": 0.0025302443267179687,
+      "measured": 1035.16,
+      "expected": 1035.16,
+      "gap": 0.0,
       "location": "backtest_dee_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::dee_s43::sens_5bps::cost_total",
-      "measured": 1.0087000000000002,
-      "expected": 1.0112600000000003,
-      "gap": 0.0025314953622215027,
+      "measured": 1.0346600000000001,
+      "expected": 1.0346600000000001,
+      "gap": 0.0,
       "location": "backtest_dee_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::dee_s43::sens_5bps::gross_return_total",
-      "measured": 0.9574367356437878,
-      "expected": 0.972353461640354,
-      "gap": 0.015340847320481285,
+      "measured": 0.596807879355369,
+      "expected": 0.596807879355369,
+      "gap": 0.0,
       "location": "backtest_dee_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::dee_s43::sens_5bps::avg_holdings",
       "measured": 50.0,
-      "expected": 50.100616016427104,
-      "gap": 0.0020082790278289895,
+      "expected": 50.0,
+      "gap": 0.0,
       "location": "backtest_dee_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
       "severity": "pass",
@@ -1012,17 +1292,17 @@
     {
       "severity": "pass",
       "item": "ic::mlp_only_s42::test_ic_mean",
-      "measured": 0.025783596075403196,
-      "expected": 0.02578359613460378,
-      "gap": 2.2960560515914533e-09,
+      "measured": 0.025705265306137152,
+      "expected": 0.025705265306137155,
+      "gap": 1.3497028373892257e-16,
       "location": "run_mlp_only_s42.json",
       "how_to_verify": "audit script output"
     },
     {
       "severity": "pass",
       "item": "family::mlp_only_s42::mlp_family::rankic",
-      "measured": 0.010116964226472241,
-      "expected": 0.010116964226472241,
+      "measured": 0.037082359109926334,
+      "expected": 0.037082359109926334,
       "gap": 0.0,
       "location": "run_mlp_only_s42.json",
       "how_to_verify": "audit script output"
@@ -1030,9 +1310,9 @@
     {
       "severity": "pass",
       "item": "family::mlp_only_s42::mlp_family::ic",
-      "measured": 0.02578359613460378,
-      "expected": 0.02578359613460378,
-      "gap": 0.0,
+      "measured": 0.025705265306137152,
+      "expected": 0.025705265306137155,
+      "gap": 1.3497028373892257e-16,
       "location": "run_mlp_only_s42.json",
       "how_to_verify": "audit script output"
     },
@@ -1048,8 +1328,8 @@
     {
       "severity": "pass",
       "item": "family::mlp_only_s42::mlp_family::n_active_after_ic_filter",
-      "measured": 20,
-      "expected": 20,
+      "measured": 17,
+      "expected": 17,
       "gap": 0.0,
       "location": "run_mlp_only_s42.json",
       "how_to_verify": "audit script output"
@@ -1057,8 +1337,8 @@
     {
       "severity": "pass",
       "item": "family::mlp_only_s42::full_dee::rankic",
-      "measured": 0.010116964226472241,
-      "expected": 0.010116964226472241,
+      "measured": 0.037082359109926334,
+      "expected": 0.037082359109926334,
       "gap": 0.0,
       "location": "run_mlp_only_s42.json",
       "how_to_verify": "audit script output"
@@ -1066,9 +1346,9 @@
     {
       "severity": "pass",
       "item": "family::mlp_only_s42::full_dee::ic",
-      "measured": 0.02578359613460378,
-      "expected": 0.02578359613460378,
-      "gap": 0.0,
+      "measured": 0.025705265306137152,
+      "expected": 0.025705265306137155,
+      "gap": 1.3497028373892257e-16,
       "location": "run_mlp_only_s42.json",
       "how_to_verify": "audit script output"
     },
@@ -1084,65 +1364,11 @@
     {
       "severity": "pass",
       "item": "family::mlp_only_s42::full_dee::n_active_after_ic_filter",
-      "measured": 20,
-      "expected": 20,
+      "measured": 17,
+      "expected": 17,
       "gap": 0.0,
       "location": "run_mlp_only_s42.json",
       "how_to_verify": "audit script output"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::mlp_only_s42::main_8bps::gross_ret",
-      "measured": 0.06931418483440649,
-      "expected": 0.010720505778469131,
-      "gap": 0.13055932110140575,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s42_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::mlp_only_s42::main_8bps::cost",
-      "measured": 0.0019240000000000006,
-      "expected": 0.00041600000000000025,
-      "gap": 0.1904761904761905,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s42_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::mlp_only_s42::main_8bps::net_ret",
-      "measured": 0.0682221848344065,
-      "expected": 0.010304505778469128,
-      "gap": 0.12384606438602933,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s42_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::mlp_only_s42::main_8bps::buys",
-      "measured": 0.9999999999999999,
-      "expected": 0.5200000000000002,
-      "gap": 0.52,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s42_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::mlp_only_s42::main_8bps::sells",
-      "measured": 0.7400000000000002,
-      "expected": 0.26000000000000023,
-      "gap": 0.2600000000000001,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s42_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::mlp_only_s42::main_8bps::turnover",
-      "measured": 1.4800000000000004,
-      "expected": 0.5200000000000002,
-      "gap": 0.35135135135135137,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s42_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
     },
     {
       "severity": "pass",
@@ -1150,6 +1376,8 @@
       "measured": 1.0,
       "expected": 1.0,
       "gap": 0.0,
+      "ledger_max_dev": 5.551115123125783e-16,
+      "n_days_over_1": 0,
       "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s42_main_8bps.csv",
       "how_to_verify": "audit script output; sum_w+cash==1"
     },
@@ -1163,157 +1391,103 @@
       "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s42::main_8bps::total_return",
-      "measured": -0.33126881238486483,
-      "expected": -0.326725753918116,
-      "gap": 0.013714114631083262,
+      "measured": -0.4620114028857383,
+      "expected": -0.4620114028857383,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s42::main_8bps::annualized_return",
-      "measured": -0.09582393141232659,
-      "expected": -0.09429008541941364,
-      "gap": 0.016006919882183435,
+      "measured": -0.1437491739416774,
+      "expected": -0.1437491739416774,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s42::main_8bps::annualized_vol",
-      "measured": 0.23171301819743173,
-      "expected": 0.23262594093806085,
-      "gap": 0.003924423634560169,
+      "measured": 0.2080659763225441,
+      "expected": 0.2080659763225441,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s42::main_8bps::sharpe_rf0",
-      "measured": -0.3331026495721918,
-      "expected": -0.32336544199408573,
-      "gap": 0.029231852675479206,
+      "measured": -0.666070491498096,
+      "expected": -0.666070491498096,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s42::main_8bps::sharpe_rf1p5",
-      "measured": -0.3978378988762219,
-      "expected": -0.3878466427557579,
-      "gap": 0.025113887210560917,
+      "measured": -0.7381630088097539,
+      "expected": -0.7381630088097539,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s42::main_8bps::max_drawdown",
-      "measured": -0.4925350133035047,
-      "expected": -0.48943315861264813,
-      "gap": 0.006297734388570588,
+      "measured": -0.5523010408153023,
+      "expected": -0.5523010408153023,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s42::main_8bps::turnover_daily_mean",
-      "measured": 0.9186447638603696,
-      "expected": 0.9251745379876798,
-      "gap": 0.007057883522727368,
+      "measured": 1.0016016427104724,
+      "expected": 1.0016016427104724,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s42::main_8bps::turnover_total",
-      "measured": 894.76,
-      "expected": 901.1200000000001,
-      "gap": 0.0070578835227274135,
+      "measured": 975.5600000000002,
+      "expected": 975.5600000000002,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s42::main_8bps::cost_total",
-      "measured": 1.1626880000000002,
-      "expected": 1.1709560000000003,
-      "gap": 0.007060897249768703,
+      "measured": 1.2677280000000004,
+      "expected": 1.2677280000000004,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s42::main_8bps::gross_return_total",
-      "measured": 0.8643648628012554,
-      "expected": 0.8802123997410827,
-      "gap": 0.01800421914584358,
+      "measured": 0.7320797645704556,
+      "expected": 0.7320797645704556,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s42::main_8bps::avg_holdings",
       "measured": 50.0,
-      "expected": 50.25770020533881,
-      "gap": 0.005127576556147946,
+      "expected": 50.0,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::mlp_only_s42::sens_5bps::gross_ret",
-      "measured": 0.06931418483440649,
-      "expected": 0.010720505778469131,
-      "gap": 0.13055932110140575,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s42_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::mlp_only_s42::sens_5bps::cost",
-      "measured": 0.0014800000000000004,
-      "expected": 0.00026000000000000025,
-      "gap": 0.14942528735632193,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s42_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::mlp_only_s42::sens_5bps::net_ret",
-      "measured": 0.0684741848344065,
-      "expected": 0.010460505778469131,
-      "gap": 0.12610289825595583,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s42_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::mlp_only_s42::sens_5bps::buys",
-      "measured": 0.9999999999999999,
-      "expected": 0.5200000000000002,
-      "gap": 0.52,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s42_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::mlp_only_s42::sens_5bps::sells",
-      "measured": 0.7400000000000002,
-      "expected": 0.26000000000000023,
-      "gap": 0.2600000000000001,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s42_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::mlp_only_s42::sens_5bps::turnover",
-      "measured": 1.4800000000000004,
-      "expected": 0.5200000000000002,
-      "gap": 0.35135135135135137,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s42_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
+      "how_to_verify": "audit script output"
     },
     {
       "severity": "pass",
@@ -1321,6 +1495,8 @@
       "measured": 1.0,
       "expected": 1.0,
       "gap": 0.0,
+      "ledger_max_dev": 5.551115123125783e-16,
+      "n_days_over_1": 0,
       "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s42_sens_5bps.csv",
       "how_to_verify": "audit script output; sum_w+cash==1"
     },
@@ -1334,103 +1510,103 @@
       "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s42::sens_5bps::total_return",
-      "measured": -0.12527838751244447,
-      "expected": -0.11766077989425905,
-      "gap": 0.06080544114146366,
+      "measured": -0.27896942872917463,
+      "expected": -0.27896942872917463,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s42::sens_5bps::annualized_return",
-      "measured": -0.03295308668905128,
-      "expected": -0.030851639697630273,
-      "gap": 0.06377086951673079,
+      "measured": -0.07861796454020509,
+      "expected": -0.07861796454020509,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s42::sens_5bps::annualized_vol",
-      "measured": 0.23172132741596255,
-      "expected": 0.23264130256747048,
-      "gap": 0.003954479025671394,
+      "measured": 0.2080535717384611,
+      "expected": 0.2080535717384611,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s42::sens_5bps::sharpe_rf0",
-      "measured": -0.03337921563087521,
-      "expected": -0.022695863032860322,
-      "gap": 0.32006002526113786,
+      "measured": -0.30216026766078824,
+      "expected": -0.30216026766078824,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s42::sens_5bps::sharpe_rf1p5",
-      "measured": -0.09811214361498573,
-      "expected": -0.08717280601098738,
-      "gap": 0.11149830388913715,
+      "measured": -0.37425708327737434,
+      "expected": -0.37425708327737434,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s42::sens_5bps::max_drawdown",
-      "measured": -0.4117269207212658,
-      "expected": -0.4132786499334321,
-      "gap": 0.0037546803165763036,
+      "measured": -0.43948208904131025,
+      "expected": -0.43948208904131025,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s42::sens_5bps::turnover_daily_mean",
-      "measured": 0.9186447638603696,
-      "expected": 0.9251745379876798,
-      "gap": 0.007057883522727368,
+      "measured": 1.0016016427104724,
+      "expected": 1.0016016427104724,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s42::sens_5bps::turnover_total",
-      "measured": 894.76,
-      "expected": 901.1200000000001,
-      "gap": 0.0070578835227274135,
+      "measured": 975.5600000000002,
+      "expected": 975.5600000000002,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s42::sens_5bps::cost_total",
-      "measured": 0.8942600000000003,
-      "expected": 0.9006200000000003,
-      "gap": 0.007061801869823044,
+      "measured": 0.9750600000000001,
+      "expected": 0.9750600000000001,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s42::sens_5bps::gross_return_total",
-      "measured": 0.8643648628012554,
-      "expected": 0.8802123997410827,
-      "gap": 0.01800421914584358,
+      "measured": 0.7320797645704556,
+      "expected": 0.7320797645704556,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s42::sens_5bps::avg_holdings",
       "measured": 50.0,
-      "expected": 50.25770020533881,
-      "gap": 0.005127576556147946,
+      "expected": 50.0,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
       "severity": "pass",
@@ -1440,15 +1616,6 @@
       "gap": 3.5364939350316015e-08,
       "location": "sample.npz vs panel_backtest.csv",
       "how_to_verify": "audit script output; float32 存储精度上限 ~6e-8"
-    },
-    {
-      "severity": "pass",
-      "item": "ic::mlp_only_s43::test_ic_mean",
-      "measured": 0.03466942571002098,
-      "expected": 0.03466942577270775,
-      "gap": 1.8081281735576002e-09,
-      "location": "run_mlp_only_s43.json",
-      "how_to_verify": "audit script output"
     },
     {
       "severity": "pass",
@@ -1523,65 +1690,13 @@
       "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
-      "item": "daily::mlp_only_s43::main_8bps::gross_ret",
-      "measured": 0.05837913827170791,
-      "expected": 0.018186484388402556,
-      "gap": 0.2050332044988056,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s43_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::mlp_only_s43::main_8bps::cost",
-      "measured": 0.0019760000000000008,
-      "expected": 0.0007800000000000003,
-      "gap": 0.3846153846153845,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s43_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::mlp_only_s43::main_8bps::net_ret",
-      "measured": 0.05713113827170791,
-      "expected": 0.01813448438840256,
-      "gap": 0.2018437051784428,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s43_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::mlp_only_s43::main_8bps::buys",
-      "measured": 0.9999999999999999,
-      "expected": 0.4800000000000002,
-      "gap": 0.48,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s43_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::mlp_only_s43::main_8bps::sells",
-      "measured": 0.7600000000000002,
-      "expected": 0.3000000000000001,
-      "gap": 0.34883720930232553,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s43_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::mlp_only_s43::main_8bps::turnover",
-      "measured": 1.5200000000000005,
-      "expected": 0.6000000000000002,
-      "gap": 0.3846153846153846,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s43_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
       "severity": "pass",
       "item": "weight_invariant::mlp_only_s43::main_8bps",
       "measured": 1.0,
       "expected": 1.0,
       "gap": 0.0,
+      "ledger_max_dev": 5.551115123125783e-16,
+      "n_days_over_1": 0,
       "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s43_main_8bps.csv",
       "how_to_verify": "audit script output; sum_w+cash==1"
     },
@@ -1595,157 +1710,103 @@
       "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s43::main_8bps::total_return",
       "measured": -0.35359720303927866,
-      "expected": -0.2349778583921197,
-      "gap": 0.33546460104205733,
+      "expected": -0.35359720303927866,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s43::main_8bps::annualized_return",
       "measured": -0.10347817587810515,
-      "expected": -0.06485568879617976,
-      "gap": 0.3732428287818078,
+      "expected": -0.10347817587810515,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s43::main_8bps::annualized_vol",
       "measured": 0.22252964325249566,
-      "expected": 0.228388783074872,
-      "gap": 0.02565423635737646,
+      "expected": 0.22252964325249566,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s43::main_8bps::sharpe_rf0",
       "measured": -0.39535833916477614,
-      "expected": -0.18855157941484435,
-      "gap": 0.5230868790748829,
+      "expected": -0.39535833916477614,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s43::main_8bps::sharpe_rf1p5",
       "measured": -0.46276508902856883,
-      "expected": -0.2542290605855487,
-      "gap": 0.4506304243493746,
+      "expected": -0.46276508902856883,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s43::main_8bps::max_drawdown",
       "measured": -0.5129907271814542,
-      "expected": -0.44662924941690574,
-      "gap": 0.12936194408261734,
+      "expected": -0.5129907271814542,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s43::main_8bps::turnover_daily_mean",
       "measured": 1.0284188911704315,
-      "expected": 0.9216016427104726,
-      "gap": 0.10386550595000392,
+      "expected": 1.0284188911704315,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s43::main_8bps::turnover_total",
       "measured": 1001.6800000000002,
-      "expected": 897.6400000000003,
-      "gap": 0.10386550595000382,
+      "expected": 1001.6800000000002,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s43::main_8bps::cost_total",
       "measured": 1.301684,
-      "expected": 1.1664320000000004,
-      "gap": 0.10390540254009399,
+      "expected": 1.301684,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s43::main_8bps::gross_return_total",
       "measured": 0.961638375131807,
-      "expected": 0.9999898330976315,
-      "gap": 0.0383518478853175,
+      "expected": 0.961638375131807,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s43::main_8bps::avg_holdings",
       "measured": 50.0,
-      "expected": 50.24435318275154,
-      "gap": 0.004863296415873118,
+      "expected": 50.0,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::mlp_only_s43::sens_5bps::gross_ret",
-      "measured": 0.05837913827170791,
-      "expected": 0.018186484388402556,
-      "gap": 0.2050332044988056,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s43_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::mlp_only_s43::sens_5bps::cost",
-      "measured": 0.0015200000000000005,
-      "expected": 0.0006000000000000002,
-      "gap": 0.3846153846153845,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s43_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::mlp_only_s43::sens_5bps::net_ret",
-      "measured": 0.05741913827170791,
-      "expected": 0.018146484388402558,
-      "gap": 0.20257251293695386,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s43_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::mlp_only_s43::sens_5bps::buys",
-      "measured": 0.9999999999999999,
-      "expected": 0.4800000000000002,
-      "gap": 0.48,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s43_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::mlp_only_s43::sens_5bps::sells",
-      "measured": 0.7600000000000002,
-      "expected": 0.3000000000000001,
-      "gap": 0.34883720930232553,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s43_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::mlp_only_s43::sens_5bps::turnover",
-      "measured": 1.5200000000000005,
-      "expected": 0.6000000000000002,
-      "gap": 0.3846153846153846,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s43_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
+      "how_to_verify": "audit script output"
     },
     {
       "severity": "pass",
@@ -1753,6 +1814,8 @@
       "measured": 1.0,
       "expected": 1.0,
       "gap": 0.0,
+      "ledger_max_dev": 5.551115123125783e-16,
+      "n_days_over_1": 0,
       "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_mlp_only_s43_sens_5bps.csv",
       "how_to_verify": "audit script output; sum_w+cash==1"
     },
@@ -1766,103 +1829,103 @@
       "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s43::sens_5bps::total_return",
       "measured": -0.12689684196261597,
-      "expected": 0.0014950263315240964,
-      "gap": 1.0117814305573067,
+      "expected": -0.12689684196261597,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s43::sens_5bps::annualized_return",
       "measured": -0.033401330720563616,
-      "expected": 0.000374059379469438,
-      "gap": 1.01119893643157,
+      "expected": -0.033401330720563616,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s43::sens_5bps::annualized_vol",
       "measured": 0.22251814861895727,
-      "expected": 0.22840255074344437,
-      "gap": 0.025763294259777407,
+      "expected": 0.22251814861895727,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s43::sens_5bps::sharpe_rf0",
       "measured": -0.0459759442645327,
-      "expected": 0.11650490913037276,
-      "gap": 1.3946266694486162,
+      "expected": -0.0459759442645327,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s43::sens_5bps::sharpe_rf1p5",
       "measured": -0.1133861761629033,
-      "expected": 0.05083138687251973,
-      "gap": 1.4483032111382754,
+      "expected": -0.1133861761629033,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s43::sens_5bps::max_drawdown",
       "measured": -0.3966901618046633,
-      "expected": -0.3838526338099809,
-      "gap": 0.03236159912885315,
+      "expected": -0.3966901618046633,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s43::sens_5bps::turnover_daily_mean",
       "measured": 1.0284188911704315,
-      "expected": 0.9216016427104726,
-      "gap": 0.10386550595000392,
+      "expected": 1.0284188911704315,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s43::sens_5bps::turnover_total",
       "measured": 1001.6800000000002,
-      "expected": 897.6400000000003,
-      "gap": 0.10386550595000382,
+      "expected": 1001.6800000000002,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s43::sens_5bps::cost_total",
       "measured": 1.0011800000000002,
-      "expected": 0.8971400000000004,
-      "gap": 0.1039173774945562,
+      "expected": 1.0011800000000002,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s43::sens_5bps::gross_return_total",
       "measured": 0.961638375131807,
-      "expected": 0.9999898330976315,
-      "gap": 0.0383518478853175,
+      "expected": 0.961638375131807,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::mlp_only_s43::sens_5bps::avg_holdings",
       "measured": 50.0,
-      "expected": 50.24435318275154,
-      "gap": 0.004863296415873118,
+      "expected": 50.0,
+      "gap": 0.0,
       "location": "backtest_mlp_only_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
       "severity": "pass",
@@ -1883,65 +1946,13 @@
       "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
-      "item": "daily::xgb_s42::main_8bps::gross_ret",
-      "measured": 0.07193107600898353,
-      "expected": 0.013737645227242527,
-      "gap": 0.15225774395174718,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s42_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgb_s42::main_8bps::cost",
-      "measured": 0.002600000000000001,
-      "expected": 0.0004320000000000003,
-      "gap": 0.1661538461538462,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s42_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgb_s42::main_8bps::net_ret",
-      "measured": 0.07021507600898354,
-      "expected": 0.013305645227242525,
-      "gap": 0.1441467426955002,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s42_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgb_s42::main_8bps::buys",
-      "measured": 1.0000000000000004,
-      "expected": 0.5400000000000004,
-      "gap": 0.5400000000000001,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s42_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgb_s42::main_8bps::sells",
-      "measured": 1.0000000000000004,
-      "expected": 0.28000000000000025,
-      "gap": 0.28000000000000014,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s42_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgb_s42::main_8bps::turnover",
-      "measured": 2.000000000000001,
-      "expected": 0.5400000000000003,
-      "gap": 0.27,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s42_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
       "severity": "pass",
       "item": "weight_invariant::xgb_s42::main_8bps",
       "measured": 1.0,
       "expected": 1.0,
       "gap": 0.0,
+      "ledger_max_dev": 5.551115123125783e-16,
+      "n_days_over_1": 0,
       "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s42_main_8bps.csv",
       "how_to_verify": "audit script output; sum_w+cash==1"
     },
@@ -1955,157 +1966,103 @@
       "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s42::main_8bps::total_return",
       "measured": -0.6620077751034272,
-      "expected": -0.6591536576719668,
-      "gap": 0.004311305000933806,
+      "expected": -0.6620077751034272,
+      "gap": 0.0,
       "location": "backtest_xgb_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s42::main_8bps::annualized_return",
       "measured": -0.23780651260849095,
-      "expected": -0.2362003287843969,
-      "gap": 0.006754162476358962,
+      "expected": -0.23780651260849095,
+      "gap": 0.0,
       "location": "backtest_xgb_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s42::main_8bps::annualized_vol",
       "measured": 0.2229060820076588,
-      "expected": 0.2240614033473999,
-      "gap": 0.005156271104621366,
+      "expected": 0.2229060820076588,
+      "gap": 0.0,
       "location": "backtest_xgb_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s42::main_8bps::sharpe_rf0",
       "measured": -1.1462780768243084,
-      "expected": -1.1295123750732543,
-      "gap": 0.01462620815143076,
+      "expected": -1.1462780768243084,
+      "gap": 0.0,
       "location": "backtest_xgb_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s42::main_8bps::sharpe_rf1p5",
       "measured": -1.2135709916918562,
-      "expected": -1.196458309428325,
-      "gap": 0.014101096994477607,
+      "expected": -1.2135709916918562,
+      "gap": 0.0,
       "location": "backtest_xgb_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s42::main_8bps::max_drawdown",
       "measured": -0.6914837479479721,
-      "expected": -0.6891905610680024,
-      "gap": 0.0033163279495359195,
+      "expected": -0.6914837479479721,
+      "gap": 0.0,
       "location": "backtest_xgb_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s42::main_8bps::turnover_daily_mean",
       "measured": 1.2105544147843947,
-      "expected": 1.217002053388091,
-      "gap": 0.005297968549639039,
+      "expected": 1.2105544147843947,
+      "gap": 0.0,
       "location": "backtest_xgb_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s42::main_8bps::turnover_total",
       "measured": 1179.0800000000004,
-      "expected": 1185.3600000000006,
-      "gap": 0.005297968549639095,
+      "expected": 1179.0800000000004,
+      "gap": 0.0,
       "location": "backtest_xgb_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s42::main_8bps::cost_total",
       "measured": 1.5323040000000003,
-      "expected": 1.5404680000000006,
-      "gap": 0.00529968814671923,
+      "expected": 1.5323040000000003,
+      "gap": 0.0,
       "location": "backtest_xgb_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s42::main_8bps::gross_return_total",
       "measured": 0.544728469181429,
-      "expected": 0.562293220107613,
-      "gap": 0.031237707121601684,
+      "expected": 0.544728469181429,
+      "gap": 0.0,
       "location": "backtest_xgb_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s42::main_8bps::avg_holdings",
       "measured": 50.0,
-      "expected": 50.23203285420944,
-      "gap": 0.004619220864162153,
+      "expected": 50.0,
+      "gap": 0.0,
       "location": "backtest_xgb_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgb_s42::sens_5bps::gross_ret",
-      "measured": 0.07193107600898353,
-      "expected": 0.013737645227242527,
-      "gap": 0.15225774395174718,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s42_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgb_s42::sens_5bps::cost",
-      "measured": 0.002000000000000001,
-      "expected": 0.0002900000000000003,
-      "gap": 0.1450000000000001,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s42_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgb_s42::sens_5bps::net_ret",
-      "measured": 0.07061107600898353,
-      "expected": 0.01346764522724253,
-      "gap": 0.14666443711517446,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s42_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgb_s42::sens_5bps::buys",
-      "measured": 1.0000000000000004,
-      "expected": 0.5400000000000004,
-      "gap": 0.5400000000000001,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s42_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgb_s42::sens_5bps::sells",
-      "measured": 1.0000000000000004,
-      "expected": 0.28000000000000025,
-      "gap": 0.28000000000000014,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s42_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgb_s42::sens_5bps::turnover",
-      "measured": 2.000000000000001,
-      "expected": 0.5400000000000003,
-      "gap": 0.27,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s42_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
+      "how_to_verify": "audit script output"
     },
     {
       "severity": "pass",
@@ -2113,6 +2070,8 @@
       "measured": 1.0,
       "expected": 1.0,
       "gap": 0.0,
+      "ledger_max_dev": 5.551115123125783e-16,
+      "n_days_over_1": 0,
       "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s42_sens_5bps.csv",
       "how_to_verify": "audit script output; sum_w+cash==1"
     },
@@ -2126,103 +2085,103 @@
       "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s42::sens_5bps::total_return",
       "measured": -0.5183375436491016,
-      "expected": -0.5133546072005122,
-      "gap": 0.00961330412902268,
+      "expected": -0.5183375436491016,
+      "gap": 0.0,
       "location": "backtest_xgb_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s42::sens_5bps::annualized_return",
       "measured": -0.16713046837607481,
-      "expected": -0.16498176113983487,
-      "gap": 0.012856466311127369,
+      "expected": -0.16713046837607481,
+      "gap": 0.0,
       "location": "backtest_xgb_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s42::sens_5bps::annualized_vol",
       "measured": 0.22275746690071976,
-      "expected": 0.22391303779699004,
-      "gap": 0.005160802191956188,
+      "expected": 0.22275746690071976,
+      "gap": 0.0,
       "location": "backtest_xgb_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s42::sens_5bps::sharpe_rf0",
       "measured": -0.736201769216431,
-      "expected": -0.7193630804431597,
-      "gap": 0.02287238292186314,
+      "expected": -0.736201769216431,
+      "gap": 0.0,
       "location": "backtest_xgb_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s42::sens_5bps::sharpe_rf1p5",
       "measured": -0.8035395792961502,
-      "expected": -0.7863533734050179,
-      "gap": 0.021388126153270903,
+      "expected": -0.8035395792961502,
+      "gap": 0.0,
       "location": "backtest_xgb_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s42::sens_5bps::max_drawdown",
       "measured": -0.5897437719397665,
-      "expected": -0.5857906205599211,
-      "gap": 0.006703167660156427,
+      "expected": -0.5897437719397665,
+      "gap": 0.0,
       "location": "backtest_xgb_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s42::sens_5bps::turnover_daily_mean",
       "measured": 1.2105544147843947,
-      "expected": 1.217002053388091,
-      "gap": 0.005297968549639039,
+      "expected": 1.2105544147843947,
+      "gap": 0.0,
       "location": "backtest_xgb_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s42::sens_5bps::turnover_total",
       "measured": 1179.0800000000004,
-      "expected": 1185.3600000000006,
-      "gap": 0.005297968549639095,
+      "expected": 1179.0800000000004,
+      "gap": 0.0,
       "location": "backtest_xgb_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s42::sens_5bps::cost_total",
       "measured": 1.1785800000000004,
-      "expected": 1.1848600000000005,
-      "gap": 0.005300204243539372,
+      "expected": 1.1785800000000004,
+      "gap": 0.0,
       "location": "backtest_xgb_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s42::sens_5bps::gross_return_total",
       "measured": 0.544728469181429,
-      "expected": 0.562293220107613,
-      "gap": 0.031237707121601684,
+      "expected": 0.544728469181429,
+      "gap": 0.0,
       "location": "backtest_xgb_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s42::sens_5bps::avg_holdings",
       "measured": 50.0,
-      "expected": 50.23203285420944,
-      "gap": 0.004619220864162153,
+      "expected": 50.0,
+      "gap": 0.0,
       "location": "backtest_xgb_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
       "severity": "pass",
@@ -2243,65 +2202,13 @@
       "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
-      "item": "daily::xgb_s43::main_8bps::gross_ret",
-      "measured": 0.06516498549820882,
-      "expected": 0.011327268111503745,
-      "gap": 0.13447926541916674,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s43_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgb_s43::main_8bps::cost",
-      "measured": 0.002600000000000001,
-      "expected": 0.0006560000000000001,
-      "gap": 0.25230769230769223,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s43_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgb_s43::main_8bps::net_ret",
-      "measured": 0.06282498549820882,
-      "expected": 0.010943268111503743,
-      "gap": 0.12678939957296867,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s43_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgb_s43::main_8bps::buys",
-      "measured": 1.0000000000000004,
-      "expected": 0.48000000000000037,
-      "gap": 0.48000000000000015,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s43_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgb_s43::main_8bps::sells",
-      "measured": 1.0000000000000004,
-      "expected": 0.40000000000000024,
-      "gap": 0.3636363636363637,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s43_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgb_s43::main_8bps::turnover",
-      "measured": 2.000000000000001,
-      "expected": 0.4800000000000004,
-      "gap": 0.2400000000000001,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s43_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
       "severity": "pass",
       "item": "weight_invariant::xgb_s43::main_8bps",
       "measured": 1.0,
       "expected": 1.0,
       "gap": 0.0,
+      "ledger_max_dev": 5.551115123125783e-16,
+      "n_days_over_1": 0,
       "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s43_main_8bps.csv",
       "how_to_verify": "audit script output; sum_w+cash==1"
     },
@@ -2315,157 +2222,103 @@
       "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s43::main_8bps::total_return",
       "measured": -0.5974236272557885,
-      "expected": -0.5925740517631783,
-      "gap": 0.008117481919632475,
+      "expected": -0.5974236272557885,
+      "gap": 0.0,
       "location": "backtest_xgb_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s43::main_8bps::annualized_return",
       "measured": -0.2037001169494742,
-      "expected": -0.20130947060380644,
-      "gap": 0.011736106888248594,
+      "expected": -0.2037001169494742,
+      "gap": 0.0,
       "location": "backtest_xgb_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s43::main_8bps::annualized_vol",
       "measured": 0.2202967500651905,
-      "expected": 0.22092254927662022,
-      "gap": 0.0028326633631506094,
+      "expected": 0.2202967500651905,
+      "gap": 0.0,
       "location": "backtest_xgb_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s43::main_8bps::sharpe_rf0",
       "measured": -0.9573131047552625,
-      "expected": -0.9399781023194598,
-      "gap": 0.018107975697496035,
+      "expected": -0.9573131047552625,
+      "gap": 0.0,
       "location": "backtest_xgb_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s43::main_8bps::sharpe_rf1p5",
       "measured": -1.025403078826878,
-      "expected": -1.0078752004161249,
-      "gap": 0.017093647144892553,
+      "expected": -1.025403078826878,
+      "gap": 0.0,
       "location": "backtest_xgb_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s43::main_8bps::max_drawdown",
       "measured": -0.6426103768080189,
-      "expected": -0.6381864738694217,
-      "gap": 0.006884269377303923,
+      "expected": -0.6426103768080189,
+      "gap": 0.0,
       "location": "backtest_xgb_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s43::main_8bps::turnover_daily_mean",
       "measured": 1.194168377823409,
-      "expected": 1.2004106776180703,
-      "gap": 0.005200136845706637,
+      "expected": 1.194168377823409,
+      "gap": 0.0,
       "location": "backtest_xgb_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s43::main_8bps::turnover_total",
       "measured": 1163.1200000000003,
-      "expected": 1169.2000000000005,
-      "gap": 0.005200136845706596,
+      "expected": 1163.1200000000003,
+      "gap": 0.0,
       "location": "backtest_xgb_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s43::main_8bps::cost_total",
       "measured": 1.5115560000000001,
-      "expected": 1.5194600000000007,
-      "gap": 0.005201848024956612,
+      "expected": 1.5115560000000001,
+      "gap": 0.0,
       "location": "backtest_xgb_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s43::main_8bps::gross_return_total",
       "measured": 0.6964379497527019,
-      "expected": 0.7168285027608305,
-      "gap": 0.028445510927084243,
+      "expected": 0.6964379497527019,
+      "gap": 0.0,
       "location": "backtest_xgb_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s43::main_8bps::avg_holdings",
       "measured": 50.0,
-      "expected": 50.2135523613963,
-      "gap": 0.004252882963932264,
+      "expected": 50.0,
+      "gap": 0.0,
       "location": "backtest_xgb_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgb_s43::sens_5bps::gross_ret",
-      "measured": 0.06516498549820882,
-      "expected": 0.011327268111503745,
-      "gap": 0.13447926541916674,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s43_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgb_s43::sens_5bps::cost",
-      "measured": 0.002000000000000001,
-      "expected": 0.0005600000000000002,
-      "gap": 0.27999999999999997,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s43_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgb_s43::sens_5bps::net_ret",
-      "measured": 0.06336498549820882,
-      "expected": 0.011087268111503748,
-      "gap": 0.1291761815756486,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s43_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgb_s43::sens_5bps::buys",
-      "measured": 1.0000000000000004,
-      "expected": 0.48000000000000037,
-      "gap": 0.48000000000000015,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s43_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgb_s43::sens_5bps::sells",
-      "measured": 1.0000000000000004,
-      "expected": 0.40000000000000024,
-      "gap": 0.3636363636363637,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s43_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgb_s43::sens_5bps::turnover",
-      "measured": 2.000000000000001,
-      "expected": 0.4800000000000004,
-      "gap": 0.2400000000000001,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s43_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
+      "how_to_verify": "audit script output"
     },
     {
       "severity": "pass",
@@ -2473,6 +2326,8 @@
       "measured": 1.0,
       "expected": 1.0,
       "gap": 0.0,
+      "ledger_max_dev": 5.551115123125783e-16,
+      "n_days_over_1": 0,
       "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgb_s43_sens_5bps.csv",
       "how_to_verify": "audit script output; sum_w+cash==1"
     },
@@ -2486,103 +2341,103 @@
       "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s43::sens_5bps::total_return",
       "measured": -0.42912343104460526,
-      "expected": -0.42119751634091707,
-      "gap": 0.018470011493882603,
+      "expected": -0.42912343104460526,
+      "gap": 0.0,
       "location": "backtest_xgb_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s43::sens_5bps::annualized_return",
       "measured": -0.13093527697169827,
-      "expected": -0.12793026318581124,
-      "gap": 0.022950375600737136,
+      "expected": -0.13093527697169827,
+      "gap": 0.0,
       "location": "backtest_xgb_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s43::sens_5bps::annualized_vol",
       "measured": 0.22023721704221433,
-      "expected": 0.22087148460768907,
-      "gap": 0.0028716589042778766,
+      "expected": 0.22023721704221433,
+      "gap": 0.0,
       "location": "backtest_xgb_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s43::sens_5bps::sharpe_rf0",
       "measured": -0.5476541977273217,
-      "expected": -0.5293182667212385,
-      "gap": 0.033480855405061134,
+      "expected": -0.5476541977273217,
+      "gap": 0.0,
       "location": "backtest_xgb_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s43::sens_5bps::sharpe_rf1p5",
       "measured": -0.6157625774165041,
-      "expected": -0.5972310623754304,
-      "gap": 0.030095227804886326,
+      "expected": -0.6157625774165041,
+      "gap": 0.0,
       "location": "backtest_xgb_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s43::sens_5bps::max_drawdown",
       "measured": -0.530468794251634,
-      "expected": -0.5238164397626,
-      "gap": 0.012540519934671947,
+      "expected": -0.530468794251634,
+      "gap": 0.0,
       "location": "backtest_xgb_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s43::sens_5bps::turnover_daily_mean",
       "measured": 1.194168377823409,
-      "expected": 1.2004106776180703,
-      "gap": 0.005200136845706637,
+      "expected": 1.194168377823409,
+      "gap": 0.0,
       "location": "backtest_xgb_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s43::sens_5bps::turnover_total",
       "measured": 1163.1200000000003,
-      "expected": 1169.2000000000005,
-      "gap": 0.005200136845706596,
+      "expected": 1163.1200000000003,
+      "gap": 0.0,
       "location": "backtest_xgb_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s43::sens_5bps::cost_total",
       "measured": 1.1626200000000004,
-      "expected": 1.1687000000000003,
-      "gap": 0.0052023615983570306,
+      "expected": 1.1626200000000004,
+      "gap": 0.0,
       "location": "backtest_xgb_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s43::sens_5bps::gross_return_total",
       "measured": 0.6964379497527019,
-      "expected": 0.7168285027608305,
-      "gap": 0.028445510927084243,
+      "expected": 0.6964379497527019,
+      "gap": 0.0,
       "location": "backtest_xgb_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgb_s43::sens_5bps::avg_holdings",
       "measured": 50.0,
-      "expected": 50.2135523613963,
-      "gap": 0.004252882963932264,
+      "expected": 50.0,
+      "gap": 0.0,
       "location": "backtest_xgb_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
       "severity": "pass",
@@ -2594,65 +2449,13 @@
       "how_to_verify": "audit script output; float32 存储精度上限 ~6e-8"
     },
     {
-      "severity": "blocking",
-      "item": "daily::xgbfull_s42::main_8bps::gross_ret",
-      "measured": 0.06724706569956147,
-      "expected": 0.01391983397501391,
-      "gap": 0.16604683050796443,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s42_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgbfull_s42::main_8bps::cost",
-      "measured": 0.0024440000000000013,
-      "expected": 0.0007240000000000007,
-      "gap": 0.23234916559691923,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s42_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgbfull_s42::main_8bps::net_ret",
-      "measured": 0.06521906569956147,
-      "expected": 0.013551833975013909,
-      "gap": 0.15870372959023235,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s42_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgbfull_s42::main_8bps::buys",
-      "measured": 0.9999999999999999,
-      "expected": 0.4600000000000003,
-      "gap": 0.4600000000000001,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s42_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgbfull_s42::main_8bps::sells",
-      "measured": 0.9400000000000004,
-      "expected": 0.4200000000000005,
-      "gap": 0.3134328358208957,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s42_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgbfull_s42::main_8bps::turnover",
-      "measured": 1.8800000000000008,
-      "expected": 0.46000000000000035,
-      "gap": 0.20720720720720726,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s42_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
       "severity": "pass",
       "item": "weight_invariant::xgbfull_s42::main_8bps",
       "measured": 1.0,
       "expected": 1.0,
       "gap": 0.0,
+      "ledger_max_dev": 5.551115123125783e-16,
+      "n_days_over_1": 0,
       "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s42_main_8bps.csv",
       "how_to_verify": "audit script output; sum_w+cash==1"
     },
@@ -2666,157 +2469,103 @@
       "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s42::main_8bps::total_return",
       "measured": -0.5989268921271338,
-      "expected": -0.5943012729216561,
-      "gap": 0.0077231783482779115,
+      "expected": -0.5989268921271338,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s42::main_8bps::annualized_return",
       "measured": -0.2044455481602131,
-      "expected": -0.20215846338907817,
-      "gap": 0.011186767291908269,
+      "expected": -0.2044455481602131,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s42::main_8bps::annualized_vol",
       "measured": 0.2234043199529536,
-      "expected": 0.2242499687572094,
-      "gap": 0.0037710096859427927,
+      "expected": 0.2234043199529536,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s42::main_8bps::sharpe_rf0",
       "measured": -0.9452581075679729,
-      "expected": -0.9276431787562096,
-      "gap": 0.018635046524048585,
+      "expected": -0.9452581075679729,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s42::main_8bps::sharpe_rf1p5",
       "measured": -1.0124009452855194,
-      "expected": -0.9945328201823816,
-      "gap": 0.01764925762500007,
+      "expected": -1.0124009452855194,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s42::main_8bps::max_drawdown",
       "measured": -0.664774481561831,
-      "expected": -0.6608285573737225,
-      "gap": 0.0059357335420546845,
+      "expected": -0.664774481561831,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s42::main_8bps::turnover_daily_mean",
       "measured": 1.2858316221765915,
-      "expected": 1.2935934291581115,
-      "gap": 0.006000190482237878,
+      "expected": 1.2858316221765915,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s42::main_8bps::turnover_total",
       "measured": 1252.4,
-      "expected": 1259.9600000000005,
-      "gap": 0.006000190482237847,
+      "expected": 1252.4,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s42::main_8bps::cost_total",
       "measured": 1.6276200000000003,
-      "expected": 1.6374480000000007,
-      "gap": 0.006002022659651108,
+      "expected": 1.6276200000000003,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s42::main_8bps::gross_return_total",
       "measured": 0.8114128518293391,
-      "expected": 0.8334189085169985,
-      "gap": 0.026404556535461168,
+      "expected": 0.8114128518293391,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s42::main_8bps::avg_holdings",
       "measured": 50.0,
-      "expected": 50.25564681724846,
-      "gap": 0.005086927209953245,
+      "expected": 50.0,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgbfull_s42::sens_5bps::gross_ret",
-      "measured": 0.06724706569956147,
-      "expected": 0.01391983397501391,
-      "gap": 0.16604683050796443,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s42_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgbfull_s42::sens_5bps::cost",
-      "measured": 0.0018800000000000008,
-      "expected": 0.0006100000000000007,
-      "gap": 0.24897959183673488,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s42_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgbfull_s42::sens_5bps::net_ret",
-      "measured": 0.06568706569956147,
-      "expected": 0.013689833975013908,
-      "gap": 0.1609985851850347,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s42_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgbfull_s42::sens_5bps::buys",
-      "measured": 0.9999999999999999,
-      "expected": 0.4600000000000003,
-      "gap": 0.4600000000000001,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s42_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgbfull_s42::sens_5bps::sells",
-      "measured": 0.9400000000000004,
-      "expected": 0.4200000000000005,
-      "gap": 0.3134328358208957,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s42_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgbfull_s42::sens_5bps::turnover",
-      "measured": 1.8800000000000008,
-      "expected": 0.46000000000000035,
-      "gap": 0.20720720720720726,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s42_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
+      "how_to_verify": "audit script output"
     },
     {
       "severity": "pass",
@@ -2824,6 +2573,8 @@
       "measured": 1.0,
       "expected": 1.0,
       "gap": 0.0,
+      "ledger_max_dev": 5.551115123125783e-16,
+      "n_days_over_1": 0,
       "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s42_sens_5bps.csv",
       "how_to_verify": "audit script output; sum_w+cash==1"
     },
@@ -2837,103 +2588,103 @@
       "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s42::sens_5bps::total_return",
       "measured": -0.4158358232334456,
-      "expected": -0.40776169188155353,
-      "gap": 0.019416632480360713,
+      "expected": -0.4158358232334456,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s42::sens_5bps::annualized_return",
       "measured": -0.12591489101199493,
-      "expected": -0.12290596312994517,
-      "gap": 0.023896521355548993,
+      "expected": -0.12591489101199493,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s42::sens_5bps::annualized_vol",
       "measured": 0.22340418888146196,
-      "expected": 0.2242558085201374,
-      "gap": 0.0037975365913385972,
+      "expected": 0.22340418888146196,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s42::sens_5bps::sharpe_rf0",
       "measured": -0.510133111806416,
-      "expected": -0.4915292555272526,
-      "gap": 0.036468631125091786,
+      "expected": -0.510133111806416,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s42::sens_5bps::sharpe_rf1p5",
       "measured": -0.5772759889167417,
-      "expected": -0.5584171551049041,
-      "gap": 0.032668661392319845,
+      "expected": -0.5772759889167417,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s42::sens_5bps::max_drawdown",
       "measured": -0.5455994535129398,
-      "expected": -0.5398041120274905,
-      "gap": 0.010621970839844161,
+      "expected": -0.5455994535129398,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s42::sens_5bps::turnover_daily_mean",
       "measured": 1.2858316221765915,
-      "expected": 1.2935934291581115,
-      "gap": 0.006000190482237878,
+      "expected": 1.2858316221765915,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s42::sens_5bps::turnover_total",
       "measured": 1252.4,
-      "expected": 1259.9600000000005,
-      "gap": 0.006000190482237847,
+      "expected": 1252.4,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s42::sens_5bps::cost_total",
       "measured": 1.2519000000000002,
-      "expected": 1.2594600000000005,
-      "gap": 0.006002572531084933,
+      "expected": 1.2519000000000002,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s42::sens_5bps::gross_return_total",
       "measured": 0.8114128518293391,
-      "expected": 0.8334189085169985,
-      "gap": 0.026404556535461168,
+      "expected": 0.8114128518293391,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s42::sens_5bps::avg_holdings",
       "measured": 50.0,
-      "expected": 50.25564681724846,
-      "gap": 0.005086927209953245,
+      "expected": 50.0,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s42.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
       "severity": "pass",
@@ -2945,65 +2696,13 @@
       "how_to_verify": "audit script output; float32 存储精度上限 ~6e-8"
     },
     {
-      "severity": "blocking",
-      "item": "daily::xgbfull_s43::main_8bps::gross_ret",
-      "measured": 0.06761164401498518,
-      "expected": 0.016263925801726472,
-      "gap": 0.19236116032122902,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s43_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgbfull_s43::main_8bps::cost",
-      "measured": 0.0025480000000000012,
-      "expected": 0.0006400000000000012,
-      "gap": 0.2185792349726779,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s43_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgbfull_s43::main_8bps::net_ret",
-      "measured": 0.06579164401498518,
-      "expected": 0.01586392580172647,
-      "gap": 0.18356583380920496,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s43_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgbfull_s43::main_8bps::buys",
-      "measured": 0.9999999999999999,
-      "expected": 0.5000000000000004,
-      "gap": 0.5000000000000002,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s43_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgbfull_s43::main_8bps::sells",
-      "measured": 0.9800000000000004,
-      "expected": 0.40000000000000047,
-      "gap": 0.3125000000000002,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s43_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgbfull_s43::main_8bps::turnover",
-      "measured": 1.9600000000000009,
-      "expected": 0.5000000000000003,
-      "gap": 0.2427184466019418,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s43_main_8bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
       "severity": "pass",
       "item": "weight_invariant::xgbfull_s43::main_8bps",
       "measured": 1.0,
       "expected": 1.0,
       "gap": 0.0,
+      "ledger_max_dev": 5.551115123125783e-16,
+      "n_days_over_1": 0,
       "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s43_main_8bps.csv",
       "how_to_verify": "audit script output; sum_w+cash==1"
     },
@@ -3017,157 +2716,103 @@
       "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s43::main_8bps::total_return",
       "measured": -0.5992419072983476,
-      "expected": -0.5902294556579692,
-      "gap": 0.015039755281820208,
+      "expected": -0.5992419072983476,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s43::main_8bps::annualized_return",
       "measured": -0.20460202161327057,
-      "expected": -0.20016132181811874,
-      "gap": 0.02170408562015792,
+      "expected": -0.20460202161327057,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s43::main_8bps::annualized_vol",
       "measured": 0.2224963811174779,
-      "expected": 0.2233600339169193,
-      "gap": 0.0038666398115010927,
+      "expected": 0.2224963811174779,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s43::main_8bps::sharpe_rf0",
       "measured": -0.9510059179464094,
-      "expected": -0.9207395876337974,
-      "gap": 0.031825596183427333,
+      "expected": -0.9510059179464094,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s43::main_8bps::sharpe_rf1p5",
       "measured": -1.0184227447939436,
-      "expected": -0.9878957378946779,
-      "gap": 0.029974789011062576,
+      "expected": -1.0184227447939436,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s43::main_8bps::max_drawdown",
       "measured": -0.6556880934909397,
-      "expected": -0.6482881663631271,
-      "gap": 0.011285742720162447,
+      "expected": -0.6556880934909397,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s43::main_8bps::turnover_daily_mean",
       "measured": 1.3395893223819304,
-      "expected": 1.3429158110882962,
-      "gap": 0.0024770642201836766,
+      "expected": 1.3395893223819304,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s43::main_8bps::turnover_total",
       "measured": 1304.7600000000002,
-      "expected": 1308.0000000000005,
-      "gap": 0.002477064220183666,
+      "expected": 1304.7600000000002,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s43::main_8bps::cost_total",
       "measured": 1.6956880000000003,
-      "expected": 1.6999000000000009,
-      "gap": 0.0024777928113421653,
+      "expected": 1.6956880000000003,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s43::main_8bps::gross_return_total",
       "measured": 0.8778550817059236,
-      "expected": 0.9050215934168685,
-      "gap": 0.030017528762356836,
+      "expected": 0.8778550817059236,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s43::main_8bps::avg_holdings",
       "measured": 50.0,
-      "expected": 50.10164271047228,
-      "gap": 0.0020287300969281624,
+      "expected": 50.0,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgbfull_s43::sens_5bps::gross_ret",
-      "measured": 0.06761164401498518,
-      "expected": 0.016263925801726472,
-      "gap": 0.19236116032122902,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s43_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgbfull_s43::sens_5bps::cost",
-      "measured": 0.001960000000000001,
-      "expected": 0.0005500000000000008,
-      "gap": 0.2380952380952383,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s43_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgbfull_s43::sens_5bps::net_ret",
-      "measured": 0.06621164401498518,
-      "expected": 0.01601392580172647,
-      "gap": 0.18623246197015986,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s43_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgbfull_s43::sens_5bps::buys",
-      "measured": 0.9999999999999999,
-      "expected": 0.5000000000000004,
-      "gap": 0.5000000000000002,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s43_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgbfull_s43::sens_5bps::sells",
-      "measured": 0.9800000000000004,
-      "expected": 0.40000000000000047,
-      "gap": 0.3125000000000002,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s43_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
-    },
-    {
-      "severity": "blocking",
-      "item": "daily::xgbfull_s43::sens_5bps::turnover",
-      "measured": 1.9600000000000009,
-      "expected": 0.5000000000000003,
-      "gap": 0.2427184466019418,
-      "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s43_sens_5bps.csv",
-      "how_to_verify": "diff the two CSVs"
+      "how_to_verify": "audit script output"
     },
     {
       "severity": "pass",
@@ -3175,6 +2820,8 @@
       "measured": 1.0,
       "expected": 1.0,
       "gap": 0.0,
+      "ledger_max_dev": 5.551115123125783e-16,
+      "n_days_over_1": 0,
       "location": "/srv/share/quantdb/code/quant-lab/experiments/WORK-555/bt_daily_xgbfull_s43_sens_5bps.csv",
       "how_to_verify": "audit script output; sum_w+cash==1"
     },
@@ -3188,103 +2835,103 @@
       "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s43::sens_5bps::total_return",
       "measured": -0.4070248777295232,
-      "expected": -0.3931071962742685,
-      "gap": 0.03419368745441485,
+      "expected": -0.4070248777295232,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s43::sens_5bps::annualized_return",
       "measured": -0.1226329144200834,
-      "expected": -0.11752244294161818,
-      "gap": 0.041672918748054184,
+      "expected": -0.1226329144200834,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s43::sens_5bps::annualized_vol",
       "measured": 0.22245237934161521,
-      "expected": 0.2233202939935015,
-      "gap": 0.0038864119170089763,
+      "expected": 0.22245237934161521,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s43::sens_5bps::sharpe_rf0",
       "measured": -0.49593725506027314,
-      "expected": -0.4662898670878973,
-      "gap": 0.05978052197101558,
+      "expected": -0.49593725506027314,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s43::sens_5bps::sharpe_rf1p5",
       "measured": -0.5633674171668552,
-      "expected": -0.5334579678089025,
-      "gap": 0.053090484906574344,
+      "expected": -0.5633674171668552,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s43::sens_5bps::max_drawdown",
       "measured": -0.529526769626496,
-      "expected": -0.5197950180701223,
-      "gap": 0.018378205058902062,
+      "expected": -0.529526769626496,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s43::sens_5bps::turnover_daily_mean",
       "measured": 1.3395893223819304,
-      "expected": 1.3429158110882962,
-      "gap": 0.0024770642201836766,
+      "expected": 1.3395893223819304,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s43::sens_5bps::turnover_total",
       "measured": 1304.7600000000002,
-      "expected": 1308.0000000000005,
-      "gap": 0.002477064220183666,
+      "expected": 1304.7600000000002,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s43::sens_5bps::cost_total",
       "measured": 1.3042600000000002,
-      "expected": 1.3075000000000006,
-      "gap": 0.002478011472275604,
+      "expected": 1.3042600000000002,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s43::sens_5bps::gross_return_total",
       "measured": 0.8778550817059236,
-      "expected": 0.9050215934168685,
-      "gap": 0.030017528762356836,
+      "expected": 0.8778550817059236,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     },
     {
-      "severity": "blocking",
+      "severity": "pass",
       "item": "metric::xgbfull_s43::sens_5bps::avg_holdings",
       "measured": 50.0,
-      "expected": 50.10164271047228,
-      "gap": 0.0020287300969281624,
+      "expected": 50.0,
+      "gap": 0.0,
       "location": "backtest_xgbfull_s43.json",
-      "how_to_verify": "/tmp/w555venv/bin/python audit/recompute_work555.py"
+      "how_to_verify": "audit script output"
     }
   ]
 }

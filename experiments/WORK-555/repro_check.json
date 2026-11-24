@@ -1,0 +1,22 @@
+{
+  "experiment": "WORK-555",
+  "generated_at": "2026-11-24T20:56:10+08:00",
+  "sandbox": "/tmp/w555_repro",
+  "method": "同一份代码 / 同 seed / 同一面板，在独立沙箱重跑，与仓库产物逐份比 sha256",
+  "n_checked": 2,
+  "n_identical": 2,
+  "rows": [
+    {
+      "artifact": "preds_dee_s42.npz",
+      "sandbox_sha256": "52048ef19cfc5e21177d58a0cef4cf1b96222aa6c5cd2886bbaf2ce85f0676f9",
+      "repo_sha256": "52048ef19cfc5e21177d58a0cef4cf1b96222aa6c5cd2886bbaf2ce85f0676f9",
+      "status": "identical"
+    },
+    {
+      "artifact": "preds_mlp_only_s42.npz",
+      "sandbox_sha256": "cfda7e05165c63d917a0c434105ee22b1b509ba152bcddc0cdb5e403d7a247d2",
+      "repo_sha256": "cfda7e05165c63d917a0c434105ee22b1b509ba152bcddc0cdb5e403d7a247d2",
+      "status": "identical"
+    }
+  ]
+}

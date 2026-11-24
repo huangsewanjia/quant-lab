@@ -37,7 +37,7 @@
     "best_step": 7740,
     "best_ens_val_mse": 0.0009863629946670633,
     "early_stopped": false,
-    "elapsed_sec": 2144.0,
+    "elapsed_sec": 3200.9,
     "eval_count": 400,
     "loss_monitor": "ensemble_mse = MSE(mean_k f_k(x), y)  # 预注册 §4.1/§4.3「集成级验证 MSE」",
     "alt_monitor_mean_expert_mse": {
@@ -139,5 +139,5 @@
       "ic": 0.025705265306137155
     }
   },
-  "elapsed_sec": 2191.0
+  "elapsed_sec": 3237.3
 }

@@ -25,5 +25,5 @@
   "test_ic_mean_best_iter": 0.0322944146737091,
   "test_rankic_mean_full_2000": 0.02393657962000208,
   "test_ic_mean_full_2000": 0.030828102984551655,
-  "elapsed_sec": 156.0
+  "elapsed_sec": 215.8
 }
