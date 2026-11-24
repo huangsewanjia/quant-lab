@@ -22,8 +22,8 @@
 | **MLP-only (N=20)** | 43 | +0.036100 | −0.3954 | −10.35% | −51.30% | 1.028 |
 | XGBoost | 42 | +0.014752 | −1.1463 | −23.78% | −69.15% | 1.211 |
 | XGBoost | 43 | +0.016158 | −0.9573 | −20.37% | −64.26% | 1.194 |
-| XGBoost（无早停·诊断） | 42 | +0.024574 | −0.9453 | −20.44% | −66.48% | 1.286 |
-| XGBoost（无早停·诊断） | 43 | +0.022894 | −0.9510 | −20.46% | −65.57% | 1.340 |
+| XGBoost（无早停·诊断） | 42 | +0.024601 | −0.9453 | −20.44% | −66.48% | 1.286 |
+| XGBoost（无早停·诊断） | 43 | +0.022910 | −0.9510 | −20.46% | −65.57% | 1.340 |
 
 - seed 42：Δ_ic = (0.030327 − 0.037082) / 0.037082 = **−18.22%**
 - seed 43：Δ_ic = (0.021631 − 0.036100) / 0.036100 = **−40.08%**
@@ -32,7 +32,7 @@
 
 ### 独立复算（不 import 建模阶段的任何函数）
 
-- 判决：**PASS**，blocking **0** 项 / 共 **318** 项检查项
+- 判决：**PASS**，blocking **0** 项 / 共 **320** 项检查项
 - Δ_ic 复算值 `-0.2914861368509015`（建模侧 `-0.2914861368509015`）→ 逐位一致
 - 组合权重不变量（现金账本口径）：全部 16 份逐日账本 max Σw = **1.000000000**、Σw>1 天数 = **0**、max\|Σw+cash−1\| = **5.551e-16** → 总敞口恒为 1，**无隐含杠杆**
 
@@ -80,8 +80,8 @@
 
 | 交付件 | 路径 | 大小 | sha256（前 16 位） |
 |---|---|---|---|
-| report.html | `experiments/WORK-555/report.html` | 1,345,715 B | `791abf7f3dccfa98` |
-| report_print.pdf | `experiments/WORK-555/report_print.pdf` | 1,524,438 B | `0b53ce336230e4fd` |
+| report.html | `experiments/WORK-555/report.html` | 1,346,162 B | `049780a0b7f33de9` |
+| report_print.pdf | `experiments/WORK-555/report_print.pdf` | 1,526,660 B | `8c5ff4c958c96660` |
 | report_firstscreen_1440x900.png | `experiments/WORK-555/report_firstscreen_1440x900.png` | 212,483 B | `4ca2acfe2c3cb2ce` |
 | fig1_rankic_arms.png | `figures/WORK-555/fig1_rankic_arms.png` | 130,224 B | `e9d5a187d4e07e61` |
 | fig2_daily_rankic.png | `figures/WORK-555/fig2_daily_rankic.png` | 553,133 B | `b13b2a27d4cd50e6` |
@@ -90,7 +90,7 @@
 
 单文件 HTML 自检：内嵌 base64 图 **4** 张、**外链 0 处**（要求 0）、断网可开。
 
-### 独立代码审查（3 轮，全部 FAIL → 逐项处置 → 增量复审）
+### 独立代码审查（4 轮，全部 FAIL → 逐项处置 → 增量复审）
 
 实现完成后交给**独立子代理**审查（隔离沙箱、零 import 建模函数、自带一套从头写的复算实现）。主循环不参与审查判决；每轮修复后交回同一审查方**复审增量**。
 
@@ -149,6 +149,24 @@
 | N4 | nit | commit message 称「报告 §6 权重闸门改为三项并排」，但三项代码在 ff55dee 已有，该 commit 实际只改了 HTML 转义… | 不改历史（不重写公共历史）；以本文件与提交说明为准… |
 
 留痕：`experiments/WORK-555/review_round3.json`
+
+**第四轮**（增量复审范围 `9bbb1f1..30215ed（含最终产物 commit bb5c746）`）：判决 **FAIL**
+
+> 2 blocking + 4 suggestion + 3 nit。第三轮 B1 已关闭（审计与被审产物同代、独立重跑逐位一致）、B2 部分关闭（B2 点名的四组数字矛盾已全部消除，审查方 181 项同量对齐里 177 项一致；但同一提交里仍有 2 处新暴露的同量不一致/相反结论）、B3 部分关闭（陈旧审计与 n_blocking≠0 都会让门禁变红，但门禁只读 n_blocking 计数器、不看 findings[] 数组）。float64 落盘**不是绕过**：审计阈值 TOL=1e-6 与审计脚本在整个审查区间内逐字节未变，预注册文件也逐字节未变，产物精度变化被如实写进 failure_log §15 与 report §6，且这是预注册 §7.2「以复算值为准、回退到对应阶段重做」的正确处置形态（重跑全 8 臂使产物无损）。判词「未复现（退）」由预注册 §6.2 机械规则得出，审查方复核一致。两项 blocking 均为**证据链/交付件一致性**问题，均不改变判词（Δ_ic 只用 DEE vs MLP-only）。
+
+| # | 级别 | 问题 | 处置 |
+|---|---|---|---|
+| B4-1 | blocking | 非预注册诊断臂 xgbfull 的测试段 RankIC 用**序数秩**算（np.argsort(np.argsort(p))），与其余全部臂和审计侧用的**平均并列秩**口径不同；该臂 RankIC 因此与其产物复算值… | ① scripts/work555_xgb_diag.py:69-70 改用与其余臂/审计侧一致的平均并列秩（或直接复用 work555_dee.rank_ic_by_day，但不得 import 建模函数进审计侧）；② audit/recompute_work555.py 的 IC 项改为按「ru… |
+| B4-2 | blocking | 同一提交（bb5c746）对**同一个量**（MLP-only 基线两种子 RankIC 极差 0.0010 ≤ 预注册 0.01 阈值）给出**相反的因果结论**：registry.md ⑤ 写「Δ_ic 的符号由基线… | 把 render_registry_row 的 ⑤ 改成与 §12.2 同源：按 primary.rankic_unstable_mlp 实测分支渲染（超阈值才写「由基线种子噪声决定」，否则写「基线本身是稳的，方向由相对表现决定」），或直接复用 §12.2 的同一段文字渲染函数，保证 registr… |
+| S4-1 | suggestion | 自证门禁对「审计存在 blocking」的判定只读 audit_findings.json 的 **n_blocking 计数器**，不自行从 findings[] 数组派生。若审计文件里某条 finding 的 sev… | selfcheck.sh 的审计块增加一条：sum(1 for f in a['findings'] if f['severity']=='blocking') 必须为 0，且与 a['n_blocking'] 互相一致（不一致即 FAIL）；或把 audit_findings.json 也纳入一份… |
+| S4-2 | suggestion | nomask_assert.json 的 stderr_sha256 取自子进程 traceback 全文，而 traceback 内嵌**脚本的绝对路径**，因此该产物**跨 checkout 路径不可逐字节复现**；… | nomask_assert.json 只记录与路径无关的摘要（例如 stderr 去掉 File 行、或记录 stderr 规范化后的 sha256），或把该产物移出 artifact_manifest 的 sha256 覆盖范围；另可在 selfcheck 里先备份/后还原被写产物，使自证清单幂等… |
+| S4-3 | suggestion | registry 与 report.html 的「独立审查」留痕只写**第一轮**（2 blocking + 3 suggestion + 4 nit，留痕 review_round1.json），完全不提第二轮与第三轮… | 把 ⑥ 子句改成按 experiments/WORK-555/review_round*.json 实际份数与各轮 verdict 动态生成（与 work555_final_comment.py 的做法一致），并在本轮 review_round4.json 落地后自动入列。… |
+| S4-4 | suggestion | 精度门禁的 --check 只**读**已落盘的 float32_quant_diag.json（信任其中的 n_over_tol / model_audit_identical 字段），不重算；其 PASS 文案写「全… | §15 与 --check 的 PASS 文案改成「6/8 臂/种子的相对差为 0.0；xgbfull 两臂未参与该比较（口径差异）」，并让 --check 复算而不是只读字段；对 xgbfull 采用与其真实建模脚本一致的秩函数后再纳入比较。… |
+| N4-1 | nit | 正文称「8 个臂/种子的「产物复算值 vs 建模侧报告值」相对差**全部为 0.0**」，而同一段落下方表格里 xgbfull 两行为 n/a、「（诊断臂无该字段）」。措辞与自己的表打架。… | 改为「6 个臂/种子的相对差为 0.0（4 臂中 dee/mlp_only/xgb 共 6 个臂/种子参与比较），xgbfull 2 行未参与」。… |
+| N4-2 | nit | 交办书期望「新口径数值应与上一轮逐位相同，只是产物精度变了」，实测**并非全部相同**：dee_s43 的 test_rankic_mean / test_ic_mean 与其回测指标在 v3→v4 之间变了（0.023… | 无需处置；建议交办书/结论文档把「建模侧数值一个字节不变」的表述限定为「float64 落盘这一步本身不改变指标计算；v3→v4 的 dee_s43 变化来自 S2 早停修复经全量重跑落到产物」。… |
+| N4-3 | nit | 同一个量「独立复算检查项数」在同一文件里出现两个值：§12 的历史叙事行写「独立复算 **PASS，blocking 0，261 项**」，§16 写「blocking 0 项 / 共 318 项检查项」。§12 那行属… | 把 §12 的历史行加上显式时点标注（如「（2026-11-24 14:15 当时）」），或把小节标题里的「最终」改为「阶段」，避免与 §12.2-§12.4 的现值生成块混读。… |
+
+留痕：`experiments/WORK-555/review_round4.json`
 
 ### 字节级可复现性（补上第一轮审查未能核实的项）
 

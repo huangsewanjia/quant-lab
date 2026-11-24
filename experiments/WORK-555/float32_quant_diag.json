@@ -97,12 +97,12 @@
    "pred_dtype": "float64",
    "model_side_func_value": 0.024600560111263988,
    "audit_side_func_value": 0.024600560111263988,
-   "model_reported_value": null,
-   "abs_diff_func_vs_reported": null,
-   "rel_diff_func_vs_reported": null,
+   "model_reported_value": 0.024600560111263988,
+   "abs_diff_func_vs_reported": 0.0,
+   "rel_diff_func_vs_reported": 0.0,
    "model_vs_audit_identical": true,
    "over_tol": false,
-   "note": "该臂的 run_*.json 不含 test_rankic_mean（诊断臂口径不同），故不参与「报告值 vs 产物复算值」比较",
+   "note": "",
    "tol": 1e-06
   },
   {
@@ -111,12 +111,12 @@
    "pred_dtype": "float64",
    "model_side_func_value": 0.022910095824686054,
    "audit_side_func_value": 0.022910095824686054,
-   "model_reported_value": null,
-   "abs_diff_func_vs_reported": null,
-   "rel_diff_func_vs_reported": null,
+   "model_reported_value": 0.022910095824686054,
+   "abs_diff_func_vs_reported": 0.0,
+   "rel_diff_func_vs_reported": 0.0,
    "model_vs_audit_identical": true,
    "over_tol": false,
-   "note": "该臂的 run_*.json 不含 test_rankic_mean（诊断臂口径不同），故不参与「报告值 vs 产物复算值」比较",
+   "note": "",
    "tol": 1e-06
   }
  ],
@@ -222,9 +222,9 @@
    "std": 3.206552848170339e-08,
    "min": 0.024600499961483346,
    "max": 0.02460061387028916,
-   "model_reported_value": null,
-   "reported_inside_perturb_range": null,
-   "note": "该臂 run_*.json 无 test_rankic_mean，未参与区间覆盖判定"
+   "model_reported_value": 0.024600560111263988,
+   "reported_inside_perturb_range": true,
+   "note": ""
   },
   {
    "arm": "xgbfull",
@@ -237,9 +237,9 @@
    "std": 0.0,
    "min": 0.022910095824686054,
    "max": 0.022910095824686054,
-   "model_reported_value": null,
-   "reported_inside_perturb_range": null,
-   "note": "该臂 run_*.json 无 test_rankic_mean，未参与区间覆盖判定"
+   "model_reported_value": 0.022910095824686054,
+   "reported_inside_perturb_range": true,
+   "note": ""
   }
  ],
  "conclusion": "建模侧函数与审计侧函数在同一份 npz 上逐位相等 → 两边实现口径一致；报告值与产物复算值的差落在 ±1 ULP 量化抖动区间内 → 差异由**产物 float32 量化**引起（截面秩位翻转），不是算法分歧。故处置是**让产物无损（float64 落盘）**，而不是放宽审计阈值。"

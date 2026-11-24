@@ -1,6 +1,6 @@
 {
   "experiment": "WORK-555",
-  "generated_at": "2026-11-24T20:57:00+08:00",
+  "generated_at": "2026-11-24T21:20:30+08:00",
   "note": "审计的直接输入 + 建模汇总 + 对外交付件的逐份 sha256 锁定。",
   "n_items": 44,
   "items": [
@@ -264,8 +264,8 @@
       "group": "model_output",
       "name": "run_xgbfull_s42.json",
       "path": "experiments/WORK-555/run_xgbfull_s42.json",
-      "bytes": 1157,
-      "sha256": "1e36a854b4b8c14473b7a149879daca0db9d07698808aa6699cd34d42868132c",
+      "bytes": 1156,
+      "sha256": "d4dd089d413ca415a5655bb704cf277f44296ddd73027901db7f0676831b8000",
       "note": "建模汇总：训练日志与统计"
     },
     {
@@ -273,7 +273,7 @@
       "name": "run_xgbfull_s43.json",
       "path": "experiments/WORK-555/run_xgbfull_s43.json",
       "bytes": 1159,
-      "sha256": "32bdac7b98e72dd9676c86b0a26fd15ae3c39c1441af695ce4c22e7676eb3bfd",
+      "sha256": "d28722c3247934fc28e570597417b4be98853ed3faaa75547f2845db156496ef",
       "note": "建模汇总：训练日志与统计"
     },
     {
@@ -344,16 +344,16 @@
       "group": "evidence",
       "name": "nomask_assert.json",
       "path": "experiments/WORK-555/nomask_assert.json",
-      "bytes": 4832,
-      "sha256": "7474f721b66ce6194fb649265b13820d6ee81d3fb95a4ba5699a157e9a21aefa",
+      "bytes": 7080,
+      "sha256": "68f4a76f87bec7a54a0b2d26570ff258352efeb25b19d81f20428d72de80b70e",
       "note": "不可成交断言全 8 组合逐组实测记录（预注册 §7 失败判据第 4 条）"
     },
     {
       "group": "evidence",
       "name": "float32_quant_diag.json",
       "path": "experiments/WORK-555/float32_quant_diag.json",
-      "bytes": 7402,
-      "sha256": "f37821b38a74d1e6233c553697f5e227c995d861ed46c0ec189a0be03d1c36ff",
+      "bytes": 7074,
+      "sha256": "531c78340969f5ee02b7069633d2f2e5d6500e4468dbe209e8a9616513afab56",
       "note": "产物精度诊断记录（产物复算值 vs 建模侧报告值，预注册 §7.2 的 1e-6 判据）"
     }
   ]

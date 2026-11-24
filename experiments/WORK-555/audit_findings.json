@@ -1,9 +1,9 @@
 {
   "experiment": "WORK-555",
-  "generated_at": "2026-11-24T20:57:23+08:00",
-  "artifact_manifest_sha256": "d2846eab2e8ef168d288e23ccb38dfc9956a14f63f4165fa1660a5dc6311b246",
+  "generated_at": "2026-11-24T21:20:48+08:00",
+  "artifact_manifest_sha256": "4b7b586e73baeaead24c7eb4029b14db5d34c4111708a2bb8e94958108cd5065",
   "tolerance_rel_diff": 1e-06,
-  "n_findings": 318,
+  "n_findings": 320,
   "n_blocking": 0,
   "verdict": "PASS",
   "primary_test_recomputed": {
@@ -384,8 +384,8 @@
     {
       "severity": "pass",
       "item": "artifact_sha256::run_xgbfull_s42.json",
-      "measured": "1e36a854b4b8c14473b7a149879daca0db9d07698808aa6699cd34d42868132c",
-      "expected": "1e36a854b4b8c14473b7a149879daca0db9d07698808aa6699cd34d42868132c",
+      "measured": "d4dd089d413ca415a5655bb704cf277f44296ddd73027901db7f0676831b8000",
+      "expected": "d4dd089d413ca415a5655bb704cf277f44296ddd73027901db7f0676831b8000",
       "gap": 0.0,
       "location": "experiments/WORK-555/run_xgbfull_s42.json",
       "how_to_verify": "sha256sum <file>"
@@ -393,8 +393,8 @@
     {
       "severity": "pass",
       "item": "artifact_sha256::run_xgbfull_s43.json",
-      "measured": "32bdac7b98e72dd9676c86b0a26fd15ae3c39c1441af695ce4c22e7676eb3bfd",
-      "expected": "32bdac7b98e72dd9676c86b0a26fd15ae3c39c1441af695ce4c22e7676eb3bfd",
+      "measured": "d28722c3247934fc28e570597417b4be98853ed3faaa75547f2845db156496ef",
+      "expected": "d28722c3247934fc28e570597417b4be98853ed3faaa75547f2845db156496ef",
       "gap": 0.0,
       "location": "experiments/WORK-555/run_xgbfull_s43.json",
       "how_to_verify": "sha256sum <file>"
@@ -474,8 +474,8 @@
     {
       "severity": "pass",
       "item": "artifact_sha256::nomask_assert.json",
-      "measured": "7474f721b66ce6194fb649265b13820d6ee81d3fb95a4ba5699a157e9a21aefa",
-      "expected": "7474f721b66ce6194fb649265b13820d6ee81d3fb95a4ba5699a157e9a21aefa",
+      "measured": "68f4a76f87bec7a54a0b2d26570ff258352efeb25b19d81f20428d72de80b70e",
+      "expected": "68f4a76f87bec7a54a0b2d26570ff258352efeb25b19d81f20428d72de80b70e",
       "gap": 0.0,
       "location": "experiments/WORK-555/nomask_assert.json",
       "how_to_verify": "sha256sum <file>"
@@ -483,8 +483,8 @@
     {
       "severity": "pass",
       "item": "artifact_sha256::float32_quant_diag.json",
-      "measured": "f37821b38a74d1e6233c553697f5e227c995d861ed46c0ec189a0be03d1c36ff",
-      "expected": "f37821b38a74d1e6233c553697f5e227c995d861ed46c0ec189a0be03d1c36ff",
+      "measured": "531c78340969f5ee02b7069633d2f2e5d6500e4468dbe209e8a9616513afab56",
+      "expected": "531c78340969f5ee02b7069633d2f2e5d6500e4468dbe209e8a9616513afab56",
       "gap": 0.0,
       "location": "experiments/WORK-555/float32_quant_diag.json",
       "how_to_verify": "sha256sum <file>"
@@ -2450,6 +2450,15 @@
     },
     {
       "severity": "pass",
+      "item": "ic::xgbfull_s42::test_ic_mean_best_iter",
+      "measured": 0.032294414402226405,
+      "expected": 0.0322944146737091,
+      "gap": 8.406490725305687e-09,
+      "location": "run_xgbfull_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
       "item": "weight_invariant::xgbfull_s42::main_8bps",
       "measured": 1.0,
       "expected": 1.0,
@@ -2694,6 +2703,15 @@
       "gap": 3.5364939350316015e-08,
       "location": "sample.npz vs panel_backtest.csv",
       "how_to_verify": "audit script output; float32 存储精度上限 ~6e-8"
+    },
+    {
+      "severity": "pass",
+      "item": "ic::xgbfull_s43::test_ic_mean_best_iter",
+      "measured": 0.030186945641916988,
+      "expected": 0.030186945673746312,
+      "gap": 1.0544069029965483e-09,
+      "location": "run_xgbfull_s43.json",
+      "how_to_verify": "audit script output"
     },
     {
       "severity": "pass",
