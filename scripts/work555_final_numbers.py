@@ -540,9 +540,13 @@ def render_registry_row(n):
            f"{f(p.get('rankic_range_mlp'), 4)} 未超预注册 0.01 阈值 —— "
            f"因此 Δ_ic 的方向由**相对表现**决定，而不是由基线的种子噪声决定<br>")
         + f"⑥ **独立审查 {len(_rounds)} 轮，其中 "
-        + f"{sum(1 for rd, v, c, fn in _rounds if str(v).upper() == 'FAIL')} 轮判 FAIL**（"
-        + "；".join(f"第{rd}轮 {c['blocking']} blocking + {c['suggestion']} suggestion "
-                    f"+ {c['nit']} nit" for rd, _v, c, _fn in _rounds)
+        + f"{sum(1 for rd, v, c, fn in _rounds if str(v).upper() == 'FAIL')} 轮判 FAIL"
+        + (f"、{sum(1 for rd, v, c, fn in _rounds if str(v).upper() != 'FAIL')} 轮判 PASS"
+           if any(str(v).upper() != 'FAIL' for rd, v, c, fn in _rounds) else "")
+        + "**（"
+        + "；".join(f"第{rd}轮 {v}（{c['blocking']} blocking + "
+                    f"{c['suggestion']} suggestion + {c['nit']} nit）"
+                    for rd, v, c, _fn in _rounds)
         + "）：第一轮的 5 项（B1 审计脚本在 sha256 漂移路径崩溃（已修为显式 blocking）、"
         f"B2 快照 manifest 未锁事实层 panel_backtest.csv（已补，现 6 份逐份 MATCH）、"
         f"S1 梯度单测 worst 缩进漏检（已修 + 变异测试自证）、"

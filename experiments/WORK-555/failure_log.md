@@ -843,3 +843,63 @@ DEE 净 Sharpe 均值 −0.5841 < 0 → **未复现（退）**。
 
 **判词不变**：Δ_ic 逐种子 −18.22% / −40.08%、均值 −29.15%、CI [−168.1%, +109.8%] 含 0、
 DEE 净 Sharpe 均值 −0.5841 < 0 → **未复现（退）**。
+
+## §19 第七轮独立复审（增量轮）的处置与收口
+
+**审查方**：同一独立子代理（verifier），沙箱 `/srv/share/w555_review_r7/`（仓库外，全程只读）；
+留痕 `experiments/WORK-555/review_round7.json`（审查方原样产出，sha256 `86f857e4144f51c0…`）。
+**判决**：**PASS** —— 0 blocking + 1 suggestion + 1 nit。
+**范围**：`7e026fb..8ec570b`（第六轮处置 + 产物重出）。
+**审查方给出的收口意见**：**具备发布条件**（原话）。
+
+### §19.1 审查方独立确认的事实
+
+- **S6-1 已闭合**（用**翻转实验**证明，不是换写死的数字）：审查方在沙箱把
+  `review_round3.json` 的 verdict 由 FAIL 改成 PASS 后重生成三份交付件，计数**随即跟随**
+  （comment/report 变「3 轮判 FAIL、3 轮判 PASS」、registry 变「3 轮判 FAIL」）；
+  第二次翻转后计数再次同步。全仓库扫描已无「全部 FAIL」式硬编码渲染残留。
+- **N6-1 已闭合**：provenance 已改为不含次数的表述，§13/§15/§16 三节实测存在且与三个
+  FAIL 驱动重跑一一对应。
+- **附带诚实性修正核实为真**：两条 `--check` 提示语单位已改「字符」（负控实测
+  「落盘 20,104 字符 vs 重生成 20,100 字符」「1,330,662 字符 vs 1,330,661 字符」均 exit 1）；
+  交付件表里的 B 仍是真字节（stat 逐位吻合）；§17.2 已按「生产者侧日志记录」标注，
+  没有把不可复现的记录说成可复现。
+- **本轮无 blocking**：提交态 pristine 沙箱自证清单 **13/13 全过且连续两次 exit 0**（幂等）；
+  审计重跑与提交**逐条一致**（330 项、0 blocking、共有项差异 0）；独立复算 352 项 0 blocking；
+  跨交付件同量对齐 195 项零不一致；预注册逐字节未改。
+- **判词相关量逐字节未动**：本增量 diff **不含任何 `run_*.json` / `backtest_*.json`**；
+  `final_numbers.json` 剔除时间戳类字段后逐字段相同。
+- **总账回答（第七次）**：**不存在任何未关闭问题会改变判词**。
+
+### §19.2 本轮 2 项遗留的处置
+
+| # | 问题 | 处置 |
+|---|---|---|
+| S7-1 | provenance 末句「最新一轮收口（含第五轮处置）见 §17」是**写死的章节号**；本增量又跑了一次收口（清单 22:00:58 / 审计 22:01:19 / 数字 22:01:20），最新收口对应 §18；且 §18 缺「处置后的复跑结果（实测）」段，全文档无处记录本轮收口发生过 | ① provenance 末句改为**按盘上 `failure_log.md` 实际最大章节号动态生成**（`scripts/work555_final_comment.py` 新增 `_latest_section_ref()`，扫 `^## §(\d+)` 取最大值），从根上杜绝同类指认失真；② 本节（§19）补记本轮收口的实测结果 |
+| N7-1 | registry ⑥ 只给「6 轮，其中 4 轮判 FAIL」，不给 PASS 计数、逐轮不列判决，与 comment/report 口径不一 | registry ⑥ 改为与 comment/report **同一句口径**：「6 轮，其中 4 轮判 FAIL、2 轮判 PASS（第1轮 FAIL（…）；…；第6轮 PASS（…））」 |
+
+### §19.3 处置后的复跑结果（实测）
+
+重跑 `scripts/work555_finalize_v4.sh`（2026-11-24 22:2x）：精度诊断 8/8 行 rel = 0.0；
+独立复算 **PASS / blocking 0 / 330 项**、Δ_ic 复算值 `-0.2914861368509015` 与建模侧逐位一致；
+8 臂回测 `n_guard_violations = 0`；不可成交断言 8/8；权重不变量 max Σw = 1.000000000、
+max\|Σw+cash−1\| = 5.551e-16；**自证清单 13 项全过（exit 0）**；
+`final_numbers --check` / `artifact_manifest --check` / `comment --check` / `report --check`
+均 exit 0；产物清单 44 份逐份 sha256 一致；快照 6/6 MATCH。
+
+**判词不变**：Δ_ic 逐种子 −18.22% / −40.08%、均值 −29.15%、CI [−168.1%, +109.8%] 含 0、
+DEE 净 Sharpe 均值 −0.5841 < 0 → **未复现（退）**。
+
+### §19.4 本单到此为止的留痕索引
+
+| 轮次 | 判决 | 留痕 |
+|---|---|---|
+| 1 | FAIL（2 blocking + 3 suggestion + 4 nit） | `review_round1.json` |
+| 2 | FAIL（1 blocking + 4 suggestion + 2 nit） | `review_round2.json` |
+| 3 | FAIL（3 blocking + 6 suggestion + 4 nit） | `review_round3.json` |
+| 4 | FAIL（2 blocking + 4 suggestion + 3 nit） | `review_round4.json` |
+| 5 | PASS（0 blocking + 2 suggestion + 2 nit） | `review_round5.json` |
+| 6 | PASS（0 blocking + 1 suggestion + 1 nit） | `review_round6.json` |
+| 7 | PASS（0 blocking + 1 suggestion + 1 nit） | `review_round7.json` |
+
+七轮均由**同一独立子代理**执行，审查方全程只读被审仓库；每轮处置后交回同一审查方复审增量。

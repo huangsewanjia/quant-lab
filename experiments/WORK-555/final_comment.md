@@ -8,7 +8,7 @@
 2. DEE 净 Sharpe（rf=0，8 bps）均值 −0.5841 **< 0** → **直接退**
 3. 95% CI 含 0 → 记「未复现」（仍算交付）
 
-> 预注册：`experiments/WORK-555/preregistration.md` v1.0（commit `9a85409`，**早于**任何回测产物 commit）。本次交付的全部数字来自**最新一轮收口**的产物。**因 FAIL 驱动的重跑**见 `failure_log.md` §13/§15/§16（第一次因独立代码审查判 FAIL：S2 早停监控量与预注册文字不符、S3 组合权重泄漏；第二次因收口审计发现「产物 float32 量化导致审计复算与建模侧不一致」；第三次因第四轮独立复审判 FAIL：诊断臂 xgbfull 秩口径分歧 + 交付件两处同量不一致），最新一轮收口（含第五轮处置）见 §17。
+> 预注册：`experiments/WORK-555/preregistration.md` v1.0（commit `9a85409`，**早于**任何回测产物 commit）。本次交付的全部数字来自**最新一轮收口**的产物。**因 FAIL 驱动的重跑**见 `failure_log.md` §13/§15/§16（第一次因独立代码审查判 FAIL：S2 早停监控量与预注册文字不符、S3 组合权重泄漏；第二次因收口审计发现「产物 float32 量化导致审计复算与建模侧不一致」；第三次因第四轮独立复审判 FAIL：诊断臂 xgbfull 秩口径分歧 + 交付件两处同量不一致），最新一轮收口见 `failure_log.md` §19。
 
 > **关于本单此前那条「首屏样张（版式先交，数字后补）」评论**：那条评论里的数字栏是**当时的占位值**（训练未完成时填的），**已被本条终版评论全面取代**，请勿引用。那条评论的用途只是先确认版式；本条才是数字与判词的正式交付。
 
@@ -80,8 +80,8 @@
 
 | 交付件 | 路径 | 大小 | sha256（前 16 位） |
 |---|---|---|---|
-| report.html | `experiments/WORK-555/report.html` | 1,346,313 B | `bd2e08da8470c80a` |
-| report_print.pdf | `experiments/WORK-555/report_print.pdf` | 1,527,373 B | `440e83df9a4f3f13` |
+| report.html | `experiments/WORK-555/report.html` | 1,346,374 B | `71312f83b28b19d2` |
+| report_print.pdf | `experiments/WORK-555/report_print.pdf` | 1,527,725 B | `db2214ff8009dade` |
 | report_firstscreen_1440x900.png | `experiments/WORK-555/report_firstscreen_1440x900.png` | 212,483 B | `4ca2acfe2c3cb2ce` |
 | fig1_rankic_arms.png | `figures/WORK-555/fig1_rankic_arms.png` | 130,224 B | `e9d5a187d4e07e61` |
 | fig2_daily_rankic.png | `figures/WORK-555/fig2_daily_rankic.png` | 553,133 B | `b13b2a27d4cd50e6` |
@@ -90,7 +90,7 @@
 
 单文件 HTML 自检：内嵌 base64 图 **4** 张、**外链 0 处**（要求 0）、断网可开。
 
-### 独立代码审查（6 轮，其中 4 轮判 FAIL、2 轮判 PASS → 逐项处置 → 增量复审）
+### 独立代码审查（7 轮，其中 4 轮判 FAIL、3 轮判 PASS → 逐项处置 → 增量复审）
 
 实现完成后交给**独立子代理**审查（隔离沙箱、零 import 建模函数、自带一套从头写的复算实现）。主循环不参与审查判决；每轮修复后交回同一审查方**复审增量**。
 
@@ -191,6 +191,17 @@
 | N6-1 | nit | provenance 段枚举的三次重跑对应 §13（S2/S3 修复重跑）、§15（float32 无损落盘重跑）、§16（第四轮处置重跑），三节一一对应，引用无误；但 §17.4 记录了本轮（第五轮处置）又跑了一次完整… | 把「中途重跑过三次」改成不含次数的表述（如「中途因 FAIL 驱动的重跑见 §13/§15/§16，最新一轮收口见 §17」），或补上第四次（§17）的口径；改完重跑三道 --check 闸门与自证清单。… |
 
 留痕：`experiments/WORK-555/review_round6.json`
+
+**第 7 轮**（增量复审范围 `7e026fb..8ec570b（第六轮处置 + 产物重出单 commit；含 scripts/work555_final_comment.py / work555_report.py / work555_final_numbers.py 与产物重出；未改动 audit/recompute_work555.py、scripts/work555_selfcheck.sh、任何 run_*.json / backtest_*.json）`）：判决 **PASS**
+
+> 0 blocking + 1 suggestion + 1 nit。第六轮遗留 2 项处置经审查方独立验证：S6-1 **已闭合** —— 三处生成器（work555_final_comment.py:259-266、work555_report.py:803-810、work555_final_numbers.py:542-544）改为按盘上 review_round*.json 的 verdict 动态统计；审查方在沙箱把 review_round3.json 的 verdict 由 FAIL 改成 PASS 后重生成三份交付件，comment 标题随即变为「6 轮，其中 3 轮判 FAIL、3 轮判 PASS」、report 变为「共 6 轮，其中 3 轮判 FAIL、3 轮判 PASS」、registry 变为「6 轮，其中 3 轮判 FAIL」；第二次翻转后计数再次同步，全仓库扫描已无「全部 FAIL」式硬编码渲染残留（仅剩问题描述引文与代码注释）。N6-1 **已闭合** —— provenance 段改为不含次数的表述（「因 FAIL 驱动的重跑见 §13/§15/§16，最新一轮收口见 §17」），§13/§15/§16 三节实测存在且与所枚举的三个 FAIL 驱动重跑一一对应。附带诚实性修正 **已核实为真**：两条 --check 提示语单位由「B」改为「字符」（负控实测输出「落盘 20,104 字符 vs 重生成 20,100 字符」「落盘 1,330,662 字符 vs 重生成 1,330,661 字符」，均 exit=1）；failure_log §17.2 表格把 15,263/17,743 两个数字改为「字符」并加注「这两个数字是字符数不是字节数，且当时的落盘状态不在任何 git 版本里，无法被第三方复现 —— 故此处按『生产者侧日志记录』标注」，未把不可复现的记录说成可复现。本轮无 blocking：提交态 pristine 沙箱自证清单 **13/13 全过且连续两次 exit 0**（幂等）、产物清单 44/44 逐份 sha256 一致、审计重跑与提交 **逐条一致**（330 项、0 blocking、severity 全 pass、ic::* 16 项其中 12 项 gap 恰为 0.0）、审查方自写复算 352 项 0 blocking、跨交付件同量对齐 195 项零不一致；判词「未复现（退）」仍按预注册 §6.2 机械得出，且判词相关量在本增量内 **逐字节未动**（8 份 run_*.json 与抽查的 backtest_*.json 完全相同；final_numbers.json 剔除时间戳类字段后逐字段相同）。本轮新增 1 suggestion + 1 nit，均属叙述指认层：S7-1 provenance 的「最新一轮收口…见 §17」在本增量又跑一次收口后指向陈旧（最新收口对应 §18，且 §18 未记录本轮复跑）；N7-1 registry ⑥ 只给 FAIL 计数、未给 PASS 计数，与生产者自陈「三份均渲染『…2 轮判 PASS』」不符（registry 文本本身为真）。
+
+| # | 级别 | 问题 | 处置 |
+|---|---|---|---|
+| S7-1 | suggestion | N6-1 的处置把 provenance 的次数口径去掉了，但替代表述里「最新一轮收口（含第五轮处置）见 §17」是**写死的章节号**，而本增量本身又跑了一次收口（交付件全部重出），因此「最新一轮收口」现在对应的是第六… | 把 provenance 末句改为不写死章节号（如「最新一轮收口见 `failure_log.md` 末节」），或让生成器按 `failure_log.md` 实际存在的最大 § 编号动态填；同时在 §18 补一节「§18.3 处置后的复跑结果（实测）」，把本轮收口的时间戳（清单 22:00:58 … |
+| N7-1 | nit | registry 的 ⑥ 子句按实际判决动态生成了 FAIL 计数（不再硬编码「全部判 FAIL」，这一半已修好），但只给 FAIL 计数、**不给 PASS 计数**，且逐轮只列分级计数、**不列该轮判决**。于是单看… | registry 的 ⑥ 子句按 comment/report 同一口径补上 PASS 计数（如「6 轮，其中 4 轮判 FAIL、2 轮判 PASS」），三处用同一段渲染逻辑，避免三份交付件口径不一；改完重跑 final_numbers --check 与自证清单。… |
+
+留痕：`experiments/WORK-555/review_round7.json`
 
 ### 字节级可复现性（补上第一轮审查未能核实的项）
 

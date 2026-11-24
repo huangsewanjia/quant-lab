@@ -18,6 +18,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -55,6 +56,21 @@ def nf(x, nd=4, pct=False, sign=False, dash="—"):
         return dash
     s = f"{x:+.{nd}f}" if sign else f"{x:.{nd}f}"
     return u2212(s) + ("%" if pct else "")
+
+
+def _latest_section_ref():
+    """返回 failure_log.md 里**实际存在的最大章节号**（如「§19」）。
+
+    第七轮审查 S7-1 实测发现：原先这里写死「§17」，而文档每轮处置都会追加新章节，
+    于是「最新一轮收口见 §17」在又跑一次收口后就指向陈旧。
+    这里改为扫描盘上文件动态取最大章节号，避免同类指认失真再次发生。
+    """
+    p = os.path.join(OUT, "failure_log.md")
+    if not os.path.exists(p):
+        return "（末节）"
+    with open(p, encoding="utf-8") as fh:
+        nums = [int(m) for m in re.findall(r"^## §(\d+)", fh.read(), flags=re.M)]
+    return f"§{max(nums)}" if nums else "（末节）"
 
 
 def main():
@@ -105,7 +121,7 @@ def main():
       f"`failure_log.md` §13/§15/§16（第一次因独立代码审查判 FAIL：S2 早停监控量与预注册文字不符、"
       f"S3 组合权重泄漏；第二次因收口审计发现「产物 float32 量化导致审计复算与建模侧不一致」；"
       f"第三次因第四轮独立复审判 FAIL：诊断臂 xgbfull 秩口径分歧 + 交付件两处同量不一致），"
-      f"最新一轮收口（含第五轮处置）见 §17。")
+      f"最新一轮收口见 `failure_log.md` {_latest_section_ref()}。")
     A("")
     A("> **关于本单此前那条「首屏样张（版式先交，数字后补）」评论**：那条评论里的数字栏是"
       "**当时的占位值**（训练未完成时填的），**已被本条终版评论全面取代**，请勿引用。"
