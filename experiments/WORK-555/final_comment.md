@@ -8,7 +8,7 @@
 2. DEE 净 Sharpe（rf=0，8 bps）均值 −0.5841 **< 0** → **直接退**
 3. 95% CI 含 0 → 记「未复现」（仍算交付）
 
-> 预注册：`experiments/WORK-555/preregistration.md` v1.0（commit `9a85409`，**早于**任何回测产物 commit）。本次交付的全部数字来自 v4 重跑后的产物；**中途重跑过两次**——第一次因独立代码审查判 FAIL（S2 早停监控量与预注册文字不符、S3 组合权重泄漏），第二次因收口审计发现「产物 float32 量化导致审计复算与建模侧不一致」；两次的原因与影响见下文「独立审查」段与 `failure_log.md` §13/§15。
+> 预注册：`experiments/WORK-555/preregistration.md` v1.0（commit `9a85409`，**早于**任何回测产物 commit）。本次交付的全部数字来自**最新一轮收口**的产物；**中途重跑过三次**——第一次因独立代码审查判 FAIL（S2 早停监控量与预注册文字不符、S3 组合权重泄漏），第二次因收口审计发现「产物 float32 量化导致审计复算与建模侧不一致」，第三次因第四轮独立复审判 FAIL（诊断臂 xgbfull 秩口径分歧 + 交付件两处同量不一致）；三次的原因与影响见下文「独立审查」段与 `failure_log.md` §13/§15/§16。
 
 > **关于本单此前那条「首屏样张（版式先交，数字后补）」评论**：那条评论里的数字栏是**当时的占位值**（训练未完成时填的），**已被本条终版评论全面取代**，请勿引用。那条评论的用途只是先确认版式；本条才是数字与判词的正式交付。
 
@@ -32,7 +32,7 @@
 
 ### 独立复算（不 import 建模阶段的任何函数）
 
-- 判决：**PASS**，blocking **0** 项 / 共 **320** 项检查项
+- 判决：**PASS**，blocking **0** 项 / 共 **330** 项检查项
 - Δ_ic 复算值 `-0.2914861368509015`（建模侧 `-0.2914861368509015`）→ 逐位一致
 - 组合权重不变量（现金账本口径）：全部 16 份逐日账本 max Σw = **1.000000000**、Σw>1 天数 = **0**、max\|Σw+cash−1\| = **5.551e-16** → 总敞口恒为 1，**无隐含杠杆**
 
@@ -80,8 +80,8 @@
 
 | 交付件 | 路径 | 大小 | sha256（前 16 位） |
 |---|---|---|---|
-| report.html | `experiments/WORK-555/report.html` | 1,346,162 B | `049780a0b7f33de9` |
-| report_print.pdf | `experiments/WORK-555/report_print.pdf` | 1,526,660 B | `8c5ff4c958c96660` |
+| report.html | `experiments/WORK-555/report.html` | 1,346,223 B | `0be40bf5ebf74097` |
+| report_print.pdf | `experiments/WORK-555/report_print.pdf` | 1,526,961 B | `ade3543a1031bfd4` |
 | report_firstscreen_1440x900.png | `experiments/WORK-555/report_firstscreen_1440x900.png` | 212,483 B | `4ca2acfe2c3cb2ce` |
 | fig1_rankic_arms.png | `figures/WORK-555/fig1_rankic_arms.png` | 130,224 B | `e9d5a187d4e07e61` |
 | fig2_daily_rankic.png | `figures/WORK-555/fig2_daily_rankic.png` | 553,133 B | `b13b2a27d4cd50e6` |
@@ -90,7 +90,7 @@
 
 单文件 HTML 自检：内嵌 base64 图 **4** 张、**外链 0 处**（要求 0）、断网可开。
 
-### 独立代码审查（4 轮，全部 FAIL → 逐项处置 → 增量复审）
+### 独立代码审查（5 轮，全部 FAIL → 逐项处置 → 增量复审）
 
 实现完成后交给**独立子代理**审查（隔离沙箱、零 import 建模函数、自带一套从头写的复算实现）。主循环不参与审查判决；每轮修复后交回同一审查方**复审增量**。
 
@@ -168,6 +168,19 @@
 
 留痕：`experiments/WORK-555/review_round4.json`
 
+**第 5 轮**（增量复审范围 `30215ed..83dc1ba（含处置 commit 6a3eab9 与产物重出 commit 83dc1ba）`）：判决 **PASS**
+
+> 0 blocking + 2 suggestion + 2 nit。第四轮两项 blocking **均已关闭**：B4-1（xgbfull 秩口径分歧 + 审计零覆盖）—— 三个秩实现（work555_dee._rank / work555_xgb_diag 用的 _rank / audit._rankdata）在重并列样本上**逐位相同**；float32_quant_diag.json 8 个臂/种子 rel 全部 0.0、model_audit_identical=True；audit_findings.json 新增 ic::xgbfull_s{42,43}::test_ic_mean_best_iter，项数 318→320 的增量**只有**这 2 项、无删项、TOL 仍 1e-6、预注册逐字节未改；全仓库已**不存在**xgbfull RankIC 的第二个值（0.024601 / 0.022910 在 report.html / failure_log.md / registry.md / final_numbers.json / final_comment.md / run_*.json / audit_findings.json 全部一致）。B4-2（registry ⑤ 与 §12.2 相反结论）—— registry ⑤ 现按 primary.rankic_unstable_mlp 实测分支渲染，与 §12.2 **同源同结论**。四项 suggestion：S4-1 已闭合（selfcheck 自派生 findings[] 并与 n_blocking 互校，负控变红），残留 final_numbers --check 仍只读计数器（S5-2）；S4-2 已闭合（连续两次 selfcheck 均 exit 0、清单检查两次 exit 0、nomask_assert.json 哈希不变，且新增 stderr_sha256_normalized 跨路径逐位相同）；S4-3 已闭合（registry/report/comment 均按 review_round*.json 动态列出 4 轮，轮次分级计数与各轮文件实测一致）；S4-4 已闭合（--check 改为重算并与落盘逐行比对，篡改 rel_diff_func_vs_reported 即红）。三项 nit 全部处置（§15 表 8 行全 0.0、§15.4 加口径限定、§12 的 261 项加时点标注、新增 §16）。**本轮无 blocking**：交付件之间 195 项同量对齐零不一致，提交态自证清单 11/11 全过，审查方自带复算 352 项 0 blocking，判词「未复现（退）」仍由预注册 §6.2 机械得出。遗留的 2 suggestion + 2 nit（其中 S5-2 即第四轮 S4-1 的残留）均不触及判词。
+
+| # | 级别 | 问题 | 处置 |
+|---|---|---|---|
+| S5-1 | suggestion | 提交态（83dc1ba）的**交付评论**顶部 provenance 段写「本次交付的全部数字来自 v4 重跑后的产物；**中途重跑过两次**……两次的原因与影响见下文「独立审查」段与 `failure_log.md` … | ① 提交态生成器 scripts/work555_final_comment.py:102 的 provenance 段改为与 §16 一致（「最新一轮收口 / 中途重跑过三次 / 见 §13/§15/§16」）—— 工作区已有此改法，提交即可；② 给 work555_final_comment.p… |
+| S5-2 | suggestion | 第四轮 S4-1 的处置只落在 `scripts/work555_selfcheck.sh`（已闭合，见 disposition S4-1）；`scripts/work555_final_numbers.py --che… | work555_final_numbers.py 的 collect() 里增加：n['audit']['n_blocking_derived'] = sum(1 for f in au.get('findings', []) if f.get('severity')=='blocking')；--… |
+| N5-1 | nit | 为 import work555_dee 而插入的 sys.path 逻辑把 `HERE = os.path.dirname(os.path.abspath(__file__))` 写了两遍（43 行、52 行），后一次… | 删掉 43 行那次重复赋值（保留 52 行），或把 import 块移到常量区之后。… |
+| N5-2 | nit | B4-1 统一了**秩**口径（Spearman 侧已逐位一致），但 **Pearson IC** 侧该臂仍走独立实现：`pearson_ic_by_day` 对 float32 标签数组直接做 `t.std()`（fl… | work555_xgb_diag.pearson_ic_by_day 里把标签升到 float64（`ys = np.asarray(y, dtype='float64')`）或改用 np.corrcoef，与其余臂口径统一；预计 gap 收敛到 ~1e-16。… |
+
+留痕：`experiments/WORK-555/review_round5.json`
+
 ### 字节级可复现性（补上第一轮审查未能核实的项）
 
 在独立沙箱（`/tmp/w555_repro`）用**同一份代码、同一 seed、同一份面板**重跑，与仓库产物逐份比 sha256：
@@ -184,7 +197,7 @@
 ```bash
 cd /srv/share/quantdb/code/quant-lab
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1
-bash scripts/work555_selfcheck.sh        # 自证清单：11 项一次跑完
+bash scripts/work555_selfcheck.sh        # 自证清单：13 项一次跑完
 bash scripts/work555_run_arms_v4.sh      # 4 臂 × 2 种子重跑（产物来源，float64 落盘）
 bash scripts/work555_finalize_v4.sh      # 回测→产物清单→复算→图→报告→PNG/PDF→自检
 /tmp/w555venv/bin/python scripts/work555_float32_quant_diag.py   # 产物精度诊断

@@ -227,8 +227,15 @@ def collect():
     am_sha = None
     if os.path.exists(am_path):
         am_sha = sha256_file(am_path)
+    # 第五轮审查 S5-2：n_blocking 不能只信**计数器**——审计文件里若某条 finding 的
+    # severity=blocking 而计数器仍是 0，计数器就是假的。这里自行从 findings[] 派生一次，
+    # 并要求与计数器互相一致、且都为 0，否则 --check 必须报红。
+    _findings = au.get("findings") or []
+    _blocking_derived = sum(1 for f in _findings if f.get("severity") == "blocking")
     n["audit"] = {"verdict": au.get("verdict"), "n_findings": au.get("n_findings"),
                   "n_blocking": au.get("n_blocking"),
+                  "n_blocking_derived": _blocking_derived,
+                  "blocking_counter_consistent": (au.get("n_blocking") == _blocking_derived),
                   "primary_test_recomputed": au.get("primary_test_recomputed"),
                   "generated_at": au.get("generated_at"),
                   "artifact_manifest_sha256_recorded": au.get("artifact_manifest_sha256"),
@@ -696,6 +703,15 @@ def main():
                        f"{str(n['audit'].get('artifact_manifest_sha256_recorded'))[:16]} vs "
                        f"{str(n['audit'].get('artifact_manifest_sha256_current'))[:16]}）"
                        f" -> 须重跑 audit/recompute_work555.py")
+        # 第五轮审查 S5-2：不能只信 n_blocking **计数器**——
+        # 审计文件里若某条 finding 的 severity=blocking 而计数器仍是 0，计数器就是假的。
+        _au = n.get("audit", {})
+        if _au.get("n_blocking_derived", 0):
+            bad.append(f"审计 findings[] 里派生到 {_au.get('n_blocking_derived')} 条 blocking，"
+                       f"但 n_blocking={_au.get('n_blocking')} -> 计数器与数组不一致")
+        if not _au.get("blocking_counter_consistent", True):
+            bad.append(f"审计 n_blocking={_au.get('n_blocking')} 与 findings[] 派生值 "
+                       f"{_au.get('n_blocking_derived')} 不一致")
         if bad:
             print("[FAIL] " + "；".join(bad))
             print("       跑：/tmp/w555venv/bin/python scripts/work555_final_numbers.py")

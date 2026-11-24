@@ -1,0 +1,153 @@
+{
+  "experiment": "WORK-555",
+  "round": 5,
+  "reviewed_commit": "83dc1ba",
+  "reviewed_range": "30215ed..83dc1ba（含处置 commit 6a3eab9 与产物重出 commit 83dc1ba）",
+  "reviewer": "independent sub-agent (verifier)，2026-11-24 第五轮增量复审；沙箱 /srv/share/w555_review_r5/（仓库外，仓库只读；pristine 沙箱全部用 83dc1ba 的 git blob 搭建）；解释器 /tmp/w555venv/bin/python，线程数固定为 1",
+  "verdict": "PASS",
+  "summary": "0 blocking + 2 suggestion + 2 nit。第四轮两项 blocking **均已关闭**：B4-1（xgbfull 秩口径分歧 + 审计零覆盖）—— 三个秩实现（work555_dee._rank / work555_xgb_diag 用的 _rank / audit._rankdata）在重并列样本上**逐位相同**；float32_quant_diag.json 8 个臂/种子 rel 全部 0.0、model_audit_identical=True；audit_findings.json 新增 ic::xgbfull_s{42,43}::test_ic_mean_best_iter，项数 318→320 的增量**只有**这 2 项、无删项、TOL 仍 1e-6、预注册逐字节未改；全仓库已**不存在**xgbfull RankIC 的第二个值（0.024601 / 0.022910 在 report.html / failure_log.md / registry.md / final_numbers.json / final_comment.md / run_*.json / audit_findings.json 全部一致）。B4-2（registry ⑤ 与 §12.2 相反结论）—— registry ⑤ 现按 primary.rankic_unstable_mlp 实测分支渲染，与 §12.2 **同源同结论**。四项 suggestion：S4-1 已闭合（selfcheck 自派生 findings[] 并与 n_blocking 互校，负控变红），残留 final_numbers --check 仍只读计数器（S5-2）；S4-2 已闭合（连续两次 selfcheck 均 exit 0、清单检查两次 exit 0、nomask_assert.json 哈希不变，且新增 stderr_sha256_normalized 跨路径逐位相同）；S4-3 已闭合（registry/report/comment 均按 review_round*.json 动态列出 4 轮，轮次分级计数与各轮文件实测一致）；S4-4 已闭合（--check 改为重算并与落盘逐行比对，篡改 rel_diff_func_vs_reported 即红）。三项 nit 全部处置（§15 表 8 行全 0.0、§15.4 加口径限定、§12 的 261 项加时点标注、新增 §16）。**本轮无 blocking**：交付件之间 195 项同量对齐零不一致，提交态自证清单 11/11 全过，审查方自带复算 352 项 0 blocking，判词「未复现（退）」仍由预注册 §6.2 机械得出。遗留的 2 suggestion + 2 nit（其中 S5-2 即第四轮 S4-1 的残留）均不触及判词。",
+  "findings": [
+    {
+      "id": "S5-1",
+      "severity": "suggestion",
+      "location": "experiments/WORK-555/final_comment.md:11（provenance 段）+ scripts/work555_final_comment.py:102（提交态生成器同句）",
+      "problem": "提交态（83dc1ba）的**交付评论**顶部 provenance 段写「本次交付的全部数字来自 v4 重跑后的产物；**中途重跑过两次**……两次的原因与影响见下文「独立审查」段与 `failure_log.md` §13/§15。」，但同一份文件里：① 表内写 `| XGBoost（无早停·诊断） | 42 | +0.024601 |` —— 该值**只存在于 v5**（v4 为 +0.024574，git 事实）；② 「独立代码审查」段写「4 轮，全部 FAIL」并含第四轮 FAIL 条目；③ 文中引用 §16（第四轮处置留痕）。即该句与**本文件自身内容**矛盾：实际重跑过**三次**、数字来自 v5 收口、且第三次的记录在 §16 而非 §13/§15。根因不只是文本陈旧：**提交态生成器 scripts/work555_final_comment.py:102 本身就写着这句**，所以单纯重跑生成器不会修复（审查方实测：用 83dc1ba 的生成器重生成，输出与提交版**逐字节一致**，仍带这句）。另：`work555_final_comment.py` 与 `work555_report.py` **既无 `--check` 模式、也不在 `work555_selfcheck.sh` 门禁里**，这类漂移没有任何自动闸门能挡。",
+      "evidence": "提交态实测（git show 83dc1ba:experiments/WORK-555/final_comment.md）：sed -n '11p' 得 「本次交付的全部数字来自 v4 重跑后的产物；**中途重跑过两次**……§13/§15」；同文件 grep 'XGBoost（无早停·诊断） | 42' 得「| XGBoost（无早停·诊断） | 42 | +0.024601 |」；grep -c '§16' = 1；grep -o '独立代码审查（4 轮，全部 FAIL → 逐项处置 → 增量复审）' 命中。git 事实：git show 30215ed:.../final_numbers.json 的 port.xgbfull_s42.rankic = 0.024574264478263604，git show 83dc1ba:... = 0.024600560111263988（v4→v5 确有变化）；提交版 final_comment.md 内 '0.024574' 命中 0 次、'+0.024601' 命中 1 次。生成器一致性实测：在 /srv/share/w555_review_r5/pristine（**全部用 83dc1ba 的 git blob** 搭的沙箱）跑 `python scripts/work555_final_comment.py --file`，exit=0，diff 提交版 final_comment.md 与重生成版 → **0 字节差异**（即该句确实来自当前生成器，重跑不修复）。生产者已并发修复：工作区 scripts/work555_final_comment.py（mtime 21:23:53，晚于 83dc1ba 提交时刻 21:23:29）已改为「**最新一轮收口**……**中途重跑过三次**……§13/§15/§16」，但**尚未提交**。",
+      "fix": "① 提交态生成器 scripts/work555_final_comment.py:102 的 provenance 段改为与 §16 一致（「最新一轮收口 / 中途重跑过三次 / 见 §13/§15/§16」）—— 工作区已有此改法，提交即可；② 给 work555_final_comment.py 与 work555_report.py 加 `--check` 模式（重生成后与落盘逐字节比对），并把这两项挂进 scripts/work555_selfcheck.sh，使「交付评论/报告 与生成器漂移」可被自动发现；③ §16 里补一句「v5 收口 = 第三次重跑」的对照，避免读者把 §12.2 的 320 项与 §12 的历史 261 项混读。",
+      "status": "open"
+    },
+    {
+      "id": "S5-2",
+      "severity": "suggestion",
+      "location": "scripts/work555_final_numbers.py:230（只取 au.get('n_blocking')，从不派生 findings[]）",
+      "problem": "第四轮 S4-1 的处置只落在 `scripts/work555_selfcheck.sh`（已闭合，见 disposition S4-1）；`scripts/work555_final_numbers.py --check` 仍**只读 n_blocking 计数器**、从不看 findings[] 数组。于是「findings[] 里有 severity=blocking、计数器却是 0」这一状态，selfcheck 会红，但 final_numbers --check 仍绿；而 final_numbers.json 恰恰把 n_blocking 作为对外数字发布（final_numbers.json 的 audit.n_blocking 字段），该数字与审计文件内部状态不一致时门禁不响。",
+      "evidence": "提交态沙箱（/srv/share/w555_review_r5/nc_sev2，脚本取自 83dc1ba git blob）负控：仅把 audit_findings.json 的 findings[0].severity 由 'pass' 改成 'blocking'（n_blocking 保持 0）：`/tmp/w555venv/bin/python scripts/work555_final_numbers.py --check` → **EXIT=0**，打印 '[OK] final_numbers.json 与两处文档一致；快照 6/6 份 sha256 MATCH；判词 未复现（退）'；同一状态下 `bash scripts/work555_selfcheck.sh` → **EXIT=1**，打印 'FAIL  findings[] 里有 1 条 severity=blocking，但 n_blocking=0（计数器与数组不一致）'。代码定位：grep -n findings scripts/work555_final_numbers.py → 只在 12 行注释与 429 行（那是 review_round*.json 的 findings，不是审计的）出现；230 行只取 'n_blocking': au.get('n_blocking')。",
+      "fix": "work555_final_numbers.py 的 collect() 里增加：n['audit']['n_blocking_derived'] = sum(1 for f in au.get('findings', []) if f.get('severity')=='blocking')；--check 在 stale 判定之外，再要求 n_blocking_derived == n_blocking 且 == 0，否则报 FAIL。",
+      "status": "open"
+    },
+    {
+      "id": "N5-1",
+      "severity": "nit",
+      "location": "scripts/work555_xgb_diag.py:43 与 :52（HERE 被赋值两次）",
+      "problem": "为 import work555_dee 而插入的 sys.path 逻辑把 `HERE = os.path.dirname(os.path.abspath(__file__))` 写了两遍（43 行、52 行），后一次覆盖前一次，值相同、无功能影响，但属合并噪声。",
+      "evidence": "实测 grep -n '^HERE = |^REPO = |^EXP = ' scripts/work555_xgb_diag.py → 43:HERE = os.path.dirname(os.path.abspath(__file__))；52:HERE = os.path.dirname(os.path.abspath(__file__))；53:REPO = os.path.dirname(HERE)；54:EXP = \"WORK-555\"。",
+      "fix": "删掉 43 行那次重复赋值（保留 52 行），或把 import 块移到常量区之后。",
+      "status": "open"
+    },
+    {
+      "id": "N5-2",
+      "severity": "nit",
+      "location": "scripts/work555_xgb_diag.py:86-100（pearson_ic_by_day）vs scripts/work555_dee.py:464-478",
+      "problem": "B4-1 统一了**秩**口径（Spearman 侧已逐位一致），但 **Pearson IC** 侧该臂仍走独立实现：`pearson_ic_by_day` 对 float32 标签数组直接做 `t.std()`（float32 归约），而其余臂用 work555_dee.pearson_ic_by_day 的 `np.corrcoef`（内部升 float64）。后果：xgbfull 的 IC 复算 gap 为 8.406e-09 / 1.054e-09，而其余臂是 ~1e-16 —— 量级差 7 个数量级。**远在 1e-6 判据内、审计已记为 pass**，且因该臂进入覆盖才第一次可见；属 B4-1 同型的「按臂分叉的实现」残留，不影响任何结论。",
+      "evidence": "审计实测 ic:: 项 gap：dee_s42 1.117e-16、mlp_only_s42 1.350e-16、xgb_s42 1.679e-16、xgb_s43 2.634e-16、**xgbfull_s42 8.406e-09**、**xgbfull_s43 1.054e-09**（全部 severity=pass）。根因实测（审查方自写，/srv/share/w555_review_r5，标签取自 sample.npz）：xgbfull s42 的 Pearson IC 标签走 float32 = 0.032294414381338815、标签走 float64 = 0.032294414402226405相对差 6.468e-10；建模侧报告值 0.0322944146737091（审计实测 gap 8.406e-09，同量级）。",
+      "fix": "work555_xgb_diag.pearson_ic_by_day 里把标签升到 float64（`ys = np.asarray(y, dtype='float64')`）或改用 np.corrcoef，与其余臂口径统一；预计 gap 收敛到 ~1e-16。",
+      "status": "open"
+    }
+  ],
+  "round4_findings_disposition": {
+    "B4-1": {
+      "severity_in_round4": "blocking",
+      "conclusion": "已关闭",
+      "evidence": "① 秩口径逐位统一：审查方在 /srv/share/w555_review_r5 沙箱 import work555_dee / work555_xgb_diag / recompute_work555 三个实现，对 xgbfull s42/s43、xgb s42、dee s42 各抽 3 天（xgbfull 标签并列 36 个/3 天、xgb 预测并列 767 个/3 天）比对：np.array_equal(dee._rank, audit._rankdata) 与 np.array_equal(dee._rank, xgbdiag._rank) 均为 True，三者的 Pearson-on-ranks **逐位相同**（例：0.0658717829905563 三者同值）。且实测 `XGB._rank is DEE._rank` = True，`'_rank(p)' in inspect.getsource(XGB.rank_ic_by_day)` = True。② 精度诊断：float32_quant_diag.json 8 行 model_side/audit_side/reported **三者逐位相同、rel 全部 0.0**、model_audit_identical=True、n_over_tol=0（xgbfull 两行不再是 n/a）。③ 审计覆盖：audit_findings.json 的 ic:: 项由 4 条增至 6 条，新增 ic::xgbfull_s42::test_ic_mean_best_iter（gap 8.406e-09）与 ic::xgbfull_s43::test_ic_mean_best_iter（gap 1.054e-09），severity 均为 pass。**项数增量只有这 2 项、无任何删项**（git show 30215ed/83dc1ba 的 audit_findings.json 项集合 diff：added=2、removed=0、TOL 1e-06→1e-06）。④ 同一量的第二个值已消失：git grep '0.024574|0.022894' 全仓库，仅剩 failure_log.md §16 的「旧值 → 新值」处置叙述（624/698/704/705 行）；run_xgbfull_s42.json:24 = 0.024600560111263988、failure_log.md:353 = 0.024601、:609-617 精度表 8 行全 0.0、registry.md = 「升到 +0.024601 / +0.022910」、report.html 表 6b = 0.024600560111263988（三列同值）、final_numbers.json port = 同值。⑤ 审计脚本本身未被削弱：git diff 30215ed..83dc1ba -- audit/recompute_work555.py 仅 33 行、只把 IC 键名改为按臂候选列表取（test_rankic_mean / test_rankic_mean_best_iter），`sev = \"blocking\" if d > TOL else \"nit\"` 与 add(...) blocking 分支逐字保留；预注册 preregistration.md 在本增量内逐字节未改（git diff --stat 为空）。",
+      "residual": "N5-2（该臂 Pearson IC 仍走 float32 标签路径，gap ~1e-9，远在判据内）"
+    },
+    "B4-2": {
+      "severity_in_round4": "blocking",
+      "conclusion": "已关闭",
+      "evidence": "registry.md:18 的 ⑤ 子句实测为「⑤ **基线本身是稳的**：MLP-only 基线自身极差 0.0010 未超预注册 0.01 阈值 —— 因此 Δ_ic 的方向由**相对表现**决定，而不是由基线的种子噪声决定」；failure_log §12.2 生成块实测为「…基线本身是稳的 —— 因此 Δ_ic 的方向由**相对表现**决定，而不是由基线的种子噪声决定。」两者**同结论同措辞**。根因已修：scripts/work555_final_numbers.py 的 render_registry_row ⑤ 改为按 primary.rankic_unstable_mlp 实测分支渲染（不再是无条件字面量），且 6 个文件间 195 项同量对齐零不一致（见 independent_alignment）。",
+      "residual": "无"
+    },
+    "S4-1": {
+      "severity_in_round4": "suggestion",
+      "conclusion": "部分关闭",
+      "evidence": "已闭合部分：scripts/work555_selfcheck.sh 新增从 findings[] 自行派生 blocking 数并要求与 n_blocking 一致。提交态沙箱负控（/srv/share/w555_review_r5/nc_sev2，脚本取自 83dc1ba git blob，仅把 findings[0].severity 改成 blocking、n_blocking 保持 0）：`bash scripts/work555_selfcheck.sh` → **EXIT=1**，打印 'FAIL  findings[] 里有 1 条 severity=blocking，但 n_blocking=0（计数器与数组不一致）'；正常态下同一脚本 → EXIT=0 并打印 'PASS  findings[] 派生 blocking 数 = 0，与 n_blocking 一致'。残留部分：同一负控状态下 `scripts/work555_final_numbers.py --check` 仍 **EXIT=0**（见 S5-2）。",
+      "residual": "S5-2"
+    },
+    "S4-2": {
+      "severity_in_round4": "suggestion",
+      "conclusion": "已关闭",
+      "evidence": "① 幂等实测（/srv/share/w555_review_r5/idem）：**连续两次** bash scripts/work555_selfcheck.sh → 两次 EXIT=0；两次 `work555_artifact_manifest.py --check` → 两次 EXIT=0（'[OK] 产物清单 44 份逐份 sha256 一致'）；两次 `work555_final_numbers.py --check` → 两次 EXIT=0；两次跑完 nomask_assert.json 的 sha256 都是 68f4a76f87bec7a5，**与仓库侧提交版逐位相同**（第四轮的第 2 次跑曾报「漂移 1」）。② 路径无关摘要实测：审查方在另一沙箱重跑 work555_nomask_all.py，8 组的 stderr_sha256_normalized 与仓库提交版**逐位相同**（8/8 True），而 stderr_sha256 8/8 全部不同（因 traceback 内嵌绝对路径）—— 即新增字段确实实现了跨 checkout 路径可比，且 8/8 组合仍全部触发 UNTRADABLE_PRICE_READ、退出码非 0。",
+      "residual": "无"
+    },
+    "S4-3": {
+      "severity_in_round4": "suggestion",
+      "conclusion": "已关闭",
+      "evidence": "registry.md:18 的 ⑥ 实测为「⑥ **独立审查 4 轮全部判 FAIL**（第1轮 2 blocking + 3 suggestion + 4 nit；第2轮 1 blocking + 4 suggestion + 2 nit；第3轮 3 blocking + 6 suggestion + 4 nit；第4轮 2 blocking + 4 suggestion + 3 nit）…留痕见 `experiments/WORK-555/review_round{1..4}.json`」；各轮分级计数由审查方直接从 review_round{1..4}.json 复算，逐轮吻合（1:2/3/4、2:1/4/2、3:3/6/4、4:2/4/3，均 verdict=FAIL）。report.html 实测含「共 4 轮，全部判 FAIL，逐项处置后进入下一轮：第1轮 FAIL（2 blocking + 3 suggestion + 4 nit）；…；第4轮 FAIL（2 blocking + 4 suggestion + 3 nit）」与「各轮机器可读留痕见 experiments/WORK-555/review_round1.json ~ experiments/WORK-555/review_round4.json」；final_comment.md 含 4 轮全部条目。",
+      "residual": "无"
+    },
+    "S4-4": {
+      "severity_in_round4": "suggestion",
+      "conclusion": "已关闭",
+      "evidence": "scripts/work555_float32_quant_diag.py 的 --check 已改为**重算一遍再与落盘逐行比对**（compute_rows() → 比 model_side_func_value / rel_diff_func_vs_reported / over_tol 三项）。负控实测（/srv/share/w555_review_r5/nc_diag）：把落盘 float32_quant_diag.json 的 rows[0].rel_diff_func_vs_reported 由 0.0 改成 0.123 后跑 --check → **EXIT=1**，打印 '[FAIL] dee s42 相对差与落盘不一致（落盘陈旧）'（此前只读字段时该改动不会被发现）。正常态 --check → EXIT=0，打印 '[PASS] 8/8 个臂/种子的产物复算值与建模侧报告值在 1e-06 判据内，且两侧实现逐位相等；落盘记录与本次重算一致'。",
+      "residual": "无"
+    },
+    "N4-1": {
+      "severity_in_round4": "nit",
+      "conclusion": "已关闭",
+      "evidence": "failure_log §15 精度表现为 8 行全部参与比较且相对差全 0.0（含 xgbfull 两行 0.024600560111263988 / 0.022910095824686054），「8 个臂/种子…全部为 0.0」的表述**现已属实**；§15.4 增补了对旧 n/a 的口径说明。",
+      "residual": "无"
+    },
+    "N4-2": {
+      "severity_in_round4": "nit",
+      "conclusion": "已关闭",
+      "evidence": "failure_log §15.4 增补「口径限定（第四轮审查 N4-2 提醒后补记）」段：明确「建模侧数值未变」指的是**落盘精度这一步**不改变指标计算，v2→v4 之间 dee_s43 的 test_rankic_mean 确实变了（0.023148644058997664 → 0.02163083350961915），但那是 §13 的 S2 早停修复经全量重跑落到产物的结果，与 float64 无关；并新增 §16 记录第四轮处置。",
+      "residual": "无"
+    },
+    "N4-3": {
+      "severity_in_round4": "nit",
+      "conclusion": "已关闭",
+      "evidence": "failure_log.md:438 之后新增时点标注：「（**时点标注**：此处 261 项是 2026-11-24 14:15 当时的检查项数；现行项数与判决见 §15.5 与 `experiments/WORK-555/audit_findings.json`）」；§16 的处置清单亦列出 'N4-3：§12 的历史行「261 项」与现行 320 项混读 —— 已加**时点标注**'。",
+      "residual": "无"
+    }
+  },
+  "independent_recompute_conclusion": {
+    "verdict": "PASS",
+    "n_checks": 352,
+    "n_blocking": 0,
+    "implementation": "审查方自带从头写的复算实现 /srv/share/w555_review_r5/indep_recompute.py（不 import scripts/work555_dee.py / scripts/work555_backtest.py / audit/recompute_work555.py）：IC 用 scipy.stats.rankdata(平均并列秩) + 手写 Pearson，并断言手写平均秩与 scipy 逐位相同、且 1-based 与 0-based 平均秩给出的 Pearson 完全相同（常数平移不变）；组合账用独立写的现金账本（top-50 等权选股 / 买入受限 has_trade&listed&member&缺limit&非涨停 / 卖出受限 has_trade&缺limit&非跌停&强制持有 / 卖不掉不释放买入额度 / 成本 (buys+sells)*c+sells*stamp / 按实际成交后持仓结算 fwd_ret）；指标按 §5 口径独立实现（年化 365.25 自然日、波动 √252、Sharpe rf=0、MDD、双边换手）。本轮按臂取报告字段名（test_rankic_mean / test_rankic_mean_best_iter），使 xgbfull 真正进入审查方自己的 IC 覆盖（第四轮时审查方与被审脚本同样漏掉该臂，见 caveat）。",
+    "coverage": "DEE / MLP-only / XGBoost / XGBoost(无早停诊断) × 种子 42,43 共 8 组，逐日截面 Spearman 与 Pearson IC、两档成本(main_8bps / sens_5bps) 的 8 列逐日账本、12 项汇总指标、权重不变量三式。",
+    "result": "352 项检查全部通过、0 blocking（较第四轮 348 项 +4 = xgbfull 两臂的 RankIC 与 IC 两项现已纳入）。Δ_ic 复算：s42 -0.18216170038485935、s43 -0.40081057331694353、均值 -0.2914861368509014（与交付件 -0.2914861368509015 相差 1 ULP，相对 3.4e-16）；DEE RankIC s42/s43 = 0.030327373520180168 / 0.02163083350961915 与交付件**逐位相同**；DEE 净 Sharpe 均值 -0.5841348775267191 与交付件**逐位相同**；权重不变量 max Σw = 1.0、Σw>1 天数 = 0、max|Σw+cash-1| = 5.55e-16。",
+    "caveat": "第四轮审查方的复算实现最初也沿用了「按字段名取 test_rankic_mean」的写法，同样漏掉 xgbfull 臂 —— 本轮已按臂改取候选字段名，xgbfull 的 RankIC 与 IC 都进入审查方自己的覆盖，并据此独立确认 xgbfull s42 = 0.024600560111263988（rel 0）。"
+  },
+  "independent_alignment": {
+    "verdict": "PASS",
+    "n_checks": 195,
+    "n_mismatch": 0,
+    "method": "沿用第四轮脚本 /srv/share/w555_review_r5/align_check2.py（181 项：report.html 表 2/3/4/6b/9b/13、failure_log §12.2/§12.3/§12.4/§13/§15、registry.md 的 WORK-555 行、final_numbers.json、audit_findings.json、run_*.json、backtest_*.json，按各文件真实标签串与各自渲染精度逐条比对），并新增 /srv/share/w555_review_r5/align_comment.py（14 项：把上一轮未纳入的 final_comment.md 加上）。关键量：Δ_ic 逐种子与均值、95% CI、DEE/MLP/XGBoost/xgbfull 的 RankIC 与 IC、年化、Sharpe(rf=0,8bps)、MDD、日均双边换手、审计 blocking 数与检查项数、权重不变量三式、xgbfull RankIC 的跨文件值、判词字面量。",
+    "result": "195 项**零不一致**。第四轮残留的 4 项（xgbfull RankIC 跨文件两个值）已消失；final_comment.md 的 14 项（Δ_ic 逐种子/均值、CI、DEE RankIC/Sharpe、xgbfull RankIC、审计 blocking 0 / 320 项、max Σw = 1.000000000）逐项一致。"
+  },
+  "prereg_verdict_execution": {
+    "verdict": "PASS",
+    "detail": "审查方未重下判词，只核对交付件判词是否与产物一致、是否按预注册 §6.2 机械得出。机械复算：Δ_ic ∈ [+2%,+30%] 不命中；Δ_ic ≤ 0 **命中**；Δ_ic > +50% 不命中；净 Sharpe(rf=0,8bps) < 0 **命中**（DEE 均值 -0.5841348775267191）；两种子 RankIC 极差 > 0.01 不命中（DEE 0.008696540010561016 / MLP-only 0.0009822002180023895）；95% CI 含 0 **命中**（[-1.680562426588431, +1.097590152886628]）；种子数 2，报 mean ± range = -0.291486 ± 0.218649。交付件 verdict.delta_ic_bucket='退（≤ 0）'、verdict='退'、verdict_word='未复现（退）'、sharpe_negative=True 与产物一致，verdict.rules 三条与命中项一一对应。**判词相关产物在本增量内一字未改**：git diff 30215ed..83dc1ba -- run_dee_s42.json run_dee_s43.json run_mlp_only_s42.json run_mlp_only_s43.json backtest_dee_s42.json backtest_dee_s43.json backtest_mlp_only_s42.json backtest_mlp_only_s43.json → 空；final_numbers.json 的 primary.delta_ic_mean / ci_lo / ci_hi / dee_net_sharpe_mean_8bps / verdict.verdict_word 在 30215ed 与 83dc1ba 之间**逐位相同**。",
+    "noted_gap": "预注册仍未定义 (0,+2%) 与 (+30%,+50%] 区间（第三、四轮均提，仍未补）；本轮实测落在 ≤0 分支，不影响判词。",
+    "scope_note": "xgbfull 是非预注册诊断臂，不参与 Δ_ic 与 DEE 净 Sharpe，故 B4-1 的口径修正**不改变判词**。"
+  },
+  "total_ledger_answer": {
+    "question": "这四轮下来，本单是否还存在会改变判词（Δ_ic 均值 或 DEE 净 Sharpe 均值口径）的未关闭问题？",
+    "answer": "**没有。**明确回答：不存在任何未关闭的问题会改变判词。",
+    "basis": [
+      "① Δ_ic 均值只由 DEE 与 MLP-only 两臂的测试段 RankIC 决定（预注册 §6.1：同种子、同面板、同一时间切分）。这两臂的 npz 与 run_*.json 在本增量（30215ed..83dc1ba）内**一字未改**（git diff 为空）；审查方自写复算逐位复现 DEE RankIC = 0.030327373520180168 / 0.02163083350961915 与 MLP-only 0.037082359109926334 / 0.036100158891923945，Δ_ic 均值复算 -0.2914861368509014（与交付件差 1 ULP，3.4e-16）。",
+      "② DEE 净 Sharpe 均值只由 backtest_dee_s42/s43.json 的 8bps 档决定，这两份文件在本增量内**一字未改**；审查方自写现金账本回测复算得 -0.30272401243421065 / -0.8655457426192276，均值 -0.5841348775267191，与交付件**逐位相同**。",
+      "③ 本轮唯一被改的建模侧数值是**非预注册诊断臂 xgbfull** 的 RankIC（0.024574264478263604 → 0.024600560111263988，s43 0.022893500968214395 → 0.022910095824686054）。该臂按其自身 run_xgbfull_*.json 的 not_used_for 明确「不参与进/退判词与主检验量 Δ_ic（那只用 DEE vs MLP-only）」，它既不进 Δ_ic 的分子分母，也不进 DEE 净 Sharpe 的任何一项；本次改动是把该臂的秩口径由序数秩修正为与其余臂/审计侧一致的平均并列秩（纯口径修正，npz sha256 前后完全相同：e1f8b191… / e3e982ac…）。",
+      "④ 四轮累计的全部遗留（本轮 2 suggestion + 2 nit，以及第一至三轮已关闭项）全部属于**证据链一致性 / 门禁覆盖 / 措辞精度**，无一触及 Δ_ic 的定义、样本、时点或 DEE 净 Sharpe 的计算口径。",
+      "⑤ 结论：判词「**未复现（退）**」在四轮之后依然稳固 —— Δ_ic 均值 −29.15%（≤ 0 → 退）、DEE 净 Sharpe(rf=0, 8bps) 均值 −0.5841 < 0（直接退）、95% CI 含 0（记「未复现」），三条判据均按预注册 §6.2 机械命中。"
+    ],
+    "caveat": "该回答只覆盖「是否改变判词」。四轮累计遗留的 S5-1（交付评论 provenance 段陈旧）、S5-2（final_numbers --check 仍只读 n_blocking 计数器）、N5-1、N5-2 仍是**未关闭问题**，只是它们都不影响判词。"
+  },
+  "byte_identity_evidence": {
+    "method": "① 沙箱独立重跑 audit/recompute_work555.py 与提交逐条比对；② 在**全部用 83dc1ba 的 git blob 搭成的 pristine 沙箱**里跑 scripts/work555_selfcheck.sh（提交态自证）；③ 重生成 scripts/work555_final_comment.py --file 与提交版逐字节比对；④ 独立复算实现（见 independent_recompute_conclusion）；⑤ 跨 checkout 路径重跑 work555_nomask_all.py 比哈希。",
+    "audit_findings": "IDENTICAL —— 沙箱独立重跑输出 verdict=PASS、n_blocking=0、n_findings=320，与提交一致；与提交的 audit_findings.json 逐条比对：**项集合完全相同**，去掉 location 字段后**逐字段差异 0 条**，16 条差异全部是 location 里的沙箱路径前缀；primary_test_recomputed 逐字段完全相同（delta_ic_mean = -0.2914861368509015 逐位一致）。",
+    "selfcheck_committed_state": "PASS 11/11、EXIT=0 —— 在 pristine 沙箱（脚本与产物均取自 83dc1ba 的 git blob，未跟踪但入清单的 npz/csv 由工作区按清单 sha256 提供）跑 scripts/work555_selfcheck.sh：primitives / mutation_test / tree_bruteforce / thread_sens / artifact_manifest / quant_diag / final_numbers / 审计新鲜度 / findings[] 派生 / no-mask 单组 / nomask_all 8 组合 全部 PASS，末行「自证清单：全部通过」。",
+    "final_comment": "IDENTICAL —— 用 83dc1ba 的生成器在 pristine 沙箱重生成 final_comment.md，与提交版 **0 字节差异**（即提交态交付评论与其自身生成器自洽；本轮 S5-1 的问题只在该段**文字本身**陈旧，不是生成器与产物脱节）。",
+    "nomask_assert": "跨路径可比 —— 审查方在另一 checkout 路径重跑 work555_nomask_all.py：8 组 stderr_sha256_normalized 与仓库提交版**逐位相同（8/8）**，stderr_sha256 8/8 不同（路径内嵌）；8/8 组合全部触发 UNTRADABLE_PRICE_READ、退出码非 0。"
+  },
+  "reviewer_unverified": [
+    "**审查期间被审仓库工作区被并发改动**：本轮开始时记录基线 `git rev-parse HEAD`=83dc1ba、`git status --porcelain` **为空**；结束时 `git status --porcelain` 为 ` M scripts/work555_final_comment.py`（mtime 21:23:53，晚于 83dc1ba 的提交时刻 21:23:29）。该改动内容正是 S5-1 的修复文案（「最新一轮收口 / 中途重跑过三次 / §13/§15/§16」），**不是审查方写入**（审查方全程只写 /srv/share/w555_review_r5/ 沙箱，未对被审仓库执行任何写操作）。因此本轮判决针对的是**提交 83dc1ba**（含被审产物），不含该未提交改动；所有涉及 final_comment.md 的结论均以 `git show 83dc1ba:` 的 blob 为准复核，并用 pristine 沙箱（全部 git blob）重跑验证。结束时 44 份产物清单仍 0 漂移、HEAD 仍为 83dc1ba。",
+    "DEE 臂与 MLP-only 臂的**端到端字节级重跑**本轮仍未由审查方亲自执行（dee 约 2 h 15 min、mlp_only 约 50 min，超出时间预算）；沿用第四轮对 repro_check.json 与 artifact_manifest.json 同值的间接核对，且这两臂产物在本增量内一字未改，字节身份不受本轮影响。",
+    "xgbfull 两臂的**训练轨迹**（2000 棵、仅在验证段按 argmin 选轮次）未独立重训复核；本轮只核实了已落盘 pred 的秩口径统一与该臂进入审计覆盖；npz sha256 与清单登记值一致（e1f8b191… / e3e982ac…）。",
+    "上游 DuckDB 原始层（data/WORK-555/panel_*.csv）与 v_daily_hfq 视图的逐值一致性未取到；本轮只核实 6 份快照 sha256 逐份 MATCH（自证清单实测）与 44 份产物清单 0 漂移。",
+    "论文原文（arXiv:2611.12389v1）未取到、未联网核对；论文 Table 2/Table 3 的数字（0.060 / 0.055 / +9.1% / 38.56% / 1.846 / 17.15%）只按交付件引用核对内部自洽性。",
+    "qlib 官方 Alpha158 因子与 CSI300 数据集、论文官方代码：交付件自述**未取到**，审查方未独立复验（沿用其自陈）。",
+    "report_print.pdf 与 report_firstscreen_1440x900.png 的视觉渲染质量本轮未评估（只核实 report.html 为单文件、4 张图全部 base64 内嵌、0 外链；work555_report.py 的重生成未跑，因其依赖系统 python3 的 matplotlib，审查方未在沙箱复现该依赖）。"
+  ]
+}

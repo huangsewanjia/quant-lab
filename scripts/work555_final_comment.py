@@ -60,6 +60,8 @@ def nf(x, nd=4, pct=False, sign=False, dash="—"):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--file", action="store_true", help="同时写入 experiments/WORK-555/final_comment.md")
+    ap.add_argument("--check", action="store_true",
+                    help="只校验：重生成一遍与已落盘 final_comment.md 逐字节比对（不写盘）")
     args = ap.parse_args()
 
     n = jload(os.path.join(OUT, "final_numbers.json"))
@@ -99,10 +101,11 @@ def main():
         A(f"{i}. {r}")
     A("")
     A(f"> 预注册：`experiments/WORK-555/preregistration.md` v1.0（commit `9a85409`，**早于**任何回测产物 commit）。"
-      f"本次交付的全部数字来自 v4 重跑后的产物；**中途重跑过两次**——"
+      f"本次交付的全部数字来自**最新一轮收口**的产物；**中途重跑过三次**——"
       f"第一次因独立代码审查判 FAIL（S2 早停监控量与预注册文字不符、S3 组合权重泄漏），"
-      f"第二次因收口审计发现「产物 float32 量化导致审计复算与建模侧不一致」；"
-      f"两次的原因与影响见下文「独立审查」段与 `failure_log.md` §13/§15。")
+      f"第二次因收口审计发现「产物 float32 量化导致审计复算与建模侧不一致」，"
+      f"第三次因第四轮独立复审判 FAIL（诊断臂 xgbfull 秩口径分歧 + 交付件两处同量不一致）；"
+      f"三次的原因与影响见下文「独立审查」段与 `failure_log.md` §13/§15/§16。")
     A("")
     A("> **关于本单此前那条「首屏样张（版式先交，数字后补）」评论**：那条评论里的数字栏是"
       "**当时的占位值**（训练未完成时填的），**已被本条终版评论全面取代**，请勿引用。"
@@ -301,7 +304,7 @@ def main():
     A("```bash")
     A("cd /srv/share/quantdb/code/quant-lab")
     A("export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1")
-    A("bash scripts/work555_selfcheck.sh        # 自证清单：11 项一次跑完")
+    A("bash scripts/work555_selfcheck.sh        # 自证清单：13 项一次跑完")
     A("bash scripts/work555_run_arms_v4.sh      # 4 臂 × 2 种子重跑（产物来源，float64 落盘）")
     A("bash scripts/work555_finalize_v4.sh      # 回测→产物清单→复算→图→报告→PNG/PDF→自检")
     A("/tmp/w555venv/bin/python scripts/work555_float32_quant_diag.py   # 产物精度诊断")
@@ -318,6 +321,20 @@ def main():
     A("")
 
     body = "\n".join(L)
+    if args.check:
+        p = os.path.join(OUT, "final_comment.md")
+        if not os.path.exists(p):
+            print(f"[FAIL] 缺 {p}", file=sys.stderr)
+            return 1
+        with open(p, encoding="utf-8") as fh:
+            on_disk = fh.read()
+        if on_disk.rstrip("\n") != body.rstrip("\n"):
+            print(f"[FAIL] final_comment.md 与生成器输出不一致（落盘 {len(on_disk):,} B vs "
+                  f"重生成 {len(body):,} B）—— 评论已陈旧，须重跑 "
+                  f"scripts/work555_final_comment.py --file", file=sys.stderr)
+            return 1
+        print(f"[PASS] final_comment.md 与生成器输出逐字节一致（{len(body):,} B）")
+        return 0
     print(body)
     if args.file:
         with open(os.path.join(OUT, "final_comment.md"), "w", encoding="utf-8") as fh:

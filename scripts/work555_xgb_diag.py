@@ -49,7 +49,6 @@ if HERE not in sys.path:
 # 这里直接复用建模侧唯一的 _rank 实现，避免两处再漂移。
 from work555_dee import _rank  # noqa: E402
 
-HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 EXP = "WORK-555"
 OUT = os.path.join(REPO, "experiments", EXP)
@@ -95,6 +94,11 @@ def pearson_ic_by_day(pred, y, day_remap, n_days):
         if b - a < 3:
             continue
         p, t = ps[a:b], ys[a:b]
+        # 第五轮审查 N5-2 实测发现：标签是 float32，直接 t.std() 会在 float32 里归约，
+        # 该臂的 IC 复算 gap 因此是 ~1e-9（其余臂用 float64 归约是 ~1e-16）。
+        # 这里把标签升到 float64，与其余臂口径统一。
+        p = np.asarray(p, dtype=np.float64)
+        t = np.asarray(t, dtype=np.float64)
         sp, st = p.std(), t.std()
         if sp <= 0 or st <= 0:
             continue

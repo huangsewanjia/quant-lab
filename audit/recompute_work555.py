@@ -434,7 +434,12 @@ def main():
                     add(sev, f"ic::{tag}::{key}", mine, run[key], d,
                         f"run_{arm}_s{seed}.json",
                         "/tmp/w555venv/bin/python audit/recompute_work555.py")
-                elif d > 0:
+                else:
+                    # 第五轮处置：原先只在 gap > 0 时记 pass，导致「检查项数」随数值
+                    # 恰好相等而漂移（xgbfull 口径修正后由 320 回到 318），
+                    # 覆盖度不可信。这里对**每一个被检查的量**都留一条记录，
+                    # gap 恰好为 0 时也记（gap=0.0），项数于是只取决于覆盖、不取决于数值运气。
+                    # 比较口径与阈值（TOL）未动。
                     findings.append({"severity": "pass", "item": f"ic::{tag}::{key}",
                                      "measured": mine, "expected": run[key], "gap": d,
                                      "location": f"run_{arm}_s{seed}.json",

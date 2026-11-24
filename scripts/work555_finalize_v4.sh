@@ -89,6 +89,10 @@ echo "=== [6/9] 单文件 HTML 报告 $(date -Is)"
 echo "=== [7/9] 首屏 PNG + 打印 PDF $(date -Is)"
 bash scripts/work555_screenshot.sh 2>&1 | tail -5
 
+echo "=== [7b/9] 终版交付评论正文（从产物生成；必须早于自证清单，否则 comment_check 会红） $(date -Is)"
+"$PY" scripts/work555_final_comment.py --file > /dev/null
+echo "  comment gen exit=$?  -> experiments/WORK-555/final_comment.md"
+
 echo "=== [8/9] 交付件自检 $(date -Is)"
 HTML=experiments/WORK-555/report.html
 echo "--- 外链检查（应为 0）---"
@@ -102,7 +106,7 @@ for f in "$HTML" experiments/WORK-555/report_print.pdf experiments/WORK-555/repo
   [ -f "$f" ] && printf "  %-58s %10d B  %s\n" "$f" "$(stat -c%s "$f")" "$(sha256sum "$f" | cut -c1-16)"
 done
 
-echo "=== [8b/9] 自证清单（11 项一次跑完；含审计新鲜度与 n_blocking=0） $(date -Is)"
+echo "=== [8b/9] 自证清单（13 项一次跑完；含审计新鲜度与 n_blocking=0） $(date -Is)"
 bash scripts/work555_selfcheck.sh 2>&1 | tail -22
 echo "  selfcheck exit=${PIPESTATUS[0]}"
 

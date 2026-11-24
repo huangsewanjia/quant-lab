@@ -48,6 +48,10 @@ run quant_diag        "产物精度诊断（产物复算值与建模侧报告值
     "$PY" scripts/work555_float32_quant_diag.py --check
 run final_numbers     "对外数字与文档同源（failure_log 生成块 + registry 行 + 审计新鲜度）" \
     "$PY" scripts/work555_final_numbers.py --check
+run comment_check     "交付评论与生成器同源（重生成逐字节比对，防交付件陈旧）" \
+    "$PY" scripts/work555_final_comment.py --check
+run report_check      "HTML 报告与生成器同源（重生成逐字节比对，防交付件陈旧）" \
+    "$PY" scripts/work555_report.py --check
 
 echo "--- 审计新鲜度（审计所依据的产物清单 sha256 必须与当前清单一致）---"
 "$PY" - <<'PYEOF'

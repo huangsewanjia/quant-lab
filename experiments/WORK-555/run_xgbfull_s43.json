@@ -22,8 +22,8 @@
   "valid_rmse_at_round0": 0.03180422771492659,
   "valid_rmse_at_best": 0.0317940480222316,
   "test_rankic_mean_best_iter": 0.022910095824686054,
-  "test_ic_mean_best_iter": 0.030186945673746312,
+  "test_ic_mean_best_iter": 0.030186945641916988,
   "test_rankic_mean_full_2000": 0.024173319595159715,
-  "test_ic_mean_full_2000": 0.028786317375827725,
-  "elapsed_sec": 86.5
+  "test_ic_mean_full_2000": 0.028786317024253282,
+  "elapsed_sec": 85.5
 }

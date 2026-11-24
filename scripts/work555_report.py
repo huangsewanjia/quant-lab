@@ -1001,8 +1001,26 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
 
 
 def main():
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--check", action="store_true",
+                    help="只校验：重生成一遍与已落盘 report.html 逐字节比对（不写盘）")
+    args = ap.parse_args()
     html = build()
     p = os.path.join(OUT, "report.html")
+    if args.check:
+        if not os.path.exists(p):
+            print(f"[FAIL] 缺 {p}", file=sys.stderr)
+            return 1
+        with open(p, encoding="utf-8") as fh:
+            on_disk = fh.read()
+        if on_disk != html:
+            print(f"[FAIL] report.html 与生成器输出不一致（落盘 {len(on_disk):,} B vs "
+                  f"重生成 {len(html):,} B）—— 报告已陈旧，须重跑 scripts/work555_report.py",
+                  file=sys.stderr)
+            return 1
+        print(f"[PASS] report.html 与生成器输出逐字节一致（{len(html):,} B）")
+        return 0
     with open(p, "w", encoding="utf-8") as fh:
         fh.write(html)
     n_img = html.count("data:image/png;base64,")

@@ -506,8 +506,10 @@ BLOCKING: ic::dee_s43::test_rankic_mean 0.021630778861533438 != 0.02163083350961
           gap= 2.526397592982151e-06
 ```
 
-其余 320 项检查（`family::*` 48 项、`metric::*` 192 项、`weight_invariant::*` 16 项、
-`artifact_sha256::*` 43 项、`sha256::*` 6 份快照、`label_integrity::*` 8 项）全部通过。
+其余检查项（`family::*`、`metric::*`、`weight_invariant::*`、`artifact_sha256::*`、
+`sha256::*` 快照、`label_integrity::*`、`ic::*`）全部通过。
+（各项的具体条数随审计覆盖面变化而变化，**不在此处手打**；现行条数与判决一律以
+`experiments/WORK-555/audit_findings.json` 为准，见 §15.5。）
 
 ### §15.2 根因实测（不是推测）
 
@@ -630,10 +632,12 @@ BLOCKING: ic::dee_s43::test_rankic_mean 0.021630778861533438 != 0.02163083350961
 降到 float64 口径的 ~1e-17 量级（dee s42 std 1.041e-17、dee s43 3.469e-18）。
 
 **独立复算（`audit/recompute_work555.py`，不 import 建模函数）**：
-判决 **PASS**，**blocking 0 项 / 共 320 项检查项**
-（`experiments/WORK-555/audit_findings.json`，`generated_at = 2026-11-24T21:20:48+08:00`，
-绑定的 `artifact_manifest_sha256` 前 16 位 = `4b7b586e73baeaea`；项数由 318 增至 320
-是因为第四轮 B4-1 处置后 `xgbfull` 臂进入了 IC 复算覆盖，新增 2 项）。
+判决 **PASS**，**blocking 0 项 / 共 330 项检查项**
+（`experiments/WORK-555/audit_findings.json`，`generated_at = 2026-11-24T21:41:51+08:00`，
+绑定的 `artifact_manifest_sha256` 前 16 位 = `1240dc6fbf591d25`；
+项数的由来：第四轮 B4-1 处置后 `xgbfull` 臂进入 IC 复算覆盖（318 → 320），
+第五轮处置后审计改为**恒定记录每一个被检查的量**（含 gap 恰好为 0 的），
+项数不再随数值运气漂移，现为 330 项，其中 `ic::*` 16 项 = 4 臂 × 2 种子 × {RankIC, IC}）。
 主检验量复算值 `delta_ic_mean = -0.2914861368509015`，
 与建模侧 `final_numbers.json` 的 `-0.2914861368509015` **逐位一致**
 （v3 时两者相对差 3.62e-06，是 registry 里「不一致（绝对差 1.05375e-06、相对差 3.62e-06）」
@@ -732,13 +736,13 @@ max\|Σw+cash−1\| = 5.551e-16（16 份逐日账本）；
 - N4-2：交办书预期「建模侧数值与上一轮逐位相同」对 `dee_s43` 不成立 ——
   核实为 §13 的 S2 早停修复经**全量重跑**落到产物所致，与 float64 无关；
   §15.4 已补「口径限定」说明，避免把两件事混为一谈。
-- N4-3：`failure_log.md` §12 的历史行「261 项」与现行 320 项混读 —— 已加**时点标注**。
+- N4-3：`failure_log.md` §12 的历史行「261 项」与现行项数混读 —— 已加**时点标注**。
 
 ### §16.5 处置后的复跑结果（实测）
 
 重跑 `scripts/work555_finalize_v4.sh`（2026-11-24 21:19~21:21）：
 精度诊断 8/8 行 rel = 0.0、`model_audit_identical = True`、`n_over_tol = 0`；
-独立复算 **PASS / blocking 0 / 320 项**、Δ_ic 复算值 `-0.2914861368509015` 与建模侧逐位一致；
+独立复算 **PASS / blocking 0**、Δ_ic 复算值 `-0.2914861368509015` 与建模侧逐位一致；
 8 臂回测 `n_guard_violations = 0`；不可成交断言 8/8；权重不变量 max Σw = 1.000000000、
 max\|Σw+cash−1\| = 5.551e-16；自证清单 11 项全过（exit 0）；
 `final_numbers --check` / `artifact_manifest --check` 均 exit 0（产物清单 44 份）；
@@ -747,3 +751,56 @@ max\|Σw+cash−1\| = 5.551e-16；自证清单 11 项全过（exit 0）；
 **判词不变**：Δ_ic 逐种子 −18.22% / −40.08%、均值 −29.15%、CI [−168.1%, +109.8%] 含 0、
 DEE 净 Sharpe 均值 −0.5841 < 0 → **未复现（退）**。
 本轮处置改的是**证据链与交付件一致性**，不改任何结论性数字。
+
+## §17 第五轮独立复审（增量轮）的处置
+
+**审查方**：同一独立子代理（verifier），沙箱 `/srv/share/w555_review_r5/`（仓库外）；
+留痕 `experiments/WORK-555/review_round5.json`
+（审查方原样产出，sha256 `54eaca242f2b78e4…`）。
+**判决**：**PASS** —— 0 blocking + 2 suggestion + 2 nit。
+**范围**：`30215ed..83dc1ba`（含处置 commit `6a3eab9` 与产物重出 commit `83dc1ba`）。
+第四轮的两项 blocking 经审查方独立验证**均已关闭**（三处秩实现在重并列样本上逐位相同；
+`ic::xgbfull_*` 已进覆盖且无删项、TOL 仍 1e-6、预注册逐字节未改；registry ⑤ 与 §12.2 同源同结论）。
+
+### §17.1 审查方独立确认的关键事实
+
+- 交付件之间 **195 项同量对齐零不一致**（第四轮残留的 4 项 xgbfull 双值已消失）。
+- 审查方自带从头写的复算实现：**352 项检查、0 blocking**（较第四轮 +4，xgbfull 两臂的
+  RankIC 与 IC 已进入审查方自己的覆盖）；Δ_ic 均值复算与交付件相差 1 ULP（3.4e-16）；
+  DEE RankIC 与净 Sharpe 逐位相同。
+- 提交态在 pristine 沙箱（全部用 `83dc1ba` 的 git blob 搭建）跑自证清单 **11/11 全过**。
+- **总账回答（审查方原话）**：四轮累计后，**不存在任何未关闭问题会改变判词** ——
+  Δ_ic 与 DEE 净 Sharpe 只由 DEE / MLP-only 两臂决定，这两臂产物在本增量内一字未改
+  （`git diff` 为空）；唯一被改的建模侧数值是非预注册诊断臂 xgbfull，按其自身
+  `not_used_for` 明确不参与判词。
+
+### §17.2 剩余 2 suggestion + 2 nit 的处置
+
+| # | 问题 | 处置 | 实测 |
+|---|---|---|---|
+| S5-1 | 提交态的 `final_comment.md` 顶部 provenance 段写「来自 v4 重跑后的产物；中途重跑过两次……§13/§15」，但同一文件里是 v5 的数值（+0.024601）、4 轮审查、并引用 §16 —— **与自身内容矛盾**；且提交态生成器本身就写着这句，重跑生成器不会修复 | ① 生成器该段改为「最新一轮收口 / 中途重跑过三次 / 见 §13/§15/§16」；② 给 `work555_final_comment.py` 与 `work555_report.py` 加 `--check`（重生成与落盘**逐字节**比对），并挂进自证清单 | 新增的 `comment_check` 闸门**当场抓到了陈旧**（自证清单跑在评论重生成之前，落盘 15,263 B vs 重生成 17,743 B）；修正顺序后自证 **13/13 全过** |
+| S5-2 | `final_numbers.py --check` 仍只读 `n_blocking` **计数器**，不看 `findings[]` | `collect()` 增加 `n_blocking_derived`（从 `findings[]` 派生）与 `blocking_counter_consistent`，`--check` 要求两者一致且为 0，否则报红 | 负控由审查方在第四轮实测（改 severity、计数器留 0 → `--check` 仍 exit 0）；现已加派生与互校 |
+| N5-1 | `work555_xgb_diag.py` 里 `HERE = ...` 赋值了两次（合并噪声） | 删掉重复的那次 | — |
+| N5-2 | 该臂 `pearson_ic_by_day` 对 float32 标签直接 `t.std()`（float32 归约），其余臂用 float64 归约 → 该臂 IC 复算 gap 是 ~1e-9，其余臂 ~1e-16（远在 1e-6 判据内，但属同型分叉） | 标签升 float64 | 重跑该臂后 `test_ic_mean_best_iter` 0.0322944146737091 → **0.032294414402226405**，与审计复算值**逐位相同**（gap 0）；npz sha256 前后不变（`e1f8b191…` / `e3e982ac…`） |
+
+### §17.3 附带处置：审计「检查项数」不再随数值运气漂移
+
+处置 S5-2 的过程中实测发现：`audit/recompute_work555.py` 原先**只在 gap > 0 时**记 pass 项，
+于是「检查项数」会随「数值恰好变相等」而减少 —— xgbfull 口径修正后项数由 320 回到 318，
+读者会误以为覆盖面被删了。已改为**恒定记录每一个被检查的量**（含 gap 恰好为 0 的），
+项数只取决于覆盖面。现行：**330 项**，其中 `ic::*` 16 项 = 4 臂 × 2 种子 × {RankIC, IC}。
+**比较口径与阈值未动**（`TOL = 1e-6` 原样，blocking 分支逐字保留），
+这次改动只影响「通过项是否也留痕」，不影响任何判定。
+
+### §17.4 处置后的复跑结果（实测）
+
+重跑 `scripts/work555_finalize_v4.sh`（2026-11-24 21:41）：
+精度诊断 8/8 行 rel = 0.0；独立复算 **PASS / blocking 0 / 330 项**、
+Δ_ic 复算值 `-0.2914861368509015` 与建模侧逐位一致；8 臂回测 `n_guard_violations = 0`；
+不可成交断言 8/8；权重不变量 max Σw = 1.000000000、max\|Σw+cash−1\| = 5.551e-16；
+**自证清单 13 项全过（exit 0，含新增的 comment_check / report_check 两道漂移闸门）**；
+`final_numbers --check` / `artifact_manifest --check` 均 exit 0（产物清单 44 份）；
+快照 6/6 MATCH；交付件 `report.html` 内嵌图 4 张、外链 0 处。
+
+**判词不变**：Δ_ic 逐种子 −18.22% / −40.08%、均值 −29.15%、CI [−168.1%, +109.8%] 含 0、
+DEE 净 Sharpe 均值 −0.5841 < 0 → **未复现（退）**。

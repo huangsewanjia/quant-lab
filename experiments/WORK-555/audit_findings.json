@@ -1,9 +1,9 @@
 {
   "experiment": "WORK-555",
-  "generated_at": "2026-11-24T21:20:48+08:00",
-  "artifact_manifest_sha256": "4b7b586e73baeaead24c7eb4029b14db5d34c4111708a2bb8e94958108cd5065",
+  "generated_at": "2026-11-24T21:41:51+08:00",
+  "artifact_manifest_sha256": "1240dc6fbf591d254fb2f35b4188ccf2b8bd5b38ab51ea1be6777e5052f3bdc1",
   "tolerance_rel_diff": 1e-06,
-  "n_findings": 320,
+  "n_findings": 330,
   "n_blocking": 0,
   "verdict": "PASS",
   "primary_test_recomputed": {
@@ -384,8 +384,8 @@
     {
       "severity": "pass",
       "item": "artifact_sha256::run_xgbfull_s42.json",
-      "measured": "d4dd089d413ca415a5655bb704cf277f44296ddd73027901db7f0676831b8000",
-      "expected": "d4dd089d413ca415a5655bb704cf277f44296ddd73027901db7f0676831b8000",
+      "measured": "3b8718df13d7780b18b90378d488f032e5f0bab0949b0985a0c84225eb3e8275",
+      "expected": "3b8718df13d7780b18b90378d488f032e5f0bab0949b0985a0c84225eb3e8275",
       "gap": 0.0,
       "location": "experiments/WORK-555/run_xgbfull_s42.json",
       "how_to_verify": "sha256sum <file>"
@@ -393,8 +393,8 @@
     {
       "severity": "pass",
       "item": "artifact_sha256::run_xgbfull_s43.json",
-      "measured": "d28722c3247934fc28e570597417b4be98853ed3faaa75547f2845db156496ef",
-      "expected": "d28722c3247934fc28e570597417b4be98853ed3faaa75547f2845db156496ef",
+      "measured": "afc64d3623c230591c128fa6f8297c639a6c17c1860f74bb785e40d2422c1eb1",
+      "expected": "afc64d3623c230591c128fa6f8297c639a6c17c1860f74bb785e40d2422c1eb1",
       "gap": 0.0,
       "location": "experiments/WORK-555/run_xgbfull_s43.json",
       "how_to_verify": "sha256sum <file>"
@@ -497,6 +497,15 @@
       "gap": 3.5364939350316015e-08,
       "location": "sample.npz vs panel_backtest.csv",
       "how_to_verify": "audit script output; float32 存储精度上限 ~6e-8"
+    },
+    {
+      "severity": "pass",
+      "item": "ic::dee_s42::test_rankic_mean",
+      "measured": 0.030327373520180168,
+      "expected": 0.030327373520180168,
+      "gap": 0.0,
+      "location": "run_dee_s42.json",
+      "how_to_verify": "audit script output"
     },
     {
       "severity": "pass",
@@ -900,6 +909,24 @@
     },
     {
       "severity": "pass",
+      "item": "ic::dee_s43::test_rankic_mean",
+      "measured": 0.02163083350961915,
+      "expected": 0.02163083350961915,
+      "gap": 0.0,
+      "location": "run_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "ic::dee_s43::test_ic_mean",
+      "measured": 0.01720424408500592,
+      "expected": 0.01720424408500592,
+      "gap": 0.0,
+      "location": "run_dee_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
       "item": "family::dee_s43::linear_family::rankic",
       "measured": 0.012181107099339478,
       "expected": 0.012181107099339478,
@@ -1291,6 +1318,15 @@
     },
     {
       "severity": "pass",
+      "item": "ic::mlp_only_s42::test_rankic_mean",
+      "measured": 0.037082359109926334,
+      "expected": 0.037082359109926334,
+      "gap": 0.0,
+      "location": "run_mlp_only_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
       "item": "ic::mlp_only_s42::test_ic_mean",
       "measured": 0.025705265306137152,
       "expected": 0.025705265306137155,
@@ -1619,6 +1655,24 @@
     },
     {
       "severity": "pass",
+      "item": "ic::mlp_only_s43::test_rankic_mean",
+      "measured": 0.036100158891923945,
+      "expected": 0.036100158891923945,
+      "gap": 0.0,
+      "location": "run_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "ic::mlp_only_s43::test_ic_mean",
+      "measured": 0.03466942577270775,
+      "expected": 0.03466942577270775,
+      "gap": 0.0,
+      "location": "run_mlp_only_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
       "item": "family::mlp_only_s43::mlp_family::rankic",
       "measured": 0.036100158891923945,
       "expected": 0.036100158891923945,
@@ -1938,6 +1992,15 @@
     },
     {
       "severity": "pass",
+      "item": "ic::xgb_s42::test_rankic_mean",
+      "measured": 0.014751702842600519,
+      "expected": 0.014751702842600519,
+      "gap": 0.0,
+      "location": "run_xgb_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
       "item": "ic::xgb_s42::test_ic_mean",
       "measured": 0.010329682518718648,
       "expected": 0.010329682518718646,
@@ -2191,6 +2254,15 @@
       "gap": 3.5364939350316015e-08,
       "location": "sample.npz vs panel_backtest.csv",
       "how_to_verify": "audit script output; float32 存储精度上限 ~6e-8"
+    },
+    {
+      "severity": "pass",
+      "item": "ic::xgb_s43::test_rankic_mean",
+      "measured": 0.01615758076331311,
+      "expected": 0.01615758076331311,
+      "gap": 0.0,
+      "location": "run_xgb_s43.json",
+      "how_to_verify": "audit script output"
     },
     {
       "severity": "pass",
@@ -2450,10 +2522,19 @@
     },
     {
       "severity": "pass",
+      "item": "ic::xgbfull_s42::test_rankic_mean_best_iter",
+      "measured": 0.024600560111263988,
+      "expected": 0.024600560111263988,
+      "gap": 0.0,
+      "location": "run_xgbfull_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
       "item": "ic::xgbfull_s42::test_ic_mean_best_iter",
       "measured": 0.032294414402226405,
-      "expected": 0.0322944146737091,
-      "gap": 8.406490725305687e-09,
+      "expected": 0.032294414402226405,
+      "gap": 0.0,
       "location": "run_xgbfull_s42.json",
       "how_to_verify": "audit script output"
     },
@@ -2706,10 +2787,19 @@
     },
     {
       "severity": "pass",
+      "item": "ic::xgbfull_s43::test_rankic_mean_best_iter",
+      "measured": 0.022910095824686054,
+      "expected": 0.022910095824686054,
+      "gap": 0.0,
+      "location": "run_xgbfull_s43.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
       "item": "ic::xgbfull_s43::test_ic_mean_best_iter",
       "measured": 0.030186945641916988,
-      "expected": 0.030186945673746312,
-      "gap": 1.0544069029965483e-09,
+      "expected": 0.030186945641916988,
+      "gap": 0.0,
       "location": "run_xgbfull_s43.json",
       "how_to_verify": "audit script output"
     },

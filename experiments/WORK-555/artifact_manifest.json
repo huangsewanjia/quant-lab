@@ -1,6 +1,6 @@
 {
   "experiment": "WORK-555",
-  "generated_at": "2026-11-24T21:20:30+08:00",
+  "generated_at": "2026-11-24T21:41:31+08:00",
   "note": "审计的直接输入 + 建模汇总 + 对外交付件的逐份 sha256 锁定。",
   "n_items": 44,
   "items": [
@@ -264,8 +264,8 @@
       "group": "model_output",
       "name": "run_xgbfull_s42.json",
       "path": "experiments/WORK-555/run_xgbfull_s42.json",
-      "bytes": 1156,
-      "sha256": "d4dd089d413ca415a5655bb704cf277f44296ddd73027901db7f0676831b8000",
+      "bytes": 1158,
+      "sha256": "3b8718df13d7780b18b90378d488f032e5f0bab0949b0985a0c84225eb3e8275",
       "note": "建模汇总：训练日志与统计"
     },
     {
@@ -273,7 +273,7 @@
       "name": "run_xgbfull_s43.json",
       "path": "experiments/WORK-555/run_xgbfull_s43.json",
       "bytes": 1159,
-      "sha256": "d28722c3247934fc28e570597417b4be98853ed3faaa75547f2845db156496ef",
+      "sha256": "afc64d3623c230591c128fa6f8297c639a6c17c1860f74bb785e40d2422c1eb1",
       "note": "建模汇总：训练日志与统计"
     },
     {
