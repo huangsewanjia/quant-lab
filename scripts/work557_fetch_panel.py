@@ -83,6 +83,24 @@ def sql_list(values):
     return ", ".join("'%s'" % v for v in values)
 
 
+def _parquet_ok(path: str) -> bool:
+    """parquet 完整性：首尾都要有 PAR1 magic。
+
+    早前一轮 SMB 卡死的运行留下过一个截断的 daily.parquet，头部有 PAR1、尾部没有，
+    只看「文件存在」会把坏文件当成缓存复用（2026-11-24 实测踩到）。
+    """
+    try:
+        if os.path.getsize(path) < 12:
+            return False
+        with open(path, "rb") as fh:
+            if fh.read(4) != b"PAR1":
+                return False
+            fh.seek(-4, os.SEEK_END)
+            return fh.read(4) == b"PAR1"
+    except Exception:
+        return False
+
+
 def build(con, cache_dir: str, codes: list[str]) -> dict:
     """拉取全部需要的表，落到本地 parquet 中间层（只读 Z:，写本地）。"""
     t0 = time.time()
@@ -91,11 +109,18 @@ def build(con, cache_dir: str, codes: list[str]) -> dict:
     def copy(name: str, sql: str):
         out = os.path.join(cache_dir, name + ".parquet")
         if os.path.exists(out):
-            print("  [%s] cached" % name, flush=True)
-            files[name] = out
-            return
+            if _parquet_ok(out):
+                print("  [%s] cached" % name, flush=True)
+                files[name] = out
+                return
+            print("  [%s] cache corrupt -> rebuild" % name, flush=True)
+            os.remove(out)
+        tmp = out + ".tmp"
+        if os.path.exists(tmp):
+            os.remove(tmp)
         con.execute("copy (%s) to '%s' (format parquet, compression zstd)"
-                    % (sql, out.replace("\\", "/")))
+                    % (sql, tmp.replace("\\", "/")))
+        os.replace(tmp, out)          # 原子替换：中断不会留下半截的"完整"文件
         print("  [%s] built in %.0fs" % (name, time.time() - t0), flush=True)
         files[name] = out
 
@@ -171,9 +196,7 @@ def main():
         WHERE trade_date BETWEEN DATE '%s-01-01' AND DATE '%s-12-31'
         ORDER BY trade_date, con_code
     """ % (RAW, INDEX, str(WIN_START)[:4], str(WIN_END)[:4])).df()
-    codes = sorted(iw.con_code.unique())
-    if args.limit_codes:
-        codes = codes[:args.limit_codes]
+    codes_all = sorted(iw.con_code.unique())
     names = {}
     sb = con.execute("""
         SELECT ts_code, name FROM read_parquet('%s/stock_basic/partition=*/part.parquet',
@@ -181,6 +204,21 @@ def main():
     """ % RAW).df()
     for r in sb.itertuples():
         names[r.ts_code] = r.name
+
+    # quantdb 的 index_weight 里混着一行**指数自指**记录：
+    # con_code = '990018.SH'（沪深300 自己的代码），它不是成分股、库里也没有行情。
+    # 不剔除的后果（2026-11-24 实测）：它会进 pool_membership -> PIT 矩阵多一列 ->
+    # qlib dump 该标的 failed=1 -> build_dataset 读特征时 KeyError 崩掉。
+    # 判定规则用「是否在 stock_basic 内」而不是硬编码代码：stock_basic 含 L(在市)与
+    # D(退市) 两段，覆盖全部历史成分（实测 5,925 只），故不会误删已退市的真成分股。
+    listed = set(names)
+    dropped = [c for c in codes_all if c not in listed]
+    iw = iw[iw.con_code.isin(listed)].copy()
+    codes = sorted(iw.con_code.unique())
+    print("membership filter: index_weight con_code %d -> %d（剔除不在 stock_basic 的 %d 个：%s）"
+          % (len(codes_all), len(codes), len(dropped), dropped[:10]), flush=True)
+    if args.limit_codes:
+        codes = codes[:args.limit_codes]
 
     with open(mem_path, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)

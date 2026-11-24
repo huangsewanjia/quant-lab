@@ -61,18 +61,27 @@ def wait_for_gpu(timeout_s=3600, label=""):
         time.sleep(wait)
 
 
-def run_one(cmd, label, log_path):
+def run_one(cmd, label, log_path, timeout_s=None):
     print("\n=== %s ===" % label, flush=True)
     print(" ".join(cmd), flush=True)
     t0 = time.time()
     with open(log_path, "a", encoding="utf-8") as lf:
         lf.write("\n\n===== %s  (%s) =====\n" % (label, time.strftime("%Y-%m-%d %H:%M:%S")))
         lf.flush()
-        p = subprocess.run(cmd, stdout=lf, stderr=subprocess.STDOUT, cwd=REPO)
+        try:
+            p = subprocess.run(cmd, stdout=lf, stderr=subprocess.STDOUT, cwd=REPO,
+                               timeout=timeout_s)
+            rc = p.returncode
+        except subprocess.TimeoutExpired:
+            rc = -9
+            lf.write("\n### TIMEOUT after %.0fs -> killed ###\n" % (timeout_s or 0))
+            lf.flush()
+            print("!!! %s exceeded %ss -> KILLED (protocol stop condition)"
+                  % (label, timeout_s), flush=True)
     dt = time.time() - t0
     print("=== %s done rc=%d in %.1fs (%.1f min) ==="
-          % (label, p.returncode, dt, dt / 60), flush=True)
-    return p.returncode, dt
+          % (label, rc, dt, dt / 60), flush=True)
+    return rc, dt
 
 
 def collect(exp_dir):
@@ -145,6 +154,11 @@ def main():
     ap.add_argument("--seeds", default=",".join(str(s) for s in SEEDS))
     ap.add_argument("--skip-gru", action="store_true")
     ap.add_argument("--no-wait-gpu", action="store_true")
+    ap.add_argument("--gru-first", action="store_true",
+                    help="先跑 GRU 基线再跑四档：H2 必需且最便宜，先保底")
+    ap.add_argument("--max-run-seconds", type=float, default=7200.0,
+                    help="单档训练墙钟上限（秒）。派单停手条件③：单档 >2h 即停并回报实测；"
+                         "超时会杀掉子进程并停止后续档位。0 = 不限")
     args = ap.parse_args()
 
     repo = REPO
@@ -158,51 +172,86 @@ def main():
 
     t0 = time.time()
     failures = []
-    for seed in seeds:
-        for arm in arms:
-            out_json = os.path.join(exp_dir, "preds", "%s_s%s%s.json"
-                                   % (arm, seed, suffix))
-            if os.path.exists(out_json) and not args.smoke:
-                print("skip (exists): %s_s%s" % (arm, seed), flush=True)
-                continue
-            if not args.no_wait_gpu:
-                wait_for_gpu(label="%s seed %s" % (arm, seed))
-            cmd = [VENV_PY, "-u", os.path.join("scripts", "work557_run_arms.py"),
-                   "--arm", arm, "--seed", str(seed), "--epochs", str(epochs),
-                   "--exp", args.exp, "--workers", str(args.workers),
-                   "--out-suffix", suffix]
-            rc, dt = run_one(cmd, "%s seed %s (%d epochs)%s"
-                             % (arm, seed, epochs, " SMOKE" if args.smoke else ""),
-                             log_path)
-            if rc != 0:
-                failures.append({"arm": arm, "seed": seed, "rc": rc})
-                print("!! %s seed %s FAILED rc=%d" % (arm, seed, rc), flush=True)
+    stopped = None          # 触发停手条件时的说明
+    cap = args.max_run_seconds if args.max_run_seconds and args.max_run_seconds > 0 else None
 
-    if not args.skip_gru:
+    def run_arm(arm, seed):
+        nonlocal stopped
+        out_json = os.path.join(exp_dir, "preds", "%s_s%s%s.json"
+                                % (arm, seed, suffix))
+        if os.path.exists(out_json) and not args.smoke:
+            print("skip (exists): %s_s%s" % (arm, seed), flush=True)
+            return
+        if not args.no_wait_gpu:
+            wait_for_gpu(label="%s seed %s" % (arm, seed))
+        cmd = [VENV_PY, "-u", os.path.join("scripts", "work557_run_arms.py"),
+               "--arm", arm, "--seed", str(seed), "--epochs", str(epochs),
+               "--exp", args.exp, "--workers", str(args.workers),
+               "--out-suffix", suffix]
+        rc, dt = run_one(cmd, "%s seed %s (%d epochs)%s"
+                         % (arm, seed, epochs, " SMOKE" if args.smoke else ""),
+                         log_path, timeout_s=cap)
+        if rc == -9:
+            stopped = ("stop condition 3 (single run > %.0fs): %s seed %s killed"
+                       % (cap or 0, arm, seed))
+            failures.append({"arm": arm, "seed": seed, "rc": rc, "reason": "timeout"})
+        elif rc != 0:
+            failures.append({"arm": arm, "seed": seed, "rc": rc})
+            print("!! %s seed %s FAILED rc=%d" % (arm, seed, rc), flush=True)
+
+    def run_gru(seed):
+        nonlocal stopped
+        out_json = os.path.join(exp_dir, "preds", "gru_s%s%s.json"
+                                % (seed, suffix))
+        if os.path.exists(out_json) and not args.smoke:
+            print("skip (exists): gru seed %s" % seed, flush=True)
+            return
+        if not args.no_wait_gpu:
+            wait_for_gpu(label="gru seed %s" % seed)
+        cmd = [VENV_PY, "-u", os.path.join("scripts", "work557_baseline.py"),
+               "--kind", "gru", "--seed", str(seed), "--epochs", str(epochs),
+               "--exp", args.exp]
+        rc, dt = run_one(cmd, "gru seed %s (%d epochs)%s"
+                         % (seed, epochs, " SMOKE" if args.smoke else ""),
+                         log_path, timeout_s=cap)
+        if rc == -9:
+            stopped = ("stop condition 3 (single run > %.0fs): gru seed %s killed"
+                       % (cap or 0, seed))
+            failures.append({"arm": "gru", "seed": seed, "rc": rc, "reason": "timeout"})
+        elif rc != 0:
+            failures.append({"arm": "gru", "seed": seed, "rc": rc})
+
+    def arms_loop():
         for seed in seeds:
-            out_json = os.path.join(exp_dir, "preds", "gru_s%s%s.json"
-                                   % (seed, suffix))
-            if os.path.exists(out_json) and not args.smoke:
-                print("skip (exists): gru seed %s" % seed, flush=True)
-                continue
-            if not args.no_wait_gpu:
-                wait_for_gpu(label="gru seed %s" % seed)
-            cmd = [VENV_PY, "-u", os.path.join("scripts", "work557_baseline.py"),
-                   "--kind", "gru", "--seed", str(seed), "--epochs", str(epochs),
-                   "--exp", args.exp]
-            rc, dt = run_one(cmd, "gru seed %s (%d epochs)%s"
-                             % (seed, epochs, " SMOKE" if args.smoke else ""),
-                             log_path)
-            if rc != 0:
-                failures.append({"arm": "gru", "seed": seed, "rc": rc})
+            for arm in arms:
+                run_arm(arm, seed)
+                if stopped:
+                    return
+
+    def gru_loop():
+        for seed in seeds:
+            run_gru(seed)
+            if stopped:
+                return
+
+    # 顺序：默认「四档 -> GRU」；--gru-first 则「GRU -> 四档」
+    # （GRU 最便宜且 H2 必需，先跑可在被停手时保住 H2 的基线）
+    if args.gru_first and not args.skip_gru:
+        gru_loop()
+    if not stopped:
+        arms_loop()
+    if not args.skip_gru and not args.gru_first and not stopped:
+        gru_loop()
 
     out = collect(exp_dir)
     out["failures"] = failures
+    out["stopped"] = stopped
+    out["max_run_seconds"] = args.max_run_seconds
     out["wall_seconds"] = round(time.time() - t0, 1)
     with open(os.path.join(exp_dir, "training_log.json"), "w", encoding="utf-8") as fh:
         json.dump(out, fh, ensure_ascii=False, indent=1)
-    print("\n=== training driver done in %.1f min; failures=%s ==="
-          % (out["wall_seconds"] / 60, failures), flush=True)
+    print("\n=== training driver done in %.1f min; failures=%s; stopped=%s ==="
+          % (out["wall_seconds"] / 60, failures, stopped), flush=True)
     for k, r in sorted(out["runs"].items()):
         print("  %-18s epochs=%-4s s/epoch=%-7s peakVRAM=%-6s rankic=%s"
               % (k, r["epochs_ran"],
