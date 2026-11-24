@@ -177,8 +177,10 @@ def portfolio_daily(bt, scores_by_day, cost_bps):
         # ---- 卖出阶段：能卖则卖到目标权重；卖不掉则强制持有原权重
         for c, w_old in holdings.items():
             w_new = target.get(c, 0.0)
-            i = pos[c]
-            if w_new < w_old - 1e-12 and can_sell[i]:
+            i = pos.get(c)
+            # i 为 None = 该股当日已无面板行（事实层非稠密，最早只出现 25/974 天）
+            #   -> 视为不可成交 -> 强制保留原权重（与建模侧 idx_of.get(c) 语义一致）
+            if w_new < w_old - 1e-12 and i is not None and can_sell[i]:
                 sold = w_old - w_new
                 sells += sold
                 cash += sold
@@ -192,8 +194,8 @@ def portfolio_daily(bt, scores_by_day, cost_bps):
             need = w_new - w_cur
             if need <= 1e-12:
                 continue
-            i = pos[c]
-            if not can_buy[i]:
+            i = pos.get(c)
+            if i is None or not can_buy[i]:
                 continue                       # 买不进 -> 不买（合法结果）
             amt = need if need <= cash else cash
             if amt <= 1e-15:
@@ -204,7 +206,9 @@ def portfolio_daily(bt, scores_by_day, cost_bps):
 
         gross = 0.0
         for c, w in newh.items():
-            i = pos[c]
+            i = pos.get(c)
+            if i is None:
+                continue                       # 当日无面板行 -> 无收益可结算
             r = fwd[i]
             if not np.isfinite(r):
                 r = 0.0
