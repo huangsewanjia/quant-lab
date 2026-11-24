@@ -57,6 +57,9 @@ for p in sorted(glob.glob("experiments/WORK-555/bt_daily_*.csv")):
 print(f"  max Σw over all bt_daily csv = {worst_max:.9f} (file={worst_file})  |  max |Σw+cash-1| = {worst_dev:.3e}")
 PYEOF
 
+echo "=== [3b/9] 产物清单（把审计的直接输入也纳入 sha256 覆盖） $(date -Is)"
+"$PY" scripts/work555_artifact_manifest.py --build 2>&1 | tail -8
+
 echo "=== [4/9] 独立复算（不 import 建模函数） $(date -Is)"
 "$PY" audit/recompute_work555.py > "$LOG/audit_v3.log" 2>&1
 AUDIT_RC=$?
@@ -101,6 +104,10 @@ PYEOF
 echo "=== [9b/9] 对外数字陈旧自检（--check，有陈旧即非 0） $(date -Is)"
 "$PY" scripts/work555_final_numbers.py --check
 echo "  final_numbers --check exit=$?"
+
+echo "=== [9c/9] 产物清单复核（--check，漂移即非 0） $(date -Is)"
+"$PY" scripts/work555_artifact_manifest.py --check
+echo "  artifact_manifest --check exit=$?"
 
 echo "=== 主检验量与判词（脚本直算） $(date -Is)"
 "$PY" - <<'PYEOF'

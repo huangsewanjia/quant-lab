@@ -70,6 +70,9 @@ def collect():
     for tag, r in runs.items():
         b = bts.get(tag, {}).get("metrics", {})
         m8, m5 = b.get("main_8bps", {}), b.get("sens_5bps", {})
+        nd = m8.get("n_days") or 0
+        turn_tot = m8.get("turnover_total")
+        cost_tot = m8.get("cost_total")
         port[tag] = {
             "rankic": r.get("test_rankic_mean", r.get("test_rankic_mean_best_iter")),
             "ic": r.get("test_ic_mean", r.get("test_ic_mean_best_iter")),
@@ -79,9 +82,17 @@ def collect():
             "turn_8bps": m8.get("turnover_daily_mean"),
             "sharpe_5bps": m5.get("sharpe_rf0"),
             "turn_5bps": m5.get("turnover_daily_mean"),
-            "cost_total_8bps": m8.get("cost_total"),
+            "cost_total_8bps": cost_tot,
             "gross_total_8bps": m8.get("gross_return_total"),
             "avg_holdings": m8.get("avg_holdings"),
+            "n_days": nd,
+            # 派生：日均双边换手（占净值）、年化双边换手（倍）、日均成本（bps）、年化摩擦
+            "turn_ann_x": (turn_tot / nd * 252.0) if (turn_tot is not None and nd) else None,
+            "daily_cost_bps": (cost_tot / nd * 1e4) if (cost_tot is not None and nd) else None,
+            "friction_ann": (cost_tot / nd * 252.0) if (cost_tot is not None and nd) else None,
+            # XGBoost 臂早停退化的实际用树数
+            "n_trees_used": r.get("n_trees_used_in_predict"),
+            "n_trees_fitted": r.get("n_trees_fitted"),
             "elapsed_sec": r.get("elapsed_sec"),
             "best_step": (r.get("train") or {}).get("best_step"),
             "steps_run": (r.get("train") or {}).get("steps_run"),
@@ -97,10 +108,13 @@ def collect():
     per_seed, deltas = [], []
     for s in SEEDS:
         d, m = port.get(f"dee_s{s}"), port.get(f"mlp_only_s{s}")
-        if not (d and m and m["rankic"]):
+        if not (d and m):
             continue
-        delta = (d["rankic"] - m["rankic"]) / m["rankic"]
-        per_seed.append({"seed": s, "rankic_dee": d["rankic"], "rankic_mlp": m["rankic"],
+        rd, rb = d.get("rankic"), m.get("rankic")
+        if rd is None or rb is None or rb == 0:
+            continue          # 半成品产物：缺字段就不进统计（不猜、不补）
+        delta = (rd - rb) / rb
+        per_seed.append({"seed": s, "rankic_dee": rd, "rankic_mlp": rb,
                          "delta_ic": delta})
         deltas.append(delta)
     primary = {"per_seed": per_seed}
@@ -177,8 +191,12 @@ def collect():
     for fn in sorted(os.listdir(OUT)):
         if not (fn.startswith("bt_daily_") and fn.endswith(".csv")):
             continue
-        d = pd.read_csv(os.path.join(OUT, fn))
-        if "sum_w" not in d.columns:
+        p = os.path.join(OUT, fn)
+        try:
+            d = pd.read_csv(p)
+        except Exception:
+            continue          # 半成品 / 0 字节文件：跳过，不崩（第二轮审查的 suggestion）
+        if "sum_w" not in d.columns or len(d) == 0:
             continue
         sw = d["sum_w"].to_numpy(dtype="float64")
         ca = d["cash"].to_numpy(dtype="float64")
@@ -363,6 +381,17 @@ def render_registry_row(n):
             five.append(f"{pretty.get(a_, a_)} s{s_} {f(d['sharpe_5bps'], 3, sign=True)}")
     pos5 = [t for t in five if "+" in t]
     neg5 = [t for t in five if "+" not in t]
+    dee_turn_daily = np.mean([d.get("turn_8bps") for d in dee if d.get("turn_8bps") is not None]) \
+        if any(d.get("turn_8bps") is not None for d in dee) else None
+    dee_turn_ann = np.mean([d.get("turn_ann_x") for d in dee if d.get("turn_ann_x") is not None]) \
+        if any(d.get("turn_ann_x") is not None for d in dee) else None
+    dee_cost_bps = np.mean([d.get("daily_cost_bps") for d in dee if d.get("daily_cost_bps") is not None]) \
+        if any(d.get("daily_cost_bps") is not None for d in dee) else None
+    dee_friction = np.mean([d.get("friction_ann") for d in dee if d.get("friction_ann") is not None]) \
+        if any(d.get("friction_ann") is not None for d in dee) else None
+    xgb42 = port.get("xgb_s42", {})
+    xgb_trees_used = xgb42.get("n_trees_used") if xgb42.get("n_trees_used") is not None else "—"
+    xgb_trees_fitted = xgb42.get("n_trees_fitted") if xgb42.get("n_trees_fitted") is not None else "—"
     main_results = (
         f"**Δ_ic 逐种子 {dps}**，均值 **{f(p.get('delta_ic_mean', 0) * 100, 2, sign=True)}%**，"
         f"极差 **{f(p.get('delta_ic_range', 0) * 100, 2)} pp**，"
@@ -377,8 +406,8 @@ def render_registry_row(n):
         f"组合权重不变量：全部 bt_daily 的 max Σw = {f(n['weight_invariant']['max_sum_w'], 9)}、"
         f"Σw>1 天数 = {n['weight_invariant']['n_days_over_1']}、"
         f"max\\|Σw+cash−1\\| = {n['weight_invariant']['max_ledger_dev']:.3e}（现金账本口径，无隐含杠杆）。"
-        f"臂 C 早停退化已量化：XGBoost 实际只用 **1 棵树**（best_iteration=0，"
-        f"xgboost sklearn predict() 自动截断到 best_iteration+1），"
+        f"臂 C 早停退化已量化：XGBoost 实际只用 **{xgb_trees_used} 棵树**"
+        f"（best_iteration=0，xgboost sklearn predict() 自动截断到 best_iteration+1），"
         f"非预注册诊断对照（关早停、**仅在验证段**选轮次）RankIC 升到 "
         + " / ".join(f(port.get(f"xgbfull_s{s}", {}).get("rankic"), 6, sign=True) for s in SEEDS)
     )
@@ -392,11 +421,15 @@ def render_registry_row(n):
         f"② **绝对水平远低于论文**（DEE RankIC "
         f"{f(np.mean([d['rankic'] for d in dee if d]), 4, sign=True)} 均值 vs 论文 0.060）："
         f"因子集 48 vs 158、自建面板、PIT 口径、含 A 股交易成本<br>"
-        f"③ **DEE 净 Sharpe 为负**：日频调仓 top-50 的年化双边换手 ~100%，"
-        f"8 bps + 10 bps 印花税的年化摩擦 ~39% 吃掉全部毛收益——本单组合口径下该策略不可用"
+        f"③ **DEE 净 Sharpe 为负**：日频调仓 top-50 的日均双边换手 "
+        f"{f(dee_turn_daily, 3)}（占组合净值），年化双边换手 {f(dee_turn_ann, 1)} 倍；"
+        f"单边 8 bps + 卖出印花税 10 bps 下日均成本 {f(dee_cost_bps, 1)} bps、"
+        f"**年化摩擦 {f(dee_friction * 100 if dee_friction is not None else None, 1, pct=True)}** "
+        f"吃掉全部毛收益——本单组合口径下该策略不可用"
         f"（5 bps 敏感性净 Sharpe 转正 {len(pos5)} 个：{'；'.join(pos5)}；"
         f"仍为负 {len(neg5)} 个：{'；'.join(neg5)}）<br>"
-        f"④ **臂 C（XGBoost）在预注册参数下退化为单树桩**：patience=50 在近乎平坦的验证曲线上于第 0 轮触发；"
+        f"④ **臂 C（XGBoost）在预注册参数下退化为单树桩**：patience=50 在近乎平坦的验证曲线上于第 0 轮触发，"
+        f"实测实际只用了 **{xgb_trees_used} 棵树**（共拟合 {xgb_trees_fitted} 棵）；"
         f"诊断对照下 RankIC 由 {ric_x} 升到 "
         + " / ".join(f(port.get(f"xgbfull_s{s}", {}).get("rankic"), 6, sign=True) for s in SEEDS)
         + f" → 退化的是「用池化 MSE 做早停」在本面板的适配性，**不是实现缺陷**；"
@@ -441,9 +474,10 @@ def render_fl_13(n):
     """S2 / S3 修复带来的实测影响（重跑前 vs 重跑后）。"""
     ref = (n.get("v2_reference") or {}).get("arms", {})
     port = n["port"]
-    L = ["| 臂/种子 | 旧口径 best_step | 新口径 best_step（集成级） | steps_run 旧→新 | 早停 旧→新 | "
+    L = ["| 臂/种子 | 旧口径 best_step（v2 参照） | 新 run 里旧口径复算 best_step | "
+         "新口径 best_step（集成级） | steps_run 旧→新 | 早停 旧→新 | "
          "测试 RankIC 旧→新 | 净 Sharpe(8bps) 旧(泄漏口径)→新(现金账本) |",
-         "|---|---|---|---|---|---|---|"]
+         "|---|---|---|---|---|---|---|---|"]
     for tag in ("dee_s42", "dee_s43", "mlp_only_s42", "mlp_only_s43"):
         r = ref.get(tag)
         d = port.get(tag)
@@ -453,8 +487,9 @@ def render_fl_13(n):
         old_bt = r.get("backtest_v2_leaky_engine", {})
         arm = tag.split("_s")[0]
         name = {"dee": "DEE", "mlp_only": "MLP-only"}[arm]
-        L.append(f"| {name} s{tag.split('_s')[1]} | {rt.get('best_step')} | "
-                 f"{dt.get('best_step')} | {rt.get('steps_run')} → {dt.get('steps_run')} | "
+        alt = (d.get("alt_monitor") or {}).get("best_step")
+        L.append(f"| {name} s{tag.split('_s')[1]} | {rt.get('best_step')} | {alt} | "
+                 f"**{dt.get('best_step')}** | {rt.get('steps_run')} → {dt.get('steps_run')} | "
                  f"{'是' if rt.get('early_stopped') else '否'} → "
                  f"{'是' if dt.get('early_stopped') else '否'} | "
                  f"{f(r.get('test_rankic_mean'), 6)} → **{f(dt.get('rankic'), 6)}** | "
@@ -463,6 +498,11 @@ def render_fl_13(n):
     L.append("")
     L.append("口径说明：")
     L.append("")
+    L.append("- **第 2 列 vs 第 3 列**是**训练轨迹一致性的交叉验证**：新 run 里并行记录的"
+             "「旧口径」（逐专家 MSE 平均）best_step，与 v2 参照逐位吻合 —— 说明重跑的"
+             "**训练轨迹本身没变**，变的只是「用哪个监控量决定恢复哪一步的快照」。"
+             "唯一例外是提前早停的臂：轨迹被截断后旧口径的最优步可能落在截断点之后，"
+             "此时第 3 列自然小于第 2 列。")
     L.append("- **S2（早停监控量）**：`best_step` 是「恢复哪个参数快照」的那一步。"
              "旧实现监控逐专家 MSE 的平均，新实现监控集成级 MSE —— 两者选中的步不同，"
              "恢复出来的权重就不同，测试段 RankIC 随之改变。")
@@ -479,15 +519,35 @@ BLOCKS = {
     "§13": render_fl_13,
 }
 
+# 生成块缺失时的自动插入锚点（= 下一小节标题）
+FALLBACK_ANCHORS = {
+    "§12.2": "### §12.3",
+    "§12.3": "### §12.4",
+    "§12.4": "### §12.5",
+    "§13": "### §13.1",
+}
+
 
 # ------------------------------------------------------------------ 写回 / 自检
 def apply_block(text, name, body):
+    """把生成块写进 failure_log.md。
+
+    标记存在 -> 就地替换；
+    标记缺失 -> **自动插入**（按小节锚点），而不是中止脚本
+      （第二轮审查的 blocking：标记若没随 commit 走，整条「唯一真源」写回路径就是死的）。
+    """
     begin = f"<!-- BEGIN GENERATED:{MARK}:{name} -->"
     end = f"<!-- END GENERATED:{MARK}:{name} -->"
     pat = re.compile(re.escape(begin) + r".*?" + re.escape(end), re.S)
-    if not pat.search(text):
-        raise SystemExit(f"[FAIL] failure_log.md 缺生成块标记：{name}")
-    return pat.sub(lambda _m: f"{begin}\n{body}\n{end}", text)
+    if pat.search(text):
+        return pat.sub(lambda _m: f"{begin}\n{body}\n{end}", text)
+    # 自动插入：锚点 = 下一小节标题；找不到就追加到文末
+    anchor = FALLBACK_ANCHORS.get(name)
+    block = f"{begin}\n{body}\n{end}"
+    if anchor and anchor in text:
+        i = text.index(anchor)
+        return text[:i] + block + "\n\n" + text[i:]
+    return text.rstrip("\n") + "\n\n" + block + "\n"
 
 
 def main():
@@ -496,8 +556,6 @@ def main():
     args = ap.parse_args()
 
     n = collect()
-    with open(NUMS, "w", encoding="utf-8") as fh:
-        json.dump(n, fh, ensure_ascii=False, indent=2)
 
     # ---- failure_log 生成块
     log_txt = open(LOG, encoding="utf-8").read()
@@ -514,6 +572,7 @@ def main():
     new_reg = "\n".join(lines[:idx[0]] + [render_registry_row(n)] + lines[idx[0] + 1:])
 
     if args.check:
+        # **只检查不写盘**：连 final_numbers.json 都不落地（第二轮审查的 suggestion）
         bad = []
         if new_log != log_txt:
             bad.append("failure_log.md 生成块与产物不一致")
@@ -528,6 +587,8 @@ def main():
               f"判词 {n['verdict'].get('verdict_word', '—')}")
         return 0
 
+    with open(NUMS, "w", encoding="utf-8") as fh:
+        json.dump(n, fh, ensure_ascii=False, indent=2)
     open(LOG, "w", encoding="utf-8").write(new_log)
     open(REG, "w", encoding="utf-8").write(new_reg)
     print(json.dumps({

@@ -1,0 +1,344 @@
+{
+  "experiment": "WORK-555",
+  "generated_at": "2026-11-24T16:54:45+08:00",
+  "note": "审计的直接输入 + 建模汇总 + 对外交付件的逐份 sha256 锁定。",
+  "n_items": 42,
+  "items": [
+    {
+      "group": "audit_input",
+      "name": "preds_dee_s42.npz",
+      "path": "experiments/WORK-555/preds_dee_s42.npz",
+      "bytes": 20346177,
+      "sha256": "6519cd52d4c32b2d5d5262c32b503db1cc1cce2c528b2fef13f1d42a8d93b061",
+      "note": "审计的直接输入：测试段预测"
+    },
+    {
+      "group": "audit_input",
+      "name": "preds_dee_s43.npz",
+      "path": "experiments/WORK-555/preds_dee_s43.npz",
+      "bytes": 19852618,
+      "sha256": "1b8a6ad0ccc2b2c75c9ebdca152f9ce129af473589f584bf3a929c2c97ae0f21",
+      "note": "审计的直接输入：测试段预测"
+    },
+    {
+      "group": "audit_input",
+      "name": "preds_mlp_only_s42.npz",
+      "path": "experiments/WORK-555/preds_mlp_only_s42.npz",
+      "bytes": 22371701,
+      "sha256": "4da6546927a86903ec9f76df0b4db76911123619c24c01d999992b37a29b05cf",
+      "note": "审计的直接输入：测试段预测"
+    },
+    {
+      "group": "audit_input",
+      "name": "preds_mlp_only_s43.npz",
+      "path": "experiments/WORK-555/preds_mlp_only_s43.npz",
+      "bytes": 22429063,
+      "sha256": "132e6d39cf9e559cb5243eb3d5c49deeb53f88d51662a060ed2f58930c9a066e",
+      "note": "审计的直接输入：测试段预测"
+    },
+    {
+      "group": "audit_input",
+      "name": "preds_xgb_s42.npz",
+      "path": "experiments/WORK-555/preds_xgb_s42.npz",
+      "bytes": 598019,
+      "sha256": "f2ea526eedc494fccfdf179a5dceb4f3888dfb183903726da7a9d98e631aa536",
+      "note": "审计的直接输入：测试段预测"
+    },
+    {
+      "group": "audit_input",
+      "name": "preds_xgb_s43.npz",
+      "path": "experiments/WORK-555/preds_xgb_s43.npz",
+      "bytes": 686621,
+      "sha256": "6b2b3ee35482773b7e03d7b9086190b8213449b71ab04eafecb250f7456f6681",
+      "note": "审计的直接输入：测试段预测"
+    },
+    {
+      "group": "audit_input",
+      "name": "preds_xgbfull_s42.npz",
+      "path": "experiments/WORK-555/preds_xgbfull_s42.npz",
+      "bytes": 1457687,
+      "sha256": "9f98c83db10d8b6ab8e8eb91190be33154aa547f70d2905a9c4991bf4f1420d7",
+      "note": "审计的直接输入：测试段预测"
+    },
+    {
+      "group": "audit_input",
+      "name": "preds_xgbfull_s43.npz",
+      "path": "experiments/WORK-555/preds_xgbfull_s43.npz",
+      "bytes": 1458498,
+      "sha256": "640b0cabc6bb1befb55c78643e0c168da8e8e461199081100d2cd8a2b0067ee3",
+      "note": "审计的直接输入：测试段预测"
+    },
+    {
+      "group": "audit_input",
+      "name": "bt_daily_dee_s42_main_8bps.csv",
+      "path": "experiments/WORK-555/bt_daily_dee_s42_main_8bps.csv",
+      "bytes": 139776,
+      "sha256": "44cb4b3f0290bb76d689cada35198957033d7573d454bcf54c5d1335e2c01de2",
+      "note": "审计的直接输入：逐日组合账"
+    },
+    {
+      "group": "audit_input",
+      "name": "bt_daily_dee_s42_sens_5bps.csv",
+      "path": "experiments/WORK-555/bt_daily_dee_s42_sens_5bps.csv",
+      "bytes": 139840,
+      "sha256": "9f32d11e726c7f2a767ef5f20aedc94e1586d9eac6157d5762d805daa7c2170a",
+      "note": "审计的直接输入：逐日组合账"
+    },
+    {
+      "group": "audit_input",
+      "name": "bt_daily_dee_s43_main_8bps.csv",
+      "path": "experiments/WORK-555/bt_daily_dee_s43_main_8bps.csv",
+      "bytes": 135180,
+      "sha256": "31b299df9e37bd94c14313740d976da01f93bf6436dbbbea358288e26c4a2b09",
+      "note": "审计的直接输入：逐日组合账"
+    },
+    {
+      "group": "audit_input",
+      "name": "bt_daily_dee_s43_sens_5bps.csv",
+      "path": "experiments/WORK-555/bt_daily_dee_s43_sens_5bps.csv",
+      "bytes": 134859,
+      "sha256": "5744fb66a727adc6e489faaa7ef320a3fbd481c0a2d29417e61b77862407351f",
+      "note": "审计的直接输入：逐日组合账"
+    },
+    {
+      "group": "audit_input",
+      "name": "bt_daily_mlp_only_s42_main_8bps.csv",
+      "path": "experiments/WORK-555/bt_daily_mlp_only_s42_main_8bps.csv",
+      "bytes": 133864,
+      "sha256": "d4fb2cc3f519405593d877a4bbca03e32171945331ae48f75acb2a3f14248dbb",
+      "note": "审计的直接输入：逐日组合账"
+    },
+    {
+      "group": "audit_input",
+      "name": "bt_daily_mlp_only_s42_sens_5bps.csv",
+      "path": "experiments/WORK-555/bt_daily_mlp_only_s42_sens_5bps.csv",
+      "bytes": 132645,
+      "sha256": "1cc3866db71ebfc33e93f216d95cae7ac00d1630a1d15d207f1c9710c3d6d6f8",
+      "note": "审计的直接输入：逐日组合账"
+    },
+    {
+      "group": "audit_input",
+      "name": "bt_daily_mlp_only_s43_main_8bps.csv",
+      "path": "experiments/WORK-555/bt_daily_mlp_only_s43_main_8bps.csv",
+      "bytes": 133626,
+      "sha256": "c7258cecda1ac703b82fb1283abf0cf2c48e2a5c075ed2a30a2c4cac63847598",
+      "note": "审计的直接输入：逐日组合账"
+    },
+    {
+      "group": "audit_input",
+      "name": "bt_daily_mlp_only_s43_sens_5bps.csv",
+      "path": "experiments/WORK-555/bt_daily_mlp_only_s43_sens_5bps.csv",
+      "bytes": 132413,
+      "sha256": "7b4e890b645abc32c8cbcee32a80c4f6bdb2f8edf7486f3d06e81b6952726299",
+      "note": "审计的直接输入：逐日组合账"
+    },
+    {
+      "group": "audit_input",
+      "name": "bt_daily_xgb_s42_main_8bps.csv",
+      "path": "experiments/WORK-555/bt_daily_xgb_s42_main_8bps.csv",
+      "bytes": 133844,
+      "sha256": "d6f9101244f991ad97c9fdc1531beb26116c8d46a00b7f0bfb06b57bce796829",
+      "note": "审计的直接输入：逐日组合账"
+    },
+    {
+      "group": "audit_input",
+      "name": "bt_daily_xgb_s42_sens_5bps.csv",
+      "path": "experiments/WORK-555/bt_daily_xgb_s42_sens_5bps.csv",
+      "bytes": 133479,
+      "sha256": "dc335ff946623a9fe80fb17da789036fa79fdbc33247b9372de1d4bf4d8bd90f",
+      "note": "审计的直接输入：逐日组合账"
+    },
+    {
+      "group": "audit_input",
+      "name": "bt_daily_xgb_s43_main_8bps.csv",
+      "path": "experiments/WORK-555/bt_daily_xgb_s43_main_8bps.csv",
+      "bytes": 135189,
+      "sha256": "367f394069fbab360d3f6032bbcf3905583a460b57202ebb84b1ab263cdb8386",
+      "note": "审计的直接输入：逐日组合账"
+    },
+    {
+      "group": "audit_input",
+      "name": "bt_daily_xgb_s43_sens_5bps.csv",
+      "path": "experiments/WORK-555/bt_daily_xgb_s43_sens_5bps.csv",
+      "bytes": 134859,
+      "sha256": "8068ce4b80c9037d9bbeca36e0832ea7903e3e6e616b7f893e36280cfa07b6ab",
+      "note": "审计的直接输入：逐日组合账"
+    },
+    {
+      "group": "audit_input",
+      "name": "bt_daily_xgbfull_s42_main_8bps.csv",
+      "path": "experiments/WORK-555/bt_daily_xgbfull_s42_main_8bps.csv",
+      "bytes": 135445,
+      "sha256": "d8aa4c31160a86f519df033482a8078f06faea164f1c29b89bf320168087f2a0",
+      "note": "审计的直接输入：逐日组合账"
+    },
+    {
+      "group": "audit_input",
+      "name": "bt_daily_xgbfull_s42_sens_5bps.csv",
+      "path": "experiments/WORK-555/bt_daily_xgbfull_s42_sens_5bps.csv",
+      "bytes": 135491,
+      "sha256": "7ac992e862cd2aac8c6d2045b899feb27478f9b0cfd28d05a6a034668dfce7bf",
+      "note": "审计的直接输入：逐日组合账"
+    },
+    {
+      "group": "audit_input",
+      "name": "bt_daily_xgbfull_s43_main_8bps.csv",
+      "path": "experiments/WORK-555/bt_daily_xgbfull_s43_main_8bps.csv",
+      "bytes": 135435,
+      "sha256": "06171608105543ed52327ae339d6662fb89881bd10491fca266a5cdfa442717d",
+      "note": "审计的直接输入：逐日组合账"
+    },
+    {
+      "group": "audit_input",
+      "name": "bt_daily_xgbfull_s43_sens_5bps.csv",
+      "path": "experiments/WORK-555/bt_daily_xgbfull_s43_sens_5bps.csv",
+      "bytes": 135566,
+      "sha256": "024f87a720d6c4a784c246bb30232063073763c0a2c247fba551d6146ea70dde",
+      "note": "审计的直接输入：逐日组合账"
+    },
+    {
+      "group": "audit_input",
+      "name": "sample.npz",
+      "path": "experiments/WORK-555/sample.npz",
+      "bytes": 125182061,
+      "sha256": "2ad2f9df766ecc8563440ace3c49eabca2fd917fb90bd19bf0560523d20174d8",
+      "note": "审计的直接输入：样本与切分/标签"
+    },
+    {
+      "group": "audit_input",
+      "name": "sample_meta.json",
+      "path": "experiments/WORK-555/sample_meta.json",
+      "bytes": 70902,
+      "sha256": "9b6e06b4dcb3d39c7b782bed2795309330a44c576663ac4f8578bd090c7f6fac",
+      "note": "审计的直接输入：样本与切分/标签"
+    },
+    {
+      "group": "model_output",
+      "name": "run_dee_s42.json",
+      "path": "experiments/WORK-555/run_dee_s42.json",
+      "bytes": 2837,
+      "sha256": "2faa01137c172aec00b7b3a79c971b21966a2d5e6d36ec3319c18f68a3977bbd",
+      "note": "建模汇总：训练日志与统计"
+    },
+    {
+      "group": "model_output",
+      "name": "run_dee_s43.json",
+      "path": "experiments/WORK-555/run_dee_s43.json",
+      "bytes": 2822,
+      "sha256": "8e70b153db8db5636362c6f14990430433e275174d99d5c71ddc5e1b5b6b96da",
+      "note": "建模汇总：训练日志与统计"
+    },
+    {
+      "group": "model_output",
+      "name": "run_mlp_only_s42.json",
+      "path": "experiments/WORK-555/run_mlp_only_s42.json",
+      "bytes": 2974,
+      "sha256": "d117956d4179e62e56e46485c8cf1fd6818087ba14f23ad86e92b8fc79d01efb",
+      "note": "建模汇总：训练日志与统计"
+    },
+    {
+      "group": "model_output",
+      "name": "run_mlp_only_s43.json",
+      "path": "experiments/WORK-555/run_mlp_only_s43.json",
+      "bytes": 2982,
+      "sha256": "484c4e473af9f266b3725650c248ac5eca2a9f4806aa2dade172fc1fd3e833b1",
+      "note": "建模汇总：训练日志与统计"
+    },
+    {
+      "group": "model_output",
+      "name": "run_xgb_s42.json",
+      "path": "experiments/WORK-555/run_xgb_s42.json",
+      "bytes": 857,
+      "sha256": "35439bcfc539e6e1a471d95c020b51a7fe57f75d366dbd71fa1c2587e89c6120",
+      "note": "建模汇总：训练日志与统计"
+    },
+    {
+      "group": "model_output",
+      "name": "run_xgb_s43.json",
+      "path": "experiments/WORK-555/run_xgb_s43.json",
+      "bytes": 856,
+      "sha256": "f6159fcc1436f9b940c23341db1da599113cd81dd1cef84a2f095b05381c7b1a",
+      "note": "建模汇总：训练日志与统计"
+    },
+    {
+      "group": "model_output",
+      "name": "run_xgbfull_s42.json",
+      "path": "experiments/WORK-555/run_xgbfull_s42.json",
+      "bytes": 1157,
+      "sha256": "de34f9862bba067d623adbbbf7abee3793369abafcec937ba15bae512217779d",
+      "note": "建模汇总：训练日志与统计"
+    },
+    {
+      "group": "model_output",
+      "name": "run_xgbfull_s43.json",
+      "path": "experiments/WORK-555/run_xgbfull_s43.json",
+      "bytes": 1159,
+      "sha256": "fb0ea86dcef12d4c4ae01fdebe99186e7da65182c4622febc3c7b14db60a8d32",
+      "note": "建模汇总：训练日志与统计"
+    },
+    {
+      "group": "model_output",
+      "name": "backtest_dee_s42.json",
+      "path": "experiments/WORK-555/backtest_dee_s42.json",
+      "bytes": 1466,
+      "sha256": "3dc64f222f832b8fa46013b8a0fa14c0e64be825dfc37dd3e3c0604762c53f9b",
+      "note": "建模汇总：组合回测指标"
+    },
+    {
+      "group": "model_output",
+      "name": "backtest_dee_s43.json",
+      "path": "experiments/WORK-555/backtest_dee_s43.json",
+      "bytes": 1487,
+      "sha256": "fd63ef089e7d268eeb4db5cf56776bb74ca44a02edcf9c97185ea39ca28d74e0",
+      "note": "建模汇总：组合回测指标"
+    },
+    {
+      "group": "model_output",
+      "name": "backtest_mlp_only_s42.json",
+      "path": "experiments/WORK-555/backtest_mlp_only_s42.json",
+      "bytes": 1497,
+      "sha256": "d0812a46cbe1959f51f35fc503066bb6d3008e3a716ed2241f91b12a3540879c",
+      "note": "建模汇总：组合回测指标"
+    },
+    {
+      "group": "model_output",
+      "name": "backtest_mlp_only_s43.json",
+      "path": "experiments/WORK-555/backtest_mlp_only_s43.json",
+      "bytes": 1493,
+      "sha256": "583eea7f655119a9cdbc1614d314f08a342b3ee0855013e2cec11e5684dfca31",
+      "note": "建模汇总：组合回测指标"
+    },
+    {
+      "group": "model_output",
+      "name": "backtest_xgb_s42.json",
+      "path": "experiments/WORK-555/backtest_xgb_s42.json",
+      "bytes": 1481,
+      "sha256": "3ee3cba3f3efb2c0c1c979da252ed399793dc8952d4c448e81ddf3edfd47925c",
+      "note": "建模汇总：组合回测指标"
+    },
+    {
+      "group": "model_output",
+      "name": "backtest_xgb_s43.json",
+      "path": "experiments/WORK-555/backtest_xgb_s43.json",
+      "bytes": 1484,
+      "sha256": "9848cf62bb8c86f2af5e723cd0369745a08e21e483e919f33026b7c2cca1a28e",
+      "note": "建模汇总：组合回测指标"
+    },
+    {
+      "group": "model_output",
+      "name": "backtest_xgbfull_s42.json",
+      "path": "experiments/WORK-555/backtest_xgbfull_s42.json",
+      "bytes": 1491,
+      "sha256": "bf06db722684b23666095e02fcd8391416b5517938e1b25cc6250e2b948c4b92",
+      "note": "建模汇总：组合回测指标"
+    },
+    {
+      "group": "model_output",
+      "name": "backtest_xgbfull_s43.json",
+      "path": "experiments/WORK-555/backtest_xgbfull_s43.json",
+      "bytes": 1490,
+      "sha256": "f7f06592029484789db20c3e50b8b93290e21aa02433b29d8db0af44818f503c",
+      "note": "建模汇总：组合回测指标"
+    }
+  ]
+}

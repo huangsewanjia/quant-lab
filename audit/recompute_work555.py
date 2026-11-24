@@ -330,6 +330,35 @@ def main():
                              "location": item["path"],
                              "how_to_verify": "sha256sum <file>"})
 
+    # ---- 0b) 产物清单 sha256 校验（把**审计的直接输入**也纳入 sha256 覆盖）
+    # 第二轮审查指出：preds_*.npz / bt_daily_*.csv / sample.npz 这些审计输入
+    # 既不入库、也不在任何 sha256 覆盖内 -> 第三方无法确认「复算用的是同一份输入」。
+    am_path = os.path.join(out_dir, "artifact_manifest.json")
+    if os.path.exists(am_path):
+        with open(am_path, encoding="utf-8") as fh:
+            aman = json.load(fh)
+        for item in aman.get("items", []):
+            p = os.path.join(REPO, item["path"])
+            if not os.path.exists(p):
+                add("blocking", f"artifact_sha256::{item['name']}", "缺失",
+                    item["sha256"], "文件不存在", item["path"], "sha256sum <file>")
+                continue
+            got = sha256_of(p)
+            if got != item["sha256"]:
+                add("blocking", f"artifact_sha256::{item['name']}", got, item["sha256"],
+                    "sha256 不一致", item["path"], "sha256sum <file>")
+            else:
+                findings.append({"severity": "pass",
+                                 "item": f"artifact_sha256::{item['name']}",
+                                 "measured": got, "expected": item["sha256"], "gap": 0.0,
+                                 "location": item["path"],
+                                 "how_to_verify": "sha256sum <file>"})
+    else:
+        add("suggestion", "artifact_manifest_missing", "缺 artifact_manifest.json",
+            "存在", "审计的直接输入未被 sha256 覆盖",
+            "experiments/WORK-555/artifact_manifest.json",
+            "/tmp/w555venv/bin/python scripts/work555_artifact_manifest.py --build")
+
     bt = pd.read_csv(os.path.join(data_dir, "panel_backtest.csv"),
                      parse_dates=["trade_date"], dtype={"ts_code": "string"})
     bt = bt.reset_index(drop=True)
@@ -482,6 +511,8 @@ def main():
                     findings.append({"severity": "pass", "item": inv["item"],
                                      "measured": inv["max_sum_w"], "expected": 1.0,
                                      "gap": abs(inv["max_sum_w"] - 1.0),
+                                     "ledger_max_dev": inv["max_ledger_dev"],
+                                     "n_days_over_1": inv["n_days_over_1"],
                                      "location": side_path,
                                      "how_to_verify": "audit script output; sum_w+cash==1"})
                 mine_m = agg_metrics(mine_daily)

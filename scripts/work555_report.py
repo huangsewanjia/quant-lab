@@ -626,7 +626,7 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
         A(f"<p>独立复算脚本 <span class=\"mono\">audit/recompute_work555.py</span> "
           f"<b>不 import 建模阶段的任何函数</b>（审计契约第 1 条），"
           f"从原始快照与预测文件重新算一遍日频截面 RankIC / IC、组合逐日账"
-          f"（选股、掩码、强制持有、成本、换手）与年化 / Sharpe / MDD 口径，"
+          f"（选股、掩码、强制持有、<b>现金账本调仓</b>、成本、换手）与年化 / Sharpe / MDD 口径，"
           f"再与建模侧逐项比对，相对差 ≤ 1e-6 才算一致。</p>")
         A(f"<p>判决：<span class=\"tag {'red' if audit['n_blocking'] else 'teal'}\">"
           f"{'BLOCKING ' + str(audit['n_blocking']) + ' 项' if audit['n_blocking'] else 'PASS'}</span>"
@@ -637,10 +637,12 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
         if inv:
             worst = max(float(f.get("measured", 0.0)) for f in inv)
             n_over = sum(1 for f in inv if float(f.get("measured", 0.0)) > 1.0 + 1e-9)
+            ledger = max([float(f.get("ledger_max_dev", 0.0)) for f in inv] or [0.0])
             A(f"<p class=\"small\"><b>组合权重不变量（独立复算侧的额外闸门）：</b>"
               f"{len(inv)} 项检查（每臂 × 每种子 × 每成本档各一项），判据为 "
-              f"<span class=\"mono\">Σw ≤ 1</span> 且 <span class=\"mono\">Σw + cash ≡ 1</span>。"
-              f"实测最大 Σw = <b>{worst:.12f}</b>，超过 1 的项数 = <b>{n_over}</b>。"
+              f"<span class=\"mono\">Σw ≤ 1</span> 与 <span class=\"mono\">Σw + cash ≡ 1</span>。"
+              f"实测最大 Σw = <b>{worst:.12f}</b>、Σw&gt;1 的项数 = <b>{n_over}</b>、"
+              f"账本偏差 max\\|Σw+cash−1\\| = <b>{ledger:.3e}</b>。"
               "这条闸门是第一轮独立审查暴露的旧实现缺陷（强制持有的旧权重与新买入的 1/K 直接叠加，"
               "实测 Σw 最高 1.44、974 天里 151 天 &gt; 1）的守门人。</p>")
     else:
