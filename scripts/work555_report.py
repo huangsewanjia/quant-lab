@@ -315,7 +315,7 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
       "做进 / 退判定。<b>RankIC</b> 指的是每个交易日把股票按预测分数排序后，"
       "与次日实际收益排序之间的相关系数，再对全测试期取时间均值；"
       "它是量化选股里衡量「分数能不能把好坏股票排对」的标准尺子。</p>")
-    A(f"<p>判词：<b>{verdict_word}</b>。Δ_ic = <span class=\"mono\">{fmt(delta_mean,4,True,True)}</span>"
+    A(f"<p>判词：<b>{verdict_word}</b>。Δ_ic = <span class=\"mono\">{fmt(delta_mean*100, 2, True, True)}</span>"
       f"（论文 Table 2 报告 +9.1%）；DEE 净 Sharpe（rf=0，8 bps 主口径）"
       f"<span class=\"mono\">{fmt(net_sh_mean,3,False,True)}</span>。"
       "机制诊断见 §7：本次面板上单因子的截面 <b>Spearman</b> 相关（看排序）"
@@ -540,7 +540,7 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
          "<b>图 3 · 净净值与换手。</b>（a）扣除成本后的日频复利净值；"
          "（b）日均双边换手。<b>来源</b>：本单实测（<span class=\"mono\">bt_daily_*_main_8bps.csv</span>）。"
          f"<b>结论</b>：日频调仓 top-50 的<b>日均双边换手约 {turn_daily_txt}</b>"
-         f"（年化约 {turn_ann_txt} 倍），8 bps 单边成本 + 10 bps 印花税"
+         f"（全部臂/种子均值；年化约 {turn_ann_txt}），8 bps 单边成本 + 10 bps 印花税"
          "对毛收益的侵蚀是决定性的。"),
         ("fig4_paper_compare",
          "<b>图 4 · 与论文 Table 1 / Table 2 的对照。</b>（a）各方法测试段 RankIC；"
@@ -784,7 +784,7 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
         A("<h3>独立代码审查第一轮：发现与处置</h3>")
         A(f"<p>本单实现完成后交给<b>独立子代理</b>做代码审查（隔离沙箱、零 import 建模函数、"
           f"自带一套从头写的复算实现）。第一轮判决 <b>{review.get('verdict', '—')}</b>："
-          f"{review.get('summary', '—')}。"
+          f"{str(review.get('summary', '—')).replace('<', '&lt;')}。"
           "下表逐条列问题、修复与<b>可复跑的验证</b>；机器可读留痕见 "
           "<span class=\"mono\">experiments/WORK-555/review_round1.json</span>。</p>")
         A("<table><caption>表 9b · 独立审查第一轮：2 blocking + 3 suggestion + 4 nit 的处置</caption>")
@@ -945,7 +945,7 @@ h2{page-break-after:avoid}table{page-break-inside:avoid}}
       "在相同协议下重跑三档，看 Δ_ic 是否稳定进入 [+2%, +30%]；"
       "③ 或改用对排序敏感的损失（如截面秩回归）重训三族，使 MSE 早停不再退化为第 0 轮"
       "（这属于协议变更，须另开预注册版本）；"
-      f"④ 或把调仓频率从日频降到周频，把年化双边换手从 {turn_ann_txt} 压到可承受区间，"
+      f"④ 或把调仓频率从日频降到周频，把年化双边换手从 {turn_ann_txt}（全部臂/种子均值）压到可承受区间，"
       "再看净 Sharpe 是否转正。"
       "以上四条都超出本单冻结协议，不能在本单内改，必须另开版本重跑。</p>")
     A("<div class=\"keybox\"><h3>本单结论边界</h3><p>本单只检验了论文主张中的「异质性相对贡献」"
