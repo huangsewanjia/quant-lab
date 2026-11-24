@@ -416,3 +416,21 @@ MSE 只对线性部分敏感 → 模型能看到的信息远少于排序信息�
   改为**先存字符串、取用时再转**（缓存版则直接存 NaN）。
 - 另：重跑配图时我误留了两个 `work555_figures.py` 进程同时写同一批 PNG，
   已按 PID 杀掉自己起的那一支（未动 daemon），只保留一支干净跑完。
+
+### §12.7 快照 manifest 漏锁事实层 + 审计 sha256 分支会崩（已修）
+
+- **现象一**：快照 manifest 只登记了 **5 份端点原始快照**
+  （`panel_daily` / `panel_stk_limit` / `panel_suspend` / `panel_index_weight` / `panel_stock_basic`），
+  而**回测事实层** `panel_backtest.csv`（750,589 行、测试段 974 交易日）**不在 manifest 里**。
+  这份加工层是组合回测与独立复算**共同依赖的事实层**，却没被 sha256 锁定——
+  也就是「事实层漂移了」这件事本身无法被 manifest 检出。
+- **修复**：把 `panel_backtest.csv` 补进 manifest（标注它是**加工层**而非端点原始快照，
+  但同样逐份 sha256 锁定），sha256 = `67ae31fe6fe23a7d12382a1cdddce455d2d9109dc7aaeba747f273690ff42f06`
+  （与 `sha256sum data/WORK-555/panel_backtest.csv` 实测一致）。manifest 现为 **6 份**。
+- **现象二**：`audit/recompute_work555.py` 的 sha256 不一致分支把十六进制串送进 `rel_diff()`，
+  而 `rel_diff()` 内部做 `float(a)` → **一旦真的发生漂移，这里会抛 `ValueError` 崩掉，
+  而不是报出 blocking 项**。换句话说，「审计脚本自己坏了所以没报」这种情况是可能发生的。
+  （本次不会触发，是因为 6 份 sha256 全部一致，`rel_diff` 那条分支根本没被执行到。）
+- **修复**：sha256 分支不再调 `rel_diff()`，gap 直接写「sha256 不一致」；
+  一致项补 `pass` 记录，让 manifest 的每一份都有明确结论。
+- **复跑**：独立复算 **PASS，blocking 0，261 项**（6 份 sha256 全部 pass）。
