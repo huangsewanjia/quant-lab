@@ -30,6 +30,21 @@ schtasks /query /tn WORK557_run /v /fo list | Select-String 'Status|Last Run'
 Get-Content C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\experiments\WORK-557\run_all.log -Tail 20
 ```
 
+## 从零重建（清理后照此复跑）
+
+```powershell
+$repo='C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab'
+schtasks /create /tn WORK557_run /tr "$repo\experiments\WORK-557\run_all.cmd" /sc once /st ((Get-Date).AddMinutes(2).ToString('HH:mm')) /f
+schtasks /run /tn WORK557_run
+```
+
+## 电池策略（已核对：本机无电池，实际不适用）
+
+任务 XML 里 `StopIfGoingOnBatteries=true` / `DisallowStartIfOnBatteries=true`，
+但 `Get-CimInstance Win32_Battery` 返回空 → 本机为台式机、无电池/UPS 上报，
+这两项**实际不触发**（2026-11-25 00:52 核对）。若将来接入 UPS，需导出任务 XML
+把这两项改成 false 后重建（重建会中断正在跑的任务）。
+
 ## 停止 / 清理（可逆）
 
 ```powershell

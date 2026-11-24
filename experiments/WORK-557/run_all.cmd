@@ -4,12 +4,17 @@ rem 2026-11-25 00:11 实测：上一个 Multica run 终态时，它持有的后�
 rem （GRU s42 训练在 epoch 21 被杀、产物未落盘）→ 训练与后处理链必须用 Windows 计划任务
 rem 起：父进程是 Task Scheduler 服务，不在本 run 的进程树里，run 终态不会带走它。
 rem 清理句柄：schtasks /end /tn WORK557_run && schtasks /delete /tn WORK557_run /f
+rem 注：计划任务的环境块没有 MULTICA_CLI_PATH、PATH 里也没有 multica —— 链的 CLI 解析
+rem 走 环境变量 -> experiments/WORK-557/runtime_paths.json -> 裸 multica（独立审查 2026-11-25
+rem 的严重缺陷：裸 multica 会 FileNotFoundError，链在发帖那一步崩掉）。
 setlocal
 cd /d C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab
 set MLFLOW_DISABLE_AGENT_HINT=1
 set PYTHONUNBUFFERED=1
-echo === detached run start %date% %time% ===> experiments\WORK-557\run_all.log
+set MULTICA_CLI_PATH=F:\001_install\103_multica\multica-upstream-20261105\bin\multica.exe
+for /f "tokens=1-6 delims=/:. " %%a in ("%date% %time%") do set TS=%%a-%%b-%%c %%d:%%e:%%f
+echo === detached run start %TS% ===> experiments\WORK-557\run_all.log
 .venv\Scripts\python.exe -u scripts\work557_train_all.py --epochs 50 --gru-first --no-wait-gpu --max-run-seconds 7200 --workers 8 >> experiments\WORK-557\run_all.log 2>&1
-echo === training driver exit rc=%errorlevel% %date% %time% ===>> experiments\WORK-557\run_all.log
+echo === training driver exit rc=%errorlevel% %TS% ===>> experiments\WORK-557\run_all.log
 .venv\Scripts\python.exe -u scripts\work557_finish.py >> experiments\WORK-557\run_all.log 2>&1
-echo === chain exit rc=%errorlevel% %date% %time% ===>> experiments\WORK-557\run_all.log
+echo === chain exit rc=%errorlevel% %TS% ===>> experiments\WORK-557\run_all.log

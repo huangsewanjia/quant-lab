@@ -1,0 +1,7 @@
+{
+  "_comment": "WORK-557 运行时路径。计划任务起的环境块没有 MULTICA_CLI_PATH、PATH 里也没有 multica —— 直接调裸 'multica' 会 FileNotFoundError（独立审查 2026-11-25 的严重缺陷）。链按 环境变量 -> 本文件 -> 裸 multica 的顺序解析。",
+  "multica_cli_path": "F:\\001_install\\103_multica\\multica-upstream-20261105\\bin\\multica.exe",
+  "repo": "C:\\Users\\MO_Yongkai\\multica_workspaces_cloud\\workspace-c8faa36a018a\\work-557-a221b7629a32\\workdir\\quant-lab",
+  "python": "C:\\Users\\MO_Yongkai\\multica_workspaces_cloud\\workspace-c8faa36a018a\\work-557-a221b7629a32\\workdir\\quant-lab\\.venv\\Scripts\\python.exe",
+  "recorded_at": "2026-11-25T00:50:00+08:00"
+}

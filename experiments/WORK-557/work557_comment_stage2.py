@@ -114,10 +114,11 @@ def main():
     P("")
     P("**结论（一句）**：")
     P("")
-    P("- 四档 + GRU 基线在 RTX 3060 上按预注册 `%s` 的**全训练窗 2009–2019**、"
+    gpu_dev = ((tlog.get("gpu") or {}).get("device") or "GPU")
+    P("- 四档 + GRU 基线在 `%s` 上按预注册 `%s` 的**全训练窗 2009–2019**、"
       "**每阶段 ≤50 轮**完成，产物 **%d 档**（seed %s）；"
       "回测已按 TopK-DropN K=30 N=5 只做多、买 5 / 卖 15 bps 出表。"
-      % (PREREG_COMMIT, len(trained),
+      % (gpu_dev, PREREG_COMMIT, len(trained),
          "、".join(str(s) for s in have_seeds) if have_seeds else "-"))
     if len(have_seeds) < 2:
         P("- ⚠️ **只有 %d 个 seed 跑完**，未满足预注册的「≥2 seed」要求；"

@@ -197,6 +197,29 @@ def validate_cost_json(fname: str) -> tuple:
     return True, "%s：%d 档（full 档 %s）" % (fname, len(d), ",".join(sorted(fulls)))
 
 
+def _runtime_cli_path() -> str:
+    """Multica CLI 的绝对路径。
+
+    独立审查 2026-11-25 的**严重缺陷**：计划任务的环境块里没有 `MULTICA_CLI_PATH`，
+    PATH 里也没有 multica → 裸 `multica` 会 FileNotFoundError → 链在「发帖」那一步崩掉，
+    而 `finish_summary.json` 的写盘在其后 → 整轮链记录全丢、issue 也不会被置 in_review。
+    解析顺序：环境变量 → `experiments/WORK-557/runtime_paths.json` → 裸 multica。
+    """
+    env = os.environ.get("MULTICA_CLI_PATH")
+    if env and os.path.exists(env):
+        return env
+    p = os.path.join(EXP_DIR, "runtime_paths.json")
+    if os.path.exists(p):
+        try:
+            with open(p, encoding="utf-8") as fh:
+                cand = (json.load(fh) or {}).get("multica_cli_path")
+            if cand and os.path.exists(cand):
+                return cand
+        except Exception:
+            pass
+    return ""
+
+
 def usage_line() -> str:
     """用量行：口径 = cache-read + input + output（另列 input+output）。
 
@@ -206,11 +229,15 @@ def usage_line() -> str:
         sys.path.insert(0, os.path.join(REPO, "experiments", EXP))
         import work557_usage                      # noqa: E402
         tot, _n_req, _n_files = work557_usage.collect(work557_usage.DEFAULT_BASE)
-        grand = tot["input"] + tot["output"] + tot["cacheRead"] + tot["cacheWrite"]
+        grand = tot["input"] + tot["output"] + tot["cacheRead"]
         io_sum = tot["input"] + tot["output"]
-        return ("本 run 已用 %.1fM / 硬闸 25M（累计 = 61.9M + 本轮增量 = %.1fM；"
-                "其中 input+output = %.2fM）"
-                % (grand / 1e6, (grand - 61.9e6) / 1e6, io_sum / 1e6))
+        if grand <= 0:
+            return ("本 run 已用 <未取到> / 硬闸 25M"
+                    "（会话日志里没有 usage 计数，未取到真实值）")
+        return ("本 run 已用 %.1fM / 硬闸 25M"
+                "（= 派单基准 61.9M + 本轮新增 %.1fM；其中 input+output = %.2fM，"
+                "口径 cache-read+input+output）"
+                % (grand / 1e6, max(grand - 61.9e6, 0.0) / 1e6, io_sum / 1e6))
     except Exception as exc:
         return "本 run 已用 <未取到> / 硬闸 25M（usage 读取失败: %r）" % (exc,)
 
@@ -228,6 +255,21 @@ def notify_ready() -> dict:
     非 ASCII）；数字全部来自产物 JSON/CSV；用 `{{USAGE_LINE}}` 占位符回填真实用量。
     """
     rec = {"body": None, "body_rc": None, "post_rc": None, "status_rc": None}
+    # 幂等保护：重跑 run_all.cmd / schtasks /run 不得再发一条几乎相同的评论
+    prev_path = os.path.join(EXP_DIR, "finish_summary.json")
+    prev = None
+    if os.path.exists(prev_path):
+        try:
+            with open(prev_path, encoding="utf-8") as fh:
+                prev = json.load(fh)
+        except Exception:
+            prev = None
+    prev_notify = (prev or {}).get("notify") or {}
+    if prev_notify.get("posted_at"):
+        log("已发过段2评论（%s，comment_id=%s），跳过重复发帖"
+            % (prev_notify.get("posted_at"), prev_notify.get("comment_id")))
+        rec["skipped_already_posted"] = prev_notify.get("posted_at")
+        return rec
     body = os.path.join(EXP_DIR, "comment_stage2.md")
     gen = [VENV_PY, os.path.join("experiments", EXP, "work557_comment_stage2.py"), body]
     p = subprocess.run(gen, cwd=REPO, capture_output=True, text=True)
@@ -246,15 +288,25 @@ def notify_ready() -> dict:
     except Exception as exc:
         rec["usage_err"] = repr(exc)
         return rec
-    cli = os.environ.get("MULTICA_CLI_PATH") or "multica"
+    cli = (os.environ.get("MULTICA_CLI_PATH")
+           or _runtime_cli_path() or "multica")
     q = subprocess.run([cli, "issue", "comment", "add", EXP_ISSUE,
                         "--parent", TRIGGER_COMMENT, "--content-file", body,
-                        "--output", "table"], cwd=REPO, capture_output=True,
+                        "--output", "json"], cwd=REPO, capture_output=True,
                        text=True)
     rec["post_rc"] = q.returncode
     rec["post_out"] = (q.stdout or q.stderr or "")[-300:]
     if q.returncode != 0:
         return rec                      # 发帖失败：正文留在文件里，不删
+    rec["posted_at"] = time.strftime("%Y-%m-%dT%H:%M:%S%z")
+    rec["comment_id"] = None
+    try:
+        obj = json.loads(q.stdout or "{}")
+        if isinstance(obj, list):
+            obj = obj[0] if obj else {}
+        rec["comment_id"] = (obj or {}).get("id")
+    except Exception:
+        pass
     s = subprocess.run([cli, "issue", "status", EXP_ISSUE, "in_review",
                         "--output", "json"], cwd=REPO, capture_output=True,
                        text=True)
@@ -382,22 +434,35 @@ def main() -> int:
 
     summary["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%S%z")
     summary["ok"] = all(s["rc"] == 0 for s in summary["steps"])
+    out = os.path.join(EXP_DIR, "finish_summary.json")
+
+    def _dump():
+        with open(out, "w", encoding="utf-8") as fh:
+            json.dump(summary, fh, ensure_ascii=False, indent=1, default=str)
+
+    # 先落盘一次：正文生成器要读**本轮**的自检结果（`finish_summary.json`）；
+    # 且**必须**在发帖之前写好 —— 否则链若在发帖那一步崩掉，整轮链记录全丢
+    # （独立审查 2026-11-25 的严重缺陷）。
+    _dump()
     if summary["ok"]:
-        summary["notify"] = notify_ready()
-        log("就绪信号：body=%s status_rc=%s"
-            % (summary["notify"].get("body"), summary["notify"].get("status_rc")))
+        try:
+            summary["notify"] = notify_ready()
+        except Exception as exc:
+            summary["notify_error"] = repr(exc)
+            log("就绪信号异常：%r（链产物已落盘，链记录不丢）" % (exc,))
+        log("就绪信号：%s" % json.dumps(summary.get("notify") or {},
+                                        ensure_ascii=False)[:300])
     else:
         # 失败也必须把智能体叫醒：否则（训练被杀 / 自检不过）issue 会静默无回帖。
         # 置 blocked → 对应一次性唤醒 `--until-status blocked`。
-        cli = os.environ.get("MULTICA_CLI_PATH") or "multica"
+        cli = (os.environ.get("MULTICA_CLI_PATH")
+           or _runtime_cli_path() or "multica")
         s = subprocess.run([cli, "issue", "status", EXP_ISSUE, "blocked",
                             "--output", "json"], cwd=REPO, capture_output=True,
                            text=True)
         summary["failed_signal_rc"] = s.returncode
         log("失败信号：status=blocked rc=%s" % s.returncode)
-    out = os.path.join(EXP_DIR, "finish_summary.json")
-    with open(out, "w", encoding="utf-8") as fh:
-        json.dump(summary, fh, ensure_ascii=False, indent=1, default=str)
+    _dump()      # 再落盘一次：带上 notify 结果
     log("链完成 ok=%s -> %s" % (summary["ok"], out))
     for s in summary["steps"]:
         log("  %-18s rc=%-4s %.1fs" % (s["step"], s["rc"], s["seconds"]))
