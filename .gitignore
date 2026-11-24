@@ -38,6 +38,15 @@ report.html
 !/figures/WORK-503/
 !/figures/WORK-503/*.png
 
+# ---- WORK-557 例外：报告成品与论文对照表入库 ----
+!experiments/WORK-557/report.html
+!experiments/WORK-557/preview_first_screen.png
+!experiments/WORK-557/report_print.pdf
+!experiments/WORK-557/paper_comparison.csv
+!experiments/WORK-557/old_vs_new_comparison.csv
+!/figures/WORK-557/
+!/figures/WORK-557/*.png
+
 # ---- 中间产物（预测 parquet / 逐日面板）：可由训练与回测脚本重建，不入库 ----
 *.parquet
 
