@@ -1,0 +1,262 @@
+{
+  "experiment": "WORK-555",
+  "tolerance_rel_diff": 1e-06,
+  "n_findings": 28,
+  "n_blocking": 0,
+  "verdict": "PASS",
+  "primary_test_recomputed": {},
+  "findings": [
+    {
+      "severity": "pass",
+      "item": "label_integrity::xgb_s42 (max_rel_dev)",
+      "measured": 3.5364939350316015e-08,
+      "expected": 0.0,
+      "gap": 3.5364939350316015e-08,
+      "location": "sample.npz vs panel_backtest.csv",
+      "how_to_verify": "audit script output; float32 存储精度上限 ~6e-8"
+    },
+    {
+      "severity": "pass",
+      "item": "ic::xgb_s42::test_ic_mean",
+      "measured": 0.010329682518718648,
+      "expected": 0.010329682518718646,
+      "gap": 1.6793579791375736e-16,
+      "location": "run_xgb_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s42::main_8bps::n_days",
+      "measured": 974,
+      "expected": 974,
+      "gap": 0.0,
+      "location": "backtest_xgb_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s42::main_8bps::total_return",
+      "measured": -0.6591536576719668,
+      "expected": -0.6591536576719668,
+      "gap": 0.0,
+      "location": "backtest_xgb_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s42::main_8bps::annualized_return",
+      "measured": -0.2362003287843969,
+      "expected": -0.2362003287843969,
+      "gap": 0.0,
+      "location": "backtest_xgb_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s42::main_8bps::annualized_vol",
+      "measured": 0.2240614033473999,
+      "expected": 0.2240614033473999,
+      "gap": 0.0,
+      "location": "backtest_xgb_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s42::main_8bps::sharpe_rf0",
+      "measured": -1.1295123750732543,
+      "expected": -1.1295123750732543,
+      "gap": 0.0,
+      "location": "backtest_xgb_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s42::main_8bps::sharpe_rf1p5",
+      "measured": -1.196458309428325,
+      "expected": -1.196458309428325,
+      "gap": 0.0,
+      "location": "backtest_xgb_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s42::main_8bps::max_drawdown",
+      "measured": -0.6891905610680024,
+      "expected": -0.6891905610680024,
+      "gap": 0.0,
+      "location": "backtest_xgb_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s42::main_8bps::turnover_daily_mean",
+      "measured": 1.217002053388091,
+      "expected": 1.217002053388091,
+      "gap": 0.0,
+      "location": "backtest_xgb_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s42::main_8bps::turnover_total",
+      "measured": 1185.3600000000006,
+      "expected": 1185.3600000000006,
+      "gap": 0.0,
+      "location": "backtest_xgb_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s42::main_8bps::cost_total",
+      "measured": 1.5404680000000006,
+      "expected": 1.5404680000000006,
+      "gap": 0.0,
+      "location": "backtest_xgb_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s42::main_8bps::gross_return_total",
+      "measured": 0.562293220107613,
+      "expected": 0.562293220107613,
+      "gap": 0.0,
+      "location": "backtest_xgb_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s42::main_8bps::avg_holdings",
+      "measured": 50.23203285420944,
+      "expected": 50.23203285420944,
+      "gap": 0.0,
+      "location": "backtest_xgb_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s42::sens_5bps::n_days",
+      "measured": 974,
+      "expected": 974,
+      "gap": 0.0,
+      "location": "backtest_xgb_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s42::sens_5bps::total_return",
+      "measured": -0.5133546072005122,
+      "expected": -0.5133546072005122,
+      "gap": 0.0,
+      "location": "backtest_xgb_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s42::sens_5bps::annualized_return",
+      "measured": -0.16498176113983487,
+      "expected": -0.16498176113983487,
+      "gap": 0.0,
+      "location": "backtest_xgb_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s42::sens_5bps::annualized_vol",
+      "measured": 0.22391303779699004,
+      "expected": 0.22391303779699004,
+      "gap": 0.0,
+      "location": "backtest_xgb_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s42::sens_5bps::sharpe_rf0",
+      "measured": -0.7193630804431597,
+      "expected": -0.7193630804431597,
+      "gap": 0.0,
+      "location": "backtest_xgb_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s42::sens_5bps::sharpe_rf1p5",
+      "measured": -0.7863533734050179,
+      "expected": -0.7863533734050179,
+      "gap": 0.0,
+      "location": "backtest_xgb_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s42::sens_5bps::max_drawdown",
+      "measured": -0.5857906205599211,
+      "expected": -0.5857906205599211,
+      "gap": 0.0,
+      "location": "backtest_xgb_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s42::sens_5bps::turnover_daily_mean",
+      "measured": 1.217002053388091,
+      "expected": 1.217002053388091,
+      "gap": 0.0,
+      "location": "backtest_xgb_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s42::sens_5bps::turnover_total",
+      "measured": 1185.3600000000006,
+      "expected": 1185.3600000000006,
+      "gap": 0.0,
+      "location": "backtest_xgb_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s42::sens_5bps::cost_total",
+      "measured": 1.1848600000000005,
+      "expected": 1.1848600000000005,
+      "gap": 0.0,
+      "location": "backtest_xgb_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s42::sens_5bps::gross_return_total",
+      "measured": 0.562293220107613,
+      "expected": 0.562293220107613,
+      "gap": 0.0,
+      "location": "backtest_xgb_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "metric::xgb_s42::sens_5bps::avg_holdings",
+      "measured": 50.23203285420944,
+      "expected": 50.23203285420944,
+      "gap": 0.0,
+      "location": "backtest_xgb_s42.json",
+      "how_to_verify": "audit script output"
+    },
+    {
+      "severity": "pass",
+      "item": "label_integrity::xgb_s43 (max_rel_dev)",
+      "measured": 3.5364939350316015e-08,
+      "expected": 0.0,
+      "gap": 3.5364939350316015e-08,
+      "location": "sample.npz vs panel_backtest.csv",
+      "how_to_verify": "audit script output; float32 存储精度上限 ~6e-8"
+    },
+    {
+      "severity": "pass",
+      "item": "ic::xgb_s43::test_ic_mean",
+      "measured": 0.013172289372361312,
+      "expected": 0.013172289372361309,
+      "gap": 2.633898219115474e-16,
+      "location": "run_xgb_s43.json",
+      "how_to_verify": "audit script output"
+    }
+  ]
+}

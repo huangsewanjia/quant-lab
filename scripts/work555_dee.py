@@ -54,10 +54,22 @@ ADAM_B1, ADAM_B2, ADAM_EPS = 0.9, 0.999, 1e-8
 BN_MOMENTUM = 0.1
 TREE_GATE_A0, TREE_GATE_B0 = 1.0, 0.0
 
+def _mse_metric(y_true, y_pred):
+    """预注册 §4.6 冻结的 eval_metric = mse。
+
+    xgboost 3.x 移除了 "mse" 指标别名（只剩 rmse），但 rmse = sqrt(mse) 是单调变换，
+    早停的「无改善」判定方向不变；这里直接用自定义指标把冻结口径写成字面的 MSE，
+    不依赖别名是否还在。
+    """
+    yt = np.asarray(y_true, dtype=np.float64)
+    yp = np.asarray(y_pred, dtype=np.float64)
+    return float(np.mean((yt - yp) ** 2))
+
+
 XGB_PARAMS = dict(
     n_estimators=2000, learning_rate=0.05, max_depth=6, subsample=0.8,
     colsample_bylevel=0.8, colsample_bytree=0.8, reg_lambda=1,
-    objective="reg:squarederror", eval_metric="mse", early_stopping_rounds=50,
+    objective="reg:squarederror", eval_metric=_mse_metric, early_stopping_rounds=50,
     tree_method="hist",
 )
 

@@ -1,0 +1,16 @@
+{
+  "arm": "xgb",
+  "seed": 43,
+  "n_feat": 48,
+  "n_train": 336580,
+  "n_valid": 122331,
+  "n_test": 275961,
+  "prereg": "experiments/WORK-555/preregistration.md v1.0 (commit 9a85409)",
+  "xgb": {
+    "best_iteration": 1,
+    "n_estimators_used": 2
+  },
+  "test_rankic_mean": 0.01615758076331311,
+  "test_ic_mean": 0.013172289372361309,
+  "elapsed_sec": 8.7
+}
