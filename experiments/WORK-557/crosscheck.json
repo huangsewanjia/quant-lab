@@ -1,0 +1,295 @@
+{
+ "note": "WORK-557 段1 收尾交叉核对。数据源：data/WORK-557/cache/raw_local（Z:\\quantdb\\raw 的只读本地副本）。成员日 = PIT 成分 × 交易日，窗口 2009-01-01~2024-12-31。",
+ "window": [
+  20090101,
+  20241231
+ ],
+ "check_A_suspend": {
+  "columns": [
+   "member_days",
+   "no_bar",
+   "in_suspend_d",
+   "no_bar_and_susp",
+   "no_bar_not_susp",
+   "bar_and_susp",
+   "bar_vol_zero"
+  ],
+  "values": {
+   "member_days": 1166060,
+   "no_bar": 26442,
+   "in_suspend_d": 28756,
+   "no_bar_and_susp": 26397,
+   "no_bar_not_susp": 45,
+   "bar_and_susp": 2359,
+   "bar_vol_zero": 0
+  },
+  "real_gap_rate": 3.8591496149426275e-05,
+  "suspended_rate": 0.9982981620149761,
+  "suspend_d_all_rows_in_window": 477982,
+  "suspend_d_distinct_codes": 4492,
+  "by_year": [
+   {
+    "year": 2009,
+    "member_days": 73198,
+    "no_bar": 1752,
+    "suspended": 4,
+    "real_gap": 1748,
+    "real_gap_rate": 0.023880433891636382
+   },
+   {
+    "year": 2010,
+    "member_days": 72562,
+    "no_bar": 2119,
+    "suspended": 0,
+    "real_gap": 2119,
+    "real_gap_rate": 0.02920261293790138
+   },
+   {
+    "year": 2011,
+    "member_days": 73200,
+    "no_bar": 1939,
+    "suspended": 6,
+    "real_gap": 1933,
+    "real_gap_rate": 0.026407103825136613
+   },
+   {
+    "year": 2012,
+    "member_days": 72900,
+    "no_bar": 1145,
+    "suspended": 0,
+    "real_gap": 1145,
+    "real_gap_rate": 0.01570644718792867
+   },
+   {
+    "year": 2013,
+    "member_days": 71400,
+    "no_bar": 1638,
+    "suspended": 6,
+    "real_gap": 1632,
+    "real_gap_rate": 0.022857142857142857
+   },
+   {
+    "year": 2014,
+    "member_days": 73500,
+    "no_bar": 2550,
+    "suspended": 0,
+    "real_gap": 2550,
+    "real_gap_rate": 0.03469387755102041
+   },
+   {
+    "year": 2015,
+    "member_days": 73200,
+    "no_bar": 4970,
+    "suspended": 19,
+    "real_gap": 4951,
+    "real_gap_rate": 0.06763661202185792
+   },
+   {
+    "year": 2016,
+    "member_days": 73200,
+    "no_bar": 3205,
+    "suspended": 0,
+    "real_gap": 3205,
+    "real_gap_rate": 0.04378415300546448
+   },
+   {
+    "year": 2017,
+    "member_days": 73200,
+    "no_bar": 3974,
+    "suspended": 10,
+    "real_gap": 3964,
+    "real_gap_rate": 0.054153005464480874
+   },
+   {
+    "year": 2018,
+    "member_days": 72900,
+    "no_bar": 2602,
+    "suspended": 0,
+    "real_gap": 2602,
+    "real_gap_rate": 0.03569272976680384
+   },
+   {
+    "year": 2019,
+    "member_days": 73200,
+    "no_bar": 192,
+    "suspended": 0,
+    "real_gap": 192,
+    "real_gap_rate": 0.002622950819672131
+   },
+   {
+    "year": 2020,
+    "member_days": 72900,
+    "no_bar": 127,
+    "suspended": 0,
+    "real_gap": 127,
+    "real_gap_rate": 0.0017421124828532236
+   },
+   {
+    "year": 2021,
+    "member_days": 72900,
+    "no_bar": 89,
+    "suspended": 0,
+    "real_gap": 89,
+    "real_gap_rate": 0.0012208504801097394
+   },
+   {
+    "year": 2022,
+    "member_days": 72600,
+    "no_bar": 50,
+    "suspended": 0,
+    "real_gap": 50,
+    "real_gap_rate": 0.0006887052341597796
+   },
+   {
+    "year": 2023,
+    "member_days": 72600,
+    "no_bar": 4,
+    "suspended": 0,
+    "real_gap": 4,
+    "real_gap_rate": 5.509641873278237e-05
+   },
+   {
+    "year": 2024,
+    "member_days": 72600,
+    "no_bar": 86,
+    "suspended": 0,
+    "real_gap": 86,
+    "real_gap_rate": 0.0011845730027548209
+   }
+  ]
+ },
+ "check_B_limit": {
+  "columns": [
+   "joined_rows",
+   "db_hit_up",
+   "db_hit_down",
+   "w503_hit_up",
+   "w503_hit_down",
+   "over_mask_up",
+   "over_mask_down",
+   "miss_mask_up",
+   "miss_mask_down",
+   "band_set_consistent"
+  ],
+  "values": {
+   "joined_rows": 12405432,
+   "db_hit_up": 213791,
+   "db_hit_down": 109933,
+   "w503_hit_up": 645294,
+   "w503_hit_down": 549915,
+   "over_mask_up": 431927,
+   "over_mask_down": 440750,
+   "miss_mask_up": 424,
+   "miss_mask_down": 768,
+   "band_set_consistent": 11108676
+  },
+  "implied_band_dist": [
+   {
+    "band": "0.10",
+    "n": 10162348
+   },
+   {
+    "band": "0.20",
+    "n": 1709050
+   },
+   {
+    "band": "0.05",
+    "n": 392234
+   },
+   {
+    "band": "0.30",
+    "n": 141800
+   }
+  ],
+  "implied_band_by_board": [
+   {
+    "board": "BSE",
+    "band": "0.30",
+    "n": 6,
+    "in_work503_band_set": 6
+   },
+   {
+    "board": "ChiNext",
+    "band": "0.20",
+    "n": 1228180,
+    "in_work503_band_set": 1228180
+   },
+   {
+    "board": "ChiNext",
+    "band": "0.10",
+    "n": 1154873,
+    "in_work503_band_set": 0
+   },
+   {
+    "board": "ChiNext",
+    "band": "0.05",
+    "n": 2500,
+    "in_work503_band_set": 2500
+   },
+   {
+    "board": "ChiNext",
+    "band": "0.30",
+    "n": 2260,
+    "in_work503_band_set": 0
+   },
+   {
+    "board": "MainBoard",
+    "band": "0.10",
+    "n": 9007463,
+    "in_work503_band_set": 9007463
+   },
+   {
+    "board": "MainBoard",
+    "band": "0.05",
+    "n": 389449,
+    "in_work503_band_set": 389449
+   },
+   {
+    "board": "MainBoard",
+    "band": "0.30",
+    "n": 137166,
+    "in_work503_band_set": 0
+   },
+   {
+    "board": "MainBoard",
+    "band": "0.20",
+    "n": 77,
+    "in_work503_band_set": 0
+   },
+   {
+    "board": "STAR",
+    "band": "0.20",
+    "n": 480793,
+    "in_work503_band_set": 480793
+   },
+   {
+    "board": "STAR",
+    "band": "0.30",
+    "n": 2368,
+    "in_work503_band_set": 0
+   },
+   {
+    "board": "STAR",
+    "band": "0.05",
+    "n": 285,
+    "in_work503_band_set": 285
+   },
+   {
+    "board": "STAR",
+    "band": "0.10",
+    "n": 12,
+    "in_work503_band_set": 0
+   }
+  ],
+  "band_set_consistent_rate": 0.8954686946814912,
+  "w503_over_mask_ratio_up": 3.0183403417356205,
+  "w503_over_mask_ratio_down": 5.002274112413925,
+  "known_weaknesses": {
+   "ex_rights_rows": 39794,
+   "bse_920_rows": 137028,
+   "bse_920_at_30": 136867,
+   "no_limit_anomaly_rows": 4933,
+   "total_rows": 12405432
+  }
+ }
+}
