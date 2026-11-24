@@ -20,6 +20,7 @@ import os
 import random
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import pandas as pd
@@ -99,6 +100,8 @@ def main():
     ap.add_argument("--threads", type=int, default=8)
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--workers", type=int, default=2)
+    ap.add_argument("--out-suffix", default="",
+                    help="产物文件名后缀（探针跑用 _probe，避免覆盖正式结果）")
     ap.add_argument(
         "--limit-days", type=int, default=0,
         help="smoke mode: keep only the first N trading days of every "
@@ -152,10 +155,27 @@ def main():
     # the seed (the state advances deterministically).
     rng = np.random.default_rng(args.seed)
 
+    # 逐日分组只算一次（按 dataset 缓存）：原来每个 epoch 都对 802,406 行做一次
+    # reset_index + groupby（纯开销，且与口径无关）。每轮仍从**排序后的同一份列表**
+    # 开始洗牌，与原实现的日序语义完全一致。
+    _groups_cache = {}
+
+    def _groups_of(ds):
+        key = id(ds)
+        if key not in _groups_cache:
+            _idx = ds.index.reset_index()
+            _idx["date"] = _idx["datetime"]
+            _groups_cache[key] = list(_idx.groupby("date", sort=True).groups.values())
+        return _groups_cache[key]
+
+    # 逐样本取数**保持串行**：实测线程池反而更慢（executor.map 每样本要过一次
+    # 队列 + 锁，而每样本的真实 numpy 工作量只有 ~30 us，GIL 争用把省下的
+    # ffill 时间又吃回去了 —— 实测 60 ms/batch，串行约 42 ms/batch）。
+    # 取数本身已通过 ffill 等价快实现从 ~77 us/窗口降到 ~15.7 us/窗口
+    # （逐位一致，见 experiments/WORK-557/ffill_equivalence.json）。
+
     def batches(ds, shuffle):
-        idx = ds.index.reset_index()
-        idx["date"] = idx["datetime"]
-        groups = list(idx.groupby("date", sort=True).groups.values())
+        groups = list(_groups_of(ds))
         if shuffle:
             rng.shuffle(groups)
         for g in groups:
@@ -248,7 +268,7 @@ def main():
            "peak_vram_gb": (round(torch.cuda.max_memory_allocated() / 1024 ** 3, 3)
                            if torch.cuda.is_available() else None)}
     json.dump(log, open(os.path.join(out_dir,
-                                     f"{args.kind}_s{args.seed}.json"), "w"),
+                                     f"{args.kind}_s{args.seed}{args.out_suffix}.json"), "w"),
               ensure_ascii=False, indent=1)
     print(json.dumps(log, ensure_ascii=False, indent=1))
 

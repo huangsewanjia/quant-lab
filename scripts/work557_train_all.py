@@ -92,6 +92,8 @@ def collect(exp_dir):
         for fn in sorted(os.listdir(pd_dir)):
             if not fn.endswith(".json") or "_s" not in fn:
                 continue
+            if "_probe" in fn or "_smoke" in fn:   # 探针/冒烟产物不进训练表
+                continue
             try:
                 r = json.load(open(os.path.join(pd_dir, fn), encoding="utf-8"))
             except Exception:
@@ -172,8 +174,24 @@ def main():
 
     t0 = time.time()
     failures = []
+    notes = []
     stopped = None          # 触发停手条件时的说明
     cap = args.max_run_seconds if args.max_run_seconds and args.max_run_seconds > 0 else None
+
+    def _ok(out_json, rc):
+        """产物存在即算成功。
+
+        Windows 上 torch/OpenMP 在解释器**退出阶段**会 fail-fast
+        （退出码 3221226505 = 0xC0000409），但那发生在 json/parquet 全部落盘
+        之后。实测：GRU 探针正常写完产物后仍以该码退出。
+        故判定以「预期产物是否存在」为准，退出码只做记录。
+        """
+        if rc == 0:
+            return True, None
+        if os.path.exists(out_json):
+            return True, ("teardown_exit_code=%d (产物已落盘, Windows torch/OpenMP "
+                          "退出期 fail-fast)" % rc)
+        return False, None
 
     def run_arm(arm, seed):
         nonlocal stopped
@@ -195,7 +213,13 @@ def main():
             stopped = ("stop condition 3 (single run > %.0fs): %s seed %s killed"
                        % (cap or 0, arm, seed))
             failures.append({"arm": arm, "seed": seed, "rc": rc, "reason": "timeout"})
-        elif rc != 0:
+            return
+        ok, note = _ok(out_json, rc)
+        if ok:
+            if note:
+                notes.append({"arm": arm, "seed": seed, "note": note})
+                print("!! %s seed %s: %s" % (arm, seed, note), flush=True)
+        else:
             failures.append({"arm": arm, "seed": seed, "rc": rc})
             print("!! %s seed %s FAILED rc=%d" % (arm, seed, rc), flush=True)
 
@@ -210,7 +234,8 @@ def main():
             wait_for_gpu(label="gru seed %s" % seed)
         cmd = [VENV_PY, "-u", os.path.join("scripts", "work557_baseline.py"),
                "--kind", "gru", "--seed", str(seed), "--epochs", str(epochs),
-               "--exp", args.exp]
+               "--exp", args.exp, "--workers", str(args.workers),
+               "--out-suffix", suffix]
         rc, dt = run_one(cmd, "gru seed %s (%d epochs)%s"
                          % (seed, epochs, " SMOKE" if args.smoke else ""),
                          log_path, timeout_s=cap)
@@ -218,7 +243,13 @@ def main():
             stopped = ("stop condition 3 (single run > %.0fs): gru seed %s killed"
                        % (cap or 0, seed))
             failures.append({"arm": "gru", "seed": seed, "rc": rc, "reason": "timeout"})
-        elif rc != 0:
+            return
+        ok, note = _ok(out_json, rc)
+        if ok:
+            if note:
+                notes.append({"arm": "gru", "seed": seed, "note": note})
+                print("!! gru seed %s: %s" % (seed, note), flush=True)
+        else:
             failures.append({"arm": "gru", "seed": seed, "rc": rc})
 
     def arms_loop():
@@ -234,17 +265,33 @@ def main():
             if stopped:
                 return
 
-    # 顺序：默认「四档 -> GRU」；--gru-first 则「GRU -> 四档」
-    # （GRU 最便宜且 H2 必需，先跑可在被停手时保住 H2 的基线）
+    def per_seed_loop():
+        """每个 seed：先 GRU 再该 seed 的四档。
+
+        GRU 最便宜且 H2 必需，放在同一 seed 的四档之前，可以在被停手时
+        保住「一个完整 seed 的四档 + 对应 GRU」= H1/H2/H3 的最小完整证据。
+        """
+        for seed in seeds:
+            run_gru(seed)
+            if stopped:
+                return
+            for arm in arms:
+                run_arm(arm, seed)
+                if stopped:
+                    return
+
+    # 顺序：默认「四档 -> GRU」；--gru-first 则「按 seed：GRU -> 四档」
     if args.gru_first and not args.skip_gru:
-        gru_loop()
-    if not stopped:
-        arms_loop()
-    if not args.skip_gru and not args.gru_first and not stopped:
-        gru_loop()
+        per_seed_loop()
+    else:
+        if not args.skip_gru:
+            gru_loop()
+        if not stopped:
+            arms_loop()
 
     out = collect(exp_dir)
     out["failures"] = failures
+    out["notes"] = notes
     out["stopped"] = stopped
     out["max_run_seconds"] = args.max_run_seconds
     out["wall_seconds"] = round(time.time() - t0, 1)

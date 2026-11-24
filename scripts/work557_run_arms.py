@@ -108,6 +108,23 @@ class Work503Dataset:
     def __len__(self):
         return len(self.rows)
 
+    # ---- pickling ---------------------------------------------------------
+    # Windows 的 DataLoader 用 spawn 起 worker，整个对象要 pickle 一遍。
+    # __init__ 里为筛 dropna_label 标签，会把全部 911 只的 memmap 装进
+    # self._feat/_prior/_label；numpy 对 memmap 的 pickle 是**整份拷贝数据**，
+    # 于是每个 worker、每个 epoch 都要搬 2.65 GB（实测 GRU epoch1 = 364 s，
+    # epoch0 = 183 s，正是这个搬运成本）。
+    # 这三个字典是**惰性缓存**，子进程里按需重开即可，故 pickle 时丢掉它们。
+    def __getstate__(self):
+        st = dict(self.__dict__)
+        st["_feat"] = {}
+        st["_prior"] = {}
+        st["_label"] = {}
+        return st
+
+    def __setstate__(self, st):
+        self.__dict__.update(st)
+
     def __getitem__(self, i):
         inst, dt = self.rows[i]
         F, P, L = self._load(inst)
@@ -128,24 +145,45 @@ class Work503Dataset:
 
 
 def _ffill_bfill(x: np.ndarray) -> np.ndarray:
-    x = x.astype("float64")
-    # forward fill along axis 0
-    mask = np.isnan(x)
-    idx = np.where(~mask, np.arange(x.shape[0])[:, None], 0)
-    np.maximum.accumulate(idx, axis=0, out=idx)
-    x = np.take_along_axis(x, idx, axis=0)
-    x[mask] = np.nan
-    # backward fill
-    mask = np.isnan(x)
-    rev = x[::-1]
-    m2 = np.isnan(rev)
-    idx = np.where(~m2, np.arange(x.shape[0])[:, None], 0)
-    np.maximum.accumulate(idx, axis=0, out=idx)
-    rev = np.take_along_axis(rev, idx, axis=0)
-    rev[m2] = np.nan
-    x = rev[::-1]
-    x = np.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
-    return x.astype("float32")
+    """逐位等价于「qlib ffill+bfill + nan_to_num」，但去掉两次无效的 fill。
+
+    原实现每样本做两次 take_along_axis + maximum.accumulate，而紧随其后的
+    `x[mask] = np.nan` 又把刚填上的值还原成 NaN —— 两次 fill 的净效果为零，
+    整段等价于 nan_to_num(...)。但代价是 ~77 µs/窗口，80 万窗口/轮 → 单轮 ~60 s，
+    是训练的主瓶颈。
+
+    等价性已用**真实数据**逐位验证（378 个实际窗口 + 全 NaN 列 / ±inf / 全零 3 个
+    边界例）：max_abs_diff = 0.0，max|差| 严格为 0；证据
+    experiments/WORK-557/ffill_equivalence.json（脚本 work557_ffill_equiv.py）。
+    实测单窗口 77.2 µs -> 15.6 µs（4.9x）。
+    """
+    return np.nan_to_num(x.astype("float64"), nan=0.0, posinf=0.0,
+                         neginf=0.0).astype("float32")
+
+
+def patch_persistent_workers():
+    """给上游 dataset.dataset 的 DataLoader 打开 persistent_workers。
+
+    上游 init_data_loader 没开 persistent_workers：Windows 的 DataLoader 用
+    spawn 起 worker，默认每个 epoch 重建一遍 —— 每个子进程要重新 import 主模块
+    （qlib 约 15–20 s）并接收一份被 pickle 的 handler。配合 Work503Dataset 的
+    __getstate__（丢掉惰性 memmap 缓存）后，每次重建只剩一次小 pickle。
+
+    persistent_workers 只改 worker 生命周期：sampler 在主进程迭代，DataLoader 按
+    sampler 的顺序还原 batch，**batch 组成与顺序不变**，故数值口径不变。
+    """
+    import dataset.dataset as _ds
+    if getattr(_ds, "_work557_persistent_workers", False):
+        return
+    _orig = _ds.DataLoader
+
+    def _dl(*a, **kw):
+        if kw.get("num_workers", 0) and not kw.get("persistent_workers", False):
+            kw["persistent_workers"] = True
+        return _orig(*a, **kw)
+
+    _ds.DataLoader = _dl
+    _ds._work557_persistent_workers = True
 
 
 
@@ -265,6 +303,10 @@ def main():
 
     from dataset.dataset import init_data_loader
     import pytorch_lightning as pl
+
+    # 上游 DataLoader 没开 persistent_workers（Windows 上每轮重建 worker），
+    # 这里从外部打补丁，不改 vendor/ 里的任何文件。
+    patch_persistent_workers()
 
     # The seed has to initialise the global RNGs BEFORE the model is built and
     # before the per-day batch order is drawn.  Upstream stage2.py does the

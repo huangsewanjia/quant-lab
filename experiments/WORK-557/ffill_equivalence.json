@@ -1,0 +1,10 @@
+{
+ "windows_checked": 378,
+ "max_abs_diff": 0.0,
+ "nan_values": 0,
+ "inf_values": 0,
+ "us_per_window_orig": 77.22210884094238,
+ "us_per_window_fast": 15.645384788513184,
+ "speedup": 4.935775622318904,
+ "equiv": true
+}
