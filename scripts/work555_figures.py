@@ -27,6 +27,7 @@ import csv
 
 import matplotlib
 matplotlib.use("Agg")
+import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -108,6 +109,11 @@ def daily_series(arm, seed):
                 else:
                     cols[k].append(row[k])
     out = {k: np.asarray(v) for k, v in cols.items()}
+    # **日期必须是真日期**：CSV 里的 trade_date 是字符串，若直接喂给 ax.plot()，
+    # matplotlib 会当成**分类轴**，于是一个交易日一个刻度（974 个），
+    # 974 个日期标签叠在一起糊成一条黑带（2026-11-24 自查发现，图 2/图 3 都有）。
+    # 这里转成 datetime64[D]，配合显式的年份 locator/formatter。
+    out["trade_date"] = np.asarray(cols["trade_date"], dtype="datetime64[D]")
     return out
 
 
@@ -133,7 +139,9 @@ def _load_facts():
     cache = os.path.join(OUT, "facts_cache.npz")
     if os.path.exists(cache):
         d = np.load(cache)
-        out = (d["ts_code"], d["trade_date"], d["label"])
+        # trade_date 存的是字符串 -> 转 datetime64[D]（否则图 2 的 x 轴会退化成
+        # 974 个分类刻度、标签叠成黑带，见 daily_series 处的同类注释）
+        out = (d["ts_code"], np.asarray(d["trade_date"], dtype="datetime64[D]"), d["label"])
     else:
         bt_path = os.path.join(DATA, "panel_backtest.csv")
         print(f"[warn] 未找到 {cache}，回退到 csv.reader 直读（慢约 200 s/次）；"
@@ -147,7 +155,7 @@ def _load_facts():
                 ts.append(row[i_ts])
                 dt.append(row[i_d])
                 lab.append(float(row[i_lab]) if row[i_lab] else np.nan)
-        out = (np.asarray(ts, dtype=str), np.asarray(dt, dtype=str),
+        out = (np.asarray(ts, dtype=str), np.asarray(dt, dtype="datetime64[D]"),
                np.asarray(lab, dtype="float64"))
     _FACT_CACHE["facts"] = out
     return out
@@ -306,6 +314,10 @@ def fig2():
     ax.set_title("b  Cumulative predictive strength", loc="left", color=C_INK,
                  fontweight="bold")
     ax.grid(axis="y", zorder=0)
+    # 显式年份刻度（否则 974 个交易日标签叠成黑带）
+    for _ax in axes:
+        _ax.xaxis.set_major_locator(mdates.YearLocator())
+        _ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
     fig.tight_layout()
     return save(fig, "fig2_daily_rankic")
 
@@ -324,10 +336,13 @@ def fig3():
     ax.axhline(1.0, color=C_RULE, linewidth=0.8)
     ax.set_ylabel("Net NAV (1.0 at start)")
     ax.set_xlabel("2017 .. 2020")
-    ax.set_title("a  Net equity curve, 8 bps + 10 bps stamp (seed 42)",
+    ax.set_title("a  Net equity, 8 bps + stamp (seed 42)",
                  loc="left", color=C_INK, fontweight="bold")
     ax.legend(loc="upper left", frameon=False)
     ax.grid(axis="y", zorder=0)
+    # 显式年份刻度（否则 974 个交易日标签叠成黑带）
+    ax.xaxis.set_major_locator(mdates.YearLocator())
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
 
     ax = axes[1]
     w = 0.26
@@ -344,7 +359,7 @@ def fig3():
     ax.set_xticklabels([ARM_LABEL[a].split(" (")[0] for a in
                         ("dee", "mlp_only", "xgb")], fontsize=7)
     ax.set_ylabel("Daily two-sided turnover")
-    ax.set_title("b  Turnover of the daily-rebalanced top-50 book",
+    ax.set_title("b  Daily two-sided turnover, top-50 book",
                  loc="left", color=C_INK, fontweight="bold")
     ax.grid(axis="y", zorder=0)
     fig.tight_layout()
