@@ -14,6 +14,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from db.reports.extract_eps import (  # noqa: E402
     EXTRACT_VERSION,
+    extract_one,
+    slice_body_html,
     cmd_build,
     expected_years,
     extract_eps,
@@ -333,3 +335,70 @@ def test_realistic_page_without_eps_table_falls_back_to_text():
     values = {v.fiscal_year: v for v in extract_eps(html_to_text(html), {2024, 2025, 2026})}
     assert {y: v.eps for y, v in values.items()} == {2024: 68.50, 2025: 79.10, 2026: 90.20}
     assert all(v.extractor == "text_range" for v in values.values())
+
+
+def test_text_range_with_yuan_between_values():
+    # eastmoney prose style: "EPS分别为49.83元、58.60元、68.27元"
+    text = "盈利预测与投资建议。预计2022-2024年EPS分别为49.83元、58.60元、68.27元，对应动态PE分别为35倍、30倍、26倍。"
+    values = {v.fiscal_year: v for v in extract_eps(text, {2023, 2024, 2025})}
+    assert {y: v.eps for y, v in values.items()} == {2023: 58.60, 2024: 68.27}
+    assert all(v.extractor == "text_range" for v in values.values())
+
+
+SHELL_WITH_DECOY = """<html><body>
+<div class="main"><table><tr><th>名称</th><th>2023E</th><th>2024E</th></tr>
+<tr><td>每股收益(元)</td><td>9.99</td><td>9.99</td></tr></table></div>
+<div id="ctx-content" class="ctx-content"><p>正文</p>
+<p>预计2023-2025年EPS分别为1.56、1.89、2.20元。</p></div>
+<div class="footer"><table><tr><th>指标</th><th>2023E</th><th>2024E</th></tr>
+<tr><td>每股收益(元)</td><td>8.88</td><td>8.88</td></tr></table></div>
+</body></html>"""
+
+
+def test_slice_body_html_excludes_shell_decoys():
+    fragment, scope = slice_body_html(SHELL_WITH_DECOY)
+    assert scope == "ctx-content"
+    assert "9.99" not in fragment and "8.88" not in fragment
+    values = {v.fiscal_year: v.eps for v in extract_eps(html_to_text(fragment), {2023, 2024, 2025})}
+    assert values == {2023: 1.56, 2024: 1.89, 2025: 2.20}
+
+
+def test_slice_body_html_falls_back_when_anchor_missing():
+    fragment, scope = slice_body_html("<html><body><p>无容器</p></body></html>")
+    assert scope == "whole-document"
+    assert "无容器" in fragment
+
+
+def test_sample_includes_source_context(tmp_path):
+    from db.reports.extract_eps import cmd_sample
+
+    paths = DetailPaths(Paths(home=tmp_path, db_file=tmp_path / "db" / "q.duckdb"))
+    day = dt.date(2024, 4, 1)
+    body = paths.body_file(day, "AP7")
+    body.parent.mkdir(parents=True, exist_ok=True)
+    with gzip.open(body, "wb") as fh:
+        fh.write(("<html><body><div id=\"ctx-content\">" + "<p>前言段落。</p>" * 30
+                  + "<p>预计2024-2026年EPS分别为1.11元、1.22元、1.33元。</p></div></body></html>").encode())
+    record = extract_one(
+        paths,
+        {
+            "info_code": "AP7",
+            "publish_date": "2024-04-01",
+            "stock_code": "600519",
+            "fiscal_year_this": 2024,
+            "fiscal_year_next": 2025,
+            "fiscal_year_two": 2026,
+        },
+    )
+    out = paths.meta_dir / "extracted" / "20240401" / "AP7.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(record, ensure_ascii=False), encoding="utf-8")
+
+    payload = cmd_sample(argparse.Namespace(docs=3, per_status=True), paths)
+    assert payload["docs"] == 1
+    item = payload["sample"][0]
+    assert item["body_scope"] == "ctx-content"
+    assert item["body_head"]
+    value = item["values"][0]
+    assert value["raw_text"] in value["context"]
+    assert "1.11" in value["context"]

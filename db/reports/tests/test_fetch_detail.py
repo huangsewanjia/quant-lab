@@ -181,7 +181,8 @@ def test_classify_timeout_and_pdf():
 
 
 def test_classify_ok():
-    assert classify(_result(200, "<html>正文</html>")) == "ok"
+    body = "<html><body>" + "<p>报告正文段落，含盈利预测与评级。</p>" * 20 + "</body></html>"
+    assert classify(_result(200, body)) == "ok"
 
 
 # ---------------------------------------------------------------------------
@@ -291,6 +292,7 @@ FIXTURE = """<html><head><meta charset="utf-8"><title>研报</title></head><body
 <tr><td>每股收益(元)</td><td>49.93</td><td>58.20</td><td>68.50</td><td>79.10</td></tr>
 </table>
 <p>预计公司2023-2025年EPS分别为58.20/68.50/79.10元。</p>
+<p>""" + "公司经营稳健，渠道扩张顺利，盈利预测与投资建议详见下表。" * 8 + """</p>
 </body></html>"""
 
 
@@ -323,3 +325,19 @@ def test_lightpanda_renders_and_dumps_html(local_site):
     assert result.http_status == 200
     assert "每股收益" in result.content
     assert classify(result) == "ok"
+
+
+def test_classify_ignores_captcha_word_in_script_boilerplate():
+    # The healthy eastmoney page ships the word "captcha" inside its JS config.
+    body = "<html><head><script>var cfg={'captcha':{url:'/api/captcha'}};</script></head>" \
+           "<body>" + "<p>报告正文段落，含盈利预测与评级。</p>" * 20 + "</body></html>"
+    assert classify(_result(200, body)) == "ok"
+
+
+def test_classify_flags_visible_captcha_page():
+    body = "<html><body><h2>请输入验证码</h2><p>访问过于频繁</p></body></html>"
+    assert classify(_result(200, body)) == "captcha"
+
+
+def test_classify_blank_shell_is_schema_changed():
+    assert classify(_result(200, "<html><body><div id='app'></div></body></html>")) == "schema-changed"

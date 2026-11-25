@@ -11,7 +11,8 @@
 | 项 | 值 |
 |---|---|
 | 详情页 | 由 `info_code` 重建 URL（`report_meta.encode_url` 是加密 token，不是 URL；见 §2） |
-| 抓取引擎 | Lightpanda 1.0.5，二进制 sha256 `0ec21fa4867ab9e82b35285ff4ab0e7336c6c1d89f26fe991f27d73c8a678bd7`（WORK-540 已验，**不重新下载、不换 tag**） |
+| 抓取引擎 | Lightpanda 1.0.5，二进制 sha256 `0ec21fa4867ab9e82b35285ff4ab0e7336c6c1d89f26fe991f27d73c8a678bd7`（WORK-540 已验）。`/tmp` 会被清空，本单落盘在 `/srv/share/quantdb/staging/tools/lightpanda-1.0.5/lightpanda-x86_64-linux`，每次开工先核 sha256 |
+| 正文容器 | `<div id="ctx-content" class="ctx-content">`；抽取前先切出该容器（`slice_body_html`），避免页面外壳的「最新研报」「机构一致看多」等表格把别的 EPS 混进来 |
 | 目标篇数 | 2023 年 22,074 + 2024 年 19,934 = **42,008 篇** |
 | 正文落盘 | `raw/reports/detail/<publish_date>/<info_code>/body.html.gz` |
 | 审计记录 | 同目录 `meta.json`（URL/状态码/字节/sha256/抓取时间/robots 判定/失败分类） |
@@ -105,6 +106,10 @@ python db/reports/fetch_detail.py stats
 
 主键 `(info_code, fiscal_year)`。**无出处的值不入表**：`raw_text` 为空或 `char_offset` 越界时该值被丢弃。
 
+### 正文切分
+
+`slice_body_html()` 从 `#ctx-content` 切出正文容器；容器不存在时退回整页并记 `body_scope=whole-document`（可在 `sample` 里看到）。抽取只在这个片段上做，页面外壳的表格不参与。
+
 ### 抽取优先级
 
 1. `table_eps_row`（`rule`）：`<tr>` 首列命中 `EPS`/`每股收益`/`摊薄每股收益`，列头是财年（`2024E`/`2024年`），取对应单元格数字；
@@ -123,11 +128,11 @@ python db/reports/fetch_detail.py stats
 | `ok` | 正文已落盘 | 计入抓取成功 |
 | `403-WAF` | 上游拒绝 | 停 30 min 指数退避；连续 3 次停手回报 |
 | `429` | 限流 | 同上 |
-| `captcha` | 验证码 / 人机验证页（含 Lightpanda `bot_challenge`） | 同上，**不绕过** |
+| `captcha` | 验证码 / 人机验证页（含 Lightpanda `bot_challenge`）。判定只看**可见文本**：正常页面 JS 配置里也含 `captcha` 字样，用整页原文做子串匹配会误报 | 同上，**不绕过** |
 | `login` | 登录墙 | 同上，**不登录** |
 | `pdf-only` | 返回 PDF 而非 HTML | 记失败，不解析 PDF（需另定合规口径） |
 | `timeout` | 导航超时 | 下轮重试 |
-| `schema-changed` | 200 但没有可解析正文，或非 200/非 403/429 | 记失败，需人工看样张 |
+| `schema-changed` | 200 但没有可解析正文（可见文本 < 200 字），或非 200/非 403/429 | 记失败，需人工看样张 |
 | `robots-disallowed` | robots.txt 禁止 | **零请求**，只记录 |
 
 ---

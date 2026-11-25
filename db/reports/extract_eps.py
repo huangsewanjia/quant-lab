@@ -151,6 +151,45 @@ class _TextBuilder(HTMLParser):
         self._flush()
 
 
+BODY_ANCHORS = ('id="ctx-content"', "id='ctx-content'", 'class="ctx-content"')
+
+
+def slice_body_html(html: str) -> tuple[str, str]:
+    """Cut the report body out of the eastmoney page shell.
+
+    The detail page wraps the report text in ``<div id="ctx-content">`` and
+    surrounds it with navigation, "latest reports" tables and a consensus
+    widget.  Extracting from the whole document would let those unrelated
+    tables leak EPS-looking numbers, so the body is sliced first and the
+    scope is recorded next to every extracted value.
+    """
+    start = -1
+    for anchor in BODY_ANCHORS:
+        idx = html.find(anchor)
+        if idx != -1:
+            start = html.rfind("<div", 0, idx)
+            if start != -1:
+                break
+    if start == -1:
+        return html, "whole-document"
+    depth = 0
+    pos = start
+    while True:
+        nxt_open = html.find("<div", pos + 1)
+        nxt_close = html.find("</div", pos + 1)
+        if nxt_close == -1:
+            return html, "whole-document"
+        if nxt_open != -1 and nxt_open < nxt_close:
+            depth += 1
+            pos = nxt_open
+        else:
+            if depth == 0:
+                end = html.find(">", nxt_close)
+                return html[start : end + 1], "ctx-content"
+            depth -= 1
+            pos = nxt_close
+
+
 def html_to_text(html: str) -> str:
     builder = _TextBuilder()
     builder.feed(html)
@@ -260,22 +299,24 @@ def extract_from_table(text: str, years: set[int]) -> list[EpsValue]:
     return found
 
 
-RANGE_RE = re.compile(
-    r"(20\d{2})\s*[-~～至—–]\s*(20\d{2})\s*年[^。；;\n]{0,40}?"
-    r"(?:EPS|每股收益)[^。；;\n]{0,24}?(?:分别为|为|达到|预计为|约)?\s*"
-    r"((-?\d+(?:\.\d+)?(?:\s*[、,，/]\s*-?\d+(?:\.\d+)?){1,5}))\s*元",
+_NUM = r"-?\d+(?:\.\d+)?"
+_SEP = r"(?:\s*元)?\s*[、,，/和及与]\s*"
+_VALUES = rf"{_NUM}(?:{_SEP}{_NUM}){{1,5}}"
+
+# "EPS分别为69.57、81.81和96.47元" — the year anchor is looked up separately
+# in the same sentence, because sell-side prose often puts it several clauses
+# before the numbers ("预计2024-2026年营收…，EPS分别为…").
+EPS_VALUES_RE = re.compile(
+    r"(?:EPS|每股收益)[^。；;\n]{0,16}?(?:分别为|为|达到|预计为|约|达)?\s*(" + _VALUES + r")\s*元",
     re.IGNORECASE,
 )
-LIST_RE = re.compile(
-    r"(?:EPS|每股收益)[^。；;\n]{0,16}?(?:分别为|为)\s*"
-    r"((-?\d+(?:\.\d+)?(?:\s*[、,，/]\s*-?\d+(?:\.\d+)?){1,5}))\s*元",
-    re.IGNORECASE,
-)
+YEAR_RANGE_RE = re.compile(r"(20\d{2})\s*年?\s*[-~～至—–]\s*(20\d{2})")
 SINGLE_RE = re.compile(
     r"(20\d{2})\s*年[^。；;\n]{0,20}?(?:EPS|每股收益)[^。；;\n]{0,16}?(?:为|预计为|约为|达|达到)\s*"
     r"(-?\d+(?:\.\d+)?)\s*元",
     re.IGNORECASE,
 )
+YEAR_TOKEN_RE = re.compile(r"20\d{2}")
 
 
 def _sentences(text: str) -> list[tuple[int, str]]:
@@ -293,32 +334,38 @@ def _sentences(text: str) -> list[tuple[int, str]]:
     return out
 
 
+def _bind_years(sentence: str, value_start: int, n_values: int) -> tuple[list[int], str] | None:
+    """Resolve the fiscal years a value list belongs to, or None if ambiguous."""
+    ranges = list(YEAR_RANGE_RE.finditer(sentence, 0, value_start))
+    if ranges:
+        last = ranges[-1]
+        years = list(range(int(last.group(1)), int(last.group(2)) + 1))
+        if len(years) == n_values:
+            return years, "text_range"
+        return None
+    hits = [int(y) for y in YEAR_TOKEN_RE.findall(sentence[:value_start])]
+    if len(hits) >= 2:
+        years = list(range(hits[0], hits[0] + n_values))
+        return years, "text_list"
+    return None
+
+
 def extract_from_text(text: str, years: set[int]) -> list[EpsValue]:
     found: list[EpsValue] = []
     for offset, sentence in _sentences(text):
-        match = RANGE_RE.search(sentence)
-        if match:
-            start_year, end_year = int(match.group(1)), int(match.group(2))
-            values = _parse_numbers(match.group(3))
-            span = list(range(start_year, end_year + 1))
-            if len(values) == len(span):
-                for year, value in zip(span, values):
-                    if year in years and _plausible(value):
-                        found.append(
-                            EpsValue(year, value, "body_text", sentence.strip(), offset, "rule", "text_range")
-                        )
-                continue
-        match = LIST_RE.search(sentence)
-        if match:
+        for match in EPS_VALUES_RE.finditer(sentence):
             values = _parse_numbers(match.group(1))
-            year_hits = [int(y) for y in re.findall(r"20\d{2}", sentence)]
-            if len(values) == 3 and len(year_hits) >= 2:
-                span = list(range(min(year_hits[:2]), min(year_hits[:2]) + 3))
-                for year, value in zip(span, values):
-                    if year in years and _plausible(value):
-                        found.append(
-                            EpsValue(year, value, "body_text", sentence.strip(), offset, "rule", "text_list")
-                        )
+            if len(values) < 2:
+                continue
+            bound = _bind_years(sentence, match.start(), len(values))
+            if bound is None:
+                continue
+            fiscal_years, extractor = bound
+            for year, value in zip(fiscal_years, values):
+                if year in years and _plausible(value):
+                    found.append(
+                        EpsValue(year, value, "body_text", sentence.strip(), offset, "rule", extractor)
+                    )
     return found
 
 
@@ -383,7 +430,9 @@ def extract_one(paths: DetailPaths, item: dict[str, Any]) -> dict[str, Any]:
         return record
     with gzip.open(body, "rb") as fh:
         html_text = fh.read().decode("utf-8", errors="replace")
-    text = html_to_text(html_text)
+    fragment, scope = slice_body_html(html_text)
+    record["body_scope"] = scope
+    text = html_to_text(fragment)
     record["text_chars"] = len(text)
     if len(text) < 200:
         record.update({"status": "empty-body", "values": []})
@@ -582,13 +631,45 @@ def cmd_stats(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
     }
 
 
+def _body_text(paths: DetailPaths, record: dict[str, Any]) -> str:
+    publish_date = dt.date.fromisoformat(record["publish_date"])
+    body = paths.body_file(publish_date, record["info_code"])
+    if not body.exists():
+        return ""
+    with gzip.open(body, "rb") as fh:
+        html_text = fh.read().decode("utf-8", errors="replace")
+    fragment, _scope = slice_body_html(html_text)
+    return html_to_text(fragment)
+
+
 def cmd_sample(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
-    """Pick N reports for manual verification, evenly across statuses."""
+    """Pick N reports for manual verification, with the source context."""
     records = [r for r in iter_extracted(paths) if r.get("status") in ("ok", "no-eps", "empty-body")]
     records.sort(key=lambda r: (r.get("status"), r.get("publish_date") or "", r["info_code"]))
-    chosen = records[: args.docs]
+    if args.per_status:
+        buckets: dict[str, list[dict[str, Any]]] = {}
+        for record in records:
+            buckets.setdefault(record.get("status"), []).append(record)
+        chosen: list[dict[str, Any]] = []
+        per = max(1, args.docs // max(1, len(buckets)))
+        for status in sorted(buckets):
+            chosen.extend(buckets[status][:per])
+        chosen = chosen[: args.docs]
+    else:
+        chosen = records[: args.docs]
     sample = []
     for record in chosen:
+        text = _body_text(paths, record)
+        values = record.get("values") or []
+        enriched = []
+        for value in values:
+            offset = int(value.get("char_offset") or 0)
+            enriched.append(
+                {
+                    **value,
+                    "context": text[max(0, offset - 120) : offset + len(value.get("raw_text") or "") + 120],
+                }
+            )
         sample.append(
             {
                 "info_code": record["info_code"],
@@ -596,7 +677,9 @@ def cmd_sample(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
                 "stock_code": record.get("stock_code"),
                 "status": record.get("status"),
                 "text_chars": record.get("text_chars"),
-                "values": record.get("values") or [],
+                "body_scope": record.get("body_scope"),
+                "values": enriched,
+                "body_head": text[:400],
             }
         )
     return {"docs": len(sample), "sample": sample}
@@ -618,6 +701,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("stats")
     sample = sub.add_parser("sample")
     sample.add_argument("--docs", type=int, default=30)
+    sample.add_argument("--per-status", action="store_true", help="spread the sample across ok/no-eps/empty-body")
     return p
 
 

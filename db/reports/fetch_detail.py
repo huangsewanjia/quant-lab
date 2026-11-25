@@ -46,6 +46,7 @@ import hashlib
 import json
 import os
 import random
+import re
 import subprocess
 import sys
 import time
@@ -377,10 +378,27 @@ def run_lightpanda(
         return FetchResult(None, "", "timeout", None, "subprocess timeout", round(time.monotonic() - started, 3), 124)
 
 
+_TAG_RE = re.compile(r"<[^>]+>")
+_SCRIPT_RE = re.compile(r"<(script|style|noscript)[^>]*>.*?</\1>", re.IGNORECASE | re.DOTALL)
+_MIN_BODY_CHARS = 200
+
+
+def visible_text(html: str) -> str:
+    """Cheap visible-text projection: drop scripts/styles and tags.
+
+    Captcha / login markers must be judged on what a reader sees, not on
+    script boilerplate: the normal report page ships the word ``captcha`` in
+    its JS config, which made a raw-substring test fire on healthy pages.
+    """
+    text = _SCRIPT_RE.sub(" ", html or "")
+    text = _TAG_RE.sub(" ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
 def classify(result: FetchResult, content_type: str = "") -> str:
     status = result.http_status
-    body = (result.content or "")[:200000]
-    lowered = body.lower()
+    text = visible_text(result.content or "")
+    lowered = text.lower()
     if result.error == "timeout" or (status is None and result.exit_code == 124):
         return "timeout"
     if status == 403:
@@ -397,6 +415,9 @@ def classify(result: FetchResult, content_type: str = "") -> str:
         return "schema-changed"
     if "pdf" in content_type.lower():
         return "pdf-only"
+    if len(text) < _MIN_BODY_CHARS:
+        # 200 with a blank shell: selector/format drift, not a usable body
+        return "schema-changed"
     return "ok"
 
 
