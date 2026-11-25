@@ -511,3 +511,106 @@ def test_unusable_robots_aborts_before_any_request(tmp_path, monkeypatch):
     with pytest.raises(SystemExit):
         fd.cmd_fetch(_fetch_args(_make_worklist(tmp_path, 2)), _paths(tmp_path))
     assert calls == []
+
+
+# ---------------------------------------------------------------------------
+# Review round 2: probe red lines and engine-error handling
+# ---------------------------------------------------------------------------
+
+
+def _probe_args(codes, **over):
+    base = dict(
+        info_code=list(codes), run_cap=fd.RUN_CAP, daily_cap=fd.DAILY_CAP,
+        wait_ms=0, timeout=1.0, lightpanda="/bin/true",
+    )
+    base.update(over)
+    return argparse.Namespace(**base)
+
+
+def _install_probe_env(monkeypatch, tmp_path, clock, responder, codes):
+    calls = _install_fake_driver(monkeypatch, tmp_path, clock, responder)
+    con = fd.connect_ro  # noqa: F841  (kept for clarity)
+    rows = [(code, dt.date(2024, 4, 1), "enc") for code in codes]
+    monkeypatch.setattr(fd, "connect_ro", lambda p: _FakeCon(rows))
+    return calls
+
+
+class _FakeCon:
+    def __init__(self, rows):
+        self.rows = rows
+
+    def execute(self, *a, **k):
+        return self
+
+    def fetchall(self):
+        return self.rows
+
+    def close(self):
+        return None
+
+
+def test_probe_stops_at_run_cap(tmp_path, monkeypatch):
+    clock = _FakeClock()
+    codes = ["AP1", "AP2"]
+    calls = _install_probe_env(monkeypatch, tmp_path, clock, _ok_responder, codes)
+    payload = fd.cmd_probe(_probe_args(codes, run_cap=2), _paths(tmp_path))
+    assert len(calls) == 2
+    assert payload["attempted"] == 2
+    assert "probe cap" in (payload["aborted"] or "")
+
+
+def test_probe_cap_cannot_exceed_hard_limit(tmp_path, monkeypatch):
+    clock = _FakeClock()
+    codes = ["AP1"]
+    _install_probe_env(monkeypatch, tmp_path, clock, _ok_responder, codes)
+    payload = fd.cmd_probe(_probe_args(codes, run_cap=999999), _paths(tmp_path))
+    assert payload["protocol"]["run_cap"] == fd.RUN_CAP
+
+
+def test_probe_rechecks_window_inside_the_loop(tmp_path, monkeypatch):
+    clock = _FakeClock(dt.datetime(2026, 11, 25, 6, 59, 58, tzinfo=TZ))
+
+    def responder(clk, url):
+        clk._now += dt.timedelta(seconds=10)
+        return FetchResult(200, LONG_BODY, None, None, "", 1.0, 0)
+
+    codes = ["AP1"]
+    calls = _install_probe_env(monkeypatch, tmp_path, clock, responder, codes)
+    payload = fd.cmd_probe(_probe_args(codes), _paths(tmp_path))
+    assert len(calls) == 1
+    assert "window closed" in (payload["aborted"] or "")
+
+
+def test_probe_writes_progress_and_respects_daily_cap(tmp_path, monkeypatch):
+    clock = _FakeClock()
+    codes = ["AP1", "AP2"]
+    calls = _install_probe_env(monkeypatch, tmp_path, clock, _ok_responder, codes)
+    paths = _paths(tmp_path)
+    paths.meta_dir.mkdir(parents=True, exist_ok=True)
+    paths.progress_file.write_text(
+        json.dumps({"fetched_at": "2026-11-25T00:00:00+08:00", "failure_class": "ok"}) + "\n",
+        encoding="utf-8",
+    )
+    payload = fd.cmd_probe(_probe_args(codes, daily_cap=2), paths)
+    assert len(calls) == 1
+    assert "daily cap" in (payload["aborted"] or "")
+
+
+def test_fetch_survives_an_engine_crash_and_classifies_it(tmp_path, monkeypatch):
+    clock = _FakeClock()
+
+    def boom(binary_path, url, **kw):
+        raise RuntimeError("lightpanda failed (exit 1)")
+
+    binary = tmp_path / "fake-lightpanda"
+    binary.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    binary.chmod(0o755)
+    monkeypatch.setattr(fd, "Clock", lambda: clock)
+    monkeypatch.setattr(fd, "resolve_lightpanda", lambda explicit: binary)
+    monkeypatch.setattr(fd, "lightpanda_version", lambda b: "test")
+    monkeypatch.setattr(fd, "sha256_file", lambda p: "sha")
+    monkeypatch.setattr(fd, "run_lightpanda", boom)
+    monkeypatch.setattr(fd, "fetch_robots", lambda *a, **k: RobotsPolicy("r", 404, True, "absent"))
+    payload = fd.cmd_fetch(_fetch_args(_make_worklist(tmp_path, 3)), _paths(tmp_path))
+    assert payload["failures"]["engine-error"] == 3
+    assert "consecutive engine-error" in (payload["aborted"] or "")

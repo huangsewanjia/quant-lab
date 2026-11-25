@@ -97,9 +97,10 @@ FAILURE_CLASSES = (
     "pdf-only",
     "timeout",
     "schema-changed",
+    "engine-error",
     "robots-disallowed",
 )
-BLOCKING_CLASSES = frozenset({"403-WAF", "429", "captcha", "login"})
+BLOCKING_CLASSES = frozenset({"403-WAF", "429", "captcha", "login", "engine-error"})
 CAPTCHA_MARKERS = (
     "验证码",
     "人机验证",
@@ -411,10 +412,12 @@ def classify(result: FetchResult, content_type: str = "") -> str:
     status = result.http_status
     text = visible_text(result.content or "")
     lowered = text.lower()
-    if result.error == "timeout" or status in (None, 0) or result.exit_code == 124:
+    if result.error == "timeout" or result.exit_code == 124:
         return "timeout"
     if result.error:
-        return "schema-changed"
+        return "engine-error"
+    if status in (None, 0):
+        return "timeout"
     if status == 403:
         return "403-WAF"
     if status == 429:
@@ -672,8 +675,11 @@ def _probe_impl(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
         con.close()
     results: list[dict[str, Any]] = []
     probe_cap = min(getattr(args, "run_cap", RUN_CAP), RUN_CAP)
+    probe_daily_cap = min(getattr(args, "daily_cap", DAILY_CAP), DAILY_CAP)
+    used_today = attempts_today(paths, clock.now().date())
     protocol = {
         "run_cap": probe_cap,
+        "daily_cap": probe_daily_cap,
         "min_interval_s": limiter.min_interval,
         "jitter_max_s": limiter.jitter,
         "window": "22:00-07:00 Asia/Shanghai",
@@ -684,6 +690,9 @@ def _probe_impl(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
         for template in URL_TEMPLATES:
             if attempted >= probe_cap:
                 aborted = f"probe cap {probe_cap} reached"
+                break
+            if used_today + attempted >= probe_daily_cap:
+                aborted = f"daily cap {probe_daily_cap} reached"
                 break
             if not in_window(clock.now()):
                 aborted = f"window closed at {clock.now():%H:%M:%S}"
@@ -702,7 +711,10 @@ def _probe_impl(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
                 results.append(record)
                 continue
             limiter.before_request()
-            result = run_lightpanda(binary, url, wait_ms=args.wait_ms, timeout_s=args.timeout)
+            try:
+                result = run_lightpanda(binary, url, wait_ms=args.wait_ms, timeout_s=args.timeout)
+            except RuntimeError as exc:  # engine crash: classify, keep the run auditable
+                result = FetchResult(None, "", f"engine-error: {exc}", None, str(exc)[-800:], 0.0, 1)
             limiter.after_request()
             attempted += 1
             append_progress(
@@ -815,7 +827,10 @@ def _fetch_impl(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
             )
             continue
         limiter.before_request()
-        result = run_lightpanda(binary, url, wait_ms=args.wait_ms, timeout_s=args.timeout)
+        try:
+            result = run_lightpanda(binary, url, wait_ms=args.wait_ms, timeout_s=args.timeout)
+        except RuntimeError as exc:
+            result = FetchResult(None, "", f"engine-error: {exc}", None, str(exc)[-800:], 0.0, 1)
         limiter.after_request()
         failure = classify(result)
         stats["attempted"] += 1
@@ -1003,6 +1018,7 @@ def build_parser() -> argparse.ArgumentParser:
     probe = sub.add_parser("probe", help="try every URL template for a few reports")
     probe.add_argument("--info-code", action="append", required=True)
     probe.add_argument("--run-cap", type=int, default=RUN_CAP)
+    probe.add_argument("--daily-cap", type=int, default=DAILY_CAP)
     probe.add_argument("--wait-ms", type=int, default=5000)
     probe.add_argument("--timeout", type=float, default=90.0)
 

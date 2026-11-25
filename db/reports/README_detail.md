@@ -114,7 +114,7 @@ python db/reports/fetch_detail.py stats
 
 1. `table_eps_row`（`rule`）：`<tr>` 首列命中 `EPS`/`每股收益`/`摊薄每股收益`，列头是财年（`2024E`/`2024年`），取对应单元格数字；
 2. `text_range`（`rule`）：`2023-2025年EPS分别为1.2/1.5/1.8元` 这类显式年份区间 + 等长数值；
-3. `text_list`（`rule`）：`2023/2024/2025年EPS分别为…元`，句内至少两个年份锚点才绑定；
+3. `text_list`（`rule`）：`2023、2024和2025年EPS分别为…元`；年份必须是**同一个连续枚举**（相邻年份之间只允许「年」和连接符），前置的历史年份不会把整列推移；
 4. `text_single_year`（`nlp`）：`2024年EPS为2.35元`，仅在 1–3 都没有该财年时兜底；**该句已含多值列表时不用它**（否则会把列表里的某个数硬绑到别的年份）。
 5. `text_list` 的年份兜底只接受「句末 n 个连续年份」，前面出现的历史年份不得把整列推移。
 
@@ -134,6 +134,7 @@ python db/reports/fetch_detail.py stats
 | `pdf-only` | 返回 PDF 而非 HTML | 记失败，不解析 PDF（需另定合规口径） |
 | `timeout` | 导航超时 | 下轮重试 |
 | `schema-changed` | 200 但没有可解析正文（可见文本 < 200 字），或非 200/非 403/429 | 记失败，需人工看样张 |
+| `engine-error` | Lightpanda 进程异常/导航报错（`http_status=0` 且带 error，或进程非 0/22 退出） | 计 blocking：连续 3 次停手；单次只记一行，不中断整批 |
 | `robots-disallowed` | robots.txt 禁止 | **零请求**，只记录 |
 
 ---

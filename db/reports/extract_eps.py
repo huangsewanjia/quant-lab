@@ -384,10 +384,23 @@ def _bind_years(sentence: str, value_start: int, n_values: int) -> tuple[list[in
     for _pos, years in reversed(before):
         if len(years) == n_values:
             return years, "text_range"
-    hits = [int(y) for y in YEAR_TOKEN_RE.findall(sentence[:value_start])]
-    tail = hits[-n_values:]
-    if len(tail) == n_values and tail == list(range(tail[0], tail[0] + n_values)):
-        return tail, "text_list"
+    # Bare year tokens ("2024、2025和2026年") only count when they form one
+    # enumeration: consecutive values AND nothing but a year connector between
+    # them.  A history year from an earlier clause must never shift the column.
+    tokens = [
+        (match.start(), match.end(), int(match.group(0)))
+        for match in YEAR_TOKEN_RE.finditer(sentence[:value_start])
+    ]
+    tail = tokens[-n_values:]
+    if len(tail) == n_values:
+        years = [token[2] for token in tail]
+        if years == list(range(years[0], years[0] + n_values)):
+            gaps_ok = all(
+                re.fullmatch(r"\s*年?\s*[、,，/\\／和及与]\s*年?\s*", sentence[a[1] : b[0]])
+                for a, b in zip(tail, tail[1:])
+            )
+            if gaps_ok:
+                return years, "text_list"
     return None
 
 
@@ -730,7 +743,11 @@ def _body_text(paths: DetailPaths, record: dict[str, Any]) -> str:
 
 def cmd_sample(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
     """Pick N reports for manual verification, with the source context."""
-    records = [r for r in iter_extracted(paths) if r.get("status") in ("ok", "no-eps", "empty-body")]
+    records = [
+        r
+        for r in iter_extracted(paths)
+        if r.get("status") in ("ok", "no-eps", "empty-body", "no-container", "no-body")
+    ]
     records.sort(key=lambda r: (r.get("status"), r.get("publish_date") or "", r["info_code"]))
     if args.per_status:
         buckets: dict[str, list[dict[str, Any]]] = {}

@@ -490,3 +490,16 @@ def test_build_drops_values_without_provenance(tmp_path):
     }, ensure_ascii=False), encoding="utf-8")
     payload = cmd_build(argparse.Namespace(), paths)
     assert payload["rows_inserted"] == 0
+
+
+def test_text_list_rejects_history_years_even_for_two_values():
+    # review round 2 B-1: n=2 must not borrow a year from an earlier clause
+    assert extract_eps("2021、2022、2023年公司营收持续增长。预计2024年EPS分别为1.20、1.50元。", {2024, 2025, 2026}) == []
+    assert extract_eps("2021-2023年营收增长。预计2024年EPS分别为1.20、1.50元。", {2024, 2025, 2026}) == []
+    assert extract_eps("根据2023年的经营情况，2024年EPS分别为1.20、1.50元。", {2024, 2025, 2026}) == []
+
+
+def test_text_list_accepts_a_real_two_year_enumeration():
+    text = "预计2024、2025年EPS分别为1.20、1.50元。"
+    values = {v.fiscal_year: v.eps for v in extract_eps(text, {2024, 2025, 2026})}
+    assert values == {2024: 1.20, 2025: 1.50}
