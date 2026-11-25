@@ -401,7 +401,7 @@ quantdb-industry-monthly.timer  ...  quantdb-industry-monthly.service</pre>
 <h3>6.6 独立复审发现并已修复的问题</h3>
 <p>第 1 轮独立子代理审查（审 <code>1d8b9d4</code>）给出 2 条 blocking，均已修复并重装：</p>
 <ul>
-<li><b>涨跌方向写反</b>：<code>parse_number</code> 把前导负号当装饰符吞掉，benchmark 15 个指数里 10 个 <code>change_pct</code> 由负变正。修复后库内 10 负 / 3 正，与原始 CSV 一致，并新增回归测试。</li>
+<li><b>涨跌方向写反</b>：<code>parse_number</code> 把前导负号当装饰符吞掉，benchmark 16 个指数里 10 个 <code>change_pct</code> 由负变正。修复后库内 10 负 / 3 正，与原始 CSV 一致，并新增回归测试。</li>
 <li><b>假 PASS 的闸</b>：C4 的 NEA 子闸按行计数，永远 <code>pairs=0</code> 却算通过。改为同文章同期取当月值后实测 <code>pairs=1, ok=1</code>（135+5800+1852+1210 = 8997 = 全社会用电量）；<code>pairs=0</code> 现在判 FAIL。</li>
 <li>顺带处理 3 条 suggestion：删除不可能成立的 100ppi 跨单位比值闸、改用单位词表闸；覆盖口径单列文本索引；单闸报告不再覆盖当日 7 闸报告。</li>
 </ul>

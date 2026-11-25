@@ -21,7 +21,7 @@
 
 修复（第 1 轮独立复审，`1d8b9d4` → 本提交）：
 
-- `parse_number` 吞掉前导负号：benchmark 15 个指数里 10 个 `change_pct` 涨跌方向写反；改为保留 `-`/`▼` 为负号，新增 2 个回归测试。
+- `parse_number` 吞掉前导负号：benchmark 16 个指数里 10 个 `change_pct` 涨跌方向写反；改为保留 `-`/`▼` 为负号，新增 2 个回归测试。
 - C4 `nea` 子闸按行计数恒 `pairs=0` 假 PASS：改为同文章同期取当月值，实测 `pairs=1, ok=1`；`pairs=0` 现在判 FAIL。
 - C4 删除不可能成立的 100ppi 跨单位比值闸，改为 `unit_vocabulary`（10 张带单位表）；单闸报告不再覆盖当日 7 闸报告。
 - 覆盖口径改为「有可查记录」并单列 `text_only`；docstring/注释 3 处 nit 修正。
