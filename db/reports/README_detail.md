@@ -51,7 +51,7 @@
 | 4 | 先查 robots.txt，禁抓路径零请求 | `fetch_robots()` + `parse_robots()`（404 视为全允许；5xx/不可达视为全禁）；`robots.allows(url)` 在请求前判定，被禁记为 `robots-disallowed` 且不发请求 |
 | 5 | 单一 UA，不轮换、不用代理 | `USER_AGENT = quantdb-research/1.0 (internal research; low-rate; ...)`，全流程唯一；Lightpanda 参数禁止 `Mozilla` 伪装 |
 | 6 | 403/429/验证码/登录墙 → 停 30 min 指数退避，连续 3 次停手 | `BLOCKING_CLASSES` + `BLOCK_BACKOFF_S=(1800, 3600, 7200)` + `MAX_CONSECUTIVE_BLOCKS=3` |
-| 7 | 每日 ≤ 5,000 篇、单 run ≤ 3,000 篇、断点续跑 | `DAILY_CAP`/`RUN_CAP`（CLI 只能调低）；`doc_done()` 按 `meta.json` + `body.html.gz` sha256 判重 |
+| 7 | 每日 ≤ 5,000 篇、单 run ≤ 3,000 篇、断点续跑 | `DAILY_CAP`/`RUN_CAP`（CLI 只能调低）；`doc_done()` 按 `meta.json` + `body.html.gz` sha256 判重。`probe` 同样受 run cap、窗口逐次检查与日进度记账约束；`robots-disallowed` 不占日限；`robots.txt` 非 200/404 直接中止 |
 
 `stats`/`plan`/`extract`/`build` 不联网，白天可跑。
 
@@ -104,18 +104,19 @@ python db/reports/fetch_detail.py stats
 | `extract_version` | 抽取器版本 |
 | `extracted_at` | 抽取时间（UTC） |
 
-主键 `(info_code, fiscal_year)`。**无出处的值不入表**：`raw_text` 为空或 `char_offset` 越界时该值被丢弃。
+主键 `(info_code, fiscal_year)`。**无出处的值不入表**：`build` 对 `raw_text` 为空 / `char_offset` 缺失 / `char_offset + len(raw_text) > text_chars` 的值直接跳过（不是静默补 0）。
 
 ### 正文切分
 
-`slice_body_html()` 从 `#ctx-content` 切出正文容器；容器不存在时退回整页并记 `body_scope=whole-document`（可在 `sample` 里看到）。抽取只在这个片段上做，页面外壳的表格不参与。
+`slice_body_html()` 从 `#ctx-content` 切出正文容器。**容器不存在时不抽取**：该篇记 `status=no-container`、`body_scope=whole-document`，留给人工看样张——页面外壳的「最新研报」「机构一致看多」等表格可能含 EPS 字样，绝不能当正文入库。
 
 ### 抽取优先级
 
 1. `table_eps_row`（`rule`）：`<tr>` 首列命中 `EPS`/`每股收益`/`摊薄每股收益`，列头是财年（`2024E`/`2024年`），取对应单元格数字；
 2. `text_range`（`rule`）：`2023-2025年EPS分别为1.2/1.5/1.8元` 这类显式年份区间 + 等长数值；
 3. `text_list`（`rule`）：`2023/2024/2025年EPS分别为…元`，句内至少两个年份锚点才绑定；
-4. `text_single_year`（`nlp`）：`2024年EPS为2.35元`，仅在 1–3 都没有该财年时兜底。
+4. `text_single_year`（`nlp`）：`2024年EPS为2.35元`，仅在 1–3 都没有该财年时兜底；**该句已含多值列表时不用它**（否则会把列表里的某个数硬绑到别的年份）。
+5. `text_list` 的年份兜底只接受「句末 n 个连续年份」，前面出现的历史年份不得把整列推移。
 
 同一财年多个候选时按上述顺序取第一个。数值绝对值 > 1000 或非有限值直接丢弃。**不用 LLM 猜数**；年份无法绑定则不产出（例如只提「参考 2023 年」再给三个数，属歧义，不猜）。
 

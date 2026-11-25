@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import datetime as dt
 import gzip
 import json
@@ -343,3 +344,170 @@ def test_classify_flags_visible_captcha_page():
 
 def test_classify_blank_shell_is_schema_changed():
     assert classify(_result(200, "<html><body><div id='app'></div></body></html>")) == "schema-changed"
+
+
+# ---------------------------------------------------------------------------
+# Red-line enforcement (review round 1, S6): call-order tests for cmd_fetch
+# ---------------------------------------------------------------------------
+
+import db.reports.fetch_detail as fd  # noqa: E402
+
+LONG_BODY = "<html><body>" + "<p>报告正文段落，含盈利预测与评级。</p>" * 20 + "</body></html>"
+
+
+class _FakeClock:
+    def __init__(self, start=None):
+        self._now = start or dt.datetime(2026, 11, 25, 22, 30, tzinfo=TZ)
+        self._t = 1000.0
+        self.slept: list[float] = []
+
+    def now(self):
+        return self._now
+
+    def monotonic(self):
+        return self._t
+
+    def sleep(self, seconds):
+        self.slept.append(seconds)
+        self._t += seconds
+        self._now += dt.timedelta(seconds=seconds)
+
+
+def _make_worklist(tmp_path, n):
+    items = []
+    for i in range(n):
+        items.append(
+            {
+                "info_code": f"AP{i}",
+                "publish_date": "2024-04-01",
+                "stock_code": "600519",
+                "fiscal_year_this": 2024,
+                "fiscal_year_next": 2025,
+                "fiscal_year_two": 2026,
+                "encode_url": "x",
+                "url_template": "info",
+                "url": f"https://data.eastmoney.com/report/info/AP{i}.html",
+            }
+        )
+    path = tmp_path / "wl.jsonl"
+    path.write_text("\n".join(json.dumps(i, ensure_ascii=False) for i in items) + "\n", encoding="utf-8")
+    return path
+
+
+def _install_fake_driver(monkeypatch, tmp_path, clock, responder):
+    binary = tmp_path / "fake-lightpanda"
+    binary.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    binary.chmod(0o755)
+    calls = []
+
+    def fake_run(binary_path, url, *, wait_ms=0, timeout_s=0, user_agent=""):
+        calls.append(url)
+        return responder(clock, url)
+
+    monkeypatch.setattr(fd, "Clock", lambda: clock)
+    monkeypatch.setattr(fd, "resolve_lightpanda", lambda explicit: binary)
+    monkeypatch.setattr(fd, "lightpanda_version", lambda b: "test")
+    monkeypatch.setattr(fd, "sha256_file", lambda p: "sha")
+    monkeypatch.setattr(fd, "run_lightpanda", fake_run)
+    monkeypatch.setattr(fd, "fetch_robots", lambda *a, **k: RobotsPolicy("r", 404, True, "absent"))
+    return calls
+
+
+def _fetch_args(worklist, **over):
+    base = dict(
+        worklist=str(worklist), resume=True, url_template="info", lightpanda="/bin/true",
+        run_cap=fd.RUN_CAP, daily_cap=fd.DAILY_CAP, wait_ms=0, timeout=1.0, verbose=False,
+    )
+    base.update(over)
+    return argparse.Namespace(**base)
+
+
+def _ok_responder(clock, url):
+    return FetchResult(200, LONG_BODY, None, None, "", 1.0, 0)
+
+
+def test_fetch_stops_at_run_cap(tmp_path, monkeypatch):
+    clock = _FakeClock()
+    calls = _install_fake_driver(monkeypatch, tmp_path, clock, _ok_responder)
+    paths = _paths(tmp_path)
+    payload = fd.cmd_fetch(_fetch_args(_make_worklist(tmp_path, 5), run_cap=2), paths)
+    assert len(calls) == 2
+    assert payload["stats"]["attempted"] == 2
+    assert "run cap" in (payload["aborted"] or "")
+
+
+def test_fetch_stops_at_daily_cap(tmp_path, monkeypatch):
+    clock = _FakeClock()
+    calls = _install_fake_driver(monkeypatch, tmp_path, clock, _ok_responder)
+    paths = _paths(tmp_path)
+    paths.meta_dir.mkdir(parents=True, exist_ok=True)
+    lines = [json.dumps({"fetched_at": "2026-11-25T00:00:00+08:00", "failure_class": "ok"})] * 4999
+    paths.progress_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    payload = fd.cmd_fetch(_fetch_args(_make_worklist(tmp_path, 3)), paths)
+    assert len(calls) == 1
+    assert "daily cap" in (payload["aborted"] or "")
+
+
+def test_fetch_rechecks_window_inside_the_loop(tmp_path, monkeypatch):
+    clock = _FakeClock(dt.datetime(2026, 11, 25, 6, 59, 58, tzinfo=TZ))
+
+    def responder(clk, url):
+        clk._now += dt.timedelta(seconds=10)  # crosses 07:00 during the request
+        return FetchResult(200, LONG_BODY, None, None, "", 1.0, 0)
+
+    calls = _install_fake_driver(monkeypatch, tmp_path, clock, responder)
+    payload = fd.cmd_fetch(_fetch_args(_make_worklist(tmp_path, 5)), paths := _paths(tmp_path))
+    assert len(calls) == 1
+    assert "window closed" in (payload["aborted"] or "")
+
+
+def test_fetch_aborts_after_three_consecutive_blocks(tmp_path, monkeypatch):
+    clock = _FakeClock()
+    calls = _install_fake_driver(
+        monkeypatch, tmp_path, clock, lambda c, u: FetchResult(403, "blocked", None, None, "", 1.0, 0)
+    )
+    payload = fd.cmd_fetch(_fetch_args(_make_worklist(tmp_path, 6)), _paths(tmp_path))
+    assert len(calls) == 3
+    assert "consecutive" in (payload["aborted"] or "")
+    assert payload["stats"]["attempted"] == 3
+    assert 1800 in clock.slept and 3600 in clock.slept
+
+
+def test_robots_disallowed_makes_no_request(tmp_path, monkeypatch):
+    clock = _FakeClock()
+    calls = _install_fake_driver(monkeypatch, tmp_path, clock, _ok_responder)
+    monkeypatch.setattr(
+        fd, "fetch_robots", lambda *a, **k: RobotsPolicy("r", 200, False, "parsed", _parser=_DenyAll())
+    )
+    paths = _paths(tmp_path)
+    payload = fd.cmd_fetch(_fetch_args(_make_worklist(tmp_path, 2)), paths)
+    assert calls == []
+    assert payload["stats"]["skipped_robots"] == 2
+    assert payload["failures"]["robots-disallowed"] == 2
+
+
+class _DenyAll:
+    def can_fetch(self, user_agent, url):
+        return False
+
+
+def test_robots_disallowed_does_not_consume_the_daily_budget(tmp_path):
+    paths = _paths(tmp_path)
+    paths.meta_dir.mkdir(parents=True, exist_ok=True)
+    rows = [
+        {"fetched_at": "2026-11-25T00:00:00+08:00", "failure_class": "robots-disallowed"},
+        {"fetched_at": "2026-11-25T00:01:00+08:00", "failure_class": "ok"},
+    ]
+    paths.progress_file.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+    assert attempts_today(paths, dt.date(2026, 11, 25)) == 1
+
+
+def test_unusable_robots_aborts_before_any_request(tmp_path, monkeypatch):
+    clock = _FakeClock()
+    calls = _install_fake_driver(monkeypatch, tmp_path, clock, _ok_responder)
+    monkeypatch.setattr(
+        fd, "fetch_robots", lambda *a, **k: RobotsPolicy("r", 503, False, "unreachable")
+    )
+    with pytest.raises(SystemExit):
+        fd.cmd_fetch(_fetch_args(_make_worklist(tmp_path, 2)), _paths(tmp_path))
+    assert calls == []

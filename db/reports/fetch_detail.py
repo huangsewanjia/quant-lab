@@ -310,7 +310,8 @@ def resolve_lightpanda(explicit: str | None) -> Path:
 
 def lightpanda_version(binary: Path) -> str:
     out = subprocess.run([str(binary), "version"], capture_output=True, text=True, timeout=30)
-    return (out.stdout or out.stderr).strip().splitlines()[0] if (out.stdout or out.stderr) else "unknown"
+    lines = (out.stdout or out.stderr or "").strip().splitlines()
+    return lines[0] if lines else "unknown"
 
 
 @dataclass
@@ -322,6 +323,7 @@ class FetchResult:
     stderr: str
     elapsed_s: float
     exit_code: int
+    content_type: str = ""
 
 
 def run_lightpanda(
@@ -365,6 +367,15 @@ def run_lightpanda(
                 payload = json.loads(raw_out)
             except json.JSONDecodeError:
                 payload = {}
+        if not payload and proc.returncode not in (0, 22):
+            raise RuntimeError(
+                f"lightpanda failed (exit {proc.returncode}): {(proc.stderr or '')[-400:]}"
+            )
+        headers = payload.get("headers") or []
+        content_type = next(
+            (str(h.get("value", "")) for h in headers if str(h.get("name", "")).lower() == "content-type"),
+            "",
+        )
         return FetchResult(
             http_status=payload.get("http_status"),
             content=payload.get("content") or "",
@@ -373,6 +384,7 @@ def run_lightpanda(
             stderr=(proc.stderr or "")[-4000:],
             elapsed_s=elapsed,
             exit_code=proc.returncode,
+            content_type=content_type,
         )
     except subprocess.TimeoutExpired:
         return FetchResult(None, "", "timeout", None, "subprocess timeout", round(time.monotonic() - started, 3), 124)
@@ -401,6 +413,8 @@ def classify(result: FetchResult, content_type: str = "") -> str:
     lowered = text.lower()
     if result.error == "timeout" or status in (None, 0) or result.exit_code == 124:
         return "timeout"
+    if result.error:
+        return "schema-changed"
     if status == 403:
         return "403-WAF"
     if status == 429:
@@ -413,7 +427,7 @@ def classify(result: FetchResult, content_type: str = "") -> str:
         return "login"
     if status is None or status >= 400:
         return "schema-changed"
-    if "pdf" in content_type.lower():
+    if "pdf" in (content_type or result.content_type or "").lower():
         return "pdf-only"
     if len(text) < _MIN_BODY_CHARS:
         # 200 with a blank shell: selector/format drift, not a usable body
@@ -516,6 +530,8 @@ def attempts_today(paths: DetailPaths, today: dt.date) -> int:
             try:
                 record = json.loads(line)
             except json.JSONDecodeError:
+                continue
+            if record.get("failure_class") == "robots-disallowed":
                 continue
             stamp = str(record.get("fetched_at") or "")[:10]
             if stamp == today.isoformat():
@@ -644,6 +660,8 @@ def _probe_impl(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
     session = requests.Session()
     session.headers["User-Agent"] = USER_AGENT
     robots = fetch_robots(session, clock, limiter)
+    if robots.status not in (200, 404):
+        raise SystemExit(f"robots.txt unusable ({robots.reason}); refusing to run")
     con = connect_ro(paths.db_path)
     try:
         rows = con.execute(
@@ -653,8 +671,23 @@ def _probe_impl(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
     finally:
         con.close()
     results: list[dict[str, Any]] = []
+    probe_cap = min(getattr(args, "run_cap", RUN_CAP), RUN_CAP)
+    protocol = {
+        "run_cap": probe_cap,
+        "min_interval_s": limiter.min_interval,
+        "jitter_max_s": limiter.jitter,
+        "window": "22:00-07:00 Asia/Shanghai",
+    }
+    aborted = None
+    attempted = 0
     for info_code, publish_date, encode_url in rows:
         for template in URL_TEMPLATES:
+            if attempted >= probe_cap:
+                aborted = f"probe cap {probe_cap} reached"
+                break
+            if not in_window(clock.now()):
+                aborted = f"window closed at {clock.now():%H:%M:%S}"
+                break
             url = build_url(info_code, encode_url, template)
             allowed = robots.allows(url)
             record: dict[str, Any] = {
@@ -671,6 +704,17 @@ def _probe_impl(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
             limiter.before_request()
             result = run_lightpanda(binary, url, wait_ms=args.wait_ms, timeout_s=args.timeout)
             limiter.after_request()
+            attempted += 1
+            append_progress(
+                paths,
+                {
+                    "info_code": info_code,
+                    "fetched_at": clock.now().isoformat(),
+                    "url": url,
+                    "failure_class": classify(result),
+                    "stage": "probe",
+                },
+            )
             failure = classify(result)
             text_len = len(result.content or "")
             record.update(
@@ -691,6 +735,9 @@ def _probe_impl(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
             results.append(record)
     payload = {
         "probe_at": clock.now().isoformat(),
+        "attempted": attempted,
+        "aborted": aborted,
+        "protocol": protocol,
         "engine": lightpanda_version(binary),
         "engine_sha256": sha256_file(binary),
         "robots": {"url": robots.url, "status": robots.status, "reason": robots.reason, "sha256": robots.sha256},
@@ -726,6 +773,8 @@ def _fetch_impl(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
     session = requests.Session()
     session.headers["User-Agent"] = USER_AGENT
     robots = fetch_robots(session, clock, limiter)
+    if robots.status not in (200, 404):
+        raise SystemExit(f"robots.txt unusable ({robots.reason}); refusing to run")
 
     today = clock.now().date()
     used_today = attempts_today(paths, today)
@@ -880,10 +929,12 @@ def cmd_reclassify(args: argparse.Namespace, paths: DetailPaths) -> dict[str, An
         except Exception:
             continue
         body = meta_path.parent / "body.html.gz"
-        content = ""
-        if body.exists():
-            with gzip.open(body, "rb") as fh:
-                content = fh.read().decode("utf-8", errors="replace")
+        if not body.exists():
+            # failed attempts have no archived body: keep the original
+            # classification (captcha / 429 / ...) as audit evidence
+            continue
+        with gzip.open(body, "rb") as fh:
+            content = fh.read().decode("utf-8", errors="replace")
         result = FetchResult(
             http_status=meta.get("http_status"),
             content=content,
@@ -919,7 +970,8 @@ def cmd_stats(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
         "should_extract_2023_2024": should,
         "should_by_year": {str(y): n for y, n in by_year},
         "fetched_ok": scanned["ok_docs"],
-        "missing": should - scanned["ok_docs"],
+        "missing": should
+        - sum(n for month, n in scanned["by_month"].items() if month.startswith(("2023-", "2024-"))),
         "by_failure": scanned["by_failure"],
         "by_month": scanned["by_month"],
         "gzip_bytes": scanned["gzip_bytes"],
@@ -950,6 +1002,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     probe = sub.add_parser("probe", help="try every URL template for a few reports")
     probe.add_argument("--info-code", action="append", required=True)
+    probe.add_argument("--run-cap", type=int, default=RUN_CAP)
     probe.add_argument("--wait-ms", type=int, default=5000)
     probe.add_argument("--timeout", type=float, default=90.0)
 

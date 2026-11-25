@@ -286,6 +286,7 @@ def test_extract_one_reads_gzip_body(tmp_path):
     body = paths.body_file(day, "AP9")
     body.parent.mkdir(parents=True, exist_ok=True)
     padded = HTML_TABLE.replace("</body>", "<p>" + "公司经营稳健，渠道扩张顺利。" * 20 + "</p></body>")
+    padded = '<html><body><div id="ctx-content">' + padded + "</div></body></html>"
     with gzip.open(body, "wb") as fh:
         fh.write(padded.encode("utf-8"))
     record = extract_one(
@@ -410,3 +411,82 @@ def test_offset_points_at_the_stripped_sentence_not_the_raw_chunk():
     text = "前言。\n   预计2024-2026年EPS分别为1.11元、1.22元、1.33元。"
     for value in extract_eps(text, {2024, 2025, 2026}):
         assert text[value.char_offset : value.char_offset + len(value.raw_text)] == value.raw_text
+
+
+# ---------------------------------------------------------------------------
+# Review round 1 regressions (B1 / B2 / S1 / S7)
+# ---------------------------------------------------------------------------
+
+
+def test_text_list_fallback_never_uses_a_leading_history_year():
+    # B1: the first year token ("2023") must not shift the whole column.
+    text = "我们回顾2023年的经营情况，2024年EPS分别为1.20、1.50、1.80元。"
+    assert extract_eps(text, {2024, 2025, 2026}) == []
+
+
+def test_text_list_fallback_requires_trailing_consecutive_years():
+    text = "预计2024、2025、2026年EPS分别为1.20、1.50、1.80元。"
+    values = {v.fiscal_year: v.eps for v in extract_eps(text, {2024, 2025, 2026})}
+    assert values == {2024: 1.20, 2025: 1.50, 2026: 1.80}
+
+
+def test_explicit_range_with_wrong_value_count_is_not_guessed():
+    text = "预计2024-2026年EPS分别为1.20元/1.50元。"
+    assert extract_eps(text, {2024, 2025, 2026}) == []
+
+
+def test_missing_container_is_not_mined(tmp_path):
+    from db.reports.extract_eps import cmd_extract
+
+    paths = DetailPaths(Paths(home=tmp_path, db_file=tmp_path / "db" / "q.duckdb"))
+    day = dt.date(2024, 4, 1)
+    body = paths.body_file(day, "AP5")
+    body.parent.mkdir(parents=True, exist_ok=True)
+    shell = ("<html><body><table><tr><th>指标</th><th>2024E</th><th>2025E</th></tr>"
+             "<tr><td>每股收益(元)</td><td>9.99</td><td>9.99</td></tr></table>"
+             + "<p>" + "页面外壳文字。" * 40 + "</p></body></html>")
+    with gzip.open(body, "wb") as fh:
+        fh.write(shell.encode())
+    worklist = tmp_path / "wl.jsonl"
+    worklist.write_text(json.dumps({
+        "info_code": "AP5", "publish_date": "2024-04-01", "stock_code": "600519",
+        "fiscal_year_this": 2024, "fiscal_year_next": 2025, "fiscal_year_two": 2026,
+    }) + "\n", encoding="utf-8")
+    record = extract_one(paths, {
+        "info_code": "AP5", "publish_date": "2024-04-01", "stock_code": "600519",
+        "fiscal_year_this": 2024, "fiscal_year_next": 2025, "fiscal_year_two": 2026,
+    })
+    assert record["status"] == "no-container"
+    assert record["values"] == []
+    assert cmd_extract(argparse.Namespace(worklist=str(worklist)), paths)["stats"]["no-container"] == 1
+
+
+def test_colspan_header_keeps_columns_aligned():
+    html = ('<div id="ctx-content"><table>'
+            '<tr><th>项目</th><th colspan="2">2024E</th><th>2025E</th></tr>'
+            '<tr><td>每股收益(元)</td><td>1.11</td><td>1.22</td><td>2.33</td></tr>'
+            "</table></div>")
+    text = html_to_text(html)
+    # without colspan padding the 2nd data value would be read as 2025
+    values = {v.fiscal_year: v.eps for v in extract_from_table(text, {2024, 2025})}
+    assert values == {2024: 1.11, 2025: 2.33}
+
+
+def test_build_drops_values_without_provenance(tmp_path):
+    paths = DetailPaths(Paths(home=tmp_path, db_file=tmp_path / "db" / "q.duckdb"))
+    _seed_db(paths.db_path)
+    out = paths.meta_dir / "extracted" / "20240401" / "APX.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps({
+        "info_code": "APX", "publish_date": "2024-04-01", "stock_code": "600519",
+        "extractor_version": EXTRACT_VERSION, "extracted_at": "2026-11-25T01:00:00+00:00",
+        "status": "ok", "text_chars": 10,
+        "values": [
+            {"fiscal_year": 2024, "eps": 1.23, "source": "body_text", "raw_text": None,
+             "char_offset": None, "confidence": "rule", "extractor": "text_range"},
+            {"fiscal_year": 2025, "eps": 2.34, "source": "body_text", "raw_text": "abc",
+             "char_offset": 99, "confidence": "rule", "extractor": "text_range"},
+        ],
+    }, ensure_ascii=False), encoding="utf-8")
+    payload = cmd_build(argparse.Namespace(), paths)
+    assert payload["rows_inserted"] == 0

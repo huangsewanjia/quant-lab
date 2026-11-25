@@ -78,6 +78,7 @@ class _TextBuilder(HTMLParser):
         self._buf: list[str] = []
         self._cell: list[str] | None = None
         self._row: list[str] | None = None
+        self._span = 0
         self._skip_depth = 0
 
     # -- helpers ---------------------------------------------------------
@@ -92,6 +93,8 @@ class _TextBuilder(HTMLParser):
             return
         cell = re.sub(r"\s+", " ", "".join(self._cell)).strip()
         self._row.append(cell)
+        self._row.extend([""] * self._span)
+        self._span = 0
         self._cell = None
 
     def _end_row(self) -> None:
@@ -120,6 +123,13 @@ class _TextBuilder(HTMLParser):
             if self._row is None:
                 self._row = []
             self._cell = []
+            self._span = 0
+            for key, value in attrs:
+                if str(key).lower() == "colspan":
+                    try:
+                        self._span = max(0, int(value or 1) - 1)
+                    except (TypeError, ValueError):
+                        self._span = 0
         elif tag in BLOCK_TAGS:
             self._flush()
 
@@ -375,8 +385,9 @@ def _bind_years(sentence: str, value_start: int, n_values: int) -> tuple[list[in
         if len(years) == n_values:
             return years, "text_range"
     hits = [int(y) for y in YEAR_TOKEN_RE.findall(sentence[:value_start])]
-    if len(hits) >= 2:
-        return list(range(hits[0], hits[0] + n_values)), "text_list"
+    tail = hits[-n_values:]
+    if len(tail) == n_values and tail == list(range(tail[0], tail[0] + n_values)):
+        return tail, "text_list"
     return None
 
 
@@ -426,6 +437,10 @@ def extract_from_text(text: str, years: set[int]) -> list[EpsValue]:
 def extract_from_single_year(text: str, years: set[int]) -> list[EpsValue]:
     found: list[EpsValue] = []
     for offset, sentence in _sentences(text):
+        if EPS_VALUES_RE.search(sentence):
+            # a multi-value list exists: slicing one number out of it would
+            # bind an arbitrary year, so the fallback stays out
+            continue
         for match in SINGLE_RE.finditer(sentence):
             year = int(match.group(1))
             value = float(match.group(2))
@@ -493,6 +508,12 @@ def extract_one(paths: DetailPaths, item: dict[str, Any]) -> dict[str, Any]:
     record["text_chars"] = len(text)
     if len(text) < 200:
         record.update({"status": "empty-body", "values": []})
+        return record
+    if scope != "ctx-content":
+        # No body container: the page shell's tables (latest reports,
+        # consensus widget) must never be mined for EPS.  Park it for
+        # manual inspection instead of guessing.
+        record.update({"status": "no-container", "values": []})
         return record
     values = extract_eps(text, expected_years(item))
     record["status"] = "ok" if values else "no-eps"
@@ -582,7 +603,15 @@ def cmd_build(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
     docs = 0
     for record in iter_extracted(paths):
         docs += 1
+        text_chars = int(record.get("text_chars") or 0)
         for value in record.get("values") or []:
+            raw_text = value.get("raw_text")
+            char_offset = value.get("char_offset")
+            if not raw_text or char_offset is None:
+                continue
+            char_offset = int(char_offset)
+            if char_offset < 0 or (text_chars and char_offset + len(raw_text) > text_chars):
+                continue
             rows.append(
                 (
                     record["info_code"],
@@ -592,8 +621,8 @@ def cmd_build(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
                     record.get("ts_code"),
                     record["publish_date"],
                     value.get("source"),
-                    value.get("raw_text"),
-                    int(value.get("char_offset") or 0),
+                    raw_text,
+                    char_offset,
                     value.get("confidence"),
                     value.get("extractor"),
                     record.get("extractor_version"),
