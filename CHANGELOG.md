@@ -4,10 +4,16 @@
 
 新增：
 
-- `db/schema_industry.sql`：`industry_load_diff`（10 列：run_id / source / table_name / period /
-  indicator / change_type / column_name / old_value / new_value / changed_at；无主键，一次变更一行）
-  与复核视图 `v_industry_load_changes_recent`（近 30 天的 value_changed / row_dropped）。
-  17 张观测表结构、`industry_load_audit` 结构一律未改。
+- `db/schema_industry.sql`：`industry_load_diff`（12 列：run_id / source / table_name / period /
+  indicator / change_type / column_name / old_value / new_value / **source_doc** / **reason** /
+  changed_at；无主键，一次变更一行）。四要素 = 原值 / 新值 / 改动原因 / 对应 URL：
+  `reason` 由装载模式 + 本次快照抓取时间 + 变更性质生成（不允许 NULL），`source_doc` 取被改动行
+  自己的 `source_url`/`url` 列。存量表用 `ALTER … ADD COLUMN IF NOT EXISTS` 补列、历史行回填
+  「首版上线前写入」标记；写入用显式列名 INSERT。
+  复核视图 `v_industry_load_changes_recent`（近 30 天 value_changed / row_dropped，含 reason 与
+  source_doc，供大屏「数据变更」区块直读）。17 张观测表结构、`industry_load_audit` 结构一律未改。
+- raw 快照版本化：每次装载前把当前 raw 复制到 `raw/<kind>/<source>/history/<sha12>-<mtime>.<ext>`，
+  同一内容按 sha256 去重（原始数据只增不删）；就地 `.bak` 机制退役。
 - `db/etl/industry.py`：`load_source` 改为「同事务：先记账、后替换」——先算库内现状 vs 本次快照的
   逐行差异写 `industry_load_diff`，再 DELETE + INSERT，审计同事务写入；任一步失败整体回滚
   （旧实现 DELETE 与 INSERT 各自 autocommit，INSERT 失败会留下空表/半表）。
@@ -18,9 +24,9 @@
 - `db/checks/industry.py`：`C9_load_diff`（最新一次覆盖 17 表的运行必须每表留痕：差异行或
   `no_change` 汇总行；diff 行的 run 必须在 audit 里、change_type 合法、各类型字段非空组合正确）。
   C1–C8 判据未改；闸数 8 → 9。
-- `db/tests/test_industry_diff.py`：9 项行为测试（值修改 + 新增行、快照源撤期 F3 回归、
+- `db/tests/test_industry_diff.py`：10 项行为测试（值修改 + 新增行、快照源撤期 F3 回归、
   幂等 0 差异汇总、分区源只碰本期、空快照拒绝清表【含 `--full` 不豁免】、整数与浮点同值不误报、
-  离线 HTML fixture 的 F3 全链路回归、C9 缺留痕、C9 畸形行）。
+  离线 HTML fixture 的 F3 全链路回归、raw 快照按内容去重归档、C9 缺留痕、C9 畸形行）。
 - `scripts/work585_verify.py`：复核脚本（离线演示 / 主库现状 / 分项自检 / C9）。
 - `scripts/work585_build_delivery.py`：从现场数据生成单文件 `docs/DELIVERY-WORK-585.html`。
 - `docs/industry-ingest-2026.md` §14：表结构、写入时机、查询与复核流程、F3 修复、C9 判据、回滚。

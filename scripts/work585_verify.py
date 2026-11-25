@@ -118,13 +118,14 @@ def cmd_demo() -> dict:
         "SELECT run_id FROM industry_load_audit ORDER BY finished_at"
     ).fetchall()]
     diff2 = con.execute(
-        "SELECT change_type, period, indicator, column_name, old_value, new_value "
+        "SELECT change_type, period, indicator, column_name, old_value, new_value, "
+        "reason, source_doc "
         "FROM industry_load_diff WHERE run_id = ? ORDER BY change_type, indicator",
         [runs[1]],
     ).df()
     diff3 = con.execute(
-        "SELECT change_type, indicator, new_value FROM industry_load_diff WHERE run_id = ?",
-        [runs[2]],
+        "SELECT change_type, indicator, new_value, reason FROM industry_load_diff "
+        "WHERE run_id = ?", [runs[2]],
     ).df()
     after = con.execute(
         "SELECT period, indicator, value FROM industry_cnesa_storage ORDER BY 1, 2"
@@ -191,6 +192,13 @@ def cmd_db() -> dict:
     view = con.execute(
         "SELECT * FROM v_industry_load_changes_recent ORDER BY changed_at DESC LIMIT 20"
     ).df()
+    sample = con.execute(
+        "SELECT change_type, reason, source_doc FROM industry_load_diff "
+        "WHERE run_id = ? ORDER BY table_name LIMIT 2", [run]
+    ).df()
+    no_reason = int(con.execute(
+        "SELECT count(*) FROM industry_load_diff WHERE reason IS NULL"
+    ).fetchone()[0])
     view_total = int(con.execute(
         "SELECT count(*) FROM v_industry_load_changes_recent"
     ).fetchone()[0])
@@ -202,6 +210,12 @@ def cmd_db() -> dict:
     print(f"  run={run} diff 行合计={total} 覆盖表数={tables_with}")
     check(tables_with == 17, f"最新完整运行覆盖 17 张表留痕（实际 {tables_with}）")
     check(int(counts["n"].sum()) == total, "分项相加 = diff 行合计")
+    check(no_reason == 0, f"每行都有 reason（空值 {no_reason} 行）")
+    check(all(sample["reason"].str.len() > 0), "样本行的 reason 非空")
+    check(list(view.columns)[-3:] == ["source_doc", "reason", "changed_at"],
+          f"视图末三列为 source_doc/reason/changed_at（实际 {list(view.columns)[-3:]}）")
+    archived = sorted(HOME.glob("raw/industry/*/history/*")) + sorted(HOME.glob("raw/industry_alt/*/history/*"))
+    check(len(archived) >= 18, f"raw 快照已归档 ≥18 份（实际 {len(archived)}）")
     payload = {
         "run_id": run,
         "diff_total": total,
@@ -209,6 +223,9 @@ def cmd_db() -> dict:
         "by_table_type": counts.to_dict("records"),
         "view_rows": view.to_dict("records"),
         "view_total": view_total,
+        "no_reason_rows": no_reason,
+        "reason_sample": sample.to_dict("records"),
+        "history_files": len(archived),
     }
     META.mkdir(parents=True, exist_ok=True)
     (META / "work585-db.json").write_text(

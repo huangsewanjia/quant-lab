@@ -540,8 +540,12 @@ ORDER BY 1;
 -- 装载变更留痕（WORK-585）
 --
 -- 为什么单独一张表：industry_load_audit 只记行数与耗时，回答不了「这次替换
--- 到底改了什么、删了什么」。复核要求逐行可读（old → new、被删的行），因此
--- 差异单独落表，audit 结构与 17 张观测表都不动。
+-- 到底改了什么、删了什么」。复核要求逐行可读（原值 → 新值 + 改动原因 + 对应 URL），
+-- 因此差异单独落表，audit 结构与 17 张观测表都不动。
+--
+-- 四要素（用户 2026-11-25 点名）：old_value（原始值）、new_value（新值）、
+-- reason（改动原因）、source_doc（对应 URL）。source_doc 取被改动行自己的
+-- source_url / url 列；没有 URL 列的表为 NULL。
 --
 -- 写入时机：load_source 在同一事务内「先写差异、后执行替换」；替换失败回滚时
 -- 差异一起回滚，不会留下「说有变化但库没变」的记录。
@@ -559,9 +563,19 @@ CREATE TABLE IF NOT EXISTS industry_load_diff (
     "column_name"  VARCHAR,
     "old_value"    VARCHAR,
     "new_value"    VARCHAR,
+    "source_doc"   VARCHAR,
+    "reason"       VARCHAR NOT NULL,
     "changed_at"   TIMESTAMP NOT NULL
 );
-COMMENT ON TABLE industry_load_diff IS '行业层装载逐行差异（WORK-585）：每次装载替换前记录「库内现状 vs 本次快照」；0 差异的装载写一行 no_change 汇总（证明跑过、无变化）';
+-- 生产库在「首版 12 列之前」已有同表（WORK-585 首轮 9 次装载写入 75 行）。
+-- ALTER 只补列不改数据；历史行按诚实口径回填「上线前写入」标记，不留 NULL 冒充有原因。
+ALTER TABLE industry_load_diff ADD COLUMN IF NOT EXISTS "source_doc" VARCHAR;
+ALTER TABLE industry_load_diff ADD COLUMN IF NOT EXISTS "reason" VARCHAR;
+UPDATE industry_load_diff
+SET reason = 'WORK-585 首版上线前写入，无原因字段（历史行）'
+WHERE reason IS NULL;
+
+COMMENT ON TABLE industry_load_diff IS '行业层装载逐行差异（WORK-585）：每次装载替换前记录「库内现状 vs 本次快照」的四要素（原值/新值/原因/URL）；0 差异的装载写一行 no_change 汇总';
 COMMENT ON COLUMN industry_load_diff.run_id IS '与 industry_load_audit.run_id 同一次运行的 id（预测表一组带 F 后缀）';
 COMMENT ON COLUMN industry_load_diff.source IS '源名（db/etl/industry.py 的 Source.name），便于按源复核';
 COMMENT ON COLUMN industry_load_diff.table_name IS '目标表 industry_*';
@@ -571,12 +585,15 @@ COMMENT ON COLUMN industry_load_diff.change_type IS 'value_changed（某列值�
 COMMENT ON COLUMN industry_load_diff.column_name IS 'value_changed 时发生变化的列名；其余类型为 NULL';
 COMMENT ON COLUMN industry_load_diff.old_value IS '变化前列值 / 被删行整行文本（k=v|k=v，超 4000 字符截断）；源侧为空记 ∅；row_added 与 no_change 为 NULL';
 COMMENT ON COLUMN industry_load_diff.new_value IS '变化后列值 / 新增行整行文本；no_change 为汇总文本（staged/库内/差异计数）；row_dropped 为 NULL';
+COMMENT ON COLUMN industry_load_diff.source_doc IS '被改动行自己的原文 URL（取 source_url / url / adjunct_url 列）；没有 URL 列的表为 NULL';
+COMMENT ON COLUMN industry_load_diff.reason IS '改动原因（人读一句话）：装载模式 + 本次快照抓取时间 + 变更性质；不允许为 NULL';
 COMMENT ON COLUMN industry_load_diff.changed_at IS '写入时刻（本地墙钟，与 industry_load_audit 同口径）';
 
 -- ---------------------------------------------------------------------------
 -- 复核视图：近 30 天的「值变化 / 行被删」
 --
 -- 只列这两类：新增行是常态（源在扩），值变化与行消失才需要人去看一眼。
+-- 列里带 reason / source_doc：这是大屏「数据变更」区块的数据源，四要素与表内同源。
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE VIEW v_industry_load_changes_recent AS
 SELECT run_id,
@@ -588,6 +605,8 @@ SELECT run_id,
        column_name,
        old_value,
        new_value,
+       source_doc,
+       reason,
        changed_at
 FROM industry_load_diff
 WHERE change_type IN ('value_changed', 'row_dropped')

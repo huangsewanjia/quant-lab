@@ -24,7 +24,7 @@
                            context 含「预计/有望」类语气词且能在正文快照里逐字定位
   C9_load_diff           装载留痕完整性（WORK-585）：最新一次覆盖 17 张表的运行，每张表都要
                           留过痕（差异行或 no_change 汇总行）；diff 行须能对上 audit、
-                          change_type 合法、各类型的字段组合正确（不判断变化是否符合预期）
+                          change_type 合法、reason 非空、各类型的字段组合正确（不判断变化是否符合预期）
 
 C1..C7 是观测表的既有 7 道闸，判据未改；C8 只查预测表，C9 只查留痕完整性。
 只读打开 DuckDB；本模块不写主库，只写 meta/checks 下的 JSON 报告。
@@ -664,7 +664,8 @@ def c9_load_diff(con) -> tuple[bool, dict[str, Any]]:
                               WHERE a.run_id = d.run_id
                                 AND a.table_name = d.table_name)),
           (SELECT count(*) FROM industry_load_diff
-            WHERE (change_type = 'value_changed'
+            WHERE reason IS NULL
+               OR (change_type = 'value_changed'
                    AND (column_name IS NULL OR old_value IS NULL OR new_value IS NULL))
                OR (change_type = 'row_added' AND new_value IS NULL)
                OR (change_type = 'row_dropped' AND old_value IS NULL)

@@ -87,7 +87,8 @@ def _prepare_db(qdb):
 
 def _diff_rows(con, run_id):
     return con.execute(
-        "SELECT change_type, indicator, column_name, old_value, new_value, period "
+        "SELECT change_type, indicator, column_name, old_value, new_value, period, "
+        "reason, source_doc "
         "FROM industry_load_diff WHERE run_id = ? "
         "ORDER BY change_type, indicator, column_name",
         [run_id],
@@ -127,6 +128,13 @@ def test_value_change_and_added_row_are_logged(qdb):
     assert "新增储能相关政策数量" in added[0][1]
     assert "value=869" in added[0][4]
     assert loaded == 150.9
+
+    # 四要素（用户点名）：原值 / 新值 / 原因 / 对应 URL
+    assert changed[0][6].startswith("整源替换"), changed[0][6]
+    assert "抓取" in changed[0][6] or "快照" in changed[0][6]
+    assert changed[0][7] == "http://example/cnesa"
+    assert added[0][6].startswith("整源替换")
+    assert added[0][7] == "http://example/cnesa"
 
 
 def test_snapshot_source_drops_vanished_period_and_logs_it(qdb):
@@ -232,9 +240,11 @@ def test_c9_requires_a_diff_record_for_every_table(qdb):
                 ["R1", table, "src", 1, 1, 1, 1, "partition", now, now],
             )
             con.execute(
-                "INSERT INTO industry_load_diff VALUES (?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO industry_load_diff (run_id, source, table_name, period, "
+                "indicator, change_type, column_name, old_value, new_value, source_doc, "
+                "reason, changed_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                 ["R1", "src", table, None, "(全表)", "no_change", None, None,
-                 "staged=1 库内=1 差异=0", now],
+                 "staged=1 库内=1 差异=0", None, "按期替换：无变化", now],
             )
         ok, detail = checks_industry.c9_load_diff(con)
         assert ok, detail
@@ -258,14 +268,18 @@ def test_c9_rejects_malformed_diff_rows(qdb):
                 ["R1", table, "src", 1, 1, 1, 1, "partition", now, now],
             )
             con.execute(
-                "INSERT INTO industry_load_diff VALUES (?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO industry_load_diff (run_id, source, table_name, period, "
+                "indicator, change_type, column_name, old_value, new_value, source_doc, "
+                "reason, changed_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                 ["R1", "src", table, None, "(全表)", "no_change", None, None,
-                 "staged=1 库内=1 差异=0", now],
+                 "staged=1 库内=1 差异=0", None, "按期替换：无变化", now],
             )
         con.execute(
-            "INSERT INTO industry_load_diff VALUES (?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO industry_load_diff (run_id, source, table_name, period, "
+            "indicator, change_type, column_name, old_value, new_value, source_doc, "
+            "reason, changed_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             ["R1", "src", checks_industry.TABLES[0], None, "x", "value_changed",
-             None, "1", "2", now],
+             None, "1", "2", None, "按期替换：变化", now],
         )
         ok, detail = checks_industry.c9_load_diff(con)
 
@@ -360,3 +374,26 @@ def test_f3_regression_from_offline_html_fixture(qdb, monkeypatch):
     assert len(f3) == 1, dropped
     assert "平均时长" in f3[0][1]
     assert "value=2.11" in f3[0][3]
+
+
+def test_raw_snapshot_is_archived_once_per_content(qdb):
+    """raw 快照只增不删：同内容只留一份，内容变了再留一份（history/ 下按 sha 去重）。"""
+    _prepare_db(qdb)
+    source = ind.SOURCE_BY_NAME["cnesa_storage"]
+    history = ind.raw_dir("parquet") / "cnesa_storage" / "history"
+
+    data = [_row("2026-01", "新型储能累计装机规模", "144.7")]
+    _write_cnesa(data)
+    with qdb.duckdb_connect() as con:
+        ind.load_source(con, source, "run-1")
+        first = sorted(p.name for p in history.glob("*.parquet"))
+        _write_cnesa(data)          # 同内容重跑：不重复归档
+        ind.load_source(con, source, "run-2")
+        after_same = sorted(p.name for p in history.glob("*.parquet"))
+        _write_cnesa([_row("2026-01", "新型储能累计装机规模", "150.9")])
+        ind.load_source(con, source, "run-3")
+        after_change = sorted(p.name for p in history.glob("*.parquet"))
+
+    assert len(first) == 1, first
+    assert after_same == first, (first, after_same)
+    assert len(after_change) == 2, after_change

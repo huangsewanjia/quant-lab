@@ -959,13 +959,16 @@ raw 摘要（2026-11-25 22:55 最终版）：`part.parquet` 12,237 B，sha256
 
 ### 14.1 一句话
 
-每次装载替换之前，先算「库内现状 vs 本次快照」的逐行差异写进 `industry_load_diff`，再执行替换
-（同事务，先记账后动手）；`cnesa_storage` 改为**整源替换**，WORK-577 遗留 F3（上游删期、库内残留
-幽灵行）随之消除；复核看 `v_industry_load_changes_recent`（近 30 天的值变化与被删行）。
+每次装载替换之前，先算「库内现状 vs 本次快照」的逐行差异写进 `industry_load_diff`
+（**四要素**：原值 `old_value` / 新值 `new_value` / 原因 `reason` / 对应 URL `source_doc`），
+再执行替换（同事务，先记账后动手）；`cnesa_storage` 改为**整源替换**，WORK-577 遗留 F3
+（上游删期、库内残留幽灵行）随之消除；raw 快照按内容版本化留档到各源 `history/`（只增不删）；
+复核看 `v_industry_load_changes_recent`（近 30 天的值变化与被删行，列里带 `reason` / `source_doc`，
+是大屏「数据变更」区块的数据源）。
 
 ### 14.2 表结构
 
-`industry_load_diff`（10 列，**无主键**：一次变更一行，同一 run 同一表可有多行）：
+`industry_load_diff`（12 列，**无主键**：一次变更一行，同一 run 同一表可有多行）：
 
 | 列 | 类型 | 含义 |
 |---|---|---|
@@ -978,20 +981,34 @@ raw 摘要（2026-11-25 22:55 最终版）：`part.parquet` 12,237 B，sha256
 | `column_name` | VARCHAR | `value_changed` 时变化的列名 |
 | `old_value` | VARCHAR | 变化前列值 / 被删行整行文本；源侧为空记 `∅` |
 | `new_value` | VARCHAR | 变化后列值 / 新增行整行文本；`no_change` 存汇总文本 |
+| `source_doc` | VARCHAR | 被改动行自己的原文 URL（取 `source_url` / `url` / `adjunct_url` 列）；无 URL 列的表为 NULL |
+| `reason` | VARCHAR | 改动原因（人读一句话）：装载模式 + 本次快照抓取时间 + 变更性质；**不允许为 NULL** |
 | `changed_at` | TIMESTAMP | 写入时刻（本地墙钟） |
+
+`reason` 的取值形态（由 `db/etl/industry.py::change_reason` 生成，不手填）：
+
+| change_type | reason 示例 |
+|---|---|
+| `value_changed` | `整源替换：本次快照（2026-11-25T00:00:00+0800）中该字段取值变化` |
+| `row_added` | `按期替换：本次快照（…）新增该行` |
+| `row_dropped` | `整源替换：本次快照（…）不再包含该行` |
+| `no_change` | `按期替换：源快照（…）与库内逐行一致，无变化` |
+| 历史行（首版上线前写入） | `WORK-585 首版上线前写入，无原因字段（历史行）` |
+
+**存量表兼容**：生产库在本单首版落地时已有同表（75 行 10 列）。`apply_schema` 每次装载执行
+`ALTER TABLE … ADD COLUMN IF NOT EXISTS` 补 `source_doc` / `reason`，并把历史行回填为上面那句
+「无原因字段」——不用 NULL 冒充「有原因」。写入用**显式列名**的 INSERT，不依赖列顺序。
 
 写入时机在 `db/etl/industry.py::load_source`：
 
 ```
 BEGIN TRANSACTION
   1. 读库内现状（分区模式：本次 staged 覆盖的期；整源模式：全表）
-  2. 算差异 → INSERT INTO industry_load_diff
+  2. 算差异 → INSERT INTO industry_load_diff（含 reason / source_doc）
   3. DELETE（分区 / 整源）→ INSERT OR REPLACE
   4. INSERT industry_load_audit
 COMMIT                （任一步失败 → ROLLBACK，库内保持装载前状态）
 ```
-
-顺带修掉旧实现的隐患：原来的 DELETE 与 INSERT 各自 autocommit，INSERT 失败会留下空表/半表。
 
 **为什么单独一张表**：`industry_load_audit` 只记行数与耗时，回答不了「这次替换改了什么、删了什么」；
 复核要求逐行可读，因此差异单独落表，audit 结构与 17 张观测表都不动。
@@ -1004,19 +1021,25 @@ COMMIT                （任一步失败 → ROLLBACK，库内保持装载前状
 ### 14.3 怎么查
 
 ```sql
--- 近 30 天需要人看一眼的变更（值变化 + 行被删）
+-- 近 30 天需要人看一眼的变更（值变化 + 行被删），带原因与原文 URL
 select * from v_industry_load_changes_recent order by changed_at desc limit 50;
 
--- 某一次运行改了什么
-select change_type, table_name, period, indicator, column_name, old_value, new_value
-from industry_load_diff where run_id = '20261125T231500' order by table_name, indicator;
+-- 某一次运行改了什么（四要素齐全）
+select change_type, table_name, period, indicator, column_name,
+       old_value, new_value, reason, source_doc
+from industry_load_diff where run_id = '20261126T000000'
+order by table_name, indicator;
 
 -- 本轮到底跑过没有（no_change 汇总行）
-select table_name, new_value from industry_load_diff
-where run_id = '20261125T231500' and change_type = 'no_change';
+select table_name, reason from industry_load_diff
+where run_id = '20261126T000000' and change_type = 'no_change';
 ```
 
-### 14.4 快照源整源替换（F3 修复）
+`v_industry_load_changes_recent` 的列：`run_id / source / table_name / period / indicator /
+change_type / column_name / old_value / new_value / source_doc / reason / changed_at`
+——大屏「数据变更」区块直接读这张视图即可，不需要再回表拼 URL。
+
+### 14.4 快照源整源替换（F3 修复）+ raw 版本化留档
 
 `Source` 增 `replace_mode`：`"partition"`（默认，按期替换）与 `"source"`（整表替换）。
 **本单只给 `cnesa_storage` 设 `"source"`**，其余 16 个观测源与预测源维持原模式不变。
@@ -1033,6 +1056,12 @@ where run_id = '20261125T231500' and change_type = 'no_change';
 量级提醒：`--full` 会为被清掉的行各写一条 `row_dropped`（`industry_stats_gov_release` 13.7 万行
 → 约 27 万条 diff，`executemany` 实测约 2,450 行/秒），所以它只用于排查，不进定时任务。
 
+**raw 快照版本化（`history/`）**：每次装载读 raw 之前，`archive_raw_snapshot()` 把该源当前快照复制到
+`raw/industry/<source>/history/<sha256前12位>-<mtime>.parquet`（国际源为 `.csv`），**同一内容只留一份**
+（按内容哈希去重，定时任务每天重抓同一份快照不会膨胀）。原始数据因此只增不删：上游改版、抓取脚本
+换解析口径，都能回到任意历史版本比对。过去「就地 `.bak` 覆盖」的做法退役——`.bak` 只在改动前手工留
+一份，下一次改动就被覆盖，等于没有历史。
+
 F3 回归的覆盖面：`db/tests/test_industry_diff.py::test_f3_regression_from_offline_html_fixture` 从
 **离线 HTML fixture** 走抓取器正文解析（HTML → 文本 → 期与指标）再装载，覆盖「上游删句 → 少一期 →
 库内清除并进日志」整条链路；抓取器本体在 `/srv/share/quantdb/code/industry_fetch/`（不在本仓库，
@@ -1045,11 +1074,11 @@ F3 回归的覆盖面：`db/tests/test_industry_diff.py::test_f3_regression_from
 1. 取「覆盖全部 17 张表」的最新一次运行（与 C5 同一查询口径）；
 2. 该 run 的 17 张表**每张都要留过痕**（差异行或 `no_change` 汇总行）——「跑过必留痕」；
 3. 每条 diff 的 `(run_id, table_name)` 在 `industry_load_audit` 里存在；
-4. `change_type` ∈ 4 个合法值；`value_changed` 必须有 `column_name` 与前后值，
-   `row_added` 必须有 `new_value`，`row_dropped` 必须有 `old_value`，`no_change` 的 `column_name`
-   与 `old_value` 必须为 NULL。
+4. `change_type` ∈ 4 个合法值；**`reason` 不得为空**；`value_changed` 必须有 `column_name`
+   与前后值，`row_added` 必须有 `new_value`，`row_dropped` 必须有 `old_value`，`no_change` 的
+   `column_name` 与 `old_value` 必须为 NULL。
 
-它只回答「替换有没有记账」，不判断变化是否符合业务预期——后者是人看 §14.3 视图的事。
+它只回答「替换有没有记账、记全没记全」，不判断变化是否符合业务预期——后者是人看 §14.3 视图的事。
 
 ### 14.6 复跑命令（绝对路径）
 
@@ -1058,11 +1087,12 @@ F3 回归的覆盖面：`db/tests/test_industry_diff.py::test_f3_regression_from
 cd /srv/share/quantdb/code/quant-lab
 PYTHONPATH=$PWD /home/moyongkai/.venvs/quantdb/bin/python -m pytest db/tests/test_industry_diff.py -q
 
-# 只装载快照源，看 diff 落库
+# 只装载快照源，看 diff 落库与 history 归档
 QUANTDB_HOME=/srv/share/quantdb flock -w 1800 /srv/share/quantdb/logs/.quantdb-db.lock \
   /home/moyongkai/.venvs/quantdb/bin/python -m db.etl.industry load --sources cnesa_storage
+ls -la /srv/share/quantdb/raw/industry/cnesa_storage/history/
 
-# 复核视图
+# 复核视图（大屏「数据变更」区块同源）
 QUANTDB_HOME=/srv/share/quantdb /home/moyongkai/.venvs/quantdb/bin/python -c "
 import os, duckdb
 con = duckdb.connect(os.environ['QUANTDB_HOME'] + '/db/quantdb.duckdb', read_only=True)
@@ -1072,8 +1102,11 @@ print(con.execute('select * from v_industry_load_changes_recent limit 20').df().
 
 ### 14.7 回滚
 
-1. 代码：`db/etl/industry.py`、`db/checks/industry.py`、`db/schema_industry.sql` 回退到 `*.bak-<时间戳>`
-   或 `git revert <交付 SHA>`；`industry.sh` 调用方式未变，回滚代码即恢复原行为。
+1. 代码：`git revert <交付 SHA>`（分支 `agent/work-585-diff-log`）。本单不再保留 `.bak` 副本
+   ——`.bak` 机制已退役，回滚一律走 git（改前版本是基线 `59e5682`）。
 2. 库：`DROP VIEW v_industry_load_changes_recent; DROP TABLE industry_load_diff;`
    —— 两对象只被留痕逻辑与 C9 使用，删掉后 C9 自然消失，C1–C8 与 17 张观测表数据零改动。
-3. 数据：整源替换已经清掉的残留行不会因回滚代码而复活；需要恢复时按 raw 重新装载（raw 未改）。
+3. raw：`history/` 里的快照是只增不删的留档，回滚代码不需要动它；要回到某个历史快照，
+   从 `history/` 复制回 `part.parquet` 再装载即可。
+4. 数据：整源替换已经清掉的残留行不会因回滚代码而复活；需要恢复时按 raw（或 `history/` 里的旧快照）
+   重新装载。

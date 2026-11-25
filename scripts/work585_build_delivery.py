@@ -343,6 +343,11 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 <tr><td>幂等：0 差异写汇总行、17 表行数不变、连跑两次一致</td>
 <td><code>test_rerun_without_changes_writes_one_no_change_row</code></td>
 <td class="ok">见 §6.3</td></tr>
+<tr><td><b>派单方追加</b>：diff 表增 <code>reason</code>（改动原因）与 <code>source_doc</code>
+（对应 URL）两列——四要素；raw 快照版本化到 <code>history/</code>（只增不删），<code>.bak</code> 退役；
+复核视图含这两列（大屏「数据变更」区块数据源）</td>
+<td><code>industry_load_diff</code> 12 列 + <code>archive_raw_snapshot()</code> + 视图</td>
+<td class="ok">见 §6.1 / §6.4</td></tr>
 <tr><td>既有闸 PASS、audit 照常、<code>pytest db/tests/</code> 全过、回滚写清</td>
 <td>§6.4 / §6.5 / §8</td><td class="ok">完成</td></tr>
 </table>
@@ -358,15 +363,24 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 第 2 轮恰好 1 条 <code>value_changed</code>（144.7 → 150.9）+ 1 条 <code>row_dropped</code>（2022-01 撤期）；
 第 3 轮同 raw 重跑只写 1 行 <code>no_change</code> 汇总。</figcaption></figure>
 <table>
-<tr><th>轮次</th><th>change_type</th><th>indicator</th><th>column</th><th>old → new</th></tr>
+<tr><th>轮次</th><th>change_type</th><th>indicator</th><th>old → new</th>
+<th>reason（改动原因）</th><th>source_doc（对应 URL）</th></tr>
 <tr><td>2</td><td>value_changed</td><td>{esc(changed[0].get("indicator",""))}</td>
-<td>{esc(changed[0].get("column_name",""))}</td>
-<td>{esc(changed[0].get("old_value",""))} → <b>{esc(changed[0].get("new_value",""))}</b></td></tr>
-<tr><td>2</td><td>row_dropped</td><td>{esc(dropped[0].get("indicator",""))}</td><td>—</td>
-<td>{esc(str(dropped[0].get("old_value",""))[:120])}…</td></tr>
-<tr><td>3</td><td>no_change</td><td>(全表)</td><td>—</td>
-<td>{esc((demo.get("no_change") or [{}])[0].get("new_value",""))}</td></tr>
+<td>{esc(changed[0].get("old_value",""))} → <b>{esc(changed[0].get("new_value",""))}</b></td>
+<td>{esc(changed[0].get("reason",""))}</td>
+<td class="muted">{esc(changed[0].get("source_doc",""))}</td></tr>
+<tr><td>2</td><td>row_dropped</td><td>{esc(dropped[0].get("indicator",""))}</td>
+<td>{esc(str(dropped[0].get("old_value",""))[:80])}…</td>
+<td>{esc(dropped[0].get("reason",""))}</td>
+<td class="muted">{esc(dropped[0].get("source_doc",""))}</td></tr>
+<tr><td>3</td><td>no_change</td><td>(全表)</td>
+<td>{esc((demo.get("no_change") or [{}])[0].get("new_value",""))}</td>
+<td>{esc((demo.get("no_change") or [{}])[0].get("reason",""))}</td>
+<td class="muted">—</td></tr>
 </table>
+<p class="muted">四要素（用户点名）：原值 <code>old_value</code>、新值 <code>new_value</code>、
+改动原因 <code>reason</code>、对应 URL <code>source_doc</code>。`reason` 由装载模式 + 本次快照的
+抓取时间 + 变更性质生成，不是手填。</p>
 {term(chr(10).join(demo.get("loader_out", [])))}
 
 <h3>6.2 F3 回归：上游删期，库内不留幽灵行</h3>
@@ -410,6 +424,8 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 <li><b>row_hash 源没有「值变化」</b>：内容改版显示为一行 add + 一行 drop。不把两行配成一条，
 是因为业务键不唯一（146 行对 98 个业务键），配对靠推断、推断错比不推断更糟。</li>
 <li><b>C9 只查留痕完整性</b>，不判断变化是否符合业务预期——那是人看视图的事。</li>
+<li><b><code>history/</code> 会随快照变化增长</b>：同内容按 sha 去重，正常每日定时任务若上游无变化
+不会新增文件；有变化时每源每天约 1 份（当前最大 437KB）。要限制总量需另做归档策略，不在本单。</li>
 <li><b>diff 不清理</b>：每日/每月累积，量级是「每次装载的变更行数」，正常重跑每表 1 行；
 若将来需要保留窗口，另开单做归档，不在本单。</li>
 <li><b><code>--full</code> 的 diff 会放大</b>：清表重装会为被清掉的行各写一条 <code>row_dropped</code>
@@ -420,12 +436,8 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 </ul>
 
 <h2>8. 回滚</h2>
-<pre class="term"># ① 代码（二选一）
+<pre class="term"># ① 代码：git revert（.bak 机制已退役，改前版本就是基线 59e5682）
 git -C /srv/share/quantdb/code/quant-lab revert &lt;交付 SHA&gt;
-#   或直接还原改前备份：
-cp db/etl/industry.py.bak-&lt;时间戳&gt;         db/etl/industry.py
-cp db/checks/industry.py.bak-&lt;时间戳&gt;      db/checks/industry.py
-cp db/schema_industry.sql.bak-&lt;时间戳&gt;     db/schema_industry.sql
 
 # ② 库对象（只删留痕对象，不动任何观测表数据）
 flock /srv/share/quantdb/logs/.quantdb-db.lock \
@@ -452,10 +464,14 @@ C9 随 <code>industry_load_diff</code> 一起消失，C1–C8 不受影响。</p
     indicator   VARCHAR NOT NULL,   -- 业务键文本 k=v|k=v
     change_type VARCHAR NOT NULL,   -- value_changed | row_added | row_dropped | no_change
     column_name VARCHAR,            -- value_changed 时变化的列名
-    old_value   VARCHAR,            -- 变化前 / 被删行整行文本；源侧为空记 ∅
-    new_value   VARCHAR,            -- 变化后 / 新增行整行文本；no_change 存汇总文本
+    old_value   VARCHAR,            -- 原值 / 被删行整行文本；源侧为空记 ∅
+    new_value   VARCHAR,            -- 新值 / 新增行整行文本；no_change 存汇总文本
+    source_doc  VARCHAR,            -- 对应 URL：该行自己的 source_url / url 列
+    reason      VARCHAR NOT NULL,   -- 改动原因：装载模式 + 快照抓取时间 + 变更性质
     changed_at  TIMESTAMP NOT NULL
-);</pre>
+);
+-- 存量表兼容：ALTER ADD COLUMN IF NOT EXISTS + 历史行回填「首版上线前写入」
+-- raw 快照留档：raw/<kind>/<source>/history/<sha12>-<mtime>.<ext>（同内容去重，只增不删）</pre>
 
 <h3>9.2 常用查询</h3>
 <pre class="term">-- 近 30 天需要人复核的变更

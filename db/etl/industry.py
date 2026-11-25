@@ -33,6 +33,7 @@ import hashlib
 import json
 import numbers
 import re
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -613,6 +614,9 @@ BUSINESS_KEYS: dict[str, list[str]] = {
 
 DIFF_TEXT_LIMIT = 4000
 DIFF_EMPTY_CELL = "∅"
+RAW_HISTORY_DIR = "history"
+MODE_LABEL = {"partition": "按期替换", "source": "整源替换", "full": "清表重装"}
+DOC_COLUMNS = ("source_url", "url", "adjunct_url", "source_doc")
 
 
 def _cell_text(value: Any) -> str:
@@ -651,6 +655,48 @@ def _row_text(row: dict[str, Any], columns: list[str]) -> str:
     return text
 
 
+def change_reason(manifest: dict[str, Any], mode: str, change: str) -> str:
+    """人读一句话：哪个模式、哪次快照、什么性质的变化。"""
+    stamp = _text(manifest.get("fetched_at")) or "抓取时间未记录"
+    label = MODE_LABEL.get(mode, mode)
+    if change == "no_change":
+        return f"{label}：源快照（{stamp}）与库内逐行一致，无变化"
+    if change == "row_added":
+        return f"{label}：本次快照（{stamp}）新增该行"
+    if change == "row_dropped":
+        return f"{label}：本次快照（{stamp}）不再包含该行"
+    return f"{label}：本次快照（{stamp}）中该字段取值变化"
+
+
+def row_source_doc(row: dict[str, Any]) -> str | None:
+    """被改动行自己的原文 URL；没有 URL 列的表返回 None。"""
+    for column in DOC_COLUMNS:
+        value = _text(row.get(column))
+        if value and value != DIFF_EMPTY_CELL:
+            return value
+    return None
+
+
+def archive_raw_snapshot(source: Source) -> Path | None:
+    """把本次装载读到的 raw 快照留一份到 <raw>/<source>/history/，只增不删。
+
+    同一内容只留一份（按 sha256 去重）：定时任务每天重抓同一份快照不会让目录膨胀。
+    替代过去「就地 .bak 覆盖」的做法——`.bak` 只在改动前手工留一份，下一次改动就被覆盖。
+    """
+    path = source.data_path
+    if not path.exists():
+        return None
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    history = path.parent / RAW_HISTORY_DIR
+    history.mkdir(exist_ok=True)
+    if any(history.glob(f"{digest[:12]}-*")):
+        return None
+    stamp = dt.datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y%m%dT%H%M%S")
+    target = history / f"{digest[:12]}-{stamp}{path.suffix}"
+    shutil.copy2(path, target)
+    return target
+
+
 def _diff_period(source: Source, row: dict[str, Any]) -> dt.date | None:
     if not source.partition:
         return None
@@ -669,6 +715,7 @@ def compute_load_diff(
     source: Source,
     staged: pd.DataFrame,
     mode: str,
+    manifest: dict[str, Any],
 ) -> list[list[Any]]:
     """库内现状（同事务内读）vs 本次 staged 的逐行差异，返回可直接 INSERT 的行。"""
     key_columns = ["row_hash"] if source.pk_is_hash else _primary_key(con, source.table)
@@ -701,7 +748,8 @@ def compute_load_diff(
         )
         return [
             source.name, source.table, _diff_period(source, row), indicator,
-            change, column, old_value, new_value, now,
+            change, column, old_value, new_value, row_source_doc(row),
+            change_reason(manifest, mode, change), now,
         ]
 
     rows: list[list[Any]] = []
@@ -722,7 +770,8 @@ def compute_load_diff(
     if not rows:
         rows.append([
             source.name, source.table, None, "(全表)", "no_change", None, None,
-            f"staged={len(staged)} 库内={len(existing)} 差异=0", now,
+            f"staged={len(staged)} 库内={len(existing)} 差异=0", None,
+            change_reason(manifest, mode, "no_change"), now,
         ])
     rows.sort(key=lambda r: (r[4], r[3], r[5] or ""))
     return rows
@@ -733,8 +782,12 @@ def write_load_diff(
 ) -> int:
     if not rows:
         return 0
+    # 显式列名：生产库的旧表经 ALTER 补列后，reason/source_doc 落在末尾，
+    # 位置插入会把值写错列。
     con.executemany(
-        "INSERT INTO industry_load_diff VALUES (?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO industry_load_diff (run_id, source, table_name, period, indicator, "
+        "change_type, column_name, old_value, new_value, source_doc, reason, changed_at) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
         [[run_id, *row] for row in rows],
     )
     return len(rows)
@@ -748,6 +801,7 @@ def load_source(
 ) -> dict[str, Any]:
     started = dt.datetime.now()
     manifest = read_manifest(source.root)
+    archive_raw_snapshot(source)
     raw = source.read(con)
     staged = source.transform(raw, manifest)
 
@@ -781,7 +835,7 @@ def load_source(
                 "拒绝清空（多半是快照抓空或解析失败），先查 raw 再处理"
             )
         diff_rows = write_load_diff(
-            con, run_id, compute_load_diff(con, source, staged, mode)
+            con, run_id, compute_load_diff(con, source, staged, mode, manifest)
         )
         if mode in ("full", "source"):
             con.execute(f"DELETE FROM {source.table}").fetchall()
