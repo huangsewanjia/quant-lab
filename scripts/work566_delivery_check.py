@@ -102,9 +102,14 @@ def main():
             continue
         if st.get("selected") != "best_vloss":
             ck_bad.append(f"seed{s}: selected={st.get('selected')!r}（应为 'best_vloss'）")
+        elif st.get("complete") is not True:
+            ck_bad.append(f"seed{s}: complete={st.get('complete')!r}（应为 True）")
+        elif not st.get("cfg"):
+            ck_bad.append(f"seed{s}: cfg 缺失（配置指纹未写）")
         else:
-            ck_ok.append(f"seed{s}: vloss={st.get('vloss')} upd={st.get('upd')}")
-    add("C9", "表征 checkpoint 为「验证损失最小者」快照（selected=best_vloss）",
+            ck_ok.append(f"seed{s}: vloss={st.get('vloss')} upd={st.get('upd')} "
+                         f"cfg_keys={len(st.get('cfg') or {})}")
+    add("C9", "表征 checkpoint 为「验证损失最小者」完整快照（selected/complete/cfg 齐备）",
         not ck_bad,
         f"异常 {ck_bad or '无'}；通过 {ck_ok or '无'}",
         measured={"n_ok": len(ck_ok), "n_bad": len(ck_bad)},

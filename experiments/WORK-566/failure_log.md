@@ -756,3 +756,48 @@ AssertionError: [ASSERT] 不可成交价：涨停股开盘买入被拒 stock=99 
   为保证**两个种子跑同一份代码**（审计口径），这些改动在 seed42 重启前一次性做完，
   seed42 与 seed2024 **从同一 commit 起跑**（不出现「种子用不同版本代码」的情况）。
   代价：作废已跑 8 分钟的 seed42 首轮（未产出任何正式产物）。
+
+## §15 第 4 轮独立复审（只审第 3 轮整改）：**判通过**，11 项 NON-BLOCKING 全部处理（2026-11-25 19:28–19:50）
+
+### 15.1 判决与证据
+- 独立 verifier（未编写被审代码；审查期间**未运行**训练/回测/主检验脚本、未 import torch，
+  以免与在训的 seed42 进程争内存触发 OOM），报告落 `experiments/WORK-566/code_review_work566_round4.md`（128 行）。
+- **判决：通过** —— 第 3 轮的 B3 / B4 / B5 **均真正修好**（不是装饰性整改），**无新的 BLOCKING**；
+  11 项 NON-BLOCKING 中 10 项确实落地，仅 N-R11（披露未在报告兑现）部分成立。
+- 关键磁盘实证（用 `zipfile+pickle` 只读解析，未 import torch）：
+  `ckpt_seed42_rep.pt` = `upd=1000 / vloss=115.0360 / selected=best_vloss / complete=True`
+  （= 日志里 epoch0 的验证损失 115.0360），`.periodic` = `upd=1600 / selected=periodic` —— **两者并存、语义正确**。
+- B5 用合成 checkpoint 逐例执行校验块：周期快照 → 拒绝；修复前旧 ckpt → 拒绝；cfg 不一致 → 拒绝；
+  `complete=False` / 缺失 / 非 bool → 拒绝；新格式且 cfg 一致 → 放行。
+- B4 的 xargs 掩盖机制**实测**：旧写法 xargs 退出码 0（链继续）；新写法退出码 123（`set -e` 断链）。
+
+### 15.2 第 4 轮 11 项 NON-BLOCKING 的逐条处置
+| 编号 | 严重度 | 问题 | 处置 |
+|---|---|---|---|
+| NB-B | 中 | N-R11 的披露承诺未在报告兑现：报告只写「自检逐元素最大差」，读者会当成 S2 编码器**端到端**等价；实际只覆盖 encoder layer 的两条前向路径 | **已修**：报告补「该自检只比较 encoder layer 的两条前向路径，不覆盖 `SeqEncoder` 外层（summary token / pos / LayerNorm）」 |
+| NB-A | 中 | 报告自述 tmpfs 指纹仍是「size/mtime」，实现已加内容哈希 | **已修**：报告改为 `size:mtime:sha256(首末各 4MB)` |
+| NB-C | 中 | 新加的**落盘回读自检用 `assert`** → `python -O` 下被剥离，自检形同虚设（与 N-R2 同一原则） | **已修**：4 条 `assert` → 显式 `raise RuntimeError` |
+| NB-D | 中 | `--resume-rep` 的 cfg 校验 `if old_cfg and diff` 是 **fail-open**（cfg 缺失即放行） | **已修**：改为 fail-closed（cfg 缺失或不一致一律拒绝） |
+| NB-E | 低 | 配置指纹未覆盖数据快照，也未覆盖 `--threads` / `--val-batch`（改变浮点归约顺序 → 可能翻转「最优 epoch」选择） | **已修**：cfg 补 `threads` / `val_batch` / `data_fp`（`prior.json`+`norm.json`+`samples.npz` 全量 sha256 + `feat.npy` 首末内容哈希） |
+| NB-F | 低 | 选型 checkpoint 的 `torch.save` **非原子**（周期快照反而用了 tmp+replace） | **已修**：选型保存也走 `tmp + os.replace` |
+| NB-G | 低 | H3「净 SR<0 → 直接判退」未受「有效种子 ≥ 2」约束，单种子仍可改写顶层判词 | **已修**：判退要求 `delivered` 为真，否则只披露不判退 |
+| NB-H | 低 | Stage 3 前置**内容**校验只覆盖 8 个训练臂，`fmb` 只查存在 | **已修**：`fmb` 纳入内容校验臂列表 |
+| NB-I | 低 | 54 份回测产物只验「存在且非空」，陈旧文件理论上可蒙混过关 | **已修**：逐个核对 JSON 内 `arm` / `seed` / `cost` 与文件名一致 |
+| NB-K | 低 | 交付自检 C9 只查 `selected`，不查 `complete` 与 `cfg` | **已修**：C9 补查 `complete is True` 与 `cfg` 非空 |
+| NB-J | 极低 | 报告称「9/9 PASS」，但测试里 `check()` 实为 **10** 次 | **已修**：全部文案改为 10/10（实测输出确为 10 条 PASS） |
+
+### 15.3 「两个种子跑同一份代码」的精确记录（R4 的 Q10 附条件）
+- seed42 进程（PID 3267519）起于 **18:59:26**，跑的是 commit `37355ee` 的 `scripts/work566_train.py`，
+  其内容 sha256 = **`3883e1354c8313f66dcb2692bf5d3c8a540f1175ce75923e3abef061b52dd3d2`**。
+- 第 4 轮的 NB-C/D/E/F 四项整改涉及 `scripts/work566_train.py` → **seed2024 启动时该文件已更新**。
+  为不重启 seed42（会再损失 ~45 min 已算好的训练），此处**明确披露这 4 处改动并给出行为等价论证**：
+  | 改动 | 为何不影响任何已算出的数值 |
+  |---|---|
+  | NB-C：`assert` → `raise RuntimeError` | 同一处失败路径（中止）；异常类型不同但都在触发时才发生；本单**未使用** `python -O`；且这 4 条在本次运行中**一次都没有触发** |
+  | NB-D：`--resume-rep` 校验 fail-open → fail-closed | 本单**全程未使用** `--resume-rep`（两个种子都是完整重训）→ 对本次产出零影响 |
+  | NB-E：cfg 增加 `threads` / `val_batch` / `data_fp` 三个键 | cfg **只**用于 `--resume-rep` 的复用校验与交付自检 C9 的非空检查，**不参与任何计算**；C9 对 seed42（旧 cfg 少 3 个键）与 seed2024（新 cfg）同样只查「非空」 |
+  | NB-F：选型 checkpoint 改原子写（tmp + replace） | 写入**内容完全相同**，只改写入方式（防中途被杀导致截断）；`build_reps` 从磁盘读该文件，读到的张量逐位不变 |
+  - 结论：**除上述 4 处「断言形式 / 校验分支 / 写入方式 / 附加元数据」外，seed42 与 seed2024 跑的是同一套计算代码**；
+    任何由这 4 处引入的数值差异**在构造上不存在**（它们都不在任何数值计算路径上）。
+- seed2024 启动那一刻的 `git rev-parse HEAD` 与 `sha256sum scripts/work566_train.py` 会由全链守护写入
+  `.w566tmp/w566_fullchain.log`，收口时抄进本日志。

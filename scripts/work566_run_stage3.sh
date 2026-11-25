@@ -33,7 +33,7 @@ n_test = int(stats["n_test"])
 bad = []
 seeds = os.environ.get("SEEDS", "42 2024").split()
 for s in seeds:
-    for arm in ["s1_only", "s3_only", "s1_s2", "full", "r0", "r1", "r2", "r3"]:
+    for arm in ["s1_only", "s3_only", "s1_s2", "full", "r0", "r1", "r2", "r3", "fmb"]:
         p = os.path.join(DATA, f"preds_seed{s}_{arm}.npz")
         z = np.load(p)
         nt = len(z["pred_test"])
@@ -103,6 +103,38 @@ for a in arms:
             print('experiments/WORK-566/backtest_%s_seed%s_c%s.json' % (a, s, float(c)))
 "); do
   [ -s "$f" ] || { echo "回测产物缺失：$f" >&2; exit 5; }
+  # NB-I（第 4 轮复审）：不能只验「存在且非空」——还要验 JSON 内的 arm/seed/cost 与本次一致
+  # （防陈旧文件蒙混过关）。
+  if ! $PY - "$f" <<'PYEOF2'
+import json, sys
+p = sys.argv[1]
+name = p.rsplit("/", 1)[-1]
+rest = name[len("backtest_"):-len(".json")]
+arm, rest2 = rest.split("_seed")
+seed, cost = rest2.split("_c")
+try:
+    j = json.load(open(p, encoding="utf-8"))
+except Exception as e:
+    print("%s: JSON 读取失败 %s" % (name, e), file=sys.stderr); sys.exit(1)
+bad = []
+got_arm = j.get("arm")
+if got_arm is not None and str(got_arm) != arm:
+    bad.append("arm=%s(期望 %s)" % (got_arm, arm))
+got_seed = j.get("seed")
+if got_seed is not None and int(got_seed) != int(seed):
+    bad.append("seed=%s(期望 %s)" % (got_seed, seed))
+got_cost = j.get("cost")
+if got_cost is not None and abs(float(got_cost) - float(cost)) > 1e-12:
+    bad.append("cost=%s(期望 %s)" % (got_cost, cost))
+if bad:
+    print("%s: JSON 内容与文件名不一致：%s" % (name, "; ".join(bad)), file=sys.stderr)
+    sys.exit(1)
+sys.exit(0)
+PYEOF2
+  then
+    echo "回测产物内容与文件名不一致：$f" >&2
+    exit 5
+  fi
   nb=$((nb+1))
 done
 echo "  回测产物齐备：$nb 份"

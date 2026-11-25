@@ -273,9 +273,16 @@ def main():
             "note": ("算力降级配置下「相对论文缩水 ≤60%」只披露不判定（预注册 §11）；"
                      "净 SR < 0 → 直接判退 仍然生效"),
         }
+        # NB-G（第 4 轮复审）：H3 的「净 SR<0 → 直接判退」必须与其它并列检验同口径 ——
+        # 有效种子 < 2 时不得用**单种子**结果改写顶层判词。
         if srs and float(np.mean(srs)) < 0:
-            verdict = "未复现（H3：跨种子平均净 SR < 0，直接判退）"
-            metrics["verdict"] = verdict
+            if h3.get("delivered", {}).get("full", len(srs) >= 2):
+                verdict = "未复现（H3：跨种子平均净 SR < 0，直接判退）"
+                metrics["verdict"] = verdict
+            else:
+                h3.setdefault("summary", {})["verdict_note"] = (
+                    "净 SR < 0，但有效种子 < 2（H3 未交付）→ **不据此判退**，仅披露")
+                log("H3 净 SR < 0 但有效种子 < 2 → 未交付，不据此判退")
     metrics["H3"] = h3
     log(f"H3 full 净 SR = {h3.get('summary', {}).get('full_net_sr_mean')}")
 

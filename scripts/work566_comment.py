@@ -110,9 +110,11 @@ def main():
 
 - **独立复算**：{audit.get('conclusion', '—')}（PASS {audit.get('pass', 0)} / BLOCKING {audit.get('blocking', 0)}）；判据逐项相对差 ≤ 1e-6；复算脚本**不 import 建模阶段任何函数**，交易日历从 parquet 独立重取
 - **独立子代理代码审查**（verifier，主循环不自审，共 **3 轮**）：第 1 轮判定 **FAIL（1 BLOCKING + 11 NON-BLOCKING）**，全部已修并重跑全链 —— B1 组合估值用未来 bar 价格盯市（前视泄漏）、N1 卖端与清算成本、N2 S2 编码器训练期 dropout 与官方不等价、N5 推理裁剪、N6 种子守卫、N7 NAV 守卫、N9 引擎级断言；N3/N8 以披露处理。第 2 轮复核判定上述均已修、新发现 **B2**（`build_reps` 写回 u 时误用全局样本下标 → 越界）→ 改为 split 内位置并冒烟复现通过。第 3 轮复核判定 B2 已修、**新发现 2 项 BLOCKING**：
-  - **B3（会改变判词方向）**：落盘的表征 checkpoint 实为**最后一轮**权重，而非预注册 §10.2 冻结的「验证损失最小者」——`state_dict()` 返回**活引用** + 训练末尾再次 `torch.save(best[1])` + 周期快照写同一路径，三重叠加；实测落盘文件 `upd=1000`（best=epoch0）却带着 epoch3 的 `m_k/v_k`，自相矛盾。`s1_only` 不用表征（不受影响）而 `full` 用（受影响）→ 系统性**压低 ΔRankIC**。已改为深拷贝快照 + 周期快照独立路径 + 落盘回读自检 + `--resume-rep` 校验 `selected=="best_vloss"`，并补红-绿回归测试（9/9 PASS）与交付自检 C9。**因 epoch0 权重不可恢复（备份经 md5 证明与末轮同源），两个种子已全部完整重训**，本评论全部数字来自重训后产物。
+  - **B3（会改变判词方向）**：落盘的表征 checkpoint 实为**最后一轮**权重，而非预注册 §10.2 冻结的「验证损失最小者」——`state_dict()` 返回**活引用** + 训练末尾再次 `torch.save(best[1])` + 周期快照写同一路径，三重叠加；实测落盘文件 `upd=1000`（best=epoch0）却带着 epoch3 的 `m_k/v_k`，自相矛盾。`s1_only` 不用表征（不受影响）而 `full` 用（受影响）→ 系统性**压低 ΔRankIC**。已改为深拷贝快照 + 周期快照独立路径 + 落盘回读自检 + `--resume-rep` 校验 `selected=="best_vloss"`，并补红-绿回归测试（10/10 PASS）与交付自检 C9。**因 epoch0 权重不可恢复（备份经 md5 证明与末轮同源），两个种子已全部完整重训**，本评论全部数字来自重训后产物。
   - **B4**：Stage 3 前置检查漏 `fmb` 臂（该臂由 `work566_baselines.py` 产出、训练脚本不产）→ 回测跑到一半才崩；已改为前置缺失即补齐 + jobfile 写入前截断。
-  - 复审全文：<code>code_review_work566.md</code>（第 1–2 轮）、<code>code_review_work566_round3.md</code>（第 3 轮）；整改记录见 <code>failure_log.md</code> §10–§14。
+  - **第 4 轮复审（只审第 3 轮的整改）判「通过」**：B3/B4/B5 三项经代码 + 磁盘产物 + 合成用例三重验证成立，无新的 BLOCKING；磁盘实证选型 ckpt 为 `upd=1000 / vloss=115.0360 / selected=best_vloss / complete=True`，周期快照另存 `.periodic` 不再覆盖。
+  - 第 4 轮另提 11 项 NON-BLOCKING，**全部已处理**：报告补「编码器自检只覆盖 layer 级、不覆盖 `SeqEncoder` 外层」的范围限定；报告与实现的 tmpfs 指纹口径对齐（`size:mtime:sha256(首末各 4MB)`）；回读自检的 `assert` 改 `raise RuntimeError`（`python -O` 下不被剥离）；`--resume-rep` 的配置指纹校验由 fail-open 改 fail-closed；配置指纹补 `--threads` / `--val-batch` 与**数据快照指纹**；选型 checkpoint 改原子写；H3「净 SR<0 判退」加「有效种子 ≥ 2」约束；Stage 3 前置内容校验纳入 `fmb` 臂；54 份回测产物复核加「JSON 内 arm/seed/cost 与文件名一致」；交付自检 C9 补查 `complete` 与 `cfg`。
+  - 复审全文：<code>code_review_work566.md</code>（第 1–2 轮）、<code>code_review_work566_round3.md</code>（第 3 轮）、<code>code_review_work566_round4.md</code>（第 4 轮）；整改记录见 <code>failure_log.md</code> §10–§15。
 - 复审自检：S2 编码器 eval max|diff| {num(st.get('max_abs_diff'), 3)}、**train max|diff| {num(st.get('train_max_abs_diff'), 3)}（逐位一致）**
 
 ### 5 · 数据与复现

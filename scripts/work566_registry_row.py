@@ -147,7 +147,7 @@ def main():
         f"**B4** Stage 3 前置检查漏 `fmb` 臂（该臂由 `work566_baselines.py` 产出、训练脚本不产）+ "
         f"xargs 尾随 echo 掩盖回测失败；**B5** `--resume-rep` 无完成度校验。"
         f"三项**全部已修**（深拷贝快照 + 周期快照独立路径 + 落盘回读自检 + resume 校验 `selected==\"best_vloss\"` + "
-        f"红-绿回归测试 9/9 PASS + Stage 3 前置补齐 fmb + 54 份产物齐备复核 + 交付自检新增 C9）；"
+        f"红-绿回归测试 10/10 PASS + Stage 3 前置补齐 fmb + 54 份产物齐备复核 + 交付自检新增 C9)；**第 4 轮复审判「通过」**（B3/B4/B5 经代码 + 磁盘产物 + 合成用例三重验证成立，无新 BLOCKING），其 11 项 NON-BLOCKING 已全部处理（见 `code_review_work566_round4.md` 与 `failure_log.md` §15）；"
         f"因 epoch0 权重不可恢复（备份经 md5 证明与末轮同源）→ **两个种子已全部完整重训**，本行数字来自重训后产物<br>"
         f"⑨ **训练期 I/O 事故与终局方案**：面板随机取数在冷缓存下被内核 readahead 放大 **129×**"
         f"（每批 4.9MB 有用数据实测读盘 636MB），训练速度掉到 0.12 upd/s；"

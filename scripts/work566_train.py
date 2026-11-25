@@ -314,6 +314,22 @@ def _content_hash(path, chunk=4 * 1024 * 1024):
     return h.hexdigest()[:32]
 
 
+def _data_fingerprint():
+    """数据快照指纹（NB-E）：面板 + 样本 + 先验 + 标准化参数的 sha256。
+
+    面板 feat.npy 3GB 不做全量哈希（代价太大），用首末各 4MB 的内容哈希（N-R4 同一函数）；
+    其余小文件全量哈希。样本集/先验重建后指纹即变 → 旧表征不会被误复用。
+    """
+    import hashlib
+    h = hashlib.sha256()
+    for name in ("prior.json", "norm.json", "samples.npz"):
+        p = os.path.join(DATA, name)
+        with open(p, "rb") as f:
+            h.update(f.read())
+    h.update(_content_hash(os.path.join(DATA, "feat.npy")).encode())
+    return h.hexdigest()[:32]
+
+
 def make_mask_token(d_model):
     return nn.Parameter(torch.zeros(d_model))
 
@@ -542,10 +558,14 @@ def train_representation(panel, args, seed):
     n_upd = 0
     best = (float("inf"), None)
     ckpt_path = os.path.join(DATA, f"ckpt_seed{seed}_rep.pt")
-    # 配置指纹（B5）：复用 checkpoint 时必须与当前 args 完全一致
+    # 配置指纹（B5）：复用 checkpoint 时必须与当前 args 完全一致。
+    # NB-E（第 4 轮复审）：补 --threads / --val-batch（改变浮点归约顺序 → 可能翻转「最优 epoch」选择）
+    # 与**数据快照指纹**（面板/样本/先验重建后不得复用旧表征）。
     cfg = {"d_model": args.d_model, "layers": args.layers, "heads": args.heads,
            "ff": args.ff, "epochs": args.epochs, "max_updates": args.max_updates,
-           "batch": args.batch, "val_stride": args.val_stride}
+           "batch": args.batch, "val_stride": args.val_stride,
+           "threads": args.threads, "val_batch": args.val_batch,
+           "data_fp": _data_fingerprint()}
 
     def encode_batch(idx):
         si, di = panel.stock[idx], panel.date[idx]
@@ -626,16 +646,24 @@ def train_representation(panel, args, seed):
             # **深拷贝快照**：state_dict() 是活引用，直接存会让 best[1] 跟着训练推进而变（B3）
             best = (vloss, snapshot_state(enc, tenc_ema, proj, proj_ema, qpred,
                                           m_k, v_k, upd, vloss, cfg, complete=True))
-            torch.save(best[1], ckpt_path)
+            # NB-F（第 4 轮复审）：选型保存也走 tmp + os.replace（原先直接 torch.save → 中途被杀会截断）
+            torch.save(best[1], ckpt_path + ".tmp")
+            os.replace(ckpt_path + ".tmp", ckpt_path)
     if best[1] is not None:
-        torch.save(best[1], ckpt_path)
+        torch.save(best[1], ckpt_path + ".tmp")
+        os.replace(ckpt_path + ".tmp", ckpt_path)
         # 落盘后回读自检：确认存下来的就是「验证损失最小者」那一轮的权重
         chk = torch.load(ckpt_path, map_location="cpu", weights_only=False)
-        assert chk.get("selected") == "best_vloss", "checkpoint 缺少 best_vloss 标记"
-        assert abs(float(chk.get("vloss", -1)) - float(best[0])) < 1e-12, \
-            f"checkpoint 记录的 vloss={chk.get('vloss')} 与 best={best[0]} 不一致"
-        assert int(chk.get("upd", -1)) == int(best[1]["upd"]), "checkpoint 的 upd 与快照不一致"
-        assert chk.get("complete") is True, "checkpoint 未标记训练完成"
+        # NB-C（第 4 轮复审）：这 4 条用 assert → `python -O` 下会被剥离，自检形同虚设。
+        # 与 N-R2 同一原则：一律显式 raise。
+        if chk.get("selected") != "best_vloss":
+            raise RuntimeError(f"checkpoint 缺少 best_vloss 标记：{chk.get('selected')!r}")
+        if abs(float(chk.get("vloss", -1)) - float(best[0])) >= 1e-12:
+            raise RuntimeError(f"checkpoint 记录的 vloss={chk.get('vloss')} 与 best={best[0]} 不一致")
+        if int(chk.get("upd", -1)) != int(best[1]["upd"]):
+            raise RuntimeError("checkpoint 的 upd 与快照不一致")
+        if chk.get("complete") is not True:
+            raise RuntimeError("checkpoint 未标记训练完成")
         log(f"  seed{seed} 已落盘最优快照：vloss={best[0]:.4f}（upd={best[1]['upd']}，"
             f"共 {upd} updates，最优在第 {best[1]['upd'] // max(args.max_updates, 1)} epoch）")
     log(f"  seed{seed} 表征训练完成：{upd} updates，{time.time()-t0:.0f}s，验证损失 {best[0]:.4f}")
@@ -1066,10 +1094,17 @@ def main():
             # B5：配置指纹必须与当前 args 一致，否则「复用」等于换了实验设置
             cur_cfg = {"d_model": args.d_model, "layers": args.layers, "heads": args.heads,
                        "ff": args.ff, "epochs": args.epochs, "max_updates": args.max_updates,
-                       "batch": args.batch, "val_stride": args.val_stride}
+                       "batch": args.batch, "val_stride": args.val_stride,
+                       "threads": args.threads, "val_batch": args.val_batch,
+                       "data_fp": _data_fingerprint()}
             old_cfg = chk.get("cfg") or {}
             diff = {k: (old_cfg.get(k), cur_cfg.get(k)) for k in cur_cfg if old_cfg.get(k) != cur_cfg.get(k)}
-            if old_cfg and diff:
+            # NB-D（第 4 轮复审）：原写法 `if old_cfg and diff` 在 cfg 缺失时**放行**（fail-open），
+            # 与「配置指纹必须一致」的声明不符 → 改为 fail-closed：cfg 缺失或不符一律拒绝。
+            if not old_cfg:
+                raise SystemExit(f"--resume-rep 拒绝复用 {ck}：checkpoint 没有配置指纹（cfg 缺失）——"
+                                 f"该文件由修复前的路径产生，需删除后完整重训")
+            if diff:
                 raise SystemExit(f"--resume-rep 拒绝复用 {ck}：配置指纹不一致 {diff}（checkpoint={old_cfg}）")
             log(f"  --resume-rep：复用已有表征 checkpoint {ck}"
                 f"（vloss={chk.get('vloss')}，upd={chk.get('upd')}，配置指纹一致）")

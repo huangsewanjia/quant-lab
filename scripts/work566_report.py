@@ -570,14 +570,17 @@ v1.0 保留不删，阈值/特征/切分/成本/种子全部未动。</li>
 <li><b>两处数学等价的实现提速（不改数值口径）</b>：① S2 编码器前向换成等价的
 <code>scaled_dot_product_attention</code> 实现，权重沿用官方模块（初始化逐位一致），
 自检逐元素最大差 <b>eval 4.77e-07 / train 0.00e+00（逐位一致）</b>
-（见 <code>fast_encoder_selftest.json</code>）；② 读出预测由「8 臂各读一遍 u」改为「每切分读一遍、一次写 8 臂」。
+（见 <code>fast_encoder_selftest.json</code>）；
+<b>该自检只比较 encoder layer 的两条前向路径，不覆盖 <code>SeqEncoder</code> 外层
+（summary token / pos / LayerNorm）</b> —— 结论限于「layer 级等价」，不是端到端等价；
+② 读出预测由「8 臂各读一遍 u」改为「每切分读一遍、一次写 8 臂」。
 本机 CPU 上前者提速 3~11×（否则全链需 6 小时以上）。</li>
 <li><b>三处纯 I/O 层优化（不改任何取值与口径）</b>：① train 切分所需日期片（1400MB）预置到
 <code>/dev/shm</code>（tmpfs），与源文件切片 <b>sha256 全量一致</b>，训练随机取数变 RAM 速；
 ② 验证遍历与表征重建按 <b>stock-major</b> 顺序读（面板布局为 (stock, date, feat)，
 同一只股的连续日期在磁盘上连续 → 顺序读；<code>np.lexsort((di, si))</code> 的主键是最后一个 <code>si</code>），
 u 仍写回原行号 → 读出分组与取值不变；③ tmpfs 副本加<b>陈旧校验</b>
-（shape + 起日 + 源文件 size/mtime 指纹三者全对上才复用，否则重建），
+（shape + 起日 + 源文件 <code>size:mtime:sha256(首末各 4MB)</code> 三者全对上才复用，否则重建；2026-11-25 第 3 轮复审 N-R4 后指纹加了内容哈希），
 避免面板重建后静默复用旧副本造成数值污染。
 修后训练 <b>1.72 upd/s</b>（此前 0.12 upd/s）。</li>
 <li><b>整机 OOM 事故（本单真正的拦路虎）</b>：两种子并行时整机触发 OOM killer，内核同时杀了
@@ -604,7 +607,7 @@ u 仍写回原行号 → 读出分组与取值不变；③ tmpfs 副本加<b>陈
 <code>torch.save(best[1])</code> + 周期快照写同一路径，三重叠加；实测落盘文件 <code>upd=1000</code>（best=epoch0）
 却带着 epoch3 的 <code>m_k/v_k</code>，自相矛盾）→ 改为<b>深拷贝快照</b>、周期快照改独立路径、
 落盘回读自检、<code>--resume-rep</code> 校验 <code>selected=="best_vloss"</code>，并加红-绿回归测试
-（<code>scripts/work566_ckpt_snapshot_test.py</code>，9/9 PASS）；<b>B4</b> Stage 3 前置检查漏 <code>fmb</code> 臂
+（<code>scripts/work566_ckpt_snapshot_test.py</code>，10/10 PASS）；<b>B4</b> Stage 3 前置检查漏 <code>fmb</code> 臂
 （该臂由 <code>work566_baselines.py</code> 产出、训练脚本不产）→ 回测跑到一半才崩，
 已改为前置检查缺失即补齐、jobfile 写入前截断，交付自检新增 <b>C9</b> 常态校验 checkpoint 快照语义。
 <b>B3 会改变判词方向</b>：<code>s1_only</code> 不用表征（不受影响）而 <code>full</code> 用（受影响），
