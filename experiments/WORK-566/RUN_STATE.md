@@ -107,12 +107,31 @@ bash scripts/work566_run_stage3.sh          # JOBS=3 可调并行度
 
 ## 6. 收口清单（Stage 3 之后）
 
-1. `bash scripts/work566_registry_row.py` → 写 `experiments/registry.md` 登记行
-2. `../.venv/bin/python scripts/work566_comment.py` → 生成最终评论正文
-3. `multica issue comment add 01a2108c-32e6-76b3-a1ea-c4f0ead6aede \
-     --parent 01a210a8-8277-7112-ba77-5db1f71859df --content-file ./reply.md \
-     --attachment ... --output table && rm ./reply.md`
-   （正文文件先落盘再发；`&&` 分开写，避免清理成功掩盖发送失败）
+1. `bash scripts/work566_registry_row.py` → 写 `experiments/WORK-566/registry_row.md` 登记行
+2. `../.venv/bin/python scripts/work566_comment.py` → 生成最终评论正文 `experiments/WORK-566/reply_body.md`
+3. **平台评论命令（已核 `--help` 的硬约束）**：
+   - `--content-file` 与 `--attachment` 的路径**必须位于当前工作目录内**（否则要加
+     `--allow-external-file`）→ **在 `workdir/` 目录下执行**，用相对路径
+     （如 `quant-lab/experiments/WORK-566/report.html`）。
+   - `--parent` 对**触发式 run 是必填**（省略会被拒：只能回帖，不能发顶层评论）→ 用本轮触发评论
+     `01a210a8-8277-7112-ba77-5db1f71859df`。
+   - `--attachment` 一个 flag 一个路径，可重复。
+   - `&&` 分开写（`add ... && rm ./reply.md` 会让清理成功掩盖发送失败）：
+
+     ```bash
+     cd <workdir>
+     multica issue comment add 01a2108c-32e6-76b3-a1ea-c4f0ead6aede \
+       --parent 01a210a8-8277-7112-ba77-5db1f71859df \
+       --content-file ./reply.md \
+       --attachment quant-lab/experiments/WORK-566/report.html \
+       --attachment quant-lab/experiments/WORK-566/preview_first_screen.png \
+       --attachment quant-lab/experiments/WORK-566/report_print.pdf \
+       --output table
+     rm ./reply.md
+     ```
 4. 交付物入库：`experiments/WORK-566/preview_first_screen.png`、`report_print.pdf`、
-   `report_print_full.pdf`、单文件 HTML 报告、`snapshot_manifest.json`
+   `report_print_full.pdf`、单文件 HTML 报告、`snapshot_manifest.json`、
+   `delivery_check.json`，以及**两个种子的训练日志**（`/tmp/w566_s42.log`、
+   `/tmp/w566_s2024.log` → 复制进 `experiments/WORK-566/train_log_seed*.log`，
+   `/tmp` 不耐重启，必须入库）
 5. 每一段完成即 `git commit` + `git push`（不要攒到最后）
