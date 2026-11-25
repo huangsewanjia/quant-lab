@@ -1062,8 +1062,12 @@ change_type / column_name / old_value / new_value / source_doc / reason / change
 → 约 27 万条 diff，`executemany` 实测约 2,450 行/秒），所以它只用于排查，不进定时任务。
 
 **raw 快照版本化（`history/`）**：每次装载读 raw 之前，`archive_raw_snapshot()` 把该源当前快照复制到
-`raw/<kind>/<source>/history/<sha256前12位>-<mtime><后缀>`，**同一内容只留一份**（定时任务每天重抓
-同一份快照不会膨胀）。原始数据因此只增不删：上游改版、抓取脚本换解析口径，都能回到任意历史版本比对。
+`raw/<kind>/<source>/history/<sha256前12位>-<mtime><后缀>`，同一份快照只留一份。
+原始数据因此只增不删：上游改版、抓取脚本换解析口径，都能回到任意历史版本比对。
+
+**膨胀口径要说清**：哈希覆盖数据文件 + `manifest.json`（+ `article.txt`），而 `manifest.fetched_at`
+每次抓取都会变——所以**每个抓取批次都会新增一套**（约 1 份数据 + 1 份 manifest），不是「上游不变就不增长」。
+按当前规模（最大原始文件 1.0 MB、17 个源）每天新增约 3–5 MB，一年约 1.5 GB；要限额需另做归档策略。
 
 「快照」= **数据文件 + `manifest.json`（+ 预测源的 `article.txt`）**，三者的哈希合并算一个版本：
 `manifest.fetched_at` 决定 `reason` 里的快照时间，`transform_trendforce` / `transform_benchmark` 的

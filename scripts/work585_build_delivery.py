@@ -430,9 +430,10 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 <li><b>row_hash 源没有「值变化」</b>：内容改版显示为一行 add + 一行 drop。不把两行配成一条，
 是因为业务键不唯一（146 行对 98 个业务键），配对靠推断、推断错比不推断更糟。</li>
 <li><b>C9 只查留痕完整性</b>，不判断变化是否符合业务预期——那是人看视图的事。</li>
-<li><b><code>history/</code> 会随快照变化增长</b>：同内容按 sha 去重，正常每日定时任务若上游无变化
-不会新增文件；有变化时每源每天约 1 份（当前最大原始文件 {max_raw}）。要限制总量需另做归档策略，
-不在本单。</li>
+<li><b><code>history/</code> 每个抓取批次都会新增一套</b>：哈希覆盖数据 + <code>manifest.json</code>
+（+ 预测源 <code>article.txt</code>），而 <code>manifest.fetched_at</code> 每次抓取都变，所以不是
+「上游不变就不增长」——每天约新增 17 份数据 + 17 份 manifest（当前最大原始文件 {max_raw}，估算
+每天 3–5 MB、一年约 1.5 GB）。要限额需另做归档策略，不在本单。</li>
 <li><b>diff 不清理</b>：每日/每月累积，量级是「每次装载的变更行数」，正常重跑每表 1 行；
 若将来需要保留窗口，另开单做归档，不在本单。</li>
 <li><b><code>--full</code> 的 diff 会放大</b>：清表重装会为被清掉的行各写一条 <code>row_dropped</code>

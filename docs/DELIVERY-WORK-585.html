@@ -39,7 +39,7 @@ footer{margin-top:56px;border-top:1px solid var(--line);padding-top:14px;
 </style></head><body><main>
 
 <h1>行业装载变更留痕：diff 日志 + 快照源整源替换</h1>
-<p class="sub">WORK-585 · 数据底座 quantdb · 生成于 2026-11-26 00:12 CST · 目标 runtime：Mo-server</p>
+<p class="sub">WORK-585 · 数据底座 quantdb · 生成于 2026-11-26 00:21 CST · 目标 runtime：Mo-server</p>
 
 <div class="lede">
 <b>一句话：</b>装载器现在每次替换前先把「库内现状 vs 本次快照」的逐行差异写进
@@ -194,7 +194,7 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 <tr><td>industry_benchmark_public_index</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_caam_auto_output</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_chinamoney_lpr</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_cnesa_storage</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_cninfo_announcements</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_comtrade_trade_values</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_cpcaauto_nev</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_exchange_daily_quotes</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_gfex_lithium_carbonate</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_mof_fiscal</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_nea_power</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_ow_iea_usgs_timeseries</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_pbc_shrzgm</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_ppi_spot_prices</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_sne_public_battery</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_stats_gov_release</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_trendforce_spot_price</td><td>no_change</td><td class='num'>1</td></tr>
 </table>
 <p class="muted">自检：各 <code>change_type</code> 分项相加 = 17；
-各表相加 = 17。统计时点 2026-11-26 00:12 CST。</p>
+各表相加 = 17。统计时点 2026-11-26 00:21 CST。</p>
 
 <h3>6.5 质量闸</h3>
 <table><tr><th>闸</th><th>结果</th></tr><tr><td>C1_rows_nonzero</td><td class="ok">PASS</td></tr><tr><td>C2_primary_key</td><td class="ok">PASS</td></tr><tr><td>C3_date_domain</td><td class="ok">PASS</td></tr><tr><td>C4_unit_reconciliation</td><td class="ok">PASS</td></tr><tr><td>C5_audit_consistency</td><td class="ok">PASS</td></tr><tr><td>C6_catalog_coverage</td><td class="ok">PASS</td></tr><tr><td>C7_freshness</td><td class="ok">PASS</td></tr><tr><td>C8_forecast</td><td class="ok">PASS</td></tr><tr><td>C9_load_diff</td><td class="ok">PASS</td></tr></table>
@@ -214,9 +214,10 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 <li><b>row_hash 源没有「值变化」</b>：内容改版显示为一行 add + 一行 drop。不把两行配成一条，
 是因为业务键不唯一（146 行对 98 个业务键），配对靠推断、推断错比不推断更糟。</li>
 <li><b>C9 只查留痕完整性</b>，不判断变化是否符合业务预期——那是人看视图的事。</li>
-<li><b><code>history/</code> 会随快照变化增长</b>：同内容按 sha 去重，正常每日定时任务若上游无变化
-不会新增文件；有变化时每源每天约 1 份（当前最大原始文件 1.0 MB）。要限制总量需另做归档策略，
-不在本单。</li>
+<li><b><code>history/</code> 每个抓取批次都会新增一套</b>：哈希覆盖数据 + <code>manifest.json</code>
+（+ 预测源 <code>article.txt</code>），而 <code>manifest.fetched_at</code> 每次抓取都变，所以不是
+「上游不变就不增长」——每天约新增 17 份数据 + 17 份 manifest（当前最大原始文件 1.0 MB，估算
+每天 3–5 MB、一年约 1.5 GB）。要限额需另做归档策略，不在本单。</li>
 <li><b>diff 不清理</b>：每日/每月累积，量级是「每次装载的变更行数」，正常重跑每表 1 行；
 若将来需要保留窗口，另开单做归档，不在本单。</li>
 <li><b><code>--full</code> 的 diff 会放大</b>：清表重装会为被清掉的行各写一条 <code>row_dropped</code>
@@ -288,18 +289,18 @@ QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
   /home/moyongkai/.venvs/quantdb/bin/python -m db.checks.industry all</pre>
 
 <h3>9.4 代码锁版（sha256）</h3>
-<pre class="term"># WORK-585 代码锁版（2026-11-25，含派单方追加三项）
+<pre class="term"># WORK-585 代码锁版（2026-11-25/26）
 branch: agent/work-585-diff-log
 base_sha: 59e5682e438373d594c482257a095a364adf20f8   # WORK-584 交付 tip
-head_sha: 2de036563c64b3cab3533673fe5e9fb86e06ede1
+head_sha: 95322ed5fd1dcefc7640263a55b1995c5155d175
 files (8):
-8ecd4cae8adabf4feb0e18549c76f5543baee75e60ab5baa0d3ea86d60dc4309  db/etl/industry.py
+1165ddc21fe9ac8142e1b85707b43b5ae5aa98ca23a6455c0eb928006ddb1004  db/etl/industry.py
 953b45baea45d716abd3a65b3b929811b25f64d35b9937a64f62bcf2232d9029  db/checks/industry.py
-7bc94df4a592757cd64d1ee0d5f29731b6e995f1356fbaeda6f0fc0076c752f2  db/schema_industry.sql
-76799863475d08d154b85183fcf9d6c3c2b0c6825ae9de62a6f0b5c083dad3c0  db/tests/test_industry_diff.py
+bb54ecef015d2722e620b2ed51c355244a6e8d41aa70e3fdf340f0c3845e3ef7  db/schema_industry.sql
+38828788f050838cc6d5de2ea1585ea1bb70a7b176f6cdc7ea0d3c3fa44cbb2b  db/tests/test_industry_diff.py
 af4ca765c3805c6799e6c70b91f4e3286d46f8164c9431a797fa41258ef9252d  scripts/work585_verify.py
-0745ece5b2c16dc1fa551c8128193281148f837971b63ec7c93deef3b9bc5aba  scripts/work585_build_delivery.py
-4eb49c6dbbf66abd88ca66ef0f06171cfb681dac8b511d8c3f749e95aef56733  docs/industry-ingest-2026.md
+a558719bda196626b9ca8b0b2bbeca09e02cce5c32b01b01498f7a73bce30f91  scripts/work585_build_delivery.py
+3594ee7a9a51d64017e2f224a6f1f159c0e175d1416451504c52aa95b330fc8f  docs/industry-ingest-2026.md
 1dee115bc66fdd120d7f4f447a8f65055b9d7fd2a5d5b087bfddcb76ab1c063f  CHANGELOG.md</pre>
 
 <footer>
