@@ -425,6 +425,11 @@ Learning in Equity Markets</i>. arXiv:2610.07006v1（2026-10-04）· 单号 WORK
 <li>H4（并列，只报数）：R2（加修正）{fmt(h4s.get('r2_rankic'),3)}% vs
 R3（加等维上下文）{fmt(h4s.get('r3_rankic'),3)}%，差 {fmt(h4s.get('r2_minus_r3_rankic_pp'),3)} pp。</li>
 </ul>
+<p class="note">并列检验的**种子交付状态**（预注册 §9「只报单种子结果 = 未交付」；2026-11-25 第 3 轮独立复审 N-R9
+要求 H2/H3/H4 与 H1 同口径）：H2 有效种子 {h2.get('n_seeds','—')} 个 →
+{'已交付' if h2.get('delivered') else '未交付（有效种子 &lt; 2）'}；
+H3 逐臂 → {h3.get('delivered', '—')}；
+H4 逐臂种子数 → {h4.get('n_seeds', '—')}。</p>
 <p class="note">本单**不追**论文的绝对水平（RankIC 11.22% / 净 SR 1.50）：40 维字段为自定、
 算力从 8×RTX 5090 降级到单 CPU（d_model 128→64、4 层→2 层、d_z 128→64），绝对水平与论文
 <b>不可比</b>；可判的只有同一降级配置内三档之间的相对增量。</p>
