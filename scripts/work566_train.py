@@ -651,15 +651,25 @@ def build_reps(panel, args, seed, ckpt_path):
                 keep.append(seg[:args.stock_cap])
             pos = np.concatenate(keep) if keep else np.zeros(0, dtype=np.int64)
             idx_all = idx_all[pos].astype(np.int64)
+        # **行序改为 (stock, date)**：面板布局是 (stock, date, feat)，按 (stock, date) 排后
+        #   ① 面板读取仍按 stock-major 连续（同一只股的连续日期在磁盘上连续）；
+        #   ② `perm = np.lexsort((di, si))` 退化为**恒等置换** → u 的写回变成**连续写**。
+        # 改之前 idx_all 是日期序 → u[pos] 是散写 → 每次写都触发 read-modify-write，
+        # 叠加内核 128KB readahead（实测 4.3MB/s 读、每批仅 45 步 → train 切分要 ~17 小时）。
+        # 每个 (stock, date) 的取值**完全不变**（只改行序，不改任何数值）；
+        # 下游（读出按日期分组、回测与独立复算按日期分桶）都与行序无关。
+        idx_all = idx_all[np.lexsort((panel.date[idx_all], panel.stock[idx_all]))]
         si, di = panel.stock[idx_all], panel.date[idx_all]
         bid = panel.block_id(panel.dts[idx_all])
         u_path = os.path.join(DATA, f"u_seed{seed}_{split}.npy")
         u = np.lib.format.open_memmap(u_path, mode="w+", dtype=np.float32,
                                       shape=(len(idx_all), 40 + PRIOR_DIM + 3 * d_model))
         B = args.rep_batch
-        # 面板读取按 (stock, date) 顺序（顺序 I/O），u 仍写回**原行号**（日期序），
-        # 因此读出阶段「每个 batch = 一个预测日」的分组与取值完全不变
+        # 面板读取按 (stock, date) 顺序（顺序 I/O）；idx_all 已按 (stock, date) 排好，
+        # 故 perm 为恒等置换 → u 写回也是连续写（见上）。
         perm = np.lexsort((di, si))
+        assert np.array_equal(perm, np.arange(len(perm))), \
+            "perm 应为恒等置换（idx_all 已按 (stock, date) 排序），否则 u 写回退化为散写"
         with torch.no_grad():
             for k in range(0, len(idx_all), B):
                 pos = perm[k:k + B]
@@ -874,6 +884,8 @@ def main():
     ap.add_argument("--save-every", type=int, default=100)
     ap.add_argument("--rep-date-cap", type=int, default=0,
                     help=">0 时每个切分只保留前 N 个预测日（仅供冒烟测试，正式跑必须为 0）")
+    ap.add_argument("--resume-rep", action="store_true",
+                    help="表征 checkpoint 已存在则跳过表征训练（续跑用；checkpoint 即验证损失最优权重）")
     ap.add_argument("--bench", action="store_true")
     ap.add_argument("--bench-samples", type=int, default=64)
     args = ap.parse_args()
@@ -932,7 +944,14 @@ def main():
         # 页缓存预热：面板 3GB 随机取数在冷缓存下读放大 129× + 缺页延迟 ~5ms
         warm_cache(os.path.join(DATA, "feat.npy"), "feat.npy")
         warm_cache(os.path.join(DATA, "targets.npy"), "targets.npy")
-        ck = train_representation(panel, args, seed)
+        ck = os.path.join(DATA, f"ckpt_seed{seed}_rep.pt")
+        if args.resume_rep and os.path.exists(ck):
+            # 续跑：复用已有表征 checkpoint（它是**按验证损失选出的最优**权重，
+            # train_representation 结束时写的就是 best[1]）→ 与完整跑一遍完全等价，
+            # 只省掉重新训练的时间。不改变任何取值口径。
+            log(f"  --resume-rep：复用已有表征 checkpoint {ck}，跳过表征训练")
+        else:
+            ck = train_representation(panel, args, seed)
         warm_cache(os.path.join(DATA, "feat.npy"), "feat.npy（表征重建前再预热一次）")
         reps = build_reps(panel, args, seed, ck)
         arm_specs = {}

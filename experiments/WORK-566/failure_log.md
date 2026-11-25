@@ -570,3 +570,35 @@ AssertionError: [ASSERT] 不可成交价：涨停股开盘买入被拒 stock=99 
 - **附带证据（线程数不影响数值）**：seed42 在 **4 线程双进程**与 **6 线程单进程**两种配置下，
   `upd50/100/150/200` 的 `L_anc/L_rev` **逐位相同**（66.6294/53.4636 → 50.7801/35.0353），
   说明本机 CPU 浮点结果与线程数无关 —— 该结论同时支撑「§13.3 顺序跑」与「跨配置可比」。
+
+### 13.7 build_reps 的 u 写回是**散写** → read-modify-write + 128KB readahead 放大（阻断级）
+- **现象**：seed42 表征训练跑完（4000 upd / 6111s）后进入 `build_reps`，**训练切分 2,675 行就花了 38 秒**；
+  进程瞬时 CPU 只有 **77%**（验证期是 447%）→ 主线程长期 **D 态** → 典型 I/O 受限。
+- **取证**：
+  | 指标 | 实测 |
+  |---|---|
+  | `rchar` 增量 | **0 KB / 25s**（没有 read()/pread() syscall） |
+  | `read_bytes` 增量 | **108 MB / 25s（4.3 MB/s）** |
+  | `u_seed42_train.npy` 映射驻留 | **8.3 MB / 1.72 GB**（脏页被迅速写回驱逐） |
+  | 面板 `feat.npy` 映射驻留 | ≈0（面板读全部由 tmpfs 承担：835 MB 驻留） |
+- **根因**：`build_reps` 里 `idx_all` 是**日期序**，而处理顺序 `perm = np.lexsort((di, si))` 是
+  **stock-major**（`np.lexsort` 主键是最后一个 key）→ `u[pos]` 的**行号与处理顺序不一致** → 每次写 992 B
+  落在不同 4KB 页 → 触发 **read-modify-write**，且内核默认 **128KB readahead** 把每次缺页放大成
+  128KB 读 → 1.44M 次写 ≈ **184 GB 读**。
+- **外推**：实测 2.9–14 ms/行 → 真实 train 切分（1.44M 行）≈ **5.6 小时**，
+  加 valid/test → build_reps 合计 **8–9 小时**（不可接受）。
+- **处置（只改行序，不改任何取值）**：`idx_all` 改为按 **(stock, date)** 排序 →
+  `perm` 退化为**恒等置换**（代码里加了 `assert np.array_equal(perm, np.arange(len(perm)))`）→
+  ① 面板读取仍是 stock-major 连续读；② **u 写回变成连续写**。
+- **效果（同一冒烟参数对照）**：train 切分 **38 s → 约 3 s**；valid 15 s → 10 s；test 44 s → 39 s
+  （valid/test 由**面板读盘**主导，故改善有限）。表征验证损失 140.0409 两次**完全相同**。
+- **取值不变的证明（逐位）**：同参数跑旧实现与新实现各一次，按 (stock, date) 对齐后比较
+  `y` 与 `pred`：**train / valid / test 三个切分全部 max|Δ| = 0.000e+00（逐位相同）**。
+  样本集合、各日期样本数、y 多重集亦完全一致 → **只改行序，未改任何一个比特**。
+- **下游不受影响**：读出按日期分组、回测与独立复算均按日期分桶（`dates_sorted = np.unique(date)`），
+  与行序无关；npz 里 `idx/stock/date/y` 与 `pred` 同序保存 → 自洽。
+- **附带**：新增 `--resume-rep`（表征 checkpoint 已存在则跳过表征训练）。
+  checkpoint 即**按验证损失选出的最优权重**（`train_representation` 末尾写的是 `best[1]`），
+  故续跑与完整跑一遍**完全等价**，只是省掉重训时间（本单省下 6111 s）。
+- **教训**：`(stock, date)` 这种"行序"在内存里无所谓，但落到**按行寻址的 memmap** 上，
+  行序 = 写放大；**矩阵的行序必须与写入顺序一致**，否则每次写都退化成 read-modify-write。
