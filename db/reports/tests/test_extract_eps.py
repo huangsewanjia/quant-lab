@@ -402,3 +402,11 @@ def test_sample_includes_source_context(tmp_path):
     value = item["values"][0]
     assert value["raw_text"] in value["context"]
     assert "1.11" in value["context"]
+
+
+def test_offset_points_at_the_stripped_sentence_not_the_raw_chunk():
+    # a sentence that starts with spaces: offset must land on the first
+    # non-space character so text[offset:offset+len(raw_text)] == raw_text
+    text = "前言。\n   预计2024-2026年EPS分别为1.11元、1.22元、1.33元。"
+    for value in extract_eps(text, {2024, 2025, 2026}):
+        assert text[value.char_offset : value.char_offset + len(value.raw_text)] == value.raw_text

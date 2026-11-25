@@ -412,10 +412,13 @@ def extract_from_text(text: str, years: set[int]) -> list[EpsValue]:
             if bound is None:
                 continue
             fiscal_years, extractor = bound
+            lead = len(sentence) - len(sentence.lstrip())
             for year, value in zip(fiscal_years, values):
                 if year in years and _plausible(value):
                     found.append(
-                        EpsValue(year, value, "body_text", sentence.strip(), offset, "rule", extractor)
+                        EpsValue(
+                            year, value, "body_text", sentence.strip(), offset + lead, "rule", extractor
+                        )
                     )
     return found
 
@@ -426,9 +429,12 @@ def extract_from_single_year(text: str, years: set[int]) -> list[EpsValue]:
         for match in SINGLE_RE.finditer(sentence):
             year = int(match.group(1))
             value = float(match.group(2))
+            lead = len(sentence) - len(sentence.lstrip())
             if year in years and _plausible(value):
                 found.append(
-                    EpsValue(year, value, "body_text", sentence.strip(), offset, "nlp", "text_single_year")
+                    EpsValue(
+                        year, value, "body_text", sentence.strip(), offset + lead, "nlp", "text_single_year"
+                    )
                 )
     return found
 
