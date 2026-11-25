@@ -126,6 +126,16 @@ echo "=== [6/8] 快照 manifest ==="
 $PY scripts/work566_snapshot_manifest.py
 
 echo "=== [7/8] 收口文案重生成（registry 登记行 + 最终评论正文，数字只抄产物）==="
+# 训练日志入库（可核验证据）：.w566tmp 下由全链守护写入
+for s in $SEEDS; do
+  src_log="../.w566tmp/w566_s${s}.log"
+  if [ -s "$src_log" ]; then
+    cp -f "$src_log" "experiments/WORK-566/train_log_seed${s}.log"
+    echo "  训练日志入库：train_log_seed${s}.log（$(wc -l < "$src_log") 行）"
+  else
+    echo "  警告：找不到训练日志 $src_log（交付自检会报缺）" >&2
+  fi
+done
 $PY scripts/work566_registry_row.py
 $PY scripts/work566_comment.py
 $PY scripts/work566_registry_paste.py
