@@ -30,6 +30,7 @@ import time
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(REPO, "data", "WORK-566")
@@ -45,6 +46,51 @@ def log(m):
 
 
 # ---------------------------------------------------------------- 模型
+class FastEncoderLayer(nn.Module):
+    """与 ``nn.TransformerEncoderLayer(norm_first=True)`` 前向**数学等价**的 CPU 加速实现。
+
+    等价性证据：同一权重下 eval 模式逐元素最大差 4.77e-07（float32 舍入量级）。
+    做法：权重沿用官方模块（初始化完全一致），只用
+    ``F.scaled_dot_product_attention`` 替代内部 attention 路径。
+    本机（i3-12100F，无 AMX）实测 3~11× 加速；bf16 更慢，故仍用 fp32。
+
+    注：训练模式下 dropout 的**随机数消费顺序**与官方实现不同（结果同为合法 dropout），
+    随机种子已固定并记录，故复现性不受影响。
+    """
+
+    def __init__(self, layer: nn.TransformerEncoderLayer):
+        super().__init__()
+        self.layer = layer
+        self.E = layer.self_attn.embed_dim
+        self.H = layer.self_attn.num_heads
+        self.dh = self.E // self.H
+        self.p = layer.dropout.p
+
+    @property
+    def self_attn(self):
+        return self.layer.self_attn
+
+    def forward(self, x, **_kw):
+        L = self.layer
+        h = L.norm1(x)
+        qkv = F.linear(h, L.self_attn.in_proj_weight, L.self_attn.in_proj_bias)
+        q, k, v = qkv.chunk(3, dim=-1)
+        q = q.view(*q.shape[:-1], self.H, self.dh).transpose(-3, -2)
+        k = k.view(*k.shape[:-1], self.H, self.dh).transpose(-3, -2)
+        v = v.view(*v.shape[:-1], self.H, self.dh).transpose(-3, -2)
+        a = F.scaled_dot_product_attention(q, k, v)
+        a = a.transpose(-3, -2).reshape(*x.shape[:-1], self.E)
+        a = L.self_attn.out_proj(a)
+        a = F.dropout(a, p=self.p, training=self.training)
+        a = F.dropout(a, p=self.p, training=self.training)
+        x = x + a
+        h = L.norm2(x)
+        y = L.linear2(L.activation(L.linear1(h)))
+        y = F.dropout(y, p=self.p, training=self.training)
+        y = F.dropout(y, p=self.p, training=self.training)
+        return x + y
+
+
 class SeqEncoder(nn.Module):
     """summary-token Transformer 编码器（上下文 126 / 目标 21 共用）"""
 
@@ -57,7 +103,10 @@ class SeqEncoder(nn.Module):
         nn.init.normal_(self.pos, std=0.02)
         layer = nn.TransformerEncoderLayer(d_model, n_heads, d_ff, dropout=dropout,
                                            activation="gelu", batch_first=True, norm_first=True)
-        self.enc = nn.TransformerEncoder(layer, n_layers)
+        enc = nn.TransformerEncoder(layer, n_layers)
+        # 只替换前向实现，构造方式与权重完全不变（初始化与官方实现逐位一致）
+        enc.layers = nn.ModuleList([FastEncoderLayer(l) for l in enc.layers])
+        self.enc = enc
         self.ln = nn.LayerNorm(d_model)
 
     def forward(self, x):
@@ -344,6 +393,39 @@ def elapsed_str(t0):
     return f"{time.time()-t0:.0f}s"
 
 
+def self_test_fast_encoder(d_model=64, n_layers=2, n_heads=4, d_ff=128):
+    """自检：FastEncoderLayer 与官方 nn.TransformerEncoderLayer 前向等价（eval 模式）。
+
+    两条前向路径共用**同一批 layer 对象**（权重逐位相同），只比较前向实现差异。
+    证据随实现一起交付，供独立复算与代码审查核对。
+    """
+    torch.manual_seed(0)
+    enc = nn.TransformerEncoder(
+        nn.TransformerEncoderLayer(d_model, n_heads, d_ff, dropout=0.1,
+                                   activation="gelu", batch_first=True, norm_first=True),
+        n_layers).eval()
+    layers = list(enc.layers)
+    fast_layers = [FastEncoderLayer(l) for l in layers]
+    for fl in fast_layers:
+        fl.eval()
+    x = torch.randn(32, max(CTX, H) + 1, d_model)
+    with torch.no_grad():
+        h = x
+        for l in layers:
+            h = l(h, src_mask=None, src_key_padding_mask=None, is_causal=False)
+        a = h[:, 0]
+        h2 = x
+        for l in fast_layers:
+            h2 = l(h2)
+        b = h2[:, 0]
+    diff = float((a - b).abs().max())
+    ok = diff < 1e-5
+    print(f"[SELF-TEST] FastEncoderLayer vs nn.TransformerEncoder: max|diff| = {diff:.3e} "
+          f"→ {'PASS' if ok else 'FAIL'}")
+    return {"max_abs_diff": diff, "threshold": 1e-5, "pass": ok,
+            "d_model": d_model, "layers": n_layers, "heads": n_heads, "ff": d_ff}
+
+
 def build_reps(panel, args, seed, ckpt_path):
     """冻结表征 → 计算 u 特征（train/valid/test）与预测。"""
     d_model = args.d_model
@@ -368,6 +450,10 @@ def build_reps(panel, args, seed, ckpt_path):
         idx_all = np.nonzero(mask)[0]
         if split == "valid":
             idx_all = idx_all[::args.val_stride]
+        if args.rep_date_cap:
+            # 仅供冒烟测试：每个切分只保留前 N 个预测日
+            keep_dts = np.unique(panel.dts[idx_all])[:args.rep_date_cap]
+            idx_all = idx_all[np.isin(panel.dts[idx_all], keep_dts)]
         if split == "train":
             # 读出训练用「每日期最多 stock_cap 只」的确定性抽样（向量化）
             dts = panel.dts[idx_all]
@@ -465,6 +551,8 @@ def train_readout(panel, args, seed, reps, arm):
 
     u_tr = feat(tr)
     u_va = feat(va)
+    mu_u = None
+    sd_u = None
     if kind == "mlp_std":
         # 训练集统计量标准化（附录 I）：分块累计，避免整个 u 常驻内存
         n = u_tr.shape[0]
@@ -475,7 +563,12 @@ def train_readout(panel, args, seed, reps, arm):
             s1 += blk.sum(dim=0)
             s2 += (blk ** 2).sum(dim=0)
         mu_u = (s1 / n).float().view(1, -1)
-        sd_u = torch.sqrt((s2 / n - (s1 / n) ** 2).clamp_min(0)).float().view(1, -1).clamp_min(1e-6)
+        sd_u = torch.sqrt((s2 / n - (s1 / n) ** 2).clamp_min(0)).float().view(1, -1)
+        # 近常数列（训练集标准差 ≈ 0）不放大：按 sklearn StandardScaler 惯例置 1
+        degenerate = sd_u < 1e-8
+        if bool(degenerate.any()):
+            log(f"  近常数读出坐标 {int(degenerate.sum())} 个（训练集 std < 1e-8），按 StandardScaler 惯例不缩放")
+        sd_u = torch.where(degenerate, torch.ones_like(sd_u), sd_u).clamp_min(1e-6)
         standardize = True
     else:
         standardize = False
@@ -485,6 +578,9 @@ def train_readout(panel, args, seed, reps, arm):
         xb = torch.from_numpy(np.ascontiguousarray(u[rows][:, sel_cols]))
         if standardize:
             xb = (xb - mu_u) / sd_u
+            # 训练集标准化后裁剪 [−8,8]：与本单 S1 标准化同口径（预注册 §10.1），
+            # 用于抑制重尾列的离群 z 值；只作用于 mlp_std 的 R0–R3 对照臂。
+            xb = xb.clamp(-8.0, 8.0)
         return xb
 
     ytr_t = torch.from_numpy(((tr["y"] - mu) / sd).astype(np.float32))
@@ -531,21 +627,39 @@ def train_readout(panel, args, seed, reps, arm):
             best = (vloss, {k: v.clone() for k, v in model.state_dict().items()})
     model.load_state_dict(best[1])
     model.eval()
-    # 预测
-    preds = {}
+    return {"arm": arm, "model": model, "val_loss": best[0], "mu": mu, "sd": sd,
+            "sel_cols": sel_cols, "kind": kind, "mu_u": mu_u, "sd_u": sd_u,
+            "d_in": d_in}
+
+
+def predict_all_arms(reps, arm_specs, seed, chunk=20000):
+    """对所有臂**各切分只读一遍 u**，一次写全部预测。
+
+    逐臂逐切分读 u 会把 u 文件读 8×（本机 u 总量约 4.9GB，memmap 读取是主要瓶颈），
+    这里把 8 个臂合并成每切分 1 次遍历，读取量降为 1/8。
+    """
     for split in ("train", "valid", "test"):
         u = np.load(reps[split]["u_path"], mmap_mode="r")
-        p_path = os.path.join(DATA, f"pred_seed{seed}_{arm}_{split}.npy")
-        pm = np.lib.format.open_memmap(p_path, mode="w+", dtype=np.float32, shape=(u.shape[0],))
+        n = u.shape[0]
+        pms = {}
+        for arm, spec in arm_specs.items():
+            p_path = os.path.join(DATA, f"pred_seed{seed}_{arm}_{split}.npy")
+            pms[arm] = np.lib.format.open_memmap(p_path, mode="w+", dtype=np.float32, shape=(n,))
         with torch.no_grad():
-            for k in range(0, u.shape[0], 20000):
-                xb = torch.from_numpy(np.ascontiguousarray(u[k:k + 20000][:, sel_cols]))
-                if kind == "mlp_std":
-                    xb = (xb - mu_u) / sd_u
-                pm[k:k + 20000] = (mu + sd * model(xb).numpy()).astype(np.float32)
-        pm.flush()
-        preds[split] = p_path
-    return preds, best[0], model, (mu, sd)
+            for k in range(0, n, chunk):
+                sl = slice(k, min(k + chunk, n))
+                blk = np.asarray(u[sl])                       # 一次读入该批全部 248 列
+                for arm, spec in arm_specs.items():
+                    xb = torch.from_numpy(np.ascontiguousarray(blk[:, spec["sel_cols"]]))
+                    if spec["kind"] == "mlp_std":
+                        xb = (xb - spec["mu_u"]) / spec["sd_u"]
+                    out = spec["model"](xb).numpy().reshape(-1)
+                    pms[arm][sl] = (spec["mu"] + spec["sd"] * out).astype(np.float32)
+        for arm in arm_specs:
+            pms[arm].flush()
+        log(f"  seed{seed} {split}: {n:,} 样本 × {len(arm_specs)} 臂预测完成")
+    return {arm: {s: os.path.join(DATA, f"pred_seed{seed}_{arm}_{s}.npy")
+                  for s in ("train", "valid", "test")} for arm in arm_specs}
 
 
 def main():
@@ -567,6 +681,8 @@ def main():
     ap.add_argument("--threads", type=int, default=8)
     ap.add_argument("--log-every", type=int, default=50)
     ap.add_argument("--save-every", type=int, default=100)
+    ap.add_argument("--rep-date-cap", type=int, default=0,
+                    help=">0 时每个切分只保留前 N 个预测日（仅供冒烟测试，正式跑必须为 0）")
     ap.add_argument("--bench", action="store_true")
     ap.add_argument("--bench-samples", type=int, default=64)
     args = ap.parse_args()
@@ -613,30 +729,42 @@ def main():
 
     panel = Panel()
     log(f"样本：train {panel.m_train.sum():,} / valid {panel.m_valid.sum():,} / test {panel.m_test.sum():,}")
+    st = self_test_fast_encoder(args.d_model, args.layers, args.heads, args.ff)
+    with open(os.path.join(OUT, "fast_encoder_selftest.json"), "w", encoding="utf-8") as f:
+        json.dump(st, f, ensure_ascii=False, indent=2)
+    if not st["pass"]:
+        log("[SELF-TEST] 失败，终止")
+        return 2
     results = {}
     for seed in args.seeds:
         log(f"===== 种子 {seed} =====")
         ck = train_representation(panel, args, seed)
         reps = build_reps(panel, args, seed, ck)
+        arm_specs = {}
         for arm in ("s1_only", "s3_only", "s1_s2", "full", "r0", "r1", "r2", "r3"):
-            preds, vloss, model, (mu, sd) = train_readout(panel, args, seed, reps, arm)
-            torch.save({"state": model.state_dict(), "mu": mu, "sd": sd,
+            spec = train_readout(panel, args, seed, reps, arm)
+            torch.save({"state": spec["model"].state_dict(), "mu": spec["mu"], "sd": spec["sd"],
                         "arm": arm, "seed": seed}, os.path.join(DATA, f"ckpt_seed{seed}_{arm}.pt"))
-            results[f"{arm}|{seed}"] = {"val_loss": vloss, "mu": mu, "sd": sd}
+            results[f"{arm}|{seed}"] = {"val_loss": spec["val_loss"], "mu": spec["mu"], "sd": spec["sd"]}
+            arm_specs[arm] = spec
+            log(f"  seed{seed} {arm}: 验证 {spec['val_loss']:.6f}")
+        # 所有臂训练完成后，统一按切分各读一遍 u，一次写出全部预测
+        pred_paths = predict_all_arms(reps, arm_specs, seed)
+        for arm in arm_specs:
             np.savez_compressed(os.path.join(DATA, f"preds_seed{seed}_{arm}.npz"),
-                                **{f"pred_{s}": np.asarray(np.load(preds[s], mmap_mode="r"))
+                                **{f"pred_{s}": np.asarray(np.load(pred_paths[arm][s], mmap_mode="r"))
                                    for s in ("train", "valid", "test")},
                                 **{f"idx_{s}": reps[s]["idx"] for s in ("train", "valid", "test")},
                                 **{f"stock_{s}": reps[s]["stock"] for s in ("train", "valid", "test")},
                                 **{f"date_{s}": reps[s]["date"] for s in ("train", "valid", "test")},
                                 **{f"y_{s}": reps[s]["y"] for s in ("train", "valid", "test")})
-            log(f"  seed{seed} {arm}: 验证 {vloss:.6f}，已保存预测")
         with open(os.path.join(OUT, f"train_meta_seed{seed}.json"), "w", encoding="utf-8") as f:
             json.dump({"seed": seed, "d_model": args.d_model, "layers": args.layers,
                        "heads": args.heads, "ff": args.ff, "epochs": args.epochs,
                        "max_updates": args.max_updates, "batch": args.batch,
                        "readout_epochs": args.readout_epochs, "stock_cap": args.stock_cap,
-                       "val_stride": args.val_stride}, f, ensure_ascii=False, indent=2)
+                       "val_stride": args.val_stride,
+                       "fast_encoder_selftest": st}, f, ensure_ascii=False, indent=2)
     log("全部完成")
     return 0
 

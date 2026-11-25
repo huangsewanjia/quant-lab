@@ -208,7 +208,7 @@ def run_backtest(panel, pred_stock, pred_val, pred_date, dates_sorted, cost, ass
                 v += u * p
         nav[i] = v
         ret[i] = v / nav[i - 1] - 1 if i > 0 and np.isfinite(nav[i - 1]) else np.nan
-        turnover[i] = traded_notional[day] / (2 * nav[i - 1]) if i > 0 and np.isfinite(nav[i - 1]) else np.nan
+        turnover[i] = traded_notional[i] / (2 * nav[i - 1]) if i > 0 and np.isfinite(nav[i - 1]) else np.nan
 
         # ---------------- 4. 用 t 日预测决定 t+1 的新批次
         cand = buckets.get(day, [])
