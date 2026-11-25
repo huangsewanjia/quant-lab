@@ -37,7 +37,7 @@ from pathlib import Path
 from typing import Any
 
 from ..etl import common
-from ..etl.industry import FORECAST_SOURCES, SOURCES
+from ..etl.industry import BUSINESS_KEYS, FORECAST_SOURCES, SOURCES
 
 
 def report_dir() -> Path:
@@ -96,15 +96,7 @@ DATE_COLUMNS: dict[str, list[str]] = {
     "industry_trendforce_spot_price": ["snapshot_date"],
 }
 
-BUSINESS_KEYS: dict[str, list[str]] = {
-    "industry_caam_auto_output": ["period", "indicator", "scope", "subject"],
-    "industry_cpcaauto_nev": ["period", "kind", "indicator", "source_url"],
-    "industry_mof_fiscal": ["period", "indicator"],
-    "industry_nea_power": ["period", "indicator", "source_url"],
-    "industry_ppi_spot_prices": ["goods_id", "spec", "market", "supplier", "as_of"],
-    "industry_trendforce_spot_price": ["snapshot_date", "series", "spec"],
-    "industry_benchmark_public_index": ["snapshot_date", "kind", "name"],
-}
+# BUSINESS_KEYS 定义在 etl/industry.py（差异日志与 C2 的重复检查共用一份）。
 
 # 预测表（WORK-584）：单位词表按首批数据实测固定；上游出现新单位时 C8 直接判 FAIL，
 # 迫使实现方在 schema 注释与文档里明确新单位，而不是悄悄混进来。
@@ -626,6 +618,77 @@ def c8_forecast(con) -> tuple[bool, dict[str, Any]]:
     }
 
 
+DIFF_CHANGE_TYPES = ("value_changed", "row_added", "row_dropped", "no_change")
+
+
+def c9_load_diff(con) -> tuple[bool, dict[str, Any]]:
+    """留痕完整性（WORK-585）：最近一次覆盖 17 表的装载，每张表都要留过痕。
+
+    判据与 C5 同一取数口径（覆盖全部表的最新一次运行）。这条闸只回答「替换有没有
+    记账」，不判断变化是否符合业务预期——后者是人看 v_industry_load_changes_recent
+    的事，闸不替人做价值判断。
+    """
+    row = con.execute(
+        "SELECT run_id, max(finished_at) FROM industry_load_audit "
+        "GROUP BY 1 HAVING count(*) = ? ORDER BY 2 DESC LIMIT 1",
+        [len(TABLES)],
+    ).fetchone()
+    if row is None:
+        return False, {
+            "pass": False,
+            "error": f"industry_load_audit 中没有覆盖 {len(TABLES)} 张表的完整运行",
+        }
+    latest = row[0]
+
+    present = {
+        r[0]: int(r[1])
+        for r in con.execute(
+            "SELECT table_name, count(*) FROM industry_load_diff "
+            "WHERE run_id = ? GROUP BY 1",
+            [latest],
+        ).fetchall()
+    }
+    missing = sorted(set(TABLES) - set(present))
+
+    placeholders = ", ".join("?" for _ in DIFF_CHANGE_TYPES)
+    bad_type, orphan, shape = con.execute(
+        f"""
+        SELECT
+          (SELECT count(*) FROM industry_load_diff
+            WHERE change_type NOT IN ({placeholders})),
+          (SELECT count(*) FROM industry_load_diff d
+            WHERE NOT EXISTS (SELECT 1 FROM industry_load_audit a
+                              WHERE a.run_id = d.run_id
+                                AND a.table_name = d.table_name)),
+          (SELECT count(*) FROM industry_load_diff
+            WHERE (change_type = 'value_changed'
+                   AND (column_name IS NULL OR old_value IS NULL OR new_value IS NULL))
+               OR (change_type = 'row_added' AND new_value IS NULL)
+               OR (change_type = 'row_dropped' AND old_value IS NULL)
+               OR (change_type = 'no_change'
+                   AND (column_name IS NOT NULL OR old_value IS NOT NULL)))
+        """,
+        list(DIFF_CHANGE_TYPES),
+    ).fetchone()
+
+    ok = (
+        not missing
+        and int(bad_type) == 0
+        and int(orphan) == 0
+        and int(shape) == 0
+    )
+    return ok, {
+        "pass": ok,
+        "latest_run": latest,
+        "tables_with_diff": len(present),
+        "missing_diff_tables": missing,
+        "diff_rows": present,
+        "illegal_change_type": int(bad_type),
+        "orphan_diff_rows": int(orphan),
+        "malformed_diff_rows": int(shape),
+    }
+
+
 GATES = {
     "C1_rows_nonzero": c1_rows_nonzero,
     "C2_primary_key": c2_primary_key,
@@ -635,6 +698,7 @@ GATES = {
     "C6_catalog_coverage": c6_catalog_coverage,
     "C7_freshness": c7_freshness,
     "C8_forecast": c8_forecast,
+    "C9_load_diff": c9_load_diff,
 }
 
 
@@ -711,6 +775,15 @@ def _summary(results: dict[str, Any]) -> dict[str, Any]:
                     ds for ds, v in (detail.get("snapshots") or {}).items()
                     if not v.get("pass")
                 ],
+            })
+        elif name == "C9_load_diff":
+            row.update({
+                "latest_run": detail.get("latest_run"),
+                "tables_with_diff": detail.get("tables_with_diff"),
+                "missing_diff_tables": detail.get("missing_diff_tables"),
+                "illegal_change_type": detail.get("illegal_change_type"),
+                "orphan_diff_rows": detail.get("orphan_diff_rows"),
+                "malformed_diff_rows": detail.get("malformed_diff_rows"),
             })
         summary[name] = row
     return summary

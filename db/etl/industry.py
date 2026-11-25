@@ -26,6 +26,7 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import numbers
 import re
 import sys
 import time
@@ -467,6 +468,7 @@ class Source:
         transform: Callable[[pd.DataFrame, dict], pd.DataFrame],
         pk_is_hash: bool = False,
         tier: str = "monthly",
+        replace_mode: str = "partition",
     ) -> None:
         self.name = name
         self.table = table
@@ -475,6 +477,9 @@ class Source:
         self.transform = transform
         self.pk_is_hash = pk_is_hash
         self.tier = tier
+        # "partition"：只替换本次出现的期，其余期保留（增量源）；
+        # "source"：整表替换（快照源，上游撤掉的期必须消失，见 WORK-577 F3）。
+        self.replace_mode = replace_mode
 
     @property
     def root(self) -> Path:
@@ -500,8 +505,9 @@ SOURCES: list[Source] = [
            ["trade_date"], transform_gfex, tier="daily"),
     Source("chinamoney_lpr", "industry_chinamoney_lpr", "parquet",
            ["quote_date"], transform_lpr, tier="daily"),
+    # cnesa_storage 是整页快照：上游改版会删掉旧期，按期替换会留下幽灵行（F3）。
     Source("cnesa_storage", "industry_cnesa_storage", "parquet",
-           ["period"], transform_cnesa),
+           ["period"], transform_cnesa, replace_mode="source"),
     Source("cninfo_announcements", "industry_cninfo_announcements", "parquet",
            ["published_date"], transform_cninfo),
     Source("caam_auto_output", "industry_caam_auto_output", "parquet",
@@ -580,6 +586,155 @@ def _assert_unique(frame: pd.DataFrame, keys: list[str]) -> None:
         )
 
 
+# ---------------------------------------------------------------------------
+# 装载变更留痕（WORK-585）
+#
+# 替换之前先把「库内现状 vs 本次快照」的逐行差异落 industry_load_diff，替换与
+# 记账同事务，替换失败则一起回滚。row_hash 主键的表按 row_hash 比对，内容改版
+# 天然表现为旧行小计 + 新行小计；这里不为它编一套「哪两行是同一条」的推断。
+# ---------------------------------------------------------------------------
+
+# row_hash 主键的表没有业务键列可用，indicator 用这份映射渲染成人看得懂的文本。
+# 同一份定义供 db/checks/industry.py 的 C2 复用（那边只判重复，不参与比对）。
+BUSINESS_KEYS: dict[str, list[str]] = {
+    "industry_caam_auto_output": ["period", "indicator", "scope", "subject"],
+    "industry_cpcaauto_nev": ["period", "kind", "indicator", "source_url"],
+    "industry_mof_fiscal": ["period", "indicator"],
+    "industry_nea_power": ["period", "indicator", "source_url"],
+    "industry_ppi_spot_prices": ["goods_id", "spec", "market", "supplier", "as_of"],
+    "industry_trendforce_spot_price": ["snapshot_date", "series", "spec"],
+    "industry_benchmark_public_index": ["snapshot_date", "kind", "name"],
+}
+
+DIFF_TEXT_LIMIT = 4000
+DIFF_EMPTY_CELL = "∅"
+
+
+def _cell_text(value: Any) -> str:
+    """单元格规范文本：源侧为空记 ∅，日期写 ISO，浮点用 repr（同源前后可比）。
+
+    DuckDB 的 DATE 列经 Arrow 转 pandas 后是 datetime64，读回来是零点 Timestamp；
+    装载侧是 datetime.date。两者是同一个值，不规范化就会把每次重载都记成「变了」。
+    """
+    if value is None:
+        return DIFF_EMPTY_CELL
+    try:
+        if pd.isna(value):  # pd.NaT 也是 datetime 子类，必须先判空
+            return DIFF_EMPTY_CELL
+    except (TypeError, ValueError):
+        pass
+    if isinstance(value, dt.datetime):
+        if value.time() == dt.time(0, 0):
+            return value.date().isoformat()
+        return value.isoformat(sep=" ")
+    if isinstance(value, dt.date):
+        return value.isoformat()
+    if isinstance(value, bytes):
+        return value.decode()
+    # 数值按「值」比对，不按类型：库里是 DOUBLE、staged 是 int64 时
+    # 80620 与 80620.0 是同一个值，不能记成变化。
+    if isinstance(value, numbers.Real) and not isinstance(value, bool):
+        number = float(value)
+        return str(int(number)) if number.is_integer() else repr(number)
+    return str(value)
+
+
+def _row_text(row: dict[str, Any], columns: list[str]) -> str:
+    text = "|".join(f"{c}={_cell_text(row.get(c))}" for c in columns)
+    if len(text) > DIFF_TEXT_LIMIT:
+        return text[:DIFF_TEXT_LIMIT] + "…(truncated)"
+    return text
+
+
+def _diff_period(source: Source, row: dict[str, Any]) -> dt.date | None:
+    if not source.partition:
+        return None
+    value = row.get(source.partition[0])
+    if isinstance(value, dt.datetime):
+        return value.date()
+    return value if isinstance(value, dt.date) else None
+
+
+def _table_columns(con: duckdb.DuckDBPyConnection, table: str) -> list[str]:
+    return list(con.execute(f"SELECT * FROM {table} LIMIT 0").df().columns)
+
+
+def compute_load_diff(
+    con: duckdb.DuckDBPyConnection,
+    source: Source,
+    staged: pd.DataFrame,
+    mode: str,
+) -> list[list[Any]]:
+    """库内现状（同事务内读）vs 本次 staged 的逐行差异，返回可直接 INSERT 的行。"""
+    key_columns = ["row_hash"] if source.pk_is_hash else _primary_key(con, source.table)
+    column_order = _table_columns(con, source.table)
+    if mode == "partition":
+        cond = _null_safe_join(source.partition, "t", "s")
+        existing = con.execute(
+            f"SELECT t.* FROM {source.table} AS t WHERE EXISTS "
+            f"(SELECT 1 FROM (SELECT DISTINCT {', '.join(source.partition)} "
+            f"FROM _staged) AS s WHERE {cond})"
+        ).df()
+    else:
+        existing = con.execute(f"SELECT * FROM {source.table}").df()
+
+    indicator_columns = [
+        c for c in column_order if c in BUSINESS_KEYS.get(source.table, key_columns)
+    ] or key_columns
+    compared = [c for c in column_order if c not in key_columns]
+
+    def key_of(row: dict[str, Any]) -> str:
+        return "|".join(f"{c}={_cell_text(row.get(c))}" for c in key_columns)
+
+    old = {key_of(r): r for r in existing.to_dict("records")}
+    new = {key_of(r): r for r in staged.to_dict("records")}
+    now = dt.datetime.now()
+
+    def record(row, change, column, old_value, new_value):
+        indicator = "|".join(
+            f"{c}={_cell_text(row.get(c))}" for c in indicator_columns
+        )
+        return [
+            source.name, source.table, _diff_period(source, row), indicator,
+            change, column, old_value, new_value, now,
+        ]
+
+    rows: list[list[Any]] = []
+    for key, row in old.items():
+        if key not in new:
+            rows.append(record(row, "row_dropped", None,
+                               _row_text(row, column_order), None))
+    for key, row in new.items():
+        if key not in old:
+            rows.append(record(row, "row_added", None,
+                               None, _row_text(row, column_order)))
+            continue
+        previous = old[key]
+        for column in compared:
+            before, after = _cell_text(previous.get(column)), _cell_text(row.get(column))
+            if before != after:
+                rows.append(record(row, "value_changed", column, before, after))
+    if not rows:
+        rows.append([
+            source.name, source.table, None, "(全表)", "no_change", None, None,
+            f"staged={len(staged)} 库内={len(existing)} 差异=0", now,
+        ])
+    rows.sort(key=lambda r: (r[4], r[3], r[5] or ""))
+    return rows
+
+
+def write_load_diff(
+    con: duckdb.DuckDBPyConnection, run_id: str, rows: list[list[Any]]
+) -> int:
+    if not rows:
+        return 0
+    con.executemany(
+        "INSERT INTO industry_load_diff VALUES (?,?,?,?,?,?,?,?,?,?)",
+        [[run_id, *row] for row in rows],
+    )
+    return len(rows)
+
+
 def load_source(
     con: duckdb.DuckDBPyConnection,
     source: Source,
@@ -600,38 +755,61 @@ def load_source(
     partitions = (
         staged[source.partition].drop_duplicates().shape[0] if source.partition else 0
     )
+    mode = "full" if full else source.replace_mode
 
+    # 先记账、后动手：差异与替换在同一事务里。原来的实现 DELETE 与 INSERT 各自
+    # autocommit，INSERT 失败会留下空表/半表；现在失败整体回滚，库内保持装载前状态。
     # duckdb 对同一个 connection 上未取完的结果会报 ResourceInUse，因此每一步
     # 都显式 fetchall()；注册的 DataFrame 不在这里 unregister（下一次 register
     # 同名会替换），避免在结果未清理时做连接级操作。
-    con.register("_staged", staged)
-    if full:
-        con.execute(f"DELETE FROM {source.table}").fetchall()
-    else:
-        cond = _null_safe_join(source.partition, "t", "s")
+    con.execute("BEGIN TRANSACTION")
+    try:
+        con.register("_staged", staged)
+        existing = int(
+            con.execute(f"SELECT count(*) FROM {source.table}").fetchone()[0]
+        )
+        if mode == "source" and len(staged) == 0 and existing:
+            raise SystemExit(
+                f"[industry] {source.name} 整源替换收到 0 行而库内 {existing} 行，"
+                "拒绝清空（多半是快照抓空或解析失败），先查 raw 再处理"
+            )
+        diff_rows = write_load_diff(
+            con, run_id, compute_load_diff(con, source, staged, mode)
+        )
+        if mode in ("full", "source"):
+            con.execute(f"DELETE FROM {source.table}").fetchall()
+        else:
+            cond = _null_safe_join(source.partition, "t", "s")
+            con.execute(
+                f"DELETE FROM {source.table} AS t WHERE EXISTS "
+                f"(SELECT 1 FROM (SELECT DISTINCT {', '.join(source.partition)} "
+                f"FROM _staged) AS s WHERE {cond})"
+            ).fetchall()
         con.execute(
-            f"DELETE FROM {source.table} AS t WHERE EXISTS "
-            f"(SELECT 1 FROM (SELECT DISTINCT {', '.join(source.partition)} "
-            f"FROM _staged) AS s WHERE {cond})"
+            f"INSERT OR REPLACE INTO {source.table} BY NAME SELECT * FROM _staged"
         ).fetchall()
-    con.execute(
-        f"INSERT OR REPLACE INTO {source.table} BY NAME SELECT * FROM _staged"
-    ).fetchall()
-    loaded = int(con.execute(f"SELECT count(*) FROM {source.table}").fetchall()[0][0])
+        loaded = int(con.execute(f"SELECT count(*) FROM {source.table}").fetchall()[0][0])
 
-    finished = dt.datetime.now()
-    con.execute(
-        "INSERT OR REPLACE INTO industry_load_audit VALUES (?,?,?,?,?,?,?,?,?,?)",
-        [run_id, source.table, source.name, len(raw), len(staged), loaded,
-         partitions, "full" if full else "partition", started, finished],
-    )
+        finished = dt.datetime.now()
+        con.execute(
+            "INSERT OR REPLACE INTO industry_load_audit VALUES (?,?,?,?,?,?,?,?,?,?)",
+            [run_id, source.table, source.name, len(raw), len(staged), loaded,
+             partitions, mode, started, finished],
+        )
+        con.execute("COMMIT")
+    except BaseException:
+        con.execute("ROLLBACK")
+        raise
+
     return {
         "source": source.name,
         "table": source.table,
+        "mode": mode,
         "raw_rows": len(raw),
         "staged_rows": len(staged),
         "dropped_duplicates": dropped,
         "loaded_rows": loaded,
+        "diff_rows": diff_rows,
         "partitions": partitions,
         "seconds": round((finished - started).total_seconds(), 2),
     }
@@ -655,6 +833,7 @@ def _load_group(
             f"[industry] {result['table']:<42} raw={result['raw_rows']:>6} "
             f"staged={result['staged_rows']:>6} dedup={result['dropped_duplicates']:>3} "
             f"total={result['loaded_rows']:>6} partitions={result['partitions']:>4} "
+            f"diff={result['diff_rows']:>5} {result['mode']:<9} "
             f"{result['seconds']:>6.2f}s",
             flush=True,
         )
@@ -711,8 +890,10 @@ def run_load(
         "raw_rows_total": sum(r["raw_rows"] for r in results),
         "staged_rows_total": sum(r["staged_rows"] for r in results),
         "loaded_rows_total": sum(r["loaded_rows"] for r in results),
+        "diff_rows_total": sum(r["diff_rows"] for r in results),
         "forecast_sources": forecast_results,
         "forecast_rows_total": sum(r["loaded_rows"] for r in forecast_results),
+        "forecast_diff_rows_total": sum(r["diff_rows"] for r in forecast_results),
     }
     out = audit / f"load-{run_id}.json"
     common.write_json_atomic(out, report)
