@@ -86,46 +86,6 @@ def warm_cache(path, label=""):
     log(f"  页缓存预热 {label} {n / 1048576:.0f} MB 用时 {time.time() - t0:.0f}s")
 
 
-class Prefetcher:
-    """后台线程预取下一批的面板张量，与主线程的前向/反向重叠（纯 I/O 层优化）。"""
-
-    def __init__(self, fn, depth=2):
-        import queue
-        import threading
-        # 输入/输出**双队列**：单队列会让主线程在 worker 尚未取走任务时取回原始索引
-        self.inq = queue.Queue(maxsize=depth)
-        self.outq = queue.Queue(maxsize=depth)
-        self.fn = fn
-        self._stop = False
-        self.t = threading.Thread(target=self._worker, daemon=True)
-        self.t.start()
-
-    def _worker(self):
-        while True:
-            item = self.inq.get()
-            if item is None:
-                return
-            try:
-                self.outq.put(self.fn(item))
-            except Exception as e:  # noqa: BLE001
-                self.outq.put(e)
-
-    def submit(self, item):
-        self.inq.put(item)
-
-    def get(self):
-        r = self.outq.get()
-        if isinstance(r, Exception):
-            raise r
-        return r
-
-    def close(self):
-        try:
-            self.inq.put_nowait(None)
-        except Exception:  # noqa: BLE001
-            pass
-
-
 # ---------------------------------------------------------------- 模型
 class FastEncoderLayer(nn.Module):
     """与 ``nn.TransformerEncoderLayer(norm_first=True)`` 前向**逐位等价**的 CPU 加速实现。
@@ -281,14 +241,14 @@ def make_mask_token(d_model):
 
 # ---------------------------------------------------------------- 数据
 class Panel:
-    def __init__(self):
+    def __init__(self, stage_tmpfs=True):
         self.feat = np.load(os.path.join(DATA, "feat.npy"), mmap_mode="r")
         self.tgt = np.load(os.path.join(DATA, "targets.npy"), mmap_mode="r")
-        # 随机访问面板：关掉内核 readahead（否则 129× 读放大）并异步预热页缓存
+        # 随机访问面板：关掉内核 readahead（否则 129× 读放大）
         tune_mmap(self.feat, mmap.MADV_RANDOM)
         tune_mmap(self.tgt, mmap.MADV_RANDOM)
-        tune_mmap(self.feat, mmap.MADV_WILLNEED)
-        tune_mmap(self.tgt, mmap.MADV_WILLNEED)
+        self.stg = None          # tmpfs 上的训练日期片（RAM 速随机读）
+        self.stg_lo = 0
         self.prior = json.load(open(os.path.join(DATA, "prior.json"), encoding="utf-8"))
         self.norm = json.load(open(os.path.join(DATA, "norm.json"), encoding="utf-8"))
         s = np.load(os.path.join(DATA, "samples.npz"))
@@ -307,6 +267,71 @@ class Panel:
             b = blocks[nm]
             self.block_of_date[nm] = (b["block_start"], b["block_end"])
         self.blocks = blocks
+        if stage_tmpfs:
+            self._stage_train_slice()
+
+    def _stage_train_slice(self):
+        """把**训练所需日期片**复制到 /dev/shm（tmpfs）→ 随机取数变 RAM 速。
+
+        本机面板 feat.npy 为 3GB 而整机可用内存只有 ~4GB，页缓存留不住；
+        随机取数冷缓存下每批 1,280 次随机缺页 × ~5ms ≈ 6.4s/步（实测 7.58s/步）。
+        训练片（train 切分日期 ± 上下文/未来窗余量）约 1.4GB，放进 tmpfs 后取数 5ms/步。
+        **取样顺序与协议完全不变**（仍按原随机排列取样），只是数据落在 tmpfs 上；
+        复制是逐股整段拷贝，**与原文件逐位一致**。
+        """
+        d = self.date[self.m_train]
+        lo, hi = int(d.min()) - (CTX - 1), int(d.max()) + H
+        n = hi - lo + 1
+        shape = (self.feat.shape[0], n, self.feat.shape[2])
+        dst = "/dev/shm/w566_feat_train.npy"
+        if os.path.exists(dst):
+            try:
+                arr = np.load(dst, mmap_mode="r")
+                if tuple(arr.shape) == shape:
+                    self.stg, self.stg_lo = arr, lo
+                    log(f"  tmpfs 训练日期片已存在：{dst} {shape} 起日 {lo}")
+                    return
+            except Exception:  # noqa: BLE001
+                pass
+        t0 = time.time()
+        tmp = dst + f".tmp{os.getpid()}"
+        # 用 os.pread 直接按偏移读（并给 fd 加顺序读提示）：memmap 上的随机读没有
+        # readahead，逐股拷贝会退化成 62 次随机 4KB 读/股（实测 0.4MB/s）
+        src_path = os.path.join(DATA, "feat.npy")
+        src = np.load(src_path, mmap_mode="r")
+        data_off = src.offset
+        row = shape[2] * 4                     # 一日一股字节数
+        bytes_per_stock = shape[1] * row       # 一股日期片字节数
+        fd = os.open(src_path, os.O_RDONLY)
+        try:
+            os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_SEQUENTIAL)
+        except Exception:  # noqa: BLE001
+            pass
+        with open(tmp, "wb") as f:
+            np.lib.format.write_array_header_2_0(
+                f, {"descr": "<f4", "fortran_order": False, "shape": shape})
+            for s in range(shape[0]):
+                base = data_off + s * (self.feat.shape[1] * row) + lo * row
+                f.write(os.pread(fd, bytes_per_stock, base))
+        os.close(fd)
+        os.replace(tmp, dst)
+        self.stg = np.load(dst, mmap_mode="r")
+        self.stg_lo = lo
+        log(f"  tmpfs 训练日期片预置完成：{shape} {shape[0] * shape[1] * shape[2] * 4 / 1048576:.0f} MB，"
+            f"起日 {lo}，用时 {time.time() - t0:.0f}s")
+
+    def _feat_view(self, idx):
+        """返回 (特征数组, 日期偏移)：落在 tmpfs 训练片内就用 tmpfs（RAM 速），否则用原文件。
+
+        注意：stg 存的是**原始日期下标** [stg_lo, stg_lo + shape[1] - 1] 这一段，
+        因此判界要用原始下标与该区间比，不能拿原始下标直接和切片长度比。
+        """
+        if self.stg is not None:
+            lo = self.stg_lo
+            hi = lo + self.stg.shape[1] - 1
+            if int(idx.min()) >= lo and int(idx.max()) <= hi:
+                return self.stg, self.stg_lo
+        return self.feat, 0
 
     def block_id(self, dts):
         """样本日期 → 块下标。"""
@@ -325,12 +350,14 @@ class Panel:
         return x
 
     def raw_features(self, si, di):
-        return np.asarray(self.feat[si, di, :], dtype=np.float32)
+        arr, off = self._feat_view(np.asarray(di))
+        return np.asarray(arr[si, np.asarray(di) - off, :], dtype=np.float32)
 
     def context(self, si, di):
         """(n, 126, 40) 标准化上下文（整批向量化 gather，避免逐样本 Python 循环）。"""
         idx = di[:, None] - (CTX - 1 - np.arange(CTX)[None, :])
-        out = np.asarray(self.feat[si[:, None], idx, :], dtype=np.float32)
+        arr, off = self._feat_view(idx)
+        out = np.asarray(arr[si[:, None], idx - off, :], dtype=np.float32)
         out = (out - self.mean) / self.std
         out[~np.isfinite(out)] = 0.0
         np.clip(out, -8, 8, out=out)
@@ -339,7 +366,8 @@ class Panel:
     def future(self, si, di):
         """(n, 21, 40) 标准化未来窗。"""
         idx = di[:, None] + (1 + np.arange(H)[None, :])
-        out = np.asarray(self.feat[si[:, None], idx, :], dtype=np.float32)
+        arr, off = self._feat_view(idx)
+        out = np.asarray(arr[si[:, None], idx - off, :], dtype=np.float32)
         out = (out - self.mean) / self.std
         out[~np.isfinite(out)] = 0.0
         np.clip(out, -8, 8, out=out)
@@ -404,6 +432,9 @@ def train_representation(panel, args, seed):
     tr = np.nonzero(panel.m_train)[0]
     va = np.nonzero(panel.m_valid)[0]
     va_sub = va[::args.val_stride]
+    # 验证遍历按 (stock, date) 排序 → 面板读取为顺序 I/O（只改遍历顺序，
+    # 验证损失是逐块损失的平均，口径不变；浮点求和顺序变化仅影响末位）
+    va_sub = va_sub[np.lexsort((panel.date[va_sub], panel.stock[va_sub]))]
     tr_dates = panel.dts[tr]
     tr_block = panel.block_id(tr_dates)
     va_block = panel.block_id(panel.dts[va_sub])
@@ -451,16 +482,12 @@ def train_representation(panel, args, seed):
     upd = 0
     for epoch in range(args.epochs):
         order = rng.permutation(len(tr))
-        # 后台线程预取下一批的面板张量，与主线程前向/反向重叠（纯 I/O 层优化，不改口径）
-        pf = Prefetcher(encode_batch, depth=2)
         for k in range(args.max_updates):
             sel = order[k * args.batch:(k + 1) * args.batch]
             if len(sel) == 0:
                 break
             idx = tr[sel]
-            pf.submit(idx)
-            pre = pf.get()
-            l_anc, l_rev, (m_k, s_k) = losses_on(idx, train=True, pre=pre)
+            l_anc, l_rev, (m_k, s_k) = losses_on(idx, train=True)
             opt_a.zero_grad(set_to_none=True)
             l_anc.backward()
             nn.utils.clip_grad_norm_(proj.parameters(), 1.0)
@@ -485,7 +512,6 @@ def train_representation(panel, args, seed):
                 os.replace(ckpt_path + ".tmp", ckpt_path)
 
         # 验证损失 → 选 checkpoint
-        pf.close()
         va_losses = []
         with torch.no_grad():
             for k in range(0, len(va_sub), args.val_batch):
@@ -620,19 +646,23 @@ def build_reps(panel, args, seed, ckpt_path):
         u = np.lib.format.open_memmap(u_path, mode="w+", dtype=np.float32,
                                       shape=(len(idx_all), 40 + PRIOR_DIM + 3 * d_model))
         B = args.rep_batch
+        # 面板读取按 (stock, date) 顺序（顺序 I/O），u 仍写回**原行号**（日期序），
+        # 因此读出阶段「每个 batch = 一个预测日」的分组与取值完全不变
+        perm = np.lexsort((di, si))
         with torch.no_grad():
             for k in range(0, len(idx_all), B):
-                sl = slice(k, k + B)
-                xc = panel.context(si[sl], di[sl])          # 标准化上下文，只取一次
+                pos = perm[k:k + B]
+                rows = idx_all[pos]
+                xc = panel.context(si[pos], di[pos])          # 标准化上下文，只读一次
                 ctx = torch.from_numpy(xc)
-                pr = torch.from_numpy(panel.prior_vec(si[sl], di[sl], bid[sl]))
+                pr = torch.from_numpy(panel.prior_vec(si[pos], di[pos], bid[pos]))
                 h = enc(ctx)
                 z_anc = proj_ema(pr)
                 q = qpred(h, z_anc)
                 delta = m_k + s_k * q
                 smean = xc.mean(axis=1)                      # 历史摘要 s
-                u[sl] = np.concatenate([smean, pr.numpy(), z_anc.numpy(), delta.numpy(),
-                                        h.numpy()], axis=1)
+                u[rows] = np.concatenate([smean, pr.numpy(), z_anc.numpy(), delta.numpy(),
+                                          h.numpy()], axis=1)
         u.flush()
         y = panel.labels(si, di)
         out[split] = {"idx": idx_all, "u_path": u_path, "u_shape": (len(idx_all), u.shape[1]),

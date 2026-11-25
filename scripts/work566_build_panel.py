@@ -10,7 +10,7 @@
 
 口径与 experiments/WORK-566/feature_contract.md 一一对应：
   * 后复权 hfq：logC = log(close_raw) + log(adj / adj_first)；close_hfq = close_raw × adj/adj_first
-  * 停牌：保留行、价格前向填充到上一收盘、vol=0、amount=0；has_bar 单独记录（连续性断言用）
+  * 停牌：保留行、价格留空（NaN，**不做前向填充**；估值按「最后可得收盘价」盯市）；has_bar 单独记录（连续性断言用）
   * 描述符只含 t 当日及之前的信息；未来窗只用于标签与 S1 目标
 
 运行：
@@ -488,7 +488,7 @@ def main():
         "feat_names": FEAT_NAMES,
         "target_names": TARGET_NAMES,
         "adjust": "后复权 hfq：logC = log(close_raw) + log(adj/adj_first)",
-        "suspended": "保留行、价格前向填充到上一收盘、vol=0、amount=0；has_bar 单独记录",
+        "suspended": "保留行、价格留空（NaN，**不做前向填充**；估值按「最后可得收盘价」盯市）；has_bar 单独记录",
         "files": files,
         "built_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "elapsed_s": round(time.time() - t_all, 1),
