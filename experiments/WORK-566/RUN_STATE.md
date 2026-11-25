@@ -25,13 +25,27 @@
 
 ## 2. 训练命令（已验证可跑通）
 
+> ⚠️ **必须「一个种子一个种子」顺序跑**，不要两个种子同时跑。
+> 2026-11-25 16:17 双进程并行触发了**整机 OOM**：内核杀了我们的训练进程**和**
+> `multica-daemon.service`（平台提示里的 `daemon shut down while task was in flight`
+> 就是 OOM 的次生结果，不是平台故障）。取证见 `failure_log.md` §13。
+> 双进程硬占用 = 1.4 GB×2（anon）+ 1.4 GB（tmpfs）= 4.2 GB，而本机 swap 已满、
+> 同机他人 tmpfs 另占 2.3 GB。顺序跑把硬占用降到 2.8 GB，总墙钟时间不变
+> （本单训练是计算受限，不是 I/O 受限）。
+
 ```bash
 cd /srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/quant-lab
-setsid nohup ../.venv/bin/python -u scripts/work566_train.py \
-    --seeds 42   --threads 4 --rep-batch 1024 > /tmp/w566_s42.log   2>&1 < /dev/null &
-setsid nohup ../.venv/bin/python -u scripts/work566_train.py \
-    --seeds 2024 --threads 4 --rep-batch 1024 > /tmp/w566_s2024.log 2>&1 < /dev/null &
+MALLOC_ARENA_MAX=2 setsid nohup ../.venv/bin/python -u scripts/work566_train.py \
+    --seeds 42 --threads 6 --rep-batch 1024 > /tmp/w566_s42.log 2>&1 < /dev/null &
+# 等 seed42 的日志出现「全部完成」后，再起 seed2024（同样命令，把 --seeds 换成 2024）
 ```
+
+**内存看门狗**（每次起训练都挂上，OOM 前兆可回溯）：
+```bash
+setsid nohup /tmp/w566_memwatch.sh > /tmp/w566_mem.log 2>&1 < /dev/null &
+```
+关键字段：`avail`（MemAvailable，低于 ~500 MB 即在危险区）、`swapfree`（本机长期为 0）、
+`shmem`（tmpfs 合计，本单占 1.4 GB）、`trainRSS`（训练进程常驻内存）。
 
 - **用 `setsid nohup ... &` 启动**：脱离当前会话，平台 daemon 重启**不会**打断训练。
 - 其余参数**全部取默认值**，与预注册 §8 的算力降级表一一对应，不得改动：
