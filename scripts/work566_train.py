@@ -286,13 +286,20 @@ class Panel:
         n = hi - lo + 1
         shape = (self.feat.shape[0], n, self.feat.shape[2])
         dst = "/dev/shm/w566_feat_train.npy"
-        if os.path.exists(dst):
+        # 陈旧校验：shape + 起日 + 源文件指纹（大小 + mtime）三者都对上才复用，
+        # 否则重建 —— 面板若被重建（内容变、shape 不变）而静默复用旧副本就是数值污染
+        src_path = os.path.join(DATA, "feat.npy")
+        st_src = os.stat(src_path)
+        fp = f"{st_src.st_size}:{int(st_src.st_mtime)}"
+        side = dst + ".fp"
+        if os.path.exists(dst) and os.path.exists(side):
             try:
                 arr = np.load(dst, mmap_mode="r")
-                if tuple(arr.shape) == shape:
+                if tuple(arr.shape) == shape and open(side, encoding="utf-8").read().strip() == fp:
                     self.stg, self.stg_lo = arr, lo
                     log(f"  tmpfs 训练日期片已存在：{dst} {shape} 起日 {lo}")
                     return
+                log(f"  tmpfs 训练日期片陈旧（shape/指纹不匹配）→ 重建")
             except Exception:  # noqa: BLE001
                 pass
         t0 = time.time()
@@ -317,6 +324,8 @@ class Panel:
                 f.write(os.pread(fd, bytes_per_stock, base))
         os.close(fd)
         os.replace(tmp, dst)
+        with open(side, "w", encoding="utf-8") as f:
+            f.write(fp)
         self.stg = np.load(dst, mmap_mode="r")
         self.stg_lo = lo
         log(f"  tmpfs 训练日期片预置完成：{shape} {shape[0] * shape[1] * shape[2] * 4 / 1048576:.0f} MB，"
@@ -654,7 +663,6 @@ def build_reps(panel, args, seed, ckpt_path):
         with torch.no_grad():
             for k in range(0, len(idx_all), B):
                 pos = perm[k:k + B]
-                rows = idx_all[pos]
                 xc = panel.context(si[pos], di[pos])          # 标准化上下文，只读一次
                 ctx = torch.from_numpy(xc)
                 pr = torch.from_numpy(panel.prior_vec(si[pos], di[pos], bid[pos]))
@@ -663,8 +671,10 @@ def build_reps(panel, args, seed, ckpt_path):
                 q = qpred(h, z_anc)
                 delta = m_k + s_k * q
                 smean = xc.mean(axis=1)                      # 历史摘要 s
-                u[rows] = np.concatenate([smean, pr.numpy(), z_anc.numpy(), delta.numpy(),
-                                          h.numpy()], axis=1)
+                # 写回 **split 内位置** pos（不是全局样本下标 idx_all[pos]：
+                # u 只有 len(idx_all) 行，用全局下标会 IndexError —— 2026-11-25 复审 B2）
+                u[pos] = np.concatenate([smean, pr.numpy(), z_anc.numpy(), delta.numpy(),
+                                         h.numpy()], axis=1)
         u.flush()
         y = panel.labels(si, di)
         out[split] = {"idx": idx_all, "u_path": u_path, "u_shape": (len(idx_all), u.shape[1]),

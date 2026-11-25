@@ -447,3 +447,33 @@ AssertionError: [ASSERT] 不可成交价：涨停股开盘买入被拒 stock=99 
 ### 11.6 `pkill -f <文件名>` 第二次误杀自身 shell
 - 第一次是 §8.2；本次 `pkill -f "w566_feat_train.npy.tmp"` 又匹配到**自己所在的命令行** → shell 被 SIGTERM。
 - **处置（此后一律遵守）**：只按**确切 PID** kill，且先 `ps` 核对；不使用 `pkill -f`。
+
+---
+
+## §12 第二轮独立复审（2026-11-25，审查任务 `bg_c224637b`）
+
+### 12.1 复审结论：B1/N1/N2/N5/N6/N7/N9 均已修，新发现 1 项 BLOCKING（B2）
+- **B1 复核**：审计侧插桩实测 `fallback_count=188`、`future_bar_used=0`，退市清算 31 次正常，产物逐位一致。
+- **B2（BLOCKING，本次新增）**：`build_reps` 写回 u 时用
+  `rows = idx_all[pos]`（`idx_all` 是**全局样本下标**，取值远大于 u 的行数 `len(idx_all)`），
+  而 u 的 memmap 只按 **split 内行数**开 → **越界，训练必崩（IndexError）**。
+- **根因**：B2 之前该代码路径从未被完整跑通（先被 B1 挡住、再被 §11 的 I/O 事故挡住），
+  属于「改 I/O 顺序时顺手改了索引语义、但没跑到」的潜伏缺陷。
+- **处置**：改为 `u[pos] = ...`，`pos = perm[k:k+B]` 是 **split 内位置**（`perm = np.lexsort((di, si))`，
+  长度为 `len(idx_all)`），与 u 的行数一致。
+- **对齐复核（重要）**：`u[pos] = f(si[pos], di[pos])` → **u 第 r 行对应样本 `idx_all[r]`**，
+  与 `y = panel.labels(si, di)`（同为 `idx_all` 序）逐行对齐；
+  `perm` 只决定**读盘顺序**（顺序 I/O），不改变行序。读出阶段 `take(u, gi)` / `ytr_t[gi]` 按行取值，
+  分组与取值不变 → **无错位**。
+- **验证（冒烟）**：`--rep-date-cap 3 --val-stride 64 --max-updates 3` 全链跑通，
+  三切分 u 维度均为 **248**（train 2,675 / valid 191 / test 15,276 行），
+  8 个臂 ckpt 与预测全部产出，**无 IndexError**。
+
+### 12.2 tmpfs 副本缺「陈旧校验」（复审 F3）
+- **风险**：tmpfs 训练日期片一旦存在就无条件复用；若面板被**重建**（内容变但 shape 不变），
+  旧副本会被静默复用 → **数值污染**，且从产物上看不出来。
+- **处置**：新增 sidecar 指纹文件 `/dev/shm/w566_feat_train.npy.fp`，
+  内容 = `源文件大小:源文件 mtime`；复用前校验 **shape + 起日 + 指纹** 三者全对上才复用，
+  否则重建并重写指纹。指纹不匹配时日志明确打「陈旧（shape/指纹不匹配）→ 重建」。
+- **副作用（已观测）**：加校验后的**首次**运行会重建一次（sidecar 尚不存在），
+  耗时约 265s（1.4GB @ ~5MB/s）；此后命中指纹直接复用，秒级。
