@@ -75,8 +75,9 @@ fi
 # 抓取窗口（WORK-576）：两档都显式传参，不再依赖各脚本 argparse 默认值。
 #   * 定时任务只走 --mode incremental（最近窗口/缺日）；--mode backfill 是手工回填，
 #     深度大、耗时长，绝不出现在本脚本里。
-#   * 国际源是「快照/年度循环」型（每源固定 1 页或按年循环），无深度参数；
-#     owid 取全序列只花 1 次 CSV 请求，收窄反而会丢历史，故保持无参。
+#   * 国际源的旋钮不叫 --mode：exchange 用 --days/--resume，comtrade 用 --start-year/--end-year，
+#     owid 用 --min-year。三个都显式传，值等于「日常档」，改上游默认值不会再悄悄改变定时行为。
+#     benchmark / ppi / sne / trendforce 是单页快照，没有深度旋钮，保持无参。
 declare -A FETCH_ARGS=(
   [gfex_lithium]="--mode incremental --days 30 --resume"
   [chinamoney_lpr]="--start 2019-08-20"
@@ -88,6 +89,10 @@ declare -A FETCH_ARGS=(
   [nea_power]="--mode incremental --pages 3 --articles 20 --year-pages 1"
   [pbc_shrzgm]="--mode incremental"
   [stats_gov]="--mode incremental --pages 6 --articles 6"
+  # 国际源（脚本在 raw/industry_alt/<源>/fetch.py）
+  [exchange_daily_quotes]="--days 7 --resume"
+  [comtrade_trade_values]="--start-year 2019 --end-year 2024"
+  [ow_iea_usgs_timeseries]="--min-year 0"
 )
 
 log "抓取 ${#CNN_SOURCES[@]} 个国内源"
@@ -114,7 +119,12 @@ for name in "${ALT_SOURCES[@]}"; do
     log "  !!   ${script} 不存在，跳过"
     continue
   fi
-  run_fetcher "${name}" "${PY}" "${script}"
+  src_args=()
+  if [ -n "${FETCH_ARGS[${name}]:-}" ]; then
+    read -r -a src_args <<<"${FETCH_ARGS[${name}]}"
+  fi
+  log "  args ${name}: ${FETCH_ARGS[${name}]:-(none)}"
+  run_fetcher "${name}" "${PY}" "${script}" ${src_args[@]+"${src_args[@]}"}
 done
 
 # 装载 + 质量闸：整体重试 2 次。

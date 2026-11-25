@@ -443,7 +443,7 @@ QUANTDB_HOME=/srv/share/quantdb QUANTDB_PYTHON=/home/moyongkai/.venvs/quantdb/bi
 分项耗时：gfex 3.1s、LPR 9.2s、benchmark 7s、exchange 1s（`http_calls=0`，6 个交易日已在 raw）、
 ppi 13s、trendforce 3s。`real 17m48s` 里的 16m41s 是等锁，不是抓取成本。
 
-GFEX 的实际参数（`jq .params raw/industry/gfex_lithium_carbonate/manifest.json`）：
+GFEX 的实际参数（`jq '{params:.params, elapsed:.elapsed_seconds}' raw/industry/gfex_lithium_carbonate/manifest.json`）：
 
 ```json
 {"mode": "incremental", "days_back": 30, "from": "2026-10-26", "to": "2026-11-25",
@@ -457,14 +457,15 @@ GFEX 的实际参数（`jq .params raw/industry/gfex_lithium_carbonate/manifest.
 ### 11.3 两档参数（与 §3 的表同一份口径）
 
 - **日常档**（`industry.sh daily`）：gfex `--mode incremental --days 30 --resume`、LPR `--start 2019-08-20`；
-  4 个国际快照源无深度参数（每源固定 1 次请求）。
+  国际源按各自旋钮显式传：exchange `--days 7 --resume`、comtrade `--start-year 2019 --end-year 2024`、
+  owid `--min-year 0`；benchmark / ppi / trendforce 是单页快照，无参。
 - **月频档**（`industry.sh monthly`）：8 个国内源全部 `--mode incremental`，窗口见 §3 表：
   巨潮 90 天、中汽协 3 个月、财政部 4 页 / 24 篇、乘联 3 页 / 30 篇、能源局每词 3 页 + 当年扩词、
-  人民银行当年、统计局 6 页 / 每组 6 篇；CNESA 无参数。
+  人民银行当年、统计局 6 页 / 每组 6 篇；CNESA 无参数；国际三源同日常档显式参数。
 - **回填档**：只手工跑，命令见 §3 第 5 段与 §10.2 复跑列（`--mode backfill`）。
 
-月频 11 个抓取脚本按上表参数逐个实测（2026-11-25 20:36–20:51，只抓取不装载，日志在
-`meta/industry/w576-smoke/*.log`，全部 rc=0）：
+月频 11 个抓取脚本按上表参数逐个实测（2026-11-25 20:36–20:52，只抓取不装载，逐源输出在
+`meta/industry/w576-smoke/*.log`，本轮 11 个源退出码均为 0，逐个人工核对）：
 
 | 源 | 耗时 | 本次抓到的行数（raw 合并后） | 备注 |
 |---|---:|---:|---|
@@ -482,23 +483,31 @@ GFEX 的实际参数（`jq .params raw/industry/gfex_lithium_carbonate/manifest.
 
 合计约 15.8 分钟，跑在每月 3 日 06:40 的月频档；日频档不包含这些源，所以不影响每日成本。
 
+表中的「耗时」是 smoke 脚本的墙钟（含解释器启动与 import pandas），比 fetcher 自报的
+`elapsed_seconds` 多 1–7 秒（如 stats 91s vs 84.0s、pbc 24s vs 20.6s）。本轮 smoke 脚本的
+`SMOKE <源> rc=…` 汇总只打到终端；脚本已改为 `… | tee meta/industry/w576-smoke/index.log`，
+下一轮可直接复核退出码，不再依赖人工核对。
+
 设计要点：脚本里所有深度旋钮 `default=None`，由 `--mode` 解析（`_common.resolve_mode`），
 显式数值永远优先；manifest 的 `params.mode` 与解析后的实际值可事后核对，
 不会出现「以为传了、其实走了默认」的静默偏差。
 
 ### 11.4 行数不减少（装载后 17 表）
 
-统计时点 2026-11-25 20:52（`python scripts/work572_verify.py shape`）：
+统计时点 2026-11-25 **20:29**（`python scripts/work572_verify.py shape`，输出存
+`meta/industry/work576-shape-after.txt`，mtime 20:29:51）：
 
 | 检查 | 数值 |
 |---|---|
 | `industry_*` 17 表合计（改前 20:05 基线） | 241,892 |
-| `industry_*` 17 表合计（增量装载后） | **263,698** |
-| 列相加自检 | 263,698 = 上表 17 行逐行相加 |
+| `industry_*` 17 表合计（本次增量装载后，20:29） | **263,698** |
+| 列相加自检 | PASS：263,698 = 上述 17 行逐行相加（`work572_verify.py shape` 内置断言，失败返回 1） |
 | `data_catalog` | 405（未变）|
 
-增量只做「按源 × 期分区替换 + 合并写 raw」，收窄窗口只减少请求数，不会删掉已有 raw 行；
-本次增加主要来自同日并行回补的 exchange（84 → 21,756 行）、cnesa（2 → 33 行）与快照源当日行。
+20:38 起并行单又装了一轮（grep 到 cninfo 14,075 行），当前读库为 **263,952**；
+两轮都在基线之上，「不减少」成立。增量只做「按源 × 期分区替换 + 合并写 raw」，
+收窄窗口只减少请求数，不会删掉已有 raw 行；本次增加主要来自同日并行回补的
+exchange（84 → 21,756 行，WORK-578 归口）与 cnesa（2 → 33 行，WORK-577 归口）。
 
 ### 11.5 质量闸
 

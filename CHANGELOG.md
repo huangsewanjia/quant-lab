@@ -61,7 +61,15 @@
 - `industry.sh daily`：拿到数据库锁后 **67 秒**完成抓取 + 装载 + 7 道闸；GFEX `workdays_queried=3`（改前 874 个工作日 / 20–25 分钟）。
 - `industry_*` 17 表 241,892 → 263,698 行（增量未丢历史；含同日并行回补的 exchange / cnesa 行）。
 - 7/7 PASS；`pytest db/tests/test_industry.py -q` 11 passed（需 `TMPDIR=/srv/backup/tmp`，`/tmp` 是 7.5G tmpfs 且已用 80%，默认 TMPDIR 会 `Disk quota exceeded`）。
-- 文档 §3 / §10.2 / §11 同步新口径；回填命令全部标注「手动、非定时」。
+- 文档 §3 / §10.2 / §11 同步新口径；回填标注「手动、非定时」。
+
+第 1 轮独立评审（blocking 2 / suggestion 4 / nit 3）处置：
+
+- blocking：国际源也显式传参——`exchange_daily_quotes` `--days 7 --resume`、`comtrade` `--start-year 2019 --end-year 2024`、`owid` `--min-year 0`；ALT 循环与国内循环共用 `FETCH_ARGS`（原注释「国际源无深度参数」不成立，已更正）。
+- blocking：`docs/DELIVERY-WORK-572.html` §4.3 由「串期缺陷原样保留」改为「已修（期只从标题取，未命中置空）」——与同提交技术文档和代码一致；生成器 `scripts/work572_build_delivery.py` 同步改文案。
+- suggestion：`work572_verify.py shape` 的列相加改成真断言（求和与逐行相加独立比较，不等返回 1）；交付页统计时点改为生成时刻，不再硬编码 18:00；§11.4 时点改为 20:29 并注明并行装载后 263,952；§11.3 记录 smoke 墙钟与 fetcher 自报的差异。
+- suggestion：新增 `db/tests/test_industry_fetch_modes.py`（21 项），锁住「`--mode` 默认 incremental」「显式值优先于 mode」「日常档不超过文档上限」「回填档不小于日常档」；抓取脚本目录不存在时整体 skip。
+- nit：GFEX manifest 删掉误导性的 `backfill_depth_days`；§11.2 的 jq 命令改为同时取 `.params` 与 `.elapsed_seconds`；smoke 脚本加 `tee index.log`。
 
 ## 2026-11-23 · WORK-537 外资研报公开层渠道清单与可抓性实测
 

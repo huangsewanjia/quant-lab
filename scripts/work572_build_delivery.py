@@ -114,6 +114,7 @@ def main():
     astock_html = "未生成" if not astock else html.escape(json.dumps(astock, ensure_ascii=False, indent=1))
 
     today = dt.date.today().isoformat()
+    stamp = dt.datetime.now().astimezone().strftime("%Y-%m-%d %H:%M")
     html_doc = f"""<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -136,7 +137,7 @@ def main():
  ul{{margin:6px 0 6px 18px}} li{{margin:3px 0}}
 </style></head><body>
 <h1>行业层历史回填（WORK-572）· 交付说明</h1>
-<p class="sub">交付日期 {today} · 对象：/srv/share/quantdb · 代码摘要见 §6 · 数据统计时点 {today} 18:00 (Asia/Shanghai)</p>
+<p class="sub">交付日期 {today} · 对象：/srv/share/quantdb · 代码摘要见 §6 · 数据现场读库时点 {stamp} (Asia/Shanghai)</p>
 
 <div class="kpi">
  <div>回填前 industry_* 17 表行数<b>{fmt(total_before)}</b></div>
@@ -219,7 +220,10 @@ PY</pre>
 <li><strong>能源局（nea_power）未达 60 期</strong>：站内搜索限速 + 深分页不稳定；「全国电力统计数据」正文数据表是 PNG 图片，
 结构化需 OCR（不在本单范围）。已取到的期间见覆盖表，未取到的按「上游只给近 N 年 / 限速 / 图片表」分层登记。</li>
 <li><strong>GFEX 1,000 个交易日不可达</strong>：碳酸锂 2023-07-21 才上市，上游最早只有该日（实测 2023-01-03 无碳酸锂行）。</li>
-<li><strong>财政部 §4.3 串期缺陷原样保留</strong>：2017-11 那批行未修，按原处置只做日期域检查。</li>
+<li><strong>财政部 §4.3 串期缺陷已修</strong>：期只从标题取（<code>YYYY年M月财政收支情况</code>），标题匹配不到时
+<code>period</code> 置空并逐篇记 <code>failed.json</code>，不再回退正文里固定的「2017年11月21日」。
+库里 <code>period</code> 落在 2017-11 的 10 行来自真实《2017年11月财政收支情况》稿；另 227 行 <code>period IS NULL</code>
+是新口径按「不推断」原则置空的行。</li>
 <li><strong>6 个快照/新闻源未回填</strong>：上游只给当日/当年值，无历史序列。</li>
 <li><strong>独立代码审查</strong>：见收口评论，审查为独立子代理执行、只读复跑；审查报告原文落 <code>docs/industry-ingest-2026.md</code> 后续轮次或评论附件。</li>
 </ul>

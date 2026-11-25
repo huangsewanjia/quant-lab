@@ -201,11 +201,17 @@ def shape():
     print(f"[shape] 库内 BASE TABLE 共 {len(tabs)} 张；industry_* 数据表 {len(ind)} 张")
     print(f"[shape] data_catalog 行数 {c.execute('SELECT count(*) FROM data_catalog').fetchone()[0]}")
     tot = 0
+    counts = {}
     for t in sorted(ind):
         n = c.execute(f"SELECT count(*) FROM {t}").fetchone()[0]
+        counts[t] = n
         tot += n
         print(f"  {t:40} {n:>10,}")
-    print(f"[shape] industry_* 合计 {tot:,} 行（列相加自检：{tot} = 上表逐行相加）")
+    recomputed = sum(counts.values())
+    if recomputed != tot:
+        print(f"[shape] 列相加自检 FAIL：合计 {tot:,} != 逐行相加 {recomputed:,}")
+        return 1
+    print(f"[shape] industry_* 合计 {tot:,} 行（列相加自检 PASS：{tot:,} = {len(counts)} 行逐行相加）")
     return 0 if len(ind) == 17 else 1
 
 
