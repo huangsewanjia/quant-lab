@@ -68,12 +68,13 @@ def tune_mmap(arr, *opts):
 
 
 def warm_cache(path, label=""):
-    """把大文件顺序读一遍拉进页缓存（随机取数场景的根治手段）。
+    """把大文件顺序读一遍拉进页缓存（**仅作兜底，默认不用**，见 warm_cache_range）。
 
-    本机磁盘实测：顺序读 75MB/s，随机 4KB 缺页约 5ms。面板 feat.npy 为 3GB，
-    训练按 (stock, date) 随机取数时冷缓存下每批 4.9MB 有用数据要读 636MB（129× 放大）、
-    耗时 3.7s；页缓存预热后同批取数 0.068s（54× 提速）。
-    页缓存是 clean page，内核可随时回收，**无 OOM 风险**（不同于 /dev/shm 拷贝）。
+    ⚠️ 2026-11-25 20:01 整机 OOM 订正：旧 docstring 写「页缓存是 clean page，内核可随时回收，
+    **无 OOM 风险**」—— **这句是错的**。本机 swap 长期为 0、/dev/shm 合计 4GB 不可换出时，
+    内核在 global_oom 下把**页缓存预热带来的额外压力**算进来，挑中了训练进程
+    （内核日志：``oom-kill … global_oom, task=python, pid=3267519``，见 failure_log.md §16）。
+    因此正式跑改为**按日期区间**预热（warm_cache_range），只预热真正要读的区间。
     """
     t0 = time.time()
     n = 0
@@ -84,6 +85,37 @@ def warm_cache(path, label=""):
                 break
             n += len(b)
     log(f"  页缓存预热 {label} {n / 1048576:.0f} MB 用时 {time.time() - t0:.0f}s")
+
+
+def warm_cache_range(path, n_stocks, n_dates, row_bytes, lo, hi, label=""):
+    """只把面板里 **日期区间 [lo, hi]** 的字节预热进页缓存（按 stock 逐段连续读）。
+
+    面板布局 (stock, date, feat) → 每只股的 [lo, hi] 日期段在磁盘上**连续**，
+    因此按 stock 逐段读就是 5783 段顺序读，readahead 友好。
+
+    为什么要改（2026-11-25 20:01 整机 OOM）：
+    * 旧做法把 feat.npy 整个 2.9GB + targets.npy 0.65GB 读进页缓存 → 本单自己占 ~3.5GB；
+    * 本机 swap 为 0、/dev/shm 合计 4GB（其中本单 tmpfs 1.4GB）**不可换出**，
+      全局 OOM 时内核先回收 clean 页缓存、再被迫杀进程；
+    * 改成只预热 **验证 + 测试 + 其上下文/未来窗** 的日期区间
+      （train 段本来就在 tmpfs 里，不需要页缓存）→ 预热占用从 3.5GB 降到 ~1.1GB。
+    """
+    t0 = time.time()
+    total = 0
+    with open(path, "rb", buffering=0) as f:
+        arr = np.load(path, mmap_mode="r")
+        off = int(arr.offset)
+        arr.close()
+        for s in range(n_stocks):
+            start = off + (s * n_dates + lo) * row_bytes
+            length = (hi - lo + 1) * row_bytes
+            f.seek(start)
+            b = f.read(length)
+            if len(b) < length:
+                break
+            total += len(b)
+    log(f"  页缓存区间预热 {label} 日期 [{lo}, {hi}] {total / 1048576:.0f} MB "
+        f"用时 {time.time() - t0:.0f}s")
 
 
 # ---------------------------------------------------------------- 模型
@@ -1078,8 +1110,16 @@ def main():
     for seed in args.seeds:
         log(f"===== 种子 {seed} =====")
         # 页缓存预热：面板 3GB 随机取数在冷缓存下读放大 129× + 缺页延迟 ~5ms
-        warm_cache(os.path.join(DATA, "feat.npy"), "feat.npy")
-        warm_cache(os.path.join(DATA, "targets.npy"), "targets.npy")
+        # 只预热**验证 + 测试**及其上下文/未来窗的日期区间（train 段在 tmpfs 里）。
+        # 旧做法整文件预热（feat 2.9GB + targets 0.65GB）→ 2026-11-25 20:01 整机 OOM 的诱因之一。
+        _vd = panel.date[panel.m_valid]
+        _td = panel.date[panel.m_test]
+        _wlo = int(min(_vd.min(), _td.min())) - (CTX - 1)
+        _whi = int(max(_vd.max(), _td.max())) + H
+        warm_cache_range(os.path.join(DATA, "feat.npy"),
+                         int(panel.feat.shape[0]), int(panel.feat.shape[1]),
+                         int(panel.feat.shape[2]) * 4, _wlo, _whi, "feat.npy 验证+测试区间")
+        # targets.npy **不预热**：它只在 build_reps 末尾按标签读一次（跨股顺序读，内核 readahead 足够）
         ck = os.path.join(DATA, f"ckpt_seed{seed}_rep.pt")
         if args.resume_rep and os.path.exists(ck):
             # 复用前**必须**验证它是「验证损失最小者」的快照（B3）：
@@ -1110,7 +1150,7 @@ def main():
                 f"（vloss={chk.get('vloss')}，upd={chk.get('upd')}，配置指纹一致）")
         else:
             ck = train_representation(panel, args, seed)
-        warm_cache(os.path.join(DATA, "feat.npy"), "feat.npy（表征重建前再预热一次）")
+        # 不再整文件预热（区间已在上面预热过，重复整读只会再压一次内存）
         reps = build_reps(panel, args, seed, ck)
         arm_specs = {}
         for arm in ("s1_only", "s3_only", "s1_s2", "full", "r0", "r1", "r2", "r3"):

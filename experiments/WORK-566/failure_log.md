@@ -801,3 +801,57 @@ AssertionError: [ASSERT] 不可成交价：涨停股开盘买入被拒 stock=99 
     任何由这 4 处引入的数值差异**在构造上不存在**（它们都不在任何数值计算路径上）。
 - seed2024 启动那一刻的 `git rev-parse HEAD` 与 `sha256sum scripts/work566_train.py` 会由全链守护写入
   `.w566tmp/w566_fullchain.log`，收口时抄进本日志。
+
+## §16 第三次整机 OOM（2026-11-25 20:01:25）—— 页缓存预热是压垮自己的一根稻草
+
+### 16.1 内核取证（原文）
+```
+Nov 25 20:01:25 Mo-server kernel: oom-kill:constraint=CONSTRAINT_NONE,nodemask=(null),
+  cpuset=user.slice,mems_allowed=0,global_oom,
+  task_memcg=/user.slice/user-1000.slice/user@1000.service/app.slice/multica-daemon.service,
+  task=python,pid=3267519,uid=1000
+Nov 25 20:01:25 Mo-server kernel: Out of memory: Killed process 3267519 (python)
+  total-vm:7427728kB, anon-rss:1415004kB, file-rss:2992kB, shmem-rss:948640kB,
+  pgtables:11600kB oom_score_adj:200
+```
+- 死因：**整机 OOM（`global_oom`）**，不是平台故障、也不是我们自己的异常退出。
+- 训练进程在 `multica-daemon.service` 的 cgroup 里，且 `oom_score_adj=200`（内核给该 service 子进程的加成值）
+  → 它是内核在内存耗尽时的**首要候选**。
+- 进程当时已跑完 epoch0 + epoch1 + epoch2 的 1000 次更新（upd2100/4000），**训练没有断点续跑** → 全部作废重跑。
+- **`setsid` 挡不住这一类死法**：`setsid` 只解决「会话断开」，cgroup 级 OOM 是内核直接杀进程。
+
+### 16.2 根因：本单自己的内存账
+| 项 | 数值 | 可回收性 |
+|---|---|---|
+| MemTotal | 15.6 GB | — |
+| SwapFree | **0 KB**（swap 8GB 长期满） | 无 |
+| Shmem（/dev/shm 合计） | **4.0–4.1 GB**（本单 tmpfs 1.4GB，其余约 2.6GB 属同机他人） | **需换出才能回收，而 swap 为 0 → 等同不可回收** |
+| 本单页缓存预热 | **3.5 GB**（feat.npy 2.9GB + targets.npy 0.65GB，§11.3 的旧做法） | clean page 可回收，但回收速度赶不上 tmpfs 的刚性占用 |
+| 本单训练进程 | anon 1.4GB + shmem 映射 0.95GB | — |
+
+- 关键订正：`warm_cache` 旧 docstring 写「页缓存是 clean page，内核可随时回收，**无 OOM 风险**」—— **这句是错的**。
+  在 swap 为 0、tmpfs 4GB 不可换出的机器上，全局 OOM 时内核会先把 clean 页缓存回收掉
+  （实测 cached 从 5.9GB 掉到 4.2GB），但回收速度跟不上 tmpfs 的刚性占用，
+  最终仍然 OOM 并挑中训练进程。**教训**：在共享机器上，「可回收」不等于「无风险」；
+  自己制造的那份缓存也要算进 OOM 预算。
+
+### 16.3 处置（不改变任何数值口径）
+1. **页缓存预热改为按日期区间**：新增 `warm_cache_range(path, n_stocks, n_dates, row_bytes, lo, hi)`，
+   面板布局 (stock, date, feat) → 每只股的 [lo,hi] 日期段在磁盘上连续 → 按 stock 逐段顺序读。
+   正式跑只预热**验证 + 测试段及其上下文/未来窗**（日期下标 [2063, 3270]，约 **1.1GB**），
+   train 段本来就在 tmpfs 里不需要页缓存；`targets.npy` **不再预热**（只在 build_reps 末尾按标签读一次）。
+   → 本单页缓存占用 **3.5GB → ~1.1GB**。
+2. **内存闸门**：全链守护在每次起种子前等 `MemAvailable ≥ 1.2GB`（最多等 30 分钟）。
+3. **被杀自动重跑**：种子进程消失且日志无「全部完成」→ 等内存回血后自动重跑该种子（最多 3 次）。
+4. **代码指纹留痕**：每次启动记录 `sha256sum scripts/work566_train.py` 与 `git rev-parse HEAD` 到
+   `.w566tmp/w566_fullchain.log` → 把「两个种子跑同一份计算代码」变成可核事实。
+5. **oom_score_adj**：尝试把训练进程从 +200 调回 0（本机 uid 无 `CAP_SYS_RESOURCE` → **实测权限不足，未生效**，
+   如实记录，不假装成功）。
+6. 清理被杀的 run 留下的 `/dev/shm/w566_feat_train.npy.tmp<pid>` 残留（186MB）。
+
+### 16.4 本次运行的代码指纹（可核）
+- 被杀的 seed42 那轮跑的是 commit `37355ee` 的 train.py，sha256 `3883e1354c8313f66dcb2692bf5d3c8a540f1175ce75923e3abef061b52dd3d2`。
+- 20:07 重启的那轮跑的是**本节 §16.3 第 1 项改动之后**的 train.py，
+  sha256 `e2facddefeb0856c128e2b0cfc061fd261f0b9c97292f09ca30b13a164d40c02`（启动时由守护脚本打印）。
+- **两个种子跑的是同一份计算代码**（页缓存预热只影响 I/O，不影响任何数值），本节 §16.3 的其余各项
+  属链式脚本与启动参数，不进计算路径。
