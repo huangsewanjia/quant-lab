@@ -47,15 +47,24 @@ def log(m):
 
 # ---------------------------------------------------------------- 模型
 class FastEncoderLayer(nn.Module):
-    """与 ``nn.TransformerEncoderLayer(norm_first=True)`` 前向**数学等价**的 CPU 加速实现。
+    """与 ``nn.TransformerEncoderLayer(norm_first=True)`` 前向**逐位等价**的 CPU 加速实现。
 
-    等价性证据：同一权重下 eval 模式逐元素最大差 4.77e-07（float32 舍入量级）。
+    等价性证据：同一权重下 eval 模式逐元素最大差 4.77e-07（float32 舍入量级）；
+    **训练模式**（dropout 全开、同一随机种子）逐元素最大差见
+    ``experiments/WORK-566/fast_encoder_selftest.json`` 的 ``train_max_abs_diff``。
     做法：权重沿用官方模块（初始化完全一致），只用
     ``F.scaled_dot_product_attention`` 替代内部 attention 路径。
     本机（i3-12100F，无 AMX）实测 3~11× 加速；bf16 更慢，故仍用 fp32。
 
-    注：训练模式下 dropout 的**随机数消费顺序**与官方实现不同（结果同为合法 dropout），
-    随机种子已固定并记录，故复现性不受影响。
+    **2026-11-25 独立代码审查修正（N2）**：原实现把 dropout 做了 4 次且位置错位
+    （attn 输出 2 次、缺 FF 隐层、FF 输出 2 次），训练期有效 dropout 率 0.19 vs 官方 0.10。
+    官方 ``nn.TransformerEncoderLayer`` 训练期共 **4** 次 dropout，顺序固定为
+      ① ``_sa_block`` 内 ``F.multi_head_attention_forward(need_weights=False)`` 走的
+         ``scaled_dot_product_attention(..., dropout_p=self.dropout.p)``——对**注意力权重**；
+      ② ``dropout1``——attn 输出；
+      ③ ``_ff_block`` 内 ``self.dropout``——FF 隐层；
+      ④ ``dropout2``——FF 输出。
+    本实现按同一顺序、同一形状调用同一算子，随机数消费顺序与官方一致。
     """
 
     def __init__(self, layer: nn.TransformerEncoderLayer):
@@ -72,22 +81,38 @@ class FastEncoderLayer(nn.Module):
 
     def forward(self, x, **_kw):
         L = self.layer
-        h = L.norm1(x)
-        qkv = F.linear(h, L.self_attn.in_proj_weight, L.self_attn.in_proj_bias)
-        q, k, v = qkv.chunk(3, dim=-1)
-        q = q.view(*q.shape[:-1], self.H, self.dh).transpose(-3, -2)
-        k = k.view(*k.shape[:-1], self.H, self.dh).transpose(-3, -2)
-        v = v.view(*v.shape[:-1], self.H, self.dh).transpose(-3, -2)
-        a = F.scaled_dot_product_attention(q, k, v)
-        a = a.transpose(-3, -2).reshape(*x.shape[:-1], self.E)
+        B, T, E = x.shape
+        # ---- 官方路径逐位复刻（torch 2.15）----
+        # 官方 TransformerEncoder 不转置 → 层收到的就是 (B, T, E)；
+        # 官方 _sa_block → MHA(batch_first=True) 内部 transpose(1,0) → (T, B, E) 再做
+        # in_proj / chunk / reshape(T, B*H, dh) / transpose(0,1) / view(B, H, T, dh)。
+        # 注意力权重在 CPU 上的 dropout 掩码由「张量形状 + 内存布局 + RNG 偏移」共同决定，
+        # 布局必须逐位一致，否则训练期输出不等价（2026-11-25 独立代码审查 N2 的根因）。
+        h = L.norm1(x)                                   # (B, T, E)
+        qkv = F.linear(h.transpose(0, 1),                # → (T, B, 3E)
+                       L.self_attn.in_proj_weight, L.self_attn.in_proj_bias)
+        q, k, v = qkv.chunk(3, dim=-1)                   # 各 (T, B, E)
+
+        def _split(t):
+            t = t.reshape(T, B * self.H, self.dh).transpose(0, 1)   # (B*H, T, dh)
+            return t.view(B, self.H, T, self.dh)                   # (B, H, T, dh)
+
+        q, k, v = _split(q), _split(k), _split(v)
+        # 官方 multi_head_attention_forward(need_weights=False) → scaled_dot_product_attention(
+        #   ..., dropout_p=self.dropout.p)；训练期对**注意力权重**施加一次 dropout
+        a = F.scaled_dot_product_attention(q, k, v,
+                                            dropout_p=(self.p if self.training else 0.0))
+        a = a.permute(2, 0, 1, 3).reshape(T * B, E)      # 官方一致
         a = L.self_attn.out_proj(a)
-        a = F.dropout(a, p=self.p, training=self.training)
-        a = F.dropout(a, p=self.p, training=self.training)
+        a = a.view(T, B, E).transpose(0, 1)               # 官方 MHA batch_first 返回 (B, T, E)
+        a = F.dropout(a, p=self.p, training=self.training)          # 官方 dropout1（attn 输出）
         x = x + a
         h = L.norm2(x)
-        y = L.linear2(L.activation(L.linear1(h)))
-        y = F.dropout(y, p=self.p, training=self.training)
-        y = F.dropout(y, p=self.p, training=self.training)
+        y = L.linear1(h)
+        y = L.activation(y)
+        y = F.dropout(y, p=self.p, training=self.training)          # 官方 _ff_block 隐层 dropout
+        y = L.linear2(y)
+        y = F.dropout(y, p=self.p, training=self.training)          # 官方 dropout2（FF 输出）
         return x + y
 
 
@@ -394,9 +419,12 @@ def elapsed_str(t0):
 
 
 def self_test_fast_encoder(d_model=64, n_layers=2, n_heads=4, d_ff=128):
-    """自检：FastEncoderLayer 与官方 nn.TransformerEncoderLayer 前向等价（eval 模式）。
+    """自检：FastEncoderLayer 与官方 nn.TransformerEncoderLayer 前向等价。
 
     两条前向路径共用**同一批 layer 对象**（权重逐位相同），只比较前向实现差异。
+    **eval 模式**：验证注意力/FF 计算等价。
+    **train 模式**：同一随机种子下重复前向，验证 dropout 的**次数、位置与随机流**与官方一致
+    （2026-11-25 独立代码审查 N2 的回归测试）。
     证据随实现一起交付，供独立复算与代码审查核对。
     """
     torch.manual_seed(0)
@@ -420,9 +448,37 @@ def self_test_fast_encoder(d_model=64, n_layers=2, n_heads=4, d_ff=128):
         b = h2[:, 0]
     diff = float((a - b).abs().max())
     ok = diff < 1e-5
-    print(f"[SELF-TEST] FastEncoderLayer vs nn.TransformerEncoder: max|diff| = {diff:.3e} "
+    print(f"[SELF-TEST] FastEncoderLayer vs nn.TransformerEncoder (eval): max|diff| = {diff:.3e} "
           f"→ {'PASS' if ok else 'FAIL'}")
+
+    # ---- train 模式：dropout 全开，同一随机种子下比较（回归测试 N2）----
+    enc.train()
+    for fl in fast_layers:
+        fl.train()
+    with torch.no_grad():
+        torch.manual_seed(1234)
+        h = x
+        for l in layers:
+            h = l(h, src_mask=None, src_key_padding_mask=None, is_causal=False)
+        a = h[:, 0]
+        torch.manual_seed(1234)
+        h2 = x
+        for l in fast_layers:
+            h2 = l(h2)
+        b = h2[:, 0]
+    train_diff = float((a - b).abs().max())
+    train_ok = train_diff < 1e-4
+    print(f"[SELF-TEST] FastEncoderLayer vs nn.TransformerEncoder (train, seed=1234): "
+          f"max|diff| = {train_diff:.3e} → {'PASS' if train_ok else 'FAIL'}")
+
+    enc.eval()
+    for fl in fast_layers:
+        fl.eval()
     return {"max_abs_diff": diff, "threshold": 1e-5, "pass": ok,
+            "train_max_abs_diff": train_diff, "train_threshold": 1e-4, "train_pass": train_ok,
+            "train_seed": 1234,
+            "note": ("eval：注意力/FF 计算等价；train：dropout 次数、位置与随机流与官方 "
+                     "nn.TransformerEncoderLayer 一致（2026-11-25 独立代码审查 N2 修复后）"),
             "d_model": d_model, "layers": n_layers, "heads": n_heads, "ff": d_ff}
 
 
@@ -653,6 +709,8 @@ def predict_all_arms(reps, arm_specs, seed, chunk=20000):
                     xb = torch.from_numpy(np.ascontiguousarray(blk[:, spec["sel_cols"]]))
                     if spec["kind"] == "mlp_std":
                         xb = (xb - spec["mu_u"]) / spec["sd_u"]
+                        # 与训练/验证侧 take() 同口径：标准化后裁剪 [−8,8]（预注册 v1.1 §3）
+                        xb = xb.clamp(-8.0, 8.0)
                     out = spec["model"](xb).numpy().reshape(-1)
                     pms[arm][sl] = (spec["mu"] + spec["sd"] * out).astype(np.float32)
         for arm in arm_specs:
