@@ -14,6 +14,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from db.reports.fetch_detail import (  # noqa: E402
+    RunLock,
     resolve_item_url,
     Clock,
     DetailPaths,
@@ -193,6 +194,17 @@ def test_build_url_templates():
     assert "infocode=AP1" in build_url("AP1", None, "zw_infocode")
     encoded = build_url("AP1", "a/b+c=", "zw_encode")
     assert "a%2Fb%2Bc%3D" in encoded
+
+
+def test_run_lock_is_exclusive_across_handles(tmp_path):
+    path = tmp_path / "meta" / ".fetch.lock"
+    with RunLock(path):
+        with pytest.raises(SystemExit):
+            with RunLock(path):
+                pass
+    # released after the block: a fresh acquisition succeeds
+    with RunLock(path):
+        pass
 
 
 def test_resolve_item_url_honours_override():

@@ -44,7 +44,7 @@
 
 | # | 规则 | 实现位置 |
 |---|---|---|
-| 1 | 并发 = 1 | 单进程顺序 for 循环，无线程池；Lightpanda 一次只开一个 URL |
+| 1 | 并发 = 1 | 单进程顺序 for 循环，无线程池；Lightpanda 一次只开一个 URL；`RunLock`（`fcntl.flock`，`meta/reports/detail/.fetch.lock`）保证同一时刻只有一个 `fetch`/`probe` 进程，第二个进程直接退出 |
 | 2 | 间隔 ≥ 3 s + 0~2 s 抖动；每 500 篇歇 10–20 min | `RateLimiter`（`MIN_INTERVAL_S=3.0`、`JITTER_MAX_S=2.0`、`REST_EVERY=500`、`REST_MIN/MAX=600/1200`） |
 | 3 | 只在 22:00–07:00（Asia/Shanghai）跑 | `in_window()`；`fetch`/`probe` 入口与每篇之前都检查，窗口关闭即停 |
 | 4 | 先查 robots.txt，禁抓路径零请求 | `fetch_robots()` + `parse_robots()`（404 视为全允许；5xx/不可达视为全禁）；`robots.allows(url)` 在请求前判定，被禁记为 `robots-disallowed` 且不发请求 |

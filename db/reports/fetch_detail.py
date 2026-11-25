@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import fcntl
 import gzip
 import hashlib
 import json
@@ -194,6 +195,44 @@ class RateLimiter:
             self.rests += 1
             return rest
         return 0.0
+
+
+class RunLock:
+    """Cross-process exclusive lock: one fetcher at a time, by contract."""
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self._fh = None
+
+    def __enter__(self) -> "RunLock":
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._fh = self.path.open("a+", encoding="utf-8")
+        try:
+            fcntl.flock(self._fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            holder = ""
+            try:
+                self._fh.seek(0)
+                holder = self._fh.read().strip()
+            except Exception:
+                pass
+            self._fh.close()
+            self._fh = None
+            raise SystemExit(
+                f"another fetcher holds {self.path} ({holder or 'unknown pid'}); "
+                "concurrency must stay 1, refusing to start"
+            )
+        self._fh.seek(0)
+        self._fh.truncate()
+        self._fh.write(f"pid={os.getpid()} started={dt.datetime.now(dt.timezone.utc).isoformat()}\n")
+        self._fh.flush()
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        if self._fh is not None:
+            fcntl.flock(self._fh.fileno(), fcntl.LOCK_UN)
+            self._fh.close()
+            self._fh = None
 
 
 # ---------------------------------------------------------------------------
@@ -569,6 +608,11 @@ def load_worklist(path: Path) -> list[dict[str, Any]]:
 
 
 def cmd_probe(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
+    with RunLock(paths.meta_dir / ".fetch.lock"):
+        return _probe_impl(args, paths)
+
+
+def _probe_impl(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
     clock = Clock()
     if not in_window(clock.now()):
         raise SystemExit(f"outside the 22:00-07:00 Asia/Shanghai window ({window_label(clock.now())})")
@@ -638,6 +682,11 @@ def cmd_probe(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
 
 
 def cmd_fetch(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
+    with RunLock(paths.meta_dir / ".fetch.lock"):
+        return _fetch_impl(args, paths)
+
+
+def _fetch_impl(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
     clock = Clock()
     if not in_window(clock.now()):
         raise SystemExit(
