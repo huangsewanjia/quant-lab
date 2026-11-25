@@ -1,6 +1,6 @@
 # WORK-566 运行状态与续跑指引
 
-> 最后更新：2026-11-25 19:35（本次 run，第 3 轮独立复审整改后的重跑）
+> 最后更新：2026-11-25 23:26（本次 run；§17 代码缺陷修复 + §18 存储停摆后重跑）
 > 用途：本机已发生 **两次 `daemon shut down while task was in flight`**（task
 > `01a2108c-32ee-7c26-92f4-b972df64b46a`、`01a21099-f7b1-79f9-8fa2-e0a29716dad1`），
 > 另有一次由**整机 OOM** 引起的同型记录（见 `failure_log.md` §13.1，内核日志可核对：
@@ -22,8 +22,24 @@
 | 审查第 1 轮 | ✅ FAIL→整改 | `code_review_work566.md` |
 | 审查第 2 轮 | ✅ 判 B2→已修 | commit `686b921` |
 | **审查第 3 轮（两位独立 verifier）** | ✅ **判 FAIL（B3/B4/B5 + 11 项 NB）→ 已全部整改** | `code_review_work566_round3.md`；`failure_log.md` §14 |
-| **Stage 2c 正式训练（2 种子）** | 🔄 **重跑中**（B3 修复后，两种子同一 commit） | 日志 `workdir/.w566tmp/w566_s{42,2024}.log` |
-| Stage 3 全链 | ⏳ 自动链待触发 | `scripts/work566_run_stage3.sh`（8 步） |
+| **Stage 2c 正式训练（2 种子）** | 🔄 **seed42 ✅ DONE（23:23）→ seed2024 跑中（23:23:28 起，同一份 train.py sha256 `20b45a64…`）** | 日志 `workdir/.w566tmp/w566_s{42,2024}_try1.log` |
+| Stage 3 全链 | ⏳ 由全链守护在双种子完成后自动触发 | `scripts/work566_run_stage3.sh`（8 步） |
+| **收口守护（防平台打断）** | ✅ 已就位 | `workdir/.w566tmp/w566_finalize.sh`：等 Stage 3 完成 → 交付自检全绿 → commit+push → **发最终评论（带附件）** |
+
+### 1.0.1 本轮（2026-11-25 20:07 起）关键变更 —— 被打断后照此判断
+
+| 时刻 | 事件 | 处置 / 证据 |
+|---|---|---|
+| 20:07 / 20:10 | 两次重跑「消失」，**真因是本单代码缺陷不是 OOM**：`warm_cache_range` 里 `arr.close()` 对 `numpy.memmap` 抛 `AttributeError` | `failure_log.md` §17；修复 commit `63f9e96`；回归测试 `scripts/work566_warm_cache_test.py` **7/7 PASS** |
+| 20:25:14 | 修复后重跑 seed42（train.py sha256 `20b45a64…`，HEAD `63f9e96`） | 预热段通过（1066MB/23s），epoch0 验证损失 **115.0360**（与修复前那轮**逐位相同**） |
+| 21:09–21:21 | **整机存储层停摆**（`kworker/u32:4+dm-thin` 卡死 26 分钟，全机 IO≈1.2MB/s），训练卡在周期快照写入 | `failure_log.md` §18；**未干预**用户自己的 `7z t` 备份校验作业；21:21 自行恢复 |
+| 22:46 | seed42 表征训练完成：4000 updates / 8439s，**最优快照 vloss=115.0360（upd=1000，第 1 epoch）** | epoch1 137.2852 / epoch2 145.7438 / epoch3 151.0316 → 验证损失单调上升 |
+| 22:46 | B3 修复的**盘上前后对照**：bug 版「epoch0」「epoch3」两文件**字节相同**（md5 `611d644a…`），修复版 md5 `c5d28fc5…` 且带 `selected=best_vloss`/`complete=True`/`cfg` | `failure_log.md` §17.6 |
+| 23:23 | **seed42 全部完成**（8 臂 × 3 切分 preds 齐备，test 2,949,469 行） | `data/WORK-566/preds_seed42_*.npz` |
+| 23:23:28 | seed2024 启动，**与 seed42 同一份 train.py sha256 `20b45a64…`** | `.w566tmp/w566_fullchain.log` |
+
+> **重要**：seed42 与 seed2024 跑的是**同一份计算代码**（sha256 一致）；HEAD 差异只来自
+> 中途只含文档的 commit（`8eccbee`、`6b40f29`），**不在任何计算路径上**。
 
 ### 1.1 为什么是「重跑」而不是「续跑」（2026-11-25 第 3 轮复审 B3）
 
