@@ -860,7 +860,7 @@ C8_forecast 专查预测表。
 |---|---|---|---|---|---|---|
 | 新型储能累计装机规模 | 3.7 | 亿千瓦 | 2030-12-31 | 2030年 | CNESA | 展望”十五五“，增速虽然放缓，但庞大的基数仍将催生可观的绝对增量，预计2030年累计装机有望达到3.7亿千瓦以上。 |
 | 新型储能累计装机平均时长 | 3.47 | 小时 | 2030-12-31 | 2030年 | CNESA | 2026年起，时长提升明显加速，预计至2030年将达到3.47小时。 |
-| 工商业储能累计装机规模 | 30 | GW | 2030-12-31 | 十五五 | CNESA | 展望“十五五”，工商业储能继续保持稳定增长态势，收益更加多元，由单一的“固定价差套利”向“波动的市场价差套利+需量管理+需求响应”转变，累计装机有望突破30GW。 |
+| 工商业储能累计装机规模 | 30 | GW | 2030-12-31 | 十五五 | CNESA | 展望“十五五”，工商业储能继续保持稳定增长态势，收益更加多元， 由单一的“固定价差套利”向“波动的市场价差套利+需量管理+需求响应”转变 ，累计装机有望突破30GW。 |
 
 原文：`https://www.cnesa.org/information/detail/?column_id=1&id=7798`（HTTP 200，
 341,562 字节），文章发布日 `2026-01-22`，报告口径期 `2026-01`。
@@ -887,7 +887,7 @@ db.checks.industry
 
 ### 13.6 质量闸 C8_forecast
 
-`db/checks/industry.py::c8_forecast`，八项合取，任一不满足即 FAIL：
+`db/checks/industry.py::c8_forecast`，九项合取，任一不满足即 FAIL：
 
 1. 表存在且行数 > 0（空表不算 PASS，避免假绿）；
 2. 单位在词表 `{GW, 亿千瓦, 小时}` 内；
@@ -895,15 +895,17 @@ db.checks.industry
 4. `period_target` 全部晚于今天（预测表特征）；
 5. `(indicator, period_target, source_org)` 无重复；
 6. `period_target_type` 在允许集合内，且 12-31 编码一致；
-7. 每行 context 含「预计/有望/展望/预测」语气词；
-8. 每行 context 能在 `raw/industry/<dataset>/article.txt` 正文快照里逐字定位。
+7. `period_target_type` 与原文表述交叉一致：日历年必须是「YYYY年」，五年规划必须是
+   「十…五」（两者都编码成 12-31，单看日期区分不了类型）；
+8. 每行 context 含「预计/有望/展望/预测」语气词；
+9. 每行 context 能在 `raw/industry/<dataset>/article.txt` 正文快照里逐字定位。
 
-### 13.7 实测证据（2026-11-25 22:40–22:41，同一版本）
+### 13.7 实测证据（2026-11-25 22:40–22:56，同一版本）
 
 ```bash
 # 抓取（写 raw + 快照）
 cd /srv/share/quantdb/code/industry_fetch && /home/moyongkai/.venvs/quantdb/bin/python fetch_cnesa_storage.py
-# [cnesa_forecast] rows=3 bytes=12237 rule_version=cnesa-forecast-v1 sha256=ae2eaa5fb58e2c92… failed=0
+# [cnesa_forecast] rows=3 bytes=12237 rule_version=cnesa-forecast-v1 sha256=d9cba67d916031cd… failed=0
 # [cnesa_storage]  rows=33 bytes=12607 elapsed=1.9s failed=11
 
 # 装载两次（同参数幂等）
@@ -921,8 +923,10 @@ flock /srv/share/quantdb/logs/.quantdb-db.lock … -m db.etl.industry load --sou
 # 结论：PASS（0 项失败）
 ```
 
-raw 摘要：`part.parquet` 12,237 B，sha256 `ae2eaa5fb58e2c9257bbc91a2bc92faa13177e98972afb70a95400292d5834cd`；
-`article.txt` sha256 `d10e399b1c4716501dd9c2f2a5f523edb90e579cd6f7197769f846f03791cb75`。
+raw 摘要（2026-11-25 22:55 最终版）：`part.parquet` 12,237 B，sha256
+`d9cba67d916031cd1d25c018f4a9da3013882193d9588cd1abf0ba22a4b4407b`；`article.txt` sha256
+`d10e399b1c4716501dd9c2f2a5f523edb90e579cd6f7197769f846f03791cb75`（正文未变，快照哈希稳定）。
+每次抓取 `extracted_at` 不同，parquet 哈希随提取时刻变化，属预期；判断同一版正文看 `article.txt`。
 
 ### 13.8 回滚
 
@@ -940,10 +944,13 @@ raw 摘要：`part.parquet` 12,237 B，sha256 `ae2eaa5fb58e2c9257bbc91a2bc92faa1
 
 - `db/schema_industry.sql`：新增 `industry_forecast` 表与列注释；`industry_cnesa_storage` 表注释指向 §13。
 - `db/etl/industry.py`：`transform_cnesa_forecast` / `parse_local_timestamp` / `FORECAST_SOURCES`；
-  `load` 分两组装载（观测 run_id 无后缀，预测 run_id 带 `F`）。
+  `load` 分两组装载（观测 run_id 无后缀，预测 run_id 带 `F`）；装载前先校验所有选中源
+  的 raw 是否存在，缺文件整体拒绝，不会装一半。
 - `db/checks/industry.py`：新增 `C8_forecast`；C1..C7 一字未改。
-- `db/tests/test_industry_forecast.py`：装载幂等、撤行替换、主键冲突、C8 六种判定、提取契约，共 10 项。
+- `db/tests/test_industry_forecast.py`：装载幂等、撤行替换、主键冲突、raw 缺失前置拒绝、C8 九种判定、提取契约，共 16 项。
 - `scripts/work584_verify.py`：端到端核对（提取 → raw → 库 → C8）。
 - `scripts/work577_verify.py`：覆盖率统计把预测命中区间计入，避免误报「需补规则」。
+- `scripts/work572_verify.py`：`shape` 的 17 张观测表口径排除 `industry_forecast` 并单独打印预测表行数，
+  避免文档里的例行核对命令因第 18 张表静默返回 1。
 - live 树 `/srv/share/quantdb/code/industry_fetch/fetch_cnesa_storage.py`：预测句式、预测数据集、
   正文快照与 failed.json（不在本仓库，既有形态；按 sha256 锁版）。

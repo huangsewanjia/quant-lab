@@ -480,13 +480,16 @@ class Source:
     def root(self) -> Path:
         return raw_dir(self.kind) / self.name
 
+    @property
+    def data_path(self) -> Path:
+        return self.root / ("part.parquet" if self.kind == "parquet" else "data.csv")
+
     def read(self, con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
+        path = str(self.data_path)
         if self.kind == "parquet":
-            path = str(self.root / "part.parquet")
             return con.execute(
                 "SELECT * FROM read_parquet(?)", [path]
             ).df()
-        path = str(self.root / "data.csv")
         return con.execute(
             "SELECT * FROM read_csv(?, header=true, all_varchar=true)", [path]
         ).df()
@@ -677,6 +680,13 @@ def run_load(
     if not observation and not forecast:
         print("[industry] 没有符合筛选条件的源，未装载", flush=True)
         return 0
+
+    # 先校验 raw 齐不齐，再开连接：否则观测组先替换完、预测组在 read 阶段抛
+    # IOException，会留下「装了一半且没有装载报表」的中间态（WORK-584 复审 S2）。
+    missing = [f"{s.name}: {s.data_path}" for s in selected if not s.data_path.exists()]
+    if missing:
+        raise SystemExit(
+            "[industry] raw 缺失，未装载任何表（先跑对应 fetcher）: " + "; ".join(missing))
 
     run_id = dt.datetime.now().strftime("%Y%m%dT%H%M%S")
     forecast_run_id = f"{run_id}F"

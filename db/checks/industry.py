@@ -20,7 +20,7 @@
   C7_freshness           日频源最新日期在 7 天内，月频源在 45 天内
   C8_forecast            预测表 industry_forecast（WORK-584）：
                            主键唯一、必填列非空、period_target 晚于今天、
-                           period_target_type 与日期编码一致、单位在词表内、
+                           period_target_type 与日期编码/原文表述一致、单位在词表内、
                            context 含「预计/有望」类语气词且能在正文快照里逐字定位
 
 C1..C7 是观测表的既有 7 道闸，判据未改；C8 只查预测表，不看观测表。
@@ -547,13 +547,23 @@ def c8_forecast(con) -> tuple[bool, dict[str, Any]]:
     ).fetchone()
 
     rows = con.execute(
-        f"SELECT dataset, indicator, period_target, context, source_doc "
-        f"FROM {FORECAST_TABLE} ORDER BY dataset, period_target, indicator"
+        f"SELECT dataset, indicator, period_target, period_target_type, "
+        f"period_target_raw, context FROM {FORECAST_TABLE} "
+        f"ORDER BY dataset, period_target, indicator"
     ).fetchall()
     no_modality = [
-        f"{i}@{p}" for _ds, i, p, context, _doc in rows
+        f"{i}@{p}" for _ds, i, p, _t, _raw, context in rows
         if not FORECAST_MODALITY.search(context or "")
     ]
+    # 两种类型都落在 12-31，单看日期区分不了；再用原文表述交叉一次：
+    # 五年规划写作「十二五」「十五五」等（十…五），日历年写作「2030年」。
+    type_raw_mismatch: list[str] = []
+    for _ds, i, p, t, raw, _c in rows:
+        label = (raw or "").strip()
+        if t == "calendar_year_end" and not re.fullmatch(r"(?:19|20)\d{2}年", label):
+            type_raw_mismatch.append(f"{i}@{p}: {t} 与原文「{label}」不符")
+        elif t == "five_year_plan_end" and not re.fullmatch(r"十[一二三四五六七八九]?五", label):
+            type_raw_mismatch.append(f"{i}@{p}: {t} 与原文「{label}」不符")
 
     snapshots: dict[str, Any] = {}
     snapshot_failures = 0
@@ -566,7 +576,7 @@ def c8_forecast(con) -> tuple[bool, dict[str, Any]]:
             snapshots[dataset] = entry
             continue
         text = path.read_text(encoding="utf-8")
-        in_dataset = [(i, p, c) for ds, i, p, c, _doc in rows if ds == dataset]
+        in_dataset = [(i, p, c) for ds, i, p, _t, _raw, c in rows if ds == dataset]
         missing = [f"{i}@{p}" for i, p, c in in_dataset if c not in text]
         entry.update({
             "rows": len(in_dataset),
@@ -587,6 +597,7 @@ def c8_forecast(con) -> tuple[bool, dict[str, Any]]:
         and int(bad_type) == 0
         and int(bad_encoding) == 0
         and not no_modality
+        and not type_raw_mismatch
         and snapshot_failures == 0
     )
     return ok, {
@@ -610,6 +621,7 @@ def c8_forecast(con) -> tuple[bool, dict[str, Any]]:
             "pass": int(bad_type) == 0 and int(bad_encoding) == 0,
         },
         "missing_modality": no_modality,
+        "target_type_raw_mismatch": type_raw_mismatch,
         "snapshots": snapshots,
     }
 

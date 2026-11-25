@@ -12,10 +12,13 @@
 - `db/etl/industry.py`：`FORECAST_SOURCES` 与 `transform_cnesa_forecast`；`load` 把观测 17 源与
   预测源分两组、分 run_id 装载，预测组按 `dataset` 分区整组替换（上游撤稿不留残行）。
 - `db/checks/industry.py`：`C8_forecast`（表非空、单位词表、必填非空、目标期在未来、
-  业务键唯一、目标期类型与 12-31 编码一致、原句含「预计/有望」语气词、原句可在正文快照定位）。
-  C1..C7 判据未改。
-- `db/tests/test_industry_forecast.py`：装载幂等、撤行替换、主键冲突、C8 六种判定、提取契约，共 10 项。
+  业务键唯一、目标期类型与 12-31 编码一致、类型与原文表述交叉一致、原句含「预计/有望」
+  语气词、原句可在正文快照定位）。C1..C7 判据未改。
+- `db/tests/test_industry_forecast.py`：装载幂等、撤行替换、主键冲突、raw 缺失前置拒绝、C8 九种判定、提取契约，共 16 项。
 - `scripts/work584_verify.py`：端到端核对（提取 → raw → 库 → C8）。
+- `scripts/work572_verify.py`：`shape` 的 17 表口径排除预测表并单独打印其行数（第 18 张表不再让
+  既有核对命令静默返回 1）。
+- `db/etl/industry.py` 装载前校验所有选中源的 raw 是否存在，缺文件整体拒绝，不装一半。
 - `docs/industry-ingest-2026.md` §13：预测表的表结构、编码规则、数据、链路、闸、证据与回滚；
   §4.2 改写为当前事实（WORK-577 已把 2 行修到 33 行，WORK-584 预测分流）。
 

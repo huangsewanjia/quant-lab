@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS industry_cnesa_storage (
     "source_url"     VARCHAR,
     PRIMARY KEY ("period", "indicator")
 );
-COMMENT ON TABLE industry_cnesa_storage IS 'CNESA 年度储能数据（公开页摘要）；WORK-577 起按句式规则提取 33 行（2025 年末 32 行 + 2021 年末时长 1 行）；WORK-584 起 3 条未来期预测值分流到 industry_forecast，不写本表；其余未提取项逐条登记在 raw/industry/cnesa_storage/failed.json，见 docs/industry-ingest-2026.md §4.2 / §4.9';
+COMMENT ON TABLE industry_cnesa_storage IS 'CNESA 年度储能数据（公开页摘要）；WORK-577 起按句式规则提取 33 行（2025 年末 32 行 + 2021 年末时长 1 行）；WORK-584 起 3 条未来期预测值分流到 industry_forecast，不写本表；其余未提取项逐条登记在 raw/industry/cnesa_storage/failed.json，见 docs/industry-ingest-2026.md §4.2 / §13';
 COMMENT ON COLUMN industry_cnesa_storage.period IS '报告月（当月 1 日）：2026-01 = 截至 2025-12 年底；2022-01 = 2021 年末值';
 COMMENT ON COLUMN industry_cnesa_storage.value IS '数值，单位见 unit（GW / GWh / % / 个 / 项 / 元/kWh / 小时）';
 COMMENT ON COLUMN industry_cnesa_storage.caliber IS '口径说明 + 原文句子（「｜原句：」之后），用于回指出处；原文句子同存 raw parquet 的 context 列';

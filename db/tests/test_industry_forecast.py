@@ -247,3 +247,81 @@ def test_fetch_forecast_extraction_records_drift_instead_of_guessing():
     rows2, _spans2, failures2 = mod.extract_forecasts(text, "2026-01-22", None)
     assert rows2 == []
     assert any("报告期" in f["error"] for f in failures2)
+
+
+def test_c8_fails_on_empty_forecast_table(qdb):
+    _prepare_db(qdb)
+    with qdb.duckdb_connect(read_only=True) as con:
+        ok, detail = chk.c8_forecast(con)
+    assert not ok
+    assert detail["rows"] == 0
+
+
+def test_c8_fails_when_article_snapshot_is_missing(qdb):
+    rows = _forecast_rows()
+    _write_raw(rows)
+    _prepare_db(qdb)
+    ind.run_load(names=["cnesa_forecast"])
+    with qdb.duckdb_connect(read_only=True) as con:
+        ok, detail = chk.c8_forecast(con)
+    assert not ok
+    assert "快照不存在" in detail["snapshots"]["cnesa_forecast"]["error"]
+
+
+def test_c8_fails_on_unit_outside_vocabulary(qdb):
+    rows = _forecast_rows()
+    _write_raw(rows)
+    _prepare_db(qdb)
+    ind.run_load(names=["cnesa_forecast"])
+    _snapshot(qdb, rows)
+    with qdb.duckdb_connect() as con:
+        con.execute("UPDATE industry_forecast SET unit = 'MWh'")
+
+    with qdb.duckdb_connect(read_only=True) as con:
+        ok, detail = chk.c8_forecast(con)
+    assert not ok
+    assert detail["unit_vocabulary"]["unexpected"] == 3
+
+
+def test_c8_fails_on_bad_target_date_encoding(qdb):
+    rows = _forecast_rows()
+    _write_raw(rows)
+    _prepare_db(qdb)
+    ind.run_load(names=["cnesa_forecast"])
+    _snapshot(qdb, rows)
+    with qdb.duckdb_connect() as con:
+        con.execute("UPDATE industry_forecast SET period_target = DATE '2030-06-30'")
+
+    with qdb.duckdb_connect(read_only=True) as con:
+        ok, detail = chk.c8_forecast(con)
+    assert not ok
+    assert detail["target_type"]["bad_date_encoding"] == 3
+
+
+def test_c8_fails_when_target_type_contradicts_raw_label(qdb):
+    rows = _forecast_rows()
+    _write_raw(rows)
+    _prepare_db(qdb)
+    ind.run_load(names=["cnesa_forecast"])
+    _snapshot(qdb, rows)
+    with qdb.duckdb_connect() as con:
+        # 十五五被错标成日历年：日期编码仍是 12-31，单看日期发现不了。
+        con.execute(
+            "UPDATE industry_forecast SET period_target_type = 'calendar_year_end' "
+            "WHERE period_target_raw = '十五五'")
+
+    with qdb.duckdb_connect(read_only=True) as con:
+        ok, detail = chk.c8_forecast(con)
+    assert not ok
+    assert detail["target_type_raw_mismatch"]
+
+
+def test_load_refuses_all_groups_when_a_raw_file_is_missing(qdb):
+    _prepare_db(qdb)
+    with pytest.raises(SystemExit, match="raw 缺失"):
+        ind.run_load(names=["cnesa_forecast"])
+    with qdb.duckdb_connect(read_only=True) as con:
+        assert con.execute("SELECT count(*) FROM industry_forecast").fetchone()[0] == 0
+        assert con.execute(
+            "SELECT count(*) FROM industry_load_audit "
+            "WHERE table_name = 'industry_forecast'").fetchone()[0] == 0

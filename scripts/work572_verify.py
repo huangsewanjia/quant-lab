@@ -197,8 +197,14 @@ def shape(baseline: int | None = None):
     c = con()
     tabs = [r[0] for r in c.execute(
         "SELECT table_name FROM information_schema.tables WHERE table_type='BASE TABLE' ORDER BY 1").fetchall()]
-    ind = [t for t in tabs if t.startswith("industry_") and t not in ("industry_catalog_map", "industry_load_audit")]
-    print(f"[shape] 库内 BASE TABLE 共 {len(tabs)} 张；industry_* 数据表 {len(ind)} 张")
+    # industry_forecast 是 WORK-584 的预测表，不是观测源（目标期在未来，不进 17 表口径）；
+    # shape 的本职是核对 17 张观测表 + 265,023 行这类回填基线，预测表单独打印。
+    skip = ("industry_catalog_map", "industry_load_audit", "industry_forecast")
+    ind = [t for t in tabs if t.startswith("industry_") and t not in skip]
+    print(f"[shape] 库内 BASE TABLE 共 {len(tabs)} 张；industry_* 观测表 {len(ind)} 张")
+    if "industry_forecast" in tabs:
+        print(f"[shape] 预测表 industry_forecast "
+              f"{c.execute('SELECT count(*) FROM industry_forecast').fetchone()[0]} 行（不计入观测表合计）")
     print(f"[shape] data_catalog 行数 {c.execute('SELECT count(*) FROM data_catalog').fetchone()[0]}")
     tot = 0
     for t in sorted(ind):
