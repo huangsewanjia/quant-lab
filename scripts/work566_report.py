@@ -231,6 +231,15 @@ def fmt(v, nd=3, dash="—"):
     return f"{v:.{nd}f}"
 
 
+def ci95(v, nd=4, dash="—"):
+    """把 [lo, hi] 的 95% CI 格式化成 4 位小数（原始 JSON 是全精度浮点）。"""
+    try:
+        lo, hi = v[0], v[1]
+    except Exception:
+        return dash
+    return f"[{fmt(lo, nd)}, {fmt(hi, nd)}]"
+
+
 def main():
     with open(os.path.join(OUT, "metrics.json"), encoding="utf-8") as f:
         metrics = json.load(f)
@@ -395,7 +404,7 @@ Learning in Equity Markets</i>. arXiv:2610.07006v1（2026-10-04）· 单号 WORK
 依据三条：① H1 中位数 {fmt(h1.get('delta_median_pp'),4)} pp 落在
 {'「进」区间' if (h1.get('delta_median_pp') or 0) >= 3 else ('「退」区间' if (h1.get('delta_median_pp') or 0) <= 1 else '「部分复现」区间')}；
 ② H2 full vs FMB-style 线性基线 RankIC 差 = {fmt(h2.get('pooled_mean_diff_pp'),3)} pp，
-95% CI {h2.get('pooled_ci95')}，{h2.get('conclusion','')}；
+95% CI {ci95(h2.get('pooled_ci95'))}，{h2.get('conclusion','')}；
 ③ H3 净 SR 95% CI 下界 {fmt(h3s.get('full_sr_ci95_lower_min'),3)}
 （&gt;0 才算可交易；净 SR &lt; 0 直接判退）。</p>
 </div>
@@ -418,7 +427,7 @@ Learning in Equity Markets</i>. arXiv:2610.07006v1（2026-10-04）· 单号 WORK
 （有效种子 {h1.get('n_seeds',0)} 个；判定规则：{h1.get('verdict_rule','—')}；
 每种子 ΔRankIC：{h1.get('delta_min_pp','—')} ~ {h1.get('delta_max_pp','—')} pp）</li>
 <li>H2（并列）：full vs FMB-style 线性基线的 RankIC 差 {fmt(h2.get('pooled_mean_diff_pp'),3)} pp，
-95% CI {h2.get('pooled_ci95')}；{h2.get('conclusion','')}</li>
+95% CI {ci95(h2.get('pooled_ci95'))}；{h2.get('conclusion','')}</li>
 <li>H3（并列）：净 SR {fmt(h3s.get('full_net_sr_mean'),3)}，
 95% CI 下界 {fmt(h3s.get('full_sr_ci95_lower_min'),3)}，
 相对论文 1.50 的比率 {fmt(h3s.get('shrinkage_vs_paper'),3)}。</li>
@@ -497,7 +506,7 @@ valid {fmt(stats.get('n_valid'),0)}；test {fmt(stats.get('n_test'),0)}
 <h3>H2 · 增量显著性（10000 次配对 block bootstrap，block=20，seed=42）</h3>
 <p>full vs FMB-style 线性基线的逐日 RankIC 差：均值
 <b class="mono">{fmt(h2.get('pooled_mean_diff_pp'),4)} pp</b>，95% CI
-<span class="mono">{h2.get('pooled_ci95')}</span>。{h2.get('conclusion','')}</p>
+<span class="mono">{ci95(h2.get('pooled_ci95'))}</span>。{h2.get('conclusion','')}</p>
 
 <h3>H3 · 可交易性</h3>
 <table>
@@ -593,7 +602,7 @@ u 仍写回原行号 → 读出分组与取值不变；③ tmpfs 副本加<b>陈
 （0.618 → 2.208 s/批，整机 loadavg 15.5 / 8 vCPU 已超订）→ 维持 6 线程；
 以及<b>线程数不影响数值</b>的证据：seed42 在 4 线程双进程与 6 线程单进程两种配置下
 <code>upd50/100/150/200</code> 的 <code>L_anc/L_rev</code> 逐位相同（66.6294/53.4636 → 50.7801/35.0353）。</li>
-<li><b>独立子代理代码审查（三轮，FAIL → 整改 → 复审 → 再整改 → 重跑）</b>：第 1 轮判定 1 项 BLOCKING + 11 项 NON-BLOCKING，
+<li><b>独立子代理代码审查（四轮，FAIL → 整改 → 复审 → 再整改 → 重跑 → 复审判通过）</b>：第 1 轮判定 1 项 BLOCKING + 11 项 NON-BLOCKING，
 全部已修：<b>B1</b> 组合估值原用「全局最后一个 bar」的收盘价盯市（前视泄漏，触发 188 次、100% 用未来价）
 → 改用「估值日之前最后一个可得 bar」；<b>N1</b> 卖端与最终清算补计交易成本（预注册 §7.1 本就要求）；
 <b>N2</b> S2 编码器训练期 dropout 位置/次数与官方不等价 → 按 torch 2.15 源码逐位复刻（train 逐位一致）；
@@ -613,9 +622,17 @@ u 仍写回原行号 → 读出分组与取值不变；③ tmpfs 副本加<b>陈
 <b>B3 会改变判词方向</b>：<code>s1_only</code> 不用表征（不受影响）而 <code>full</code> 用（受影响），
 末轮权重把 <code>full</code> 压低 → 系统性压低 ΔRankIC；因 epoch0 权重已不可恢复（备份经 md5 证明与末轮同源），
 <b>两个种子已全部完整重训</b>，本报告全部数字来自重训后的产物。
+<b>第 4 轮复审（只审第 3 轮的整改）判「通过」</b>：B3/B4/B5 三项经代码 + 磁盘产物 + 合成用例三重验证成立、无新 BLOCKING；
+磁盘实证选型 checkpoint 为 <code>upd=1000 / vloss=115.0360 / selected=best_vloss / complete=True</code>，
+周期快照另存 <code>.periodic</code> 不再覆盖（修复前「epoch0」「epoch3」两份文件 md5 相同，即坐实活引用覆盖）。
+第 4 轮另提 11 项 NON-BLOCKING，<b>全部已处理</b>（报告范围限定、tmpfs 指纹口径对齐、回读自检改
+<code>raise</code>、<code>--resume-rep</code> 改 fail-closed、cfg 补线程/批大小/数据指纹、选型 checkpoint 原子写、
+H3 加种子门槛、前置内容校验纳入 <code>fmb</code> 臂、54 份产物 JSON 内 arm/seed/cost 核对、自检 C9 补
+<code>complete</code>/<code>cfg</code>）。
 审查全文与逐条整改记录：<code>code_review_work566.md</code>（第 1–2 轮）、
-<code>code_review_work566_round3.md</code>（第 3 轮）；整改前后数字变化见
-<code>failure_log.md</code> §10–§14。</li>
+<code>code_review_work566_round3.md</code>（第 3 轮，两位独立 verifier）、
+<code>code_review_work566_round4.md</code>（第 4 轮，判通过）；整改前后数字变化见
+<code>failure_log.md</code> §10–§15。</li>
 <li><b>停牌日价格未前向填充</b>：面板 docstring 与 <code>meta.json</code> 原写「停牌前向填充到上一收盘」，
 实测<b>未填充</b>（停牌格价格留空）。影响为 0（连续性断言已剔除停牌格，样本对中无停牌格），
 且估值口径本就按「最后可得收盘价」→ 已改文案与描述，<b>不重建面板</b>，在此披露。</li>

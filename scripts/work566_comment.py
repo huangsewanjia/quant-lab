@@ -125,7 +125,7 @@ def main():
 
 ### 3 · 并列检验
 
-- **H2**（full vs FMB-style 逐日 RankIC 差，block bootstrap 20 日 / 10000 次 / seed 42）：{num(h2.get('pooled_mean_diff_pp'), 3)} pp，95% CI {h2.get('pooled_ci95')} → {h2.get('conclusion', '—')}
+- **H2**（full vs FMB-style 逐日 RankIC 差，block bootstrap 20 日 / 10000 次 / seed 42）：{num(h2.get('pooled_mean_diff_pp'), 3)} pp，95% CI [{num(h2.get('pooled_ci95', [None, None])[0], 4)}, {num(h2.get('pooled_ci95', [None, None])[1], 4)}] → {h2.get('conclusion', '—')}
 - **H3**（可交易性）：full 净 SR {num((h3 or {}).get('full_net_sr_mean'), 3)}，95% CI 下界 {num((h3 or {}).get('full_sr_ci95_lower_min'), 3)}，相对论文 1.50 的比率 {num((h3 or {}).get('shrinkage_vs_paper'), 3)}（降级配置下只披露不判定；净 SR < 0 直接判退仍生效）
 - **H4**（R2 vs R3，只报数）：R2 {num((h4 or {}).get('r2_rankic'), 3)}% vs R3 {num((h4 or {}).get('r3_rankic'), 3)}%，差 {num((h4 or {}).get('r2_minus_r3_rankic_pp'), 3)} pp
 
@@ -158,7 +158,7 @@ def main():
 ### 4 · 独立复算与代码审查
 
 - **独立复算**：{audit.get('conclusion', '—')}（PASS {audit.get('pass', 0)} / BLOCKING {audit.get('blocking', 0)}）；判据逐项相对差 ≤ 1e-6；复算脚本**不 import 建模阶段任何函数**，交易日历从 parquet 独立重取
-- **独立子代理代码审查**（verifier，主循环不自审，共 **3 轮**）：第 1 轮判定 **FAIL（1 BLOCKING + 11 NON-BLOCKING）**，全部已修并重跑全链 —— B1 组合估值用未来 bar 价格盯市（前视泄漏）、N1 卖端与清算成本、N2 S2 编码器训练期 dropout 与官方不等价、N5 推理裁剪、N6 种子守卫、N7 NAV 守卫、N9 引擎级断言；N3/N8 以披露处理。第 2 轮复核判定上述均已修、新发现 **B2**（`build_reps` 写回 u 时误用全局样本下标 → 越界）→ 改为 split 内位置并冒烟复现通过。第 3 轮复核判定 B2 已修、**新发现 2 项 BLOCKING**：
+- **独立子代理代码审查**（verifier，主循环不自审，共 **4 轮**：第 1–2 轮一份报告、第 3 轮两位独立 verifier 各出一份、第 4 轮一份）：第 1 轮判定 **FAIL（1 BLOCKING + 11 NON-BLOCKING）**，全部已修并重跑全链 —— B1 组合估值用未来 bar 价格盯市（前视泄漏）、N1 卖端与清算成本、N2 S2 编码器训练期 dropout 与官方不等价、N5 推理裁剪、N6 种子守卫、N7 NAV 守卫、N9 引擎级断言；N3/N8 以披露处理。第 2 轮复核判定上述均已修、新发现 **B2**（`build_reps` 写回 u 时误用全局样本下标 → 越界）→ 改为 split 内位置并冒烟复现通过。第 3 轮复核判定 B2 已修、**新发现 2 项 BLOCKING**：
   - **B3（会改变判词方向）**：落盘的表征 checkpoint 实为**最后一轮**权重，而非预注册 §10.2 冻结的「验证损失最小者」——`state_dict()` 返回**活引用** + 训练末尾再次 `torch.save(best[1])` + 周期快照写同一路径，三重叠加；实测落盘文件 `upd=1000`（best=epoch0）却带着 epoch3 的 `m_k/v_k`，自相矛盾。`s1_only` 不用表征（不受影响）而 `full` 用（受影响）→ 系统性**压低 ΔRankIC**。已改为深拷贝快照 + 周期快照独立路径 + 落盘回读自检 + `--resume-rep` 校验 `selected=="best_vloss"`，并补红-绿回归测试（10/10 PASS）与交付自检 C9。**因 epoch0 权重不可恢复（备份经 md5 证明与末轮同源），两个种子已全部完整重训**，本评论全部数字来自重训后产物。
   - **B4**：Stage 3 前置检查漏 `fmb` 臂（该臂由 `work566_baselines.py` 产出、训练脚本不产）→ 回测跑到一半才崩；已改为前置缺失即补齐 + jobfile 写入前截断。
   - **第 4 轮复审（只审第 3 轮的整改）判「通过」**：B3/B4/B5 三项经代码 + 磁盘产物 + 合成用例三重验证成立，无新的 BLOCKING；磁盘实证选型 ckpt 为 `upd=1000 / vloss=115.0360 / selected=best_vloss / complete=True`，周期快照另存 `.periodic` 不再覆盖。

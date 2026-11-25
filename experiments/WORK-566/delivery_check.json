@@ -87,14 +87,14 @@
       "id": "C6",
       "name": "1440×900 首屏 PNG 与 A4 打印 PDF 齐备",
       "pass": true,
-      "detail": "PNG (1440, 900)（246254 B）；PDF 193737 B",
+      "detail": "PNG (1440, 900)（245314 B）；PDF 196392 B",
       "measured": {
         "png_dim": [
           1440,
           900
         ],
-        "png_bytes": 246254,
-        "pdf_bytes": 193737
+        "png_bytes": 245314,
+        "pdf_bytes": 196392
       },
       "expected": {
         "png_dim": [
