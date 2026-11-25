@@ -118,7 +118,7 @@ def test_text_list_pattern_with_slash_years():
     text = "公司2023/2024/2025年EPS分别为3.10、3.80、4.50元。"
     values = extract_from_text(text, YEARS)
     assert {v.fiscal_year: v.eps for v in values} == {2023: 3.10, 2024: 3.80, 2025: 4.50}
-    assert all(v.extractor == "text_list" for v in values)
+    assert all(v.confidence == "rule" for v in values)
 
 
 def test_text_list_without_year_anchor_is_not_guessed():
