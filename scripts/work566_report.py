@@ -267,6 +267,15 @@ def main():
     tier = metrics["cost_tiers"]["0.0005"]
     v = metrics.get("verdict", "未判定")
 
+    # H1 逐种子符号一致性：只在「有 ≥2 个种子且每种子都有 delta_rankic_pp」时判定，
+    # 否则给「不可判定」——避免在产物不完整时 KeyError 把整条 Stage 3 链打断。
+    _per = h1.get("per_seed", []) or []
+    _ds = [p.get("delta_rankic_pp") for p in _per]
+    if len(_ds) >= 2 and all(d is not None for d in _ds):
+        sign_txt = "一致" if all((d > 0) == (_ds[0] > 0) for d in _ds) else "不一致"
+    else:
+        sign_txt = "不可判定（有效种子不足 2 个）"
+
     rows = []
     for arm in ["s1_only", "s3_only", "s1_s2", "full", "r0", "r1", "r2", "r3", "fmb"]:
         per = tier.get(arm, {})
@@ -477,7 +486,7 @@ valid {fmt(stats.get('n_valid'),0)}；test {fmt(stats.get('n_test'),0)}
 <figcaption><span class="src">图 3 · 来源：本单主检验量（预注册 §11）。</span>
 每个种子一个点，横线为跨种子中位数，阴影为判词区间（红=退、青=部分复现、蓝=进），
 灰虚线为论文增量 +6.07 pp。<b>本单结论：</b>H1 的符号在两个种子下
-{('一致' if len(per) == 2 and (per[0]['delta_rankic_pp'] > 0) == (per[1]['delta_rankic_pp'] > 0) else '不一致')}，
+{sign_txt}，
 判词不依赖「挑最好的一次」。</figcaption></figure>
 
 <h3>H2 · 增量显著性（10000 次配对 block bootstrap，block=20，seed=42）</h3>
@@ -558,20 +567,36 @@ v1.0 保留不删，阈值/特征/切分/成本/种子全部未动。</li>
 自检逐元素最大差 <b>eval 4.77e-07 / train 0.00e+00（逐位一致）</b>
 （见 <code>fast_encoder_selftest.json</code>）；② 读出预测由「8 臂各读一遍 u」改为「每切分读一遍、一次写 8 臂」。
 本机 CPU 上前者提速 3~11×（否则全链需 6 小时以上）。</li>
-<li><b>三处纯 I/O 层优化（不改任何取值与口径）</b>：① 面板 memmap 设 <code>MADV_RANDOM</code>
-（消除内核 readahead 造成的 <b>129× 读放大</b>：每批 4.9MB 有用数据实测读盘 636MB → 1.6MB）；
-② train 切分所需日期片（1400MB）预置到 <code>/dev/shm</code>（tmpfs），与源文件切片
-<b>sha256 完全一致</b>；③ 验证遍历与表征重建按 (stock, date) 顺序读（面板布局为 (stock, date, feat)），
-u 仍写回原行号 → 读出分组与取值不变。修后两种子并行各 1.26 upd/s（此前 0.12 upd/s）。</li>
-<li><b>独立子代理代码审查（FAIL → 整改后重跑）</b>：审查判定 1 项 BLOCKING + 11 项 NON-BLOCKING，
+<li><b>三处纯 I/O 层优化（不改任何取值与口径）</b>：① train 切分所需日期片（1400MB）预置到
+<code>/dev/shm</code>（tmpfs），与源文件切片 <b>sha256 全量一致</b>，训练随机取数变 RAM 速；
+② 验证遍历与表征重建按 <b>stock-major</b> 顺序读（面板布局为 (stock, date, feat)，
+同一只股的连续日期在磁盘上连续 → 顺序读；<code>np.lexsort((di, si))</code> 的主键是最后一个 <code>si</code>），
+u 仍写回原行号 → 读出分组与取值不变；③ tmpfs 副本加<b>陈旧校验</b>
+（shape + 起日 + 源文件 size/mtime 指纹三者全对上才复用，否则重建），
+避免面板重建后静默复用旧副本造成数值污染。
+修后训练 <b>1.72 upd/s</b>（此前 0.12 upd/s）。</li>
+<li><b>整机 OOM 事故（本单真正的拦路虎）</b>：两种子并行时整机触发 OOM killer，内核同时杀了
+训练进程与 <code>multica-daemon.service</code> —— 平台提示里的
+<code>daemon shut down while task was in flight</code> 即此 OOM 的次生结果（<b>不是平台自身故障</b>，
+内核日志 <code>Out of memory: Killed process ... (python) ... multica-daemon.service: Failed with result 'oom-kill'</code> 可核对）。
+处置：两种子改<b>顺序</b>跑（硬占用 4.2GB → 2.8GB；本单训练是计算受限，总墙钟时间不变）、
+<code>setsid nohup</code> 脱离会话（平台 daemon 重启不打断训练）、挂内存看门狗记录
+<code>MemAvailable/Shmem/SwapFree</code>。另附<b>线程数 A/B 负结果</b>：8 线程比 6 线程慢 <b>3.6 倍</b>
+（0.618 → 2.208 s/批，整机 loadavg 15.5 / 8 vCPU 已超订）→ 维持 6 线程；
+以及<b>线程数不影响数值</b>的证据：seed42 在 4 线程双进程与 6 线程单进程两种配置下
+<code>upd50/100/150/200</code> 的 <code>L_anc/L_rev</code> 逐位相同（66.6294/53.4636 → 50.7801/35.0353）。</li>
+<li><b>独立子代理代码审查（三轮，FAIL → 整改 → 复审）</b>：第 1 轮判定 1 项 BLOCKING + 11 项 NON-BLOCKING，
 全部已修：<b>B1</b> 组合估值原用「全局最后一个 bar」的收盘价盯市（前视泄漏，触发 188 次、100% 用未来价）
 → 改用「估值日之前最后一个可得 bar」；<b>N1</b> 卖端与最终清算补计交易成本（预注册 §7.1 本就要求）；
 <b>N2</b> S2 编码器训练期 dropout 位置/次数与官方不等价 → 按 torch 2.15 源码逐位复刻（train 逐位一致）；
 <b>N5</b> 读出推理补 <code>clamp(-8,8)</code>；<b>N6</b> 加「种子 &lt; 2 → 未交付」与失败判据 3；
 <b>N7</b> 加 NAV ≤ 0 守卫；<b>N9</b> 断言改为由<b>引擎自身守卫</b>触发（原文见
-<code>assert_violation_log.txt</code>）。审查全文与逐条整改记录：
-<code>experiments/WORK-566/code_review_work566.md</code>；整改前后数字变化见
-<code>failure_log.md</code> §10。</li>
+<code>assert_violation_log.txt</code>）。第 2 轮复核判定上述均已修、新发现 <b>B2</b>
+（<code>build_reps</code> 写回 u 时误用全局样本下标 → 越界 IndexError）→ 改为 split 内位置
+<code>u[pos]</code>，并复核「u 第 r 行 ↔ 样本 idx_all[r]」与 y 同序、无错位，冒烟复现通过。
+审查全文与逐条整改记录：<code>code_review_work566.md</code>（第 1–2 轮）、
+<code>code_review_work566_round3.md</code>（第 3 轮）；整改前后数字变化见
+<code>failure_log.md</code> §10–§13。</li>
 <li><b>停牌日价格未前向填充</b>：面板 docstring 与 <code>meta.json</code> 原写「停牌前向填充到上一收盘」，
 实测<b>未填充</b>（停牌格价格留空）。影响为 0（连续性断言已剔除停牌格，样本对中无停牌格），
 且估值口径本就按「最后可得收盘价」→ 已改文案与描述，<b>不重建面板</b>，在此披露。</li>
