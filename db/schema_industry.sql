@@ -2,8 +2,9 @@
 --
 -- 源：/srv/share/quantdb/raw/industry/<source>/part.parquet（10 个国内源）
 --     /srv/share/quantdb/raw/industry_alt/<source>/data.csv（7 个国际源）
--- 共 17 个已落盘源 -> 17 张 industry_* 表。本文件只建行业层对象，
--- 不触碰既有 20 张 A 股表与 v_daily_qfq / v_daily_hfq。
+-- 共 17 个已落盘源 -> 17 张 industry_* 观测表；另有 1 张预测表
+-- industry_forecast（WORK-584，来源不是独立抓取源，而是从文章正文分流出的未来期预测）。
+-- 本文件只建行业层对象，不触碰既有 20 张 A 股表与 v_daily_qfq / v_daily_hfq。
 --
 -- 约定（与 db/schema.sql 一致）：
 --   * 列名 snake_case，全小写；
@@ -71,10 +72,60 @@ CREATE TABLE IF NOT EXISTS industry_cnesa_storage (
     "source_url"     VARCHAR,
     PRIMARY KEY ("period", "indicator")
 );
-COMMENT ON TABLE industry_cnesa_storage IS 'CNESA 年度储能数据（公开页摘要）；WORK-577 起按句式规则提取 33 行（2025 年末 32 行 + 2021 年末时长 1 行），未提取的 11 个数字逐条登记在 raw/industry/cnesa_storage/failed.json，见 docs/industry-ingest-2026.md §4.2';
+COMMENT ON TABLE industry_cnesa_storage IS 'CNESA 年度储能数据（公开页摘要）；WORK-577 起按句式规则提取 33 行（2025 年末 32 行 + 2021 年末时长 1 行）；WORK-584 起 3 条未来期预测值分流到 industry_forecast，不写本表；其余未提取项逐条登记在 raw/industry/cnesa_storage/failed.json，见 docs/industry-ingest-2026.md §4.2 / §4.9';
 COMMENT ON COLUMN industry_cnesa_storage.period IS '报告月（当月 1 日）：2026-01 = 截至 2025-12 年底；2022-01 = 2021 年末值';
 COMMENT ON COLUMN industry_cnesa_storage.value IS '数值，单位见 unit（GW / GWh / % / 个 / 项 / 元/kWh / 小时）';
 COMMENT ON COLUMN industry_cnesa_storage.caliber IS '口径说明 + 原文句子（「｜原句：」之后），用于回指出处；原文句子同存 raw parquet 的 context 列';
+
+-- ---------------------------------------------------------------------------
+-- 3.1 预测表：行业预测/展望值（WORK-584）
+--
+-- 为什么单列一张表：观测表只放已发生的统计值（C3 日期域 = 2000-01-01..今天+1），
+-- 预测的目标期在未来，塞进观测表会被 C3 判 FAIL；放宽 C3 又会让真正的错期数据混过闸。
+-- 因此预测值单独建表、单独一道闸（C8_forecast），观测表结构与既有 7 闸判据都不动。
+--
+-- 与观测表的关系：同一篇文章同一指标可能既有观测值（industry_cnesa_storage）又有
+-- 预测值（本表），两表各自按自己的口径存；本表不参与 v_industry_catalog_coverage
+-- 的「已覆盖」判定，覆盖口径仍只认已发生的数据。
+--
+-- period_target 编码规则（非日历期必须照此写，不许自创）：
+--   * calendar_year_end —— 日历年展望，取该年 12-31；
+--   * five_year_plan_end —— 五年规划期，取期末年 12-31（十五五 = 2026–2030 → 2030-12-31）。
+--   原文表述（如「2030年」「十五五」）一律另存 period_target_raw，不丢。
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS industry_forecast (
+    "dataset"            VARCHAR NOT NULL,
+    "indicator"          VARCHAR NOT NULL,
+    "value"              DOUBLE  NOT NULL,
+    "unit"               VARCHAR NOT NULL,
+    "period_target"      DATE    NOT NULL,
+    "period_target_raw"  VARCHAR NOT NULL,
+    "period_target_type" VARCHAR NOT NULL,
+    "period_published"   DATE    NOT NULL,
+    "source_org"         VARCHAR NOT NULL,
+    "source_doc"         VARCHAR NOT NULL,
+    "context"            VARCHAR NOT NULL,
+    "caliber"            VARCHAR,
+    "published_date"     DATE,
+    "extracted_at"       TIMESTAMP NOT NULL,
+    "rule_version"       VARCHAR NOT NULL,
+    PRIMARY KEY ("dataset", "indicator", "period_target", "source_org")
+);
+COMMENT ON TABLE industry_forecast IS '行业预测/展望值（WORK-584）：逐行保留提出方、原文 URL、原句与提取时点；与观测表 industry_* 分表，目标期允许未来。首批 = CNESA 3 条（2030 年累计装机 3.7 亿千瓦、2030 年平均时长 3.47 小时、十五五工商业储能 30GW）';
+COMMENT ON COLUMN industry_forecast.dataset IS '来源数据集（raw/industry/<dataset>/）；本批 cnesa_forecast';
+COMMENT ON COLUMN industry_forecast.indicator IS '指标名；同一指标不同目标期分行';
+COMMENT ON COLUMN industry_forecast.value IS '数值，单位见 unit（原样保留原文单位，不做换算；如 3.7 亿千瓦不写成 370GW）';
+COMMENT ON COLUMN industry_forecast.period_target IS '预测目标期（DATE）。日历年取 12-31；五年规划取期末年 12-31，见上方编码规则';
+COMMENT ON COLUMN industry_forecast.period_target_raw IS '目标期原文表述（如「2030年」「十五五」），不丢原文';
+COMMENT ON COLUMN industry_forecast.period_target_type IS 'calendar_year_end / five_year_plan_end；C8 校验取值与日期编码一致';
+COMMENT ON COLUMN industry_forecast.period_published IS '报告口径期（当月 1 日）：本批 2026-01 = 2025 年度数据发布';
+COMMENT ON COLUMN industry_forecast.source_org IS '提出方机构（用户点名必存），本批 = 中关村储能产业技术联盟 CNESA';
+COMMENT ON COLUMN industry_forecast.source_doc IS '原文 URL；C8 要求 context 能在该文档的正文快照里逐字定位';
+COMMENT ON COLUMN industry_forecast.context IS '命中数值所在原句，逐字取自正文（「有望/预计」等语气词必须原样保留，不许洗成确定值）';
+COMMENT ON COLUMN industry_forecast.caliber IS '口径说明 + 原文句子（「｜原句：」之后）';
+COMMENT ON COLUMN industry_forecast.published_date IS '文章发布日期（提出时点的可核对证据）';
+COMMENT ON COLUMN industry_forecast.extracted_at IS '提取时刻（Asia/Shanghai 本地墙钟，无时区）';
+COMMENT ON COLUMN industry_forecast.rule_version IS '提取规则版本，如 cnesa-forecast-v1；规则改动必须升版本';
 
 -- ---------------------------------------------------------------------------
 -- 4. 巨潮资讯网·指定关键词公告索引（事件驱动）

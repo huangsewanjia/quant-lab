@@ -18,7 +18,12 @@
   C5_audit_consistency   最新完整装载审计的 raw/staged/loaded 与现状一致（防手改、防漏装）
   C6_catalog_coverage    v_industry_catalog_coverage 已覆盖数 >= 30，并给出完整/部分/文本拆分
   C7_freshness           日频源最新日期在 7 天内，月频源在 45 天内
+  C8_forecast            预测表 industry_forecast（WORK-584）：
+                           主键唯一、必填列非空、period_target 晚于今天、
+                           period_target_type 与日期编码一致、单位在词表内、
+                           context 含「预计/有望」类语气词且能在正文快照里逐字定位
 
+C1..C7 是观测表的既有 7 道闸，判据未改；C8 只查预测表，不看观测表。
 只读打开 DuckDB；本模块不写主库，只写 meta/checks 下的 JSON 报告。
 """
 
@@ -27,11 +32,12 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import re
 from pathlib import Path
 from typing import Any
 
 from ..etl import common
-from ..etl.industry import SOURCES
+from ..etl.industry import FORECAST_SOURCES, SOURCES
 
 
 def report_dir() -> Path:
@@ -99,6 +105,14 @@ BUSINESS_KEYS: dict[str, list[str]] = {
     "industry_trendforce_spot_price": ["snapshot_date", "series", "spec"],
     "industry_benchmark_public_index": ["snapshot_date", "kind", "name"],
 }
+
+# 预测表（WORK-584）：单位词表按首批数据实测固定；上游出现新单位时 C8 直接判 FAIL，
+# 迫使实现方在 schema 注释与文档里明确新单位，而不是悄悄混进来。
+FORECAST_TABLE = FORECAST_SOURCES[0].table
+FORECAST_UNITS = frozenset({"GW", "亿千瓦", "小时"})
+FORECAST_TARGET_TYPES = frozenset({"calendar_year_end", "five_year_plan_end"})
+# 预测行必须带着原文语气词，防止把「预计/有望」洗成确定值。
+FORECAST_MODALITY = re.compile(r"预计|有望|展望|预测")
 
 
 def _today() -> dt.date:
@@ -463,6 +477,143 @@ def c7_freshness(con, daily_days: int = 7, monthly_days: int = 45) -> tuple[bool
     return ok, {"pass": ok, "today": str(today), "checks": detail}
 
 
+def c8_forecast(con) -> tuple[bool, dict[str, Any]]:
+    """预测表独立闸：结构、日期编码、语气词与原文可回指。
+
+    设计取舍：
+    * 不复用 C1..C7：那 7 道闸的判据（尤其 C3 日期域 ≤ 今天+1）是为观测表定的，
+      预测的目标期在未来，混进去必然误报；新增一条独立闸，既有判据一字不改。
+    * context 要能在正文快照里逐字定位：快照由抓取脚本写
+      ``raw/industry/<dataset>/article.txt``（与提取时用的正文同一份文本），
+      这样「可回指」不依赖再联网，也能在离线复跑时判定。
+    """
+    existing = {
+        r[0]
+        for r in con.execute(
+            "SELECT table_name FROM information_schema.tables WHERE table_type='BASE TABLE'"
+        ).fetchall()
+    }
+    if FORECAST_TABLE not in existing:
+        return False, {
+            "pass": False,
+            "error": f"{FORECAST_TABLE} 不存在：先跑 "
+                     f"python -m db.etl.industry load --sources cnesa_forecast",
+        }
+
+    today = _today()
+    units = sorted(FORECAST_UNITS)
+    unit_ph = ", ".join("?" for _ in units)
+    total, bad_units, blank_required, not_future = con.execute(
+        f"""
+        SELECT count(*),
+               count(*) FILTER (WHERE unit NOT IN ({unit_ph})),
+               count(*) FILTER (
+                   WHERE coalesce(trim(source_org), '') = ''
+                      OR coalesce(trim(source_doc), '') = ''
+                      OR coalesce(trim(context), '') = ''
+                      OR coalesce(trim(rule_version), '') = ''
+                      OR coalesce(trim(period_target_raw), '') = ''
+               ),
+               count(*) FILTER (WHERE period_target <= ?)
+        FROM {FORECAST_TABLE}
+        """,
+        [*units, today],
+    ).fetchone()
+
+    key_dups = int(
+        con.execute(
+            f"""SELECT count(*) FROM (
+                    SELECT indicator, period_target, source_org
+                    FROM {FORECAST_TABLE}
+                    GROUP BY 1, 2, 3 HAVING count(*) > 1
+                )"""
+        ).fetchone()[0]
+    )
+    types = sorted(FORECAST_TARGET_TYPES)
+    type_ph = ", ".join("?" for _ in types)
+    bad_type, bad_encoding = con.execute(
+        f"""
+        SELECT count(*) FILTER (
+                   WHERE period_target_type IS NULL
+                      OR period_target_type NOT IN ({type_ph})
+               ),
+               count(*) FILTER (
+                   WHERE period_target_type IN ({type_ph})
+                     AND (month(period_target) <> 12 OR day(period_target) <> 31)
+               )
+        FROM {FORECAST_TABLE}
+        """,
+        [*types, *types],
+    ).fetchone()
+
+    rows = con.execute(
+        f"SELECT dataset, indicator, period_target, context, source_doc "
+        f"FROM {FORECAST_TABLE} ORDER BY dataset, period_target, indicator"
+    ).fetchall()
+    no_modality = [
+        f"{i}@{p}" for _ds, i, p, context, _doc in rows
+        if not FORECAST_MODALITY.search(context or "")
+    ]
+
+    snapshots: dict[str, Any] = {}
+    snapshot_failures = 0
+    for dataset in sorted({r[0] for r in rows}):
+        path = common.RAW_DIR / "industry" / dataset / "article.txt"
+        entry: dict[str, Any] = {"path": str(path)}
+        if not path.exists():
+            entry.update({"pass": False, "error": "正文快照不存在，无法离线验证 context 可回指"})
+            snapshot_failures += 1
+            snapshots[dataset] = entry
+            continue
+        text = path.read_text(encoding="utf-8")
+        in_dataset = [(i, p, c) for ds, i, p, c, _doc in rows if ds == dataset]
+        missing = [f"{i}@{p}" for i, p, c in in_dataset if c not in text]
+        entry.update({
+            "rows": len(in_dataset),
+            "located": len(in_dataset) - len(missing),
+            "missing": missing,
+            "pass": not missing,
+        })
+        if missing:
+            snapshot_failures += 1
+        snapshots[dataset] = entry
+
+    ok = (
+        int(total) > 0
+        and int(bad_units) == 0
+        and int(blank_required) == 0
+        and int(not_future) == 0
+        and key_dups == 0
+        and int(bad_type) == 0
+        and int(bad_encoding) == 0
+        and not no_modality
+        and snapshot_failures == 0
+    )
+    return ok, {
+        "pass": ok,
+        "table": FORECAST_TABLE,
+        "rows": int(total),
+        "today": str(today),
+        "unit_vocabulary": {
+            "allowed": units,
+            "unexpected": int(bad_units),
+            "pass": int(bad_units) == 0,
+        },
+        "required_blank": int(blank_required),
+        "duplicate_business_key": key_dups,
+        "target_not_future": int(not_future),
+        "target_type": {
+            "allowed": types,
+            "unexpected": int(bad_type),
+            "bad_date_encoding": int(bad_encoding),
+            "rule": "日历年末 / 五年规划期末统一编码为 12-31；原文另存 period_target_raw",
+            "pass": int(bad_type) == 0 and int(bad_encoding) == 0,
+        },
+        "missing_modality": no_modality,
+        "snapshots": snapshots,
+    }
+
+
 GATES = {
     "C1_rows_nonzero": c1_rows_nonzero,
     "C2_primary_key": c2_primary_key,
@@ -471,6 +622,7 @@ GATES = {
     "C5_audit_consistency": c5_audit_consistency,
     "C6_catalog_coverage": c6_catalog_coverage,
     "C7_freshness": c7_freshness,
+    "C8_forecast": c8_forecast,
 }
 
 
@@ -537,6 +689,17 @@ def _summary(results: dict[str, Any]) -> dict[str, Any]:
             row["stale"] = [
                 k for k, v in detail.get("checks", {}).items() if not v.get("pass")
             ]
+        elif name == "C8_forecast":
+            row.update({
+                "rows": detail.get("rows"),
+                "duplicate_business_key": detail.get("duplicate_business_key"),
+                "target_not_future": detail.get("target_not_future"),
+                "missing_modality": detail.get("missing_modality"),
+                "snapshot_failures": [
+                    ds for ds, v in (detail.get("snapshots") or {}).items()
+                    if not v.get("pass")
+                ],
+            })
         summary[name] = row
     return summary
 

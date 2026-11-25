@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-11-25 · WORK-584 行业预测表（储能 CNESA 3 条展望）
+
+新增：
+
+- `db/schema_industry.sql`：`industry_forecast` 预测表（15 列，主键 = dataset × indicator ×
+  period_target × source_org），逐行保留提出方 `source_org`、原文 `source_doc`、原句 `context`、
+  口径 `caliber`、文章发布日 `published_date`、提取时刻 `extracted_at`、规则版本 `rule_version`。
+  目标期编码写进列注释：日历年 `12-31`、五年规划期末年 `12-31`（十五五 = 2026–2030 → 2030-12-31），
+  原文另存 `period_target_raw`。
+- `db/etl/industry.py`：`FORECAST_SOURCES` 与 `transform_cnesa_forecast`；`load` 把观测 17 源与
+  预测源分两组、分 run_id 装载，预测组按 `dataset` 分区整组替换（上游撤稿不留残行）。
+- `db/checks/industry.py`：`C8_forecast`（表非空、单位词表、必填非空、目标期在未来、
+  业务键唯一、目标期类型与 12-31 编码一致、原句含「预计/有望」语气词、原句可在正文快照定位）。
+  C1..C7 判据未改。
+- `db/tests/test_industry_forecast.py`：装载幂等、撤行替换、主键冲突、C8 六种判定、提取契约，共 10 项。
+- `scripts/work584_verify.py`：端到端核对（提取 → raw → 库 → C8）。
+- `docs/industry-ingest-2026.md` §13：预测表的表结构、编码规则、数据、链路、闸、证据与回滚；
+  §4.2 改写为当前事实（WORK-577 已把 2 行修到 33 行，WORK-584 预测分流）。
+
+要点（2026-11-25 22:40–22:41 实测，同一版本）：
+
+- 3 条预测入库：2030 年新型储能累计装机 3.7 亿千瓦、2030 年平均时长 3.47 小时、
+  十五五工商业储能累计装机 30GW；单位保留原文（3.7 不换算成 370GW），原句含「预计/有望」。
+- 同参数连跑两次装载，`industry_forecast` 均 3 行；观测 17 表 265,023 行不变。
+- 质量闸 8/8 PASS（C1..C7 判据未改 + C8_forecast）；`scripts/work584_verify.py` PASS。
+- 预测提取失败项 0；观测层 `failed.json` 由 14 条降为 11 条（3 条预测值已分流，不再算「未提取」）。
+
+抓取脚本本体在 `/srv/share/quantdb/code/industry_fetch/fetch_cnesa_storage.py`，不在本仓库
+（既有形态），改动以 `meta/industry/work584-code-sha256.txt` 锁版。
+
+
 ## 2026-11-25 · WORK-568 行业层入库与定更
 
 新增：

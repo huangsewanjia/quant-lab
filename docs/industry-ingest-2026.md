@@ -6,7 +6,7 @@
 
 ## 1. 一句话结论
 
-17 个源全部进了 DuckDB（`industry_*` 17 张表；WORK-568 装载时 **16,834 行**，WORK-572 回填历史后 **241,892 行**，见 §2.2），每次装载按「源 × 期」分区替换，同参数重跑行数不变（WORK-572 实测两次装载 17 表差异 0）；7 道闸全 PASS；日频/月频两个 timer 已安装；`data_catalog` 405 条中 47 条有可查记录（数值 42 + 公告/新闻稿文本索引 5；严格「完整」8 条）。
+17 个源全部进了 DuckDB（`industry_*` 17 张表；WORK-568 装载时 **16,834 行**，WORK-572 回填历史后 **241,892 行**，见 §2.2），每次装载按「源 × 期」分区替换，同参数重跑行数不变（WORK-572 实测两次装载 17 表差异 0）；另有预测表 `industry_forecast` 3 行（WORK-584，见 §13），与观测表分表、分闸；**8 道闸全 PASS**（观测 7 道判据未改 + 预测 1 道）；日频/月频两个 timer 已安装；`data_catalog` 405 条中 47 条有可查记录（数值 42 + 公告/新闻稿文本索引 5；严格「完整」8 条）。
 
 ## 2. 源清单与口径（源 → 表 → 字段 → 单位 → 频率 → 口径 → 一手 URL）
 
@@ -16,7 +16,7 @@
 |---|---|---|---|---|---|---|---|
 | 1 | 广州期货交易所·碳酸锂 | `industry_gfex_lithium_carbonate` | trade_date, contract, field, value | 元/吨；手；**万元** | 日 | 全合约逐日 9 字段；`turnover` 源标「元」实为万元（§4.1） | `http://www.gfex.com.cn/u/interfacesWebTiDayQuotes/loadList` |
 | 2 | 中国货币网·LPR | `industry_chinamoney_lpr` | quote_date, tenor, value | % | 每月 20 日 | 1Y / 5Y+ 两个期限 | `https://www.chinamoney.com.cn/ags/ms/cm-u-bk-currency/LprHis?lang=CN` |
-| 3 | CNESA·储能年度数据 | `industry_cnesa_storage` | period, indicator, value | GW；% | 年度 | 电力储能累计装机、同比；抓取只提到 2 个指标（§4.2） | `https://www.cnesa.org/information/detail/?column_id=1&id=7798` |
+| 3 | CNESA·储能年度数据 | `industry_cnesa_storage` | period, indicator, value | GW；%；GWh；个；项；元/kWh；小时 | 年度 | 33 行观测值（§4.2）；3 条未来期预测值走 `industry_forecast`（§13） | `https://www.cnesa.org/information/detail/?column_id=1&id=7798` |
 | 4 | 巨潮资讯·公告索引 | `industry_cninfo_announcements` | announcement_id, keyword, category, published_date | — | 事件 | 半导体/锂业/有色金属三关键词 30 天窗口；只有元数据与 PDF 链接 | `http://www.cninfo.com.cn/new/hisAnnouncement/query` |
 | 5 | 中汽协·产销 | `industry_caam_auto_output` | period, indicator, value, scope | 万辆 | 月度 | 当月/累计，汽车/乘用车/商用车/新能源，含出口量 | `http://www.auto-stats.org.cn/ReadArticle.asp?NewsID=...` |
 | 6 | 乘联分会·新能源 | `industry_cpcaauto_nev` | period, kind, indicator, value | 万辆；%；条 | 月度 | 零售/批发/渗透率；`report_index` 行只记报告存在 | `http://www.cpcaauto.com/newslist.php?types=bgzl` |
@@ -93,6 +93,13 @@ systemctl --user start quantdb-industry-monthly.service  # 月频
 QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
   /home/moyongkai/.venvs/quantdb/bin/python -m db.etl.industry load --sources cnesa_storage
 
+# 4b) 只装预测表 + 预测核对（WORK-584）
+QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
+  flock -w 7200 /srv/share/quantdb/logs/.quantdb-db.lock \
+  /home/moyongkai/.venvs/quantdb/bin/python -m db.etl.industry load --sources cnesa_forecast
+QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
+  /home/moyongkai/.venvs/quantdb/bin/python scripts/work584_verify.py
+
 # 5) 手工历史回填（非定时；深度大、耗时长，只在需要补历史时手动跑）
 cd /srv/share/quantdb/code/industry_fetch
 /home/moyongkai/.venvs/quantdb/bin/python fetch_gfex_lithium.py --mode backfill
@@ -130,13 +137,19 @@ fetcher 把 `turnover` 标为「元」。用当日 `low..high` 反推 VWAP：
 
 若 turnover 真是元，比值会差 10000 倍、几乎全部落在区间外。装载层把该字段单位改写为「万元」，并在 C4 闸里每次复核。
 
-### 4.2 CNESA 只有 2 行：是抓取失败，不是源只公开 2 条
+### 4.2 CNESA：2 行 → 33 行（WORK-577 已修）；预测值分流到预测表（WORK-584）
 
-公开页 HTML（`/tmp/cnesa_7798.html`，HTTP 200，341,562 字节）正文至少含这些带单位数字：
-66.43GW、189.48GWh、213.3GW、+54%、31.3%、144.7GW、+85%、100GW、35%、58%、8%、+52%、+73%、121.5GWh、+140.1%、206.3GWh、+125.5%。
+WORK-568 时该源只入库 2 行，原因是提取规则只覆盖 6 个句式，**不是源只公开 2 条**：
+公开页 HTML（HTTP 200，341,562 字节）正文至少含 66.43GW、189.48GWh、213.3GW、+54%、
+31.3%、144.7GW、+85%、100GW、35%、58%、8%、+52%、+73%、121.5GWh、+140.1%、206.3GWh、
++125.5% 等带单位数字。
 
-fetcher 的 6 条正则只命中 2 条（`中国电力储能累计装机规模`、`累计装机规模同比增速`），其余句式（「新型储能累计装机规模达到 144.7GW，同比+85%」「新增投运 66.43GW/189.48GWh」）未覆盖。
-**结论：抓取/提取覆盖不足**。本单按 issue 要求不改抓取逻辑；该源按「部分覆盖」计入目录映射，不按「已入库完整」计。
+WORK-577 把句式扩到 24 条规则，观测表入库 33 行（2025 年末 32 行 + 2021 年末时长 1 行）；
+未提取的数字逐条登记在 `raw/industry/cnesa_storage/failed.json`（2026-11-25 22:40 实测 11 条）。
+
+WORK-584 把 3 条目标期在未来的预测值（2030 年累计装机 3.7 亿千瓦、2030 年平均时长
+3.47 小时、十五五工商业储能 30GW）分流到 `cnesa_forecast` → `industry_forecast`；
+观测表结构与 C3 日期域判据**未放宽**，预测值也不再出现在观测层的「未提取」清单里。详见 §13。
 
 ### 4.3 财政部：published_date 全错、period 与文章年份冲突
 
@@ -797,3 +810,140 @@ QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
    退回旧版本 = 用 `work572-code-sha256.txt` 里 `fetch_nea_power.py` 的基线文件覆盖，并恢复
    `industry.sh` 中 `[nea_power]` 一行的旧参数。
 3. 闸：`git revert <WORK-581 commit>` 只影响 `db/checks/industry.py` 的 nea 两处与本文档。
+
+## 13. 预测表 industry_forecast（WORK-584，2026-11-25）
+
+### 13.1 一句话
+
+CNESA 公开页里的 3 条未来期预测值（2030 年累计装机 3.7 亿千瓦、2030 年平均时长
+3.47 小时、十五五工商业储能 30GW）单独进 `industry_forecast`，逐行带提出方
+（source_org=CNESA）、原文 URL（source_doc）、原句（context，含「预计/有望」）与
+提取时点；观测表 `industry_cnesa_storage` 与既有 C1..C7 判据一字未改，新增
+C8_forecast 专查预测表。
+
+### 13.2 为什么单建表
+
+- 既有 C3 日期域是 `2000-01-01 .. 今天+1`，为观测表而定。预测的目标期在 2030 年，
+  塞进观测表必然 FAIL；放宽 C3 又会让真正的错期数据混过闸。
+- 观测值与预测值口径不同（已发生 vs 展望），混在一张表里只能靠列注释区分，查询
+  容易把展望当事实。
+- 因此：新表 + 新闸 + 新数据集，观测侧零改动。
+
+### 13.3 表结构与编码规则
+
+表定义见 `db/schema_industry.sql`（3.1 节，列注释写全）：
+
+| 列 | 含义 |
+|---|---|
+| `dataset` | 来源数据集，本批 `cnesa_forecast` |
+| `indicator` / `value` / `unit` | 指标、数值、**原单位**（3.7 亿千瓦不换算成 370GW） |
+| `period_target` | 预测目标期 DATE，编码规则见下 |
+| `period_target_raw` | 原文表述（「2030年」「十五五」），不丢 |
+| `period_target_type` | `calendar_year_end` / `five_year_plan_end`；C8 校验类型与日期一致 |
+| `period_published` | 报告口径期，本批 `2026-01` |
+| `source_org` | 提出方机构，本批 `中关村储能产业技术联盟 CNESA` |
+| `source_doc` | 原文 URL |
+| `context` | 命中数值所在原句，逐字取自正文 |
+| `caliber` / `published_date` / `extracted_at` / `rule_version` | 口径说明、文章发布日、提取时刻、规则版本 |
+
+`period_target` 编码（非日历期照此写，不许自创）：
+
+- `calendar_year_end`：日历年展望取该年 `12-31`（2030 年 → `2030-12-31`）；
+- `five_year_plan_end`：五年规划期取期末年 `12-31`（十五五 = 2026–2030 → `2030-12-31`）。
+
+主键 `(dataset, indicator, period_target, source_org)`，即「指标 + 目标期 + 提出方」
+唯一；装载前强校验，冲突直接报错，不静默覆盖。
+
+### 13.4 入库数据（2026-11-25 22:40 实装）
+
+| 指标 | 数值 | 单位 | 目标期 | 原文表述 | 提出方 | 原句 |
+|---|---|---|---|---|---|---|
+| 新型储能累计装机规模 | 3.7 | 亿千瓦 | 2030-12-31 | 2030年 | CNESA | 展望”十五五“，增速虽然放缓，但庞大的基数仍将催生可观的绝对增量，预计2030年累计装机有望达到3.7亿千瓦以上。 |
+| 新型储能累计装机平均时长 | 3.47 | 小时 | 2030-12-31 | 2030年 | CNESA | 2026年起，时长提升明显加速，预计至2030年将达到3.47小时。 |
+| 工商业储能累计装机规模 | 30 | GW | 2030-12-31 | 十五五 | CNESA | 展望“十五五”，工商业储能继续保持稳定增长态势，收益更加多元，由单一的“固定价差套利”向“波动的市场价差套利+需量管理+需求响应”转变，累计装机有望突破30GW。 |
+
+原文：`https://www.cnesa.org/information/detail/?column_id=1&id=7798`（HTTP 200，
+341,562 字节），文章发布日 `2026-01-22`，报告口径期 `2026-01`。
+
+### 13.5 链路
+
+```text
+fetch_cnesa_storage.py（live 树，不在 git）
+  ├─ RULES / cnesa-extract-v2 ──> raw/industry/cnesa_storage/part.parquet（33 行观测）
+  └─ FORECAST_RULES / cnesa-forecast-v1
+       ├─> raw/industry/cnesa_forecast/part.parquet（3 行预测）
+       ├─> raw/industry/cnesa_forecast/article.txt（正文快照，C8 离线回指用）
+       └─> raw/industry/cnesa_forecast/failed.json（预测提取失败项，本次 0 条）
+db.etl.industry load
+  ├─ SOURCES（17 源）──────────> 17 张观测表（run_id 不带后缀）
+  └─ FORECAST_SOURCES（1 源）──> industry_forecast（run_id 带 F 后缀，C5 的「17 表完整运行」不受影响）
+db.checks.industry
+  ├─ C1..C7（判据未改）────────> 17 张观测表
+  └─ C8_forecast ─────────────> industry_forecast
+```
+
+预测句式必须在原文里带语气词（预计/有望/展望/预测），否则不认、记 failed.json；
+宁可不提取，也不把「有望突破 30GW」洗成确定值。
+
+### 13.6 质量闸 C8_forecast
+
+`db/checks/industry.py::c8_forecast`，八项合取，任一不满足即 FAIL：
+
+1. 表存在且行数 > 0（空表不算 PASS，避免假绿）；
+2. 单位在词表 `{GW, 亿千瓦, 小时}` 内；
+3. `source_org` / `source_doc` / `context` / `rule_version` / `period_target_raw` 非空；
+4. `period_target` 全部晚于今天（预测表特征）；
+5. `(indicator, period_target, source_org)` 无重复；
+6. `period_target_type` 在允许集合内，且 12-31 编码一致；
+7. 每行 context 含「预计/有望/展望/预测」语气词；
+8. 每行 context 能在 `raw/industry/<dataset>/article.txt` 正文快照里逐字定位。
+
+### 13.7 实测证据（2026-11-25 22:40–22:41，同一版本）
+
+```bash
+# 抓取（写 raw + 快照）
+cd /srv/share/quantdb/code/industry_fetch && /home/moyongkai/.venvs/quantdb/bin/python fetch_cnesa_storage.py
+# [cnesa_forecast] rows=3 bytes=12237 rule_version=cnesa-forecast-v1 sha256=ae2eaa5fb58e2c92… failed=0
+# [cnesa_storage]  rows=33 bytes=12607 elapsed=1.9s failed=11
+
+# 装载两次（同参数幂等）
+flock /srv/share/quantdb/logs/.quantdb-db.lock … -m db.etl.industry load --sources cnesa_forecast
+# [industry] industry_forecast  raw=3 staged=3 dedup=0 total=3 partitions=1
+# 第二次同样 total=3
+
+# 8 道闸
+… -m db.checks.industry all
+# C1 17 表 265,023 行；C2..C7 PASS；C8_forecast PASS（rows=3, duplicate_business_key=0,
+# target_not_future=0, missing_modality=[], snapshot_failures=[]）
+
+# 端到端核对（提取 → raw → 库 → 闸）
+… scripts/work584_verify.py
+# 结论：PASS（0 项失败）
+```
+
+raw 摘要：`part.parquet` 12,237 B，sha256 `ae2eaa5fb58e2c9257bbc91a2bc92faa13177e98972afb70a95400292d5834cd`；
+`article.txt` sha256 `d10e399b1c4716501dd9c2f2a5f523edb90e579cd6f7197769f846f03791cb75`。
+
+### 13.8 回滚
+
+1. 数据（只删预测表内容，观测表不动）：
+   `DROP TABLE IF EXISTS industry_forecast;`，或保留表结构只清行 `DELETE FROM industry_forecast;`。
+2. raw：`raw/industry/cnesa_forecast/` 整目录是新增的，直接删除即可回到 WORK-577 状态
+   （观测 raw `raw/industry/cnesa_storage/` 的 `part.parquet` 会被本单的新 fetcher 重写一次，
+   行数仍 33；回退 fetcher 后重跑一次可回到 14 条 failed 的旧清单）。
+3. 代码：`git revert <WORK-584 commit>`（`db/schema_industry.sql`、`db/etl/industry.py`、
+   `db/checks/industry.py`、测试与本文档）；live 树抓取脚本不在 git，按
+   `meta/industry/work584-code-sha256.txt` 里 `fetch_cnesa_storage.py` 的基线 sha256 恢复旧版。
+4. 闸：回退后 C8 从 `all` 里消失，C1..C7 行为不变。
+
+### 13.9 变更文件
+
+- `db/schema_industry.sql`：新增 `industry_forecast` 表与列注释；`industry_cnesa_storage` 表注释指向 §13。
+- `db/etl/industry.py`：`transform_cnesa_forecast` / `parse_local_timestamp` / `FORECAST_SOURCES`；
+  `load` 分两组装载（观测 run_id 无后缀，预测 run_id 带 `F`）。
+- `db/checks/industry.py`：新增 `C8_forecast`；C1..C7 一字未改。
+- `db/tests/test_industry_forecast.py`：装载幂等、撤行替换、主键冲突、C8 六种判定、提取契约，共 10 项。
+- `scripts/work584_verify.py`：端到端核对（提取 → raw → 库 → C8）。
+- `scripts/work577_verify.py`：覆盖率统计把预测命中区间计入，避免误报「需补规则」。
+- live 树 `/srv/share/quantdb/code/industry_fetch/fetch_cnesa_storage.py`：预测句式、预测数据集、
+  正文快照与 failed.json（不在本仓库，既有形态；按 sha256 锁版）。

@@ -101,7 +101,11 @@ def main() -> int:
         tm = re.search(r"(20\d{2}年度[^\s，。]{0,30}储能数据[^\s，。]{0,20})", text)
         title = tm.group(1) if tm else ""
         rows, spans, failures = mod.extract(text, pub, title)
-        uncovered, stats = mod.uncovered_failures(text, spans)
+        # WORK-584：预测值已分流到 cnesa_forecast / industry_forecast。覆盖率必须把
+        # 预测命中区间一起算进来，否则这 3 个数字会被误报成「未提取、需补规则」。
+        _frows, fspans, _ffailures = mod.extract_forecasts(
+            text, pub, mod.report_period(text))
+        uncovered, stats = mod.uncovered_failures(text, spans + fspans)
 
         print("\n## A 提取层")
         check(len(rows) >= 10, f"提取行数 {len(rows)} >= 10")

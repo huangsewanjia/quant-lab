@@ -1,7 +1,8 @@
-"""Load the 17 landed industry sources into DuckDB.
+"""Load the 17 landed industry sources into DuckDB（外加 1 张预测表）。
 
-    python -m db.etl.industry load                 # 全部 17 个源
+    python -m db.etl.industry load                 # 17 个观测源 + 预测表
     python -m db.etl.industry load --sources caam_auto_output,gfex_lithium_carbonate
+    python -m db.etl.industry load --sources cnesa_forecast   # 只装预测表
     python -m db.etl.industry load --full          # 清表重装（只在排查时用）
 
 设计要点（WORK-568）：
@@ -14,6 +15,9 @@
 * 每次装载写一段 ``industry_load_audit``（raw/staged/loaded/分区数），
   可复跑核对；
 * 所有日期/月份解析都保留原文列（``*_raw``），解析失败写 NULL，不推断。
+
+WORK-584 追加：预测值单独装进 ``industry_forecast``（``FORECAST_SOURCES``），
+与 17 张观测表分两组、分 run_id 装载，观测表结构与既有 7 闸判据不变。
 """
 
 from __future__ import annotations
@@ -189,6 +193,46 @@ def transform_cnesa(raw: pd.DataFrame, _: dict) -> pd.DataFrame:
         "published_date": raw["published_date"].map(parse_date),
         "source_url": raw["source_url"],
     })
+
+
+def parse_local_timestamp(value: Any) -> pd.Timestamp | None:
+    """'2026-11-25 22:40:00+0800' -> Asia/Shanghai 本地墙钟（naive）。
+
+    预测表 extracted_at 是无时区墙钟列；带偏移的输入先换算到东八区再去掉时区，
+    保证同一时刻在不同来源写法下落库一致。解析失败返回 NaT（NOT NULL 会报错）。
+    """
+    ts = pd.to_datetime(_text(value), format="%Y-%m-%d %H:%M:%S%z", errors="coerce")
+    if isinstance(ts, pd.Timestamp) and not pd.isna(ts):
+        ts = ts.tz_convert("Asia/Shanghai").tz_localize(None)
+    return ts
+
+
+def transform_cnesa_forecast(raw: pd.DataFrame, _: dict) -> pd.DataFrame:
+    out = pd.DataFrame({
+        "dataset": raw["dataset"].astype(str),
+        "indicator": raw["indicator"],
+        "value": pd.to_numeric(raw["value"], errors="coerce"),
+        "unit": raw["unit"],
+        "period_target": raw["period_target"].map(parse_date),
+        "period_target_raw": raw["period_target_raw"],
+        "period_target_type": raw["period_target_type"],
+        "period_published": raw["period_published"].map(parse_month),
+        "source_org": raw["source_org"],
+        "source_doc": raw["source_doc"],
+        "context": raw["context"],
+        "caliber": raw["caliber"],
+        "published_date": raw["published_date"].map(parse_date),
+        "extracted_at": raw["extracted_at"].map(parse_local_timestamp),
+        "rule_version": raw["rule_version"],
+    })
+    # 预测表的主键与必填列不允许空：空值在这里显式报错，而不是被 INSERT 静默拒绝。
+    required = ["dataset", "indicator", "value", "unit", "period_target",
+                "period_target_raw", "period_target_type", "period_published",
+                "source_org", "source_doc", "context", "extracted_at", "rule_version"]
+    nulls = [c for c in required if out[c].isna().any()]
+    if nulls:
+        raise SystemExit(f"[industry] 预测表必填列为空 {nulls}：检查 raw/cnesa_forecast 提取结果")
+    return out
 
 
 def transform_cninfo(raw: pd.DataFrame, _: dict) -> pd.DataFrame:
@@ -485,7 +529,17 @@ SOURCES: list[Source] = [
            ["snapshot_date"], transform_trendforce, pk_is_hash=True, tier="daily"),
 ]
 
-SOURCE_BY_NAME = {s.name: s for s in SOURCES}
+# 预测表（WORK-584）：与 17 张观测表同一装载入口，但单独一组、单独 run_id。
+# 预测值的目标期在未来，不能进观测表（C3 日期域 ≤ 今天+1 会判 FAIL），也不能放宽
+# 既有 7 闸；单独一组还保证 industry_load_audit 里「17 张表」的完整运行仍可被 C5 找到。
+# 分区键取 dataset：cnesa_forecast 是单篇文章的快照，每次全量替换该 dataset，
+# 上游撤掉的预测不会残留。
+FORECAST_SOURCES: list[Source] = [
+    Source("cnesa_forecast", "industry_forecast", "parquet",
+           ["dataset"], transform_cnesa_forecast),
+]
+
+SOURCE_BY_NAME = {s.name: s for s in SOURCES + FORECAST_SOURCES}
 
 
 def _primary_key(con: duckdb.DuckDBPyConnection, table: str) -> list[str]:
@@ -584,12 +638,32 @@ def apply_schema(con: duckdb.DuckDBPyConnection) -> None:
     con.execute(SCHEMA_INDUSTRY_SQL.read_text(encoding="utf-8"))
 
 
+def _load_group(
+    con: duckdb.DuckDBPyConnection,
+    sources: list[Source],
+    run_id: str,
+    full: bool,
+) -> list[dict[str, Any]]:
+    results: list[dict[str, Any]] = []
+    for source in sources:
+        result = load_source(con, source, run_id, full=full)
+        results.append(result)
+        print(
+            f"[industry] {result['table']:<42} raw={result['raw_rows']:>6} "
+            f"staged={result['staged_rows']:>6} dedup={result['dropped_duplicates']:>3} "
+            f"total={result['loaded_rows']:>6} partitions={result['partitions']:>4} "
+            f"{result['seconds']:>6.2f}s",
+            flush=True,
+        )
+    return results
+
+
 def run_load(
     names: list[str] | None = None,
     full: bool = False,
     tier: str | None = None,
 ) -> int:
-    selected = SOURCES
+    selected = SOURCES + FORECAST_SOURCES
     if names:
         unknown = sorted(set(names) - set(SOURCE_BY_NAME))
         if unknown:
@@ -598,32 +672,37 @@ def run_load(
     if tier:
         selected = [s for s in selected if s.tier == tier]
 
+    observation = [s for s in selected if s in SOURCES]
+    forecast = [s for s in selected if s in FORECAST_SOURCES]
+    if not observation and not forecast:
+        print("[industry] 没有符合筛选条件的源，未装载", flush=True)
+        return 0
+
     run_id = dt.datetime.now().strftime("%Y%m%dT%H%M%S")
+    forecast_run_id = f"{run_id}F"
     results: list[dict[str, Any]] = []
+    forecast_results: list[dict[str, Any]] = []
     with common.duckdb_connect() as con:
         apply_schema(con)
-        for source in selected:
-            result = load_source(con, source, run_id, full=full)
-            results.append(result)
-            print(
-                f"[industry] {result['table']:<42} raw={result['raw_rows']:>6} "
-                f"staged={result['staged_rows']:>6} dedup={result['dropped_duplicates']:>3} "
-                f"total={result['loaded_rows']:>6} partitions={result['partitions']:>4} "
-                f"{result['seconds']:>6.2f}s",
-                flush=True,
-            )
+        if observation:
+            results = _load_group(con, observation, run_id, full)
+        if forecast:
+            forecast_results = _load_group(con, forecast, forecast_run_id, full)
         con.execute("CHECKPOINT")
 
     audit = audit_dir()
     audit.mkdir(parents=True, exist_ok=True)
     report = {
         "run_id": run_id,
+        "forecast_run_id": forecast_run_id if forecast_results else None,
         "generated_at": common.utc_now(),
         "tier": tier,
         "sources": results,
         "raw_rows_total": sum(r["raw_rows"] for r in results),
         "staged_rows_total": sum(r["staged_rows"] for r in results),
         "loaded_rows_total": sum(r["loaded_rows"] for r in results),
+        "forecast_sources": forecast_results,
+        "forecast_rows_total": sum(r["loaded_rows"] for r in forecast_results),
     }
     out = audit / f"load-{run_id}.json"
     common.write_json_atomic(out, report)
