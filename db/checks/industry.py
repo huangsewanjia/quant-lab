@@ -4,17 +4,19 @@
     python -m db.checks.industry C1_rows_nonzero
     python -m db.checks.industry all --out /srv/share/quantdb/meta/checks/industry.json
 
-六道闸，任一 FAIL 退出 1：
+七道闸，任一 FAIL 退出 1：
 
   C1_rows_nonzero        17 张 industry_* 表都存在且行数 > 0
   C2_primary_key         主键列无 NULL、主键唯一；哈希主键的源另报业务键重复数
   C3_date_domain         所有日期列落在 2000-01-01 .. 今天+1；月份列落在 2000-01 .. 当月
   C4_unit_reconciliation 单位勾稽：
                            gfex 成交额(万元) 反推 VWAP 落在当日 low..high
-                           nea  全社会用电量 ≈ 分产业用电量之和（同文章同期）
-                           ppi  同货同供方同日 元/公斤 与 元/吨 比值 ≈ 1000
-  C5_audit_consistency   最新装载审计的 raw/staged/loaded 与现状一致（防手改、防漏装）
-  C6_catalog_coverage    v_industry_catalog_coverage 已覆盖数 >= 30，并给出完整/部分拆分
+                           nea  当月全社会用电量 ≈ 四个分产业当月值之和（同文章同期）
+                           unit 词表：每张带 unit 列的表只允许 schema 注释里写明的单位
+                          （100ppi 每家公司只报一种单位，跨单位比值在当前数据上不成立，
+                            故不做该比值闸；见 docs/industry-ingest-2026.md §4.7）
+  C5_audit_consistency   最新完整装载审计的 raw/staged/loaded 与现状一致（防手改、防漏装）
+  C6_catalog_coverage    v_industry_catalog_coverage 已覆盖数 >= 30，并给出完整/部分/文本拆分
   C7_freshness           日频源最新日期在 7 天内，月频源在 45 天内
 
 只读打开 DuckDB；本模块不写主库，只写 meta/checks 下的 JSON 报告。
@@ -31,10 +33,30 @@ from typing import Any
 from ..etl import common
 from ..etl.industry import SOURCES
 
+
 def report_dir() -> Path:
     return common.META_DIR / "checks"
 
+
 TABLES = [s.table for s in SOURCES]
+
+# 每张带单位列的表允许的单位词表（与 schema 列注释一致）。上游悄悄改单位时
+# C4 会失败；没有单位列的表（comtrade/exchange/owid/sne/benchmark）不在此列。
+# 值 = (单位列, 数值列, 允许单位集合)：单位为空且数值也为空的行（100ppi 的
+# 分类标题行）不算错，单位为空但有数值的行算错。
+UNIT_VOCABULARY: dict[str, tuple[str, str, set[str]]] = {
+    "industry_gfex_lithium_carbonate": ("unit", "value", {"元/吨", "手", "万元"}),
+    "industry_chinamoney_lpr": ("unit", "value", {"%"}),
+    "industry_cnesa_storage": ("unit", "value", {"GW", "%"}),
+    "industry_caam_auto_output": ("unit", "value", {"万辆"}),
+    "industry_cpcaauto_nev": ("unit", "value", {"万辆", "%", "条"}),
+    "industry_mof_fiscal": ("unit", "value", {"亿元"}),
+    "industry_nea_power": ("unit", "value", {"亿千瓦", "亿千瓦时", "小时"}),
+    "industry_pbc_shrzgm": ("unit", "value", {"亿元"}),
+    "industry_ppi_spot_prices": ("price_unit", "price", {"吨", "公斤", "千克"}),
+    "industry_trendforce_spot_price": ("unit", "value", {"USD"}),
+}
+
 
 DATE_COLUMNS: dict[str, list[str]] = {
     "industry_gfex_lithium_carbonate": ["trade_date", "published_date"],
@@ -210,27 +232,33 @@ def c4_unit_reconciliation(con) -> tuple[bool, dict[str, Any]]:
     }
     ok = ok and detail["gfex_vwap_in_range"]["pass"]
 
-    # nea: 同文章同期 全社会用电量 ≈ 分产业之和（容差 1%）
+    # nea: 同文章同期「当月」全社会用电量 ≈ 四个分产业当月值之和（容差 1%）。
+    # 抓取层对每个指标同时落了当月与累计，同一 (文章, 期, 指标) 有两行；
+    # 只取成对出现（count=2）的指标，用 min() 取当月值（流量累计值 ≥ 当月值）。
     nea_rows = con.execute(
         """
-        WITH a AS (
-            SELECT source_url, period,
-                   max(value) FILTER (WHERE indicator = '全社会用电量') AS total,
-                   sum(value) FILTER (
-                       WHERE indicator IN ('第一产业用电量','第二产业用电量',
-                                           '第三产业用电量','城乡居民生活用电量')
-                   ) AS parts,
-                   count(*) FILTER (
-                       WHERE indicator IN ('第一产业用电量','第二产业用电量',
-                                           '第三产业用电量','城乡居民生活用电量')
-                   ) AS n_parts
+        WITH monthly AS (
+            SELECT source_url, period, indicator, min(value) AS monthly
             FROM industry_nea_power
+            WHERE indicator IN ('第一产业用电量','第二产业用电量',
+                                '第三产业用电量','城乡居民生活用电量')
+            GROUP BY 1, 2, 3
+            HAVING count(*) = 2
+        ), a AS (
+            SELECT m.source_url, m.period,
+                   max(t.value) AS total,
+                   sum(m.monthly) AS parts,
+                   count(*) AS n_parts
+            FROM monthly m
+            JOIN industry_nea_power t
+              ON t.source_url = m.source_url
+             AND t.period IS NOT DISTINCT FROM m.period
+             AND t.indicator = '全社会用电量'
             GROUP BY 1, 2
         )
-        SELECT count(*) FILTER (WHERE total IS NOT NULL AND n_parts = 4),
+        SELECT count(*) FILTER (WHERE n_parts = 4),
                count(*) FILTER (
-                   WHERE total IS NOT NULL AND n_parts = 4
-                     AND abs(parts - total) <= abs(total) * 0.01
+                   WHERE n_parts = 4 AND abs(parts - total) <= abs(total) * 0.01
                )
         FROM a
         """
@@ -239,37 +267,48 @@ def c4_unit_reconciliation(con) -> tuple[bool, dict[str, Any]]:
     detail["nea_electricity_sum"] = {
         "pairs": nea_pairs,
         "ok": nea_ok,
-        "note": "无「全社会用电量 + 四分项」同文章组合时不判定（pairs=0 视为 skipped）",
-        "pass": nea_pairs == 0 or nea_ok == nea_pairs,
+        "note": "同文章同期需要「全社会用电量 + 四个分产业当月值」才判定；pairs=0 时按 FAIL 处理，"
+                "不允许空转算 PASS",
+        "pass": nea_pairs > 0 and nea_ok == nea_pairs,
     }
     ok = ok and detail["nea_electricity_sum"]["pass"]
 
-    # ppi: 同货同供方同日 元/公斤 与 元/吨 的比值 ≈ 1000（容差 2%）
-    ppi_rows = con.execute(
-        """
-        WITH p AS (
-            SELECT goods_id, supplier, as_of,
-                   max(price) FILTER (WHERE price_unit = '元/吨') AS per_t,
-                   max(price) FILTER (WHERE price_unit = '元/公斤') AS per_kg
-            FROM industry_ppi_spot_prices
-            GROUP BY 1, 2, 3
-        )
-        SELECT count(*) FILTER (WHERE per_t IS NOT NULL AND per_kg IS NOT NULL),
-               count(*) FILTER (
-                   WHERE per_t IS NOT NULL AND per_kg IS NOT NULL
-                     AND per_t / per_kg BETWEEN 980 AND 1020
-               )
-        FROM p
-        """
-    ).fetchone()
-    ppi_pairs, ppi_ok = int(ppi_rows[0]), int(ppi_rows[1])
-    detail["ppi_kg_vs_tonne"] = {
-        "pairs": ppi_pairs,
-        "ok": ppi_ok,
-        "note": "源里同货同供方同日同时出现两种单位才可勾稽；pairs=0 视为 skipped",
-        "pass": ppi_pairs == 0 or ppi_ok == ppi_pairs,
+    # 单位词表：每张带单位列的表只允许文档里写明的单位，防止上游悄悄改单位。
+    # （100ppi 每家公司只报一种单位，跨单位勾稽在数据上不可能成立，故不做比值闸。）
+    vocab_failures = 0
+    vocab_detail: dict[str, Any] = {}
+    for table, (unit_col, value_col, allowed) in UNIT_VOCABULARY.items():
+        unexpected, missing, null_units = con.execute(
+            f"""
+            SELECT count(*) FILTER (
+                       WHERE {unit_col} IS NOT NULL
+                         AND {unit_col} NOT IN ({', '.join('?' for _ in allowed)})
+                   ),
+                   count(*) FILTER (WHERE {unit_col} IS NULL AND {value_col} IS NOT NULL),
+                   count(*) FILTER (WHERE {unit_col} IS NULL)
+            FROM {table}
+            """,
+            sorted(allowed),
+        ).fetchone()
+        entry = {
+            "unit_column": unit_col,
+            "value_column": value_col,
+            "allowed": sorted(allowed),
+            "unexpected": int(unexpected),
+            "missing_unit_with_value": int(missing),
+            "null_units": int(null_units),
+            "pass": int(unexpected) == 0 and int(missing) == 0,
+        }
+        vocab_detail[table] = entry
+        if not entry["pass"]:
+            vocab_failures += 1
+    detail["unit_vocabulary"] = {
+        "pairs": len(UNIT_VOCABULARY),
+        "ok": len(UNIT_VOCABULARY) - vocab_failures,
+        "tables": vocab_detail,
+        "pass": vocab_failures == 0,
     }
-    ok = ok and detail["ppi_kg_vs_tonne"]["pass"]
+    ok = ok and detail["unit_vocabulary"]["pass"]
 
     return ok, {"pass": ok, "gates": detail}
 
@@ -345,6 +384,17 @@ def c6_catalog_coverage(con, minimum: int = 30) -> tuple[bool, dict[str, Any]]:
             """
         ).fetchone()[0]
     )
+    # 映射到文本字段（公告标题/新闻稿标题）的条目，口径是「有可查记录」而非「可查到数值」，
+    # 单列出来，避免把文本索引算成数值覆盖。
+    text_only = int(
+        con.execute(
+            """
+            SELECT count(DISTINCT m.catalog_industry || '|' || m.catalog_indicator)
+            FROM industry_catalog_map m
+            WHERE m.field_name IN ('title', 'key_figure')
+            """
+        ).fetchone()[0]
+    )
     ok = int(covered) >= minimum and orphans == 0
     return ok, {
         "pass": ok,
@@ -354,6 +404,7 @@ def c6_catalog_coverage(con, minimum: int = 30) -> tuple[bool, dict[str, Any]]:
         "partial": int(partial),
         "threshold": minimum,
         "mapping_orphans": orphans,
+        "text_only": text_only,
         "by_industry": by_industry,
     }
 
@@ -461,6 +512,7 @@ def _summary(results: dict[str, Any]) -> dict[str, Any]:
                 "covered": detail.get("covered"),
                 "complete": detail.get("complete"),
                 "partial": detail.get("partial"),
+                "text_only": detail.get("text_only"),
                 "catalog_rows": detail.get("catalog_rows"),
             })
         elif name == "C7_freshness":
@@ -490,7 +542,12 @@ def main(argv: list[str] | None = None) -> int:
             ok, detail = fn(con)
         except Exception as exc:  # noqa: BLE001
             ok, detail = False, {"pass": False, "error": f"{type(exc).__name__}: {exc}"}
-    path = Path(args.out) if args.out else report_dir() / f"industry-{dt.date.today():%Y%m%d}.json"
+    # 单闸模式写独立文件名，不能覆盖当日 all 的 7 闸报告（复审判定 suggestion 3）。
+    path = (
+        Path(args.out)
+        if args.out
+        else report_dir() / f"industry-{dt.date.today():%Y%m%d}-{args.check}.json"
+    )
     common.write_json_atomic(path, {"generated_at": common.utc_now(), "ok": ok,
                                     "gates": {args.check: detail}})
     print(json.dumps(detail, ensure_ascii=False, indent=2, default=str))

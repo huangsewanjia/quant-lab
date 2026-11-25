@@ -17,7 +17,14 @@
 - 落盘 17 个源（国内 10 + 国际 7）全部进库，16,834 行；同参数重跑行数不变。
 - GFEX `turnover` 源标「元」实为万元：`turnover×10000/volume` 在 1326 个合约×交易日里有 1325 个落在当日 low..high。
 - `cnesa_storage` 只有 2 行是提取器覆盖不足（公开页另有 66.43GW、144.7GW、121.5GWh 等 12+ 个数字），不是源只公开 2 条。
-- `data_catalog` 405 条中 47 条可查到数值（严格完整 8 条），压在 `v_industry_catalog_coverage`，映射孤儿 0 条。
+- `data_catalog` 405 条中 47 条有可查记录（数值 42 + 文本索引 5；严格完整 8 条），压在 `v_industry_catalog_coverage`，映射孤儿 0 条。
+
+修复（第 1 轮独立复审，`1d8b9d4` → 本提交）：
+
+- `parse_number` 吞掉前导负号：benchmark 15 个指数里 10 个 `change_pct` 涨跌方向写反；改为保留 `-`/`▼` 为负号，新增 2 个回归测试。
+- C4 `nea` 子闸按行计数恒 `pairs=0` 假 PASS：改为同文章同期取当月值，实测 `pairs=1, ok=1`；`pairs=0` 现在判 FAIL。
+- C4 删除不可能成立的 100ppi 跨单位比值闸，改为 `unit_vocabulary`（10 张带单位表）；单闸报告不再覆盖当日 7 闸报告。
+- 覆盖口径改为「有可查记录」并单列 `text_only`；docstring/注释 3 处 nit 修正。
 
 ## 2026-11-23 · WORK-537 外资研报公开层渠道清单与可抓性实测
 

@@ -46,7 +46,7 @@ def audit_dir() -> Path:
 
 
 _HTML_TAG = re.compile(r"<[^>]+>")
-_NUM_PREFIX = re.compile(r"^[▲▼\-\s]*([0-9][0-9,]*\.?[0-9]*)")
+_NUM_PREFIX = re.compile(r"^[▲▼\-—\s]*([0-9][0-9,]*\.?[0-9]*)")
 _MONTH = re.compile(r"^\s*(\d{4})\s*[-/年.]\s*(\d{1,2})\s*月?\s*$")
 _DATE_YMD = re.compile(r"^\s*(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})\s*$")
 _DATE_CN = re.compile(r"^\s*(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日?\s*$")
@@ -102,17 +102,23 @@ def date_from_url(url: Any) -> dt.date | None:
 
 
 def parse_number(value: Any) -> float | None:
-    """'1,865.00' / '▲ 1.85 %' / '— 0.00 %' -> float; 非数字 -> None."""
+    """'1,865.00' / '-8.43' / '▲ 1.85 %' / '▼ 0.72 %' / '— 0.00 %' -> float。
+
+    前导符号必须保留：'-8.43' 是下跌 8.43%，吞掉负号会把涨跌方向写反（WORK-568
+    复审 blocking 1）。'—'（破折号）与 '▼' 只在 prefix 里表示方向，不参与数值。
+    """
     text = _text(value)
     if not text:
         return None
-    m = _NUM_PREFIX.match(text.replace("—", "-"))
+    m = _NUM_PREFIX.match(text)
     if not m:
         return None
     try:
-        return float(m.group(1).replace(",", ""))
+        number = float(m.group(1).replace(",", ""))
     except ValueError:
         return None
+    prefix = text[: m.start(1)]
+    return -number if "-" in prefix or "▼" in prefix else number
 
 
 def strip_tags(value: Any) -> str:

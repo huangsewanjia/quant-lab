@@ -72,6 +72,25 @@ def test_parse_number_handles_percent_and_thousands():
     assert ind.parse_number("174000元/吨") == 174000.0
 
 
+def test_parse_number_keeps_negative_sign():
+    """复审 blocking 1：'-8.43' 不能读成 8.43，涨跌方向写反是数据错误。"""
+    assert ind.parse_number("-8.43") == -8.43
+    assert ind.parse_number("-0.5") == -0.5
+    assert ind.parse_number("▼ 1.85 %") == -1.85
+    assert ind.parse_number("-1,234.50") == -1234.5
+
+
+def test_benchmark_change_pct_keeps_direction():
+    raw = pd.DataFrame([
+        {"kind": "index", "name": "Lithium Carbonate Index", "value": "200.2",
+         "change_pct": "-9.31", "status": "OK"},
+        {"kind": "index", "name": "Cobalt Index", "value": "140.5",
+         "change_pct": "7.43", "status": "OK"},
+    ])
+    out = ind.transform_benchmark(raw, {"fetched_at": "2026-11-23T17:27:55+0800"})
+    assert out["change_pct"].tolist() == [-9.31, 7.43]
+
+
 def test_mof_published_date_from_url_and_raw_kept():
     raw = pd.DataFrame([{
         "dataset": "mof_fiscal", "source": "财政部",
@@ -148,7 +167,7 @@ def test_load_partition_idempotent_and_replaces_removed_day(qdb):
         days = con.execute(
             "SELECT count(DISTINCT trade_date) FROM industry_gfex_lithium_carbonate"
         ).fetchone()[0]
-        assert third["loaded_rows"] == 10  # 5 字段 × 2 天，删除的是 20260529 的 5 行
+        assert third["loaded_rows"] == 10  # 只替换本次出现的 20260528 分区（5 行），20260529 的 5 行保留
         assert days == 2
 
     audit = qdb.META_DIR / "industry"

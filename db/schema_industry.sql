@@ -155,7 +155,7 @@ CREATE TABLE IF NOT EXISTS industry_mof_fiscal (
     PRIMARY KEY ("row_hash")
 );
 COMMENT ON TABLE industry_mof_fiscal IS '财政部一般公共预算/政府性基金收支（累计）；抓取层 published_date 全为 2017年11月21日（解析错误），且存在 period=2017-11 与 2026 年文章混排，故 published_date 另由 source_url 中的 tYYYYMMDD 派生，原始文本保留在 published_date_raw';
-COMMENT ON COLUMN industry_mof_fiscal.period IS '累计期（当月 1 日）；源 period 有解析错误（2017-11 行实为 2026 年文章），未推断真实值，见 quality_flag 说明';
+COMMENT ON COLUMN industry_mof_fiscal.period IS '累计期（当月 1 日）；源 period 有解析错误（12 行 2017-11 与 2026 年文章冲突），不推断真实期，引用前须回原文核对，见 docs/industry-ingest-2026.md §4.3';
 COMMENT ON COLUMN industry_mof_fiscal.value IS '金额，单位 亿元';
 
 -- ---------------------------------------------------------------------------
@@ -311,6 +311,7 @@ CREATE TABLE IF NOT EXISTS industry_ppi_spot_prices (
 );
 COMMENT ON TABLE industry_ppi_spot_prices IS '厂商挂牌价（非地区均价）；同一 goods/spec/supplier/date 有完全重复行（33 行 / 31 个键），row_hash 去重';
 COMMENT ON COLUMN industry_ppi_spot_prices.price IS '解析后的价格数值（元），单位见 price_unit';
+COMMENT ON COLUMN industry_ppi_spot_prices.price_unit IS '价格单位（源 unit 列原值）：吨 / 公斤 / 千克；跨单位换算需自行乘 1000';
 COMMENT ON COLUMN industry_ppi_spot_prices.price_raw IS '原始价格文本，如 174000元/吨、190元/公斤';
 
 -- ---------------------------------------------------------------------------

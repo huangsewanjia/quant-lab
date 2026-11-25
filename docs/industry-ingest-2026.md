@@ -6,7 +6,7 @@
 
 ## 1. 一句话结论
 
-17 个源全部进了 DuckDB（`industry_*` 17 张表、16,834 行），每次装载按「源 × 期」分区替换，同参数重跑行数不变；7 道闸全 PASS；日频/月频两个 timer 已安装；`data_catalog` 405 条中 47 条可查到数值（严格「完整」8 条）。
+17 个源全部进了 DuckDB（`industry_*` 17 张表、16,834 行），每次装载按「源 × 期」分区替换，同参数重跑行数不变；7 道闸全 PASS；日频/月频两个 timer 已安装；`data_catalog` 405 条中 47 条有可查记录（数值 42 + 公告/新闻稿文本索引 5；严格「完整」8 条）。
 
 ## 2. 源清单与口径（源 → 表 → 字段 → 单位 → 频率 → 口径 → 一手 URL）
 
@@ -108,12 +108,17 @@ fetcher 的 6 条正则只命中 2 条（`中国电力储能累计装机规模`�
 
 CSV 里同一列出现 `60.70`（价格）、`▲ 1.85 %`（涨跌幅）、`盘涨跌幅`（分组表头）。装载层保留 `value_text`，解析数值到 `value`，用 `unit_kind ∈ price/pct_change/header/unparsed` 区分。按价格使用时应过滤 `unit_kind='price'`。
 
-### 4.7 其他小问题（不影响本次交付）
+### 4.7 100ppi 跨单位勾稽不成立（因此没有做比值闸）
+
+设想用「同货同供方同日 元/公斤 × 1000 ≈ 元/吨」勾稽，实测无法成立：`price_unit` 的实际取值是 `吨`(26) / `千克`(4) / `公斤`(2) / NULL(1)，而每家公司只报一种单位——碳酸锂 190 元/公斤来自「湖北七八九化工」，174000 元/吨来自「山东亿禾」，不存在同一供方同日双单位样本。硬做一个 `pairs=0` 的闸等于空转，故删除该子闸，改成 C4 的 `unit_vocabulary`：每张带单位列的表只允许 schema 注释里写明的单位，出现新单位即 FAIL（10 张表全过）。NULL 单位仅在数值也为 NULL 时放行（100ppi 的分类标题行）。
+
+### 4.8 其他小问题（不影响本次交付）
 
 - `comtrade` 1 行 HTTP 500（HS 253090 锂辉矿），以 NULL 值 + status 保留，不删行。
 - `sne` 1 行 HTTPS 连接失败（release 776），status 列保留错误文本。
 - `benchmark` CSV 把 15 个指数重复写了 3 遍，row_hash 去重后 26 行（15 指数 + 11 简报）。
 - `cnesa` 的 `caliber` 列只有第 2 行有值。
+- 100ppi 有 1 行空壳（goods_id=59 黄金，除货名外全空），作为分类标题行的抓取残留保留，`unit_vocabulary` 已放行。
 
 ## 5. 调度（systemd --user）
 
@@ -129,7 +134,7 @@ CSV 里同一列出现 `60.70`（价格）、`▲ 1.85 %`（涨跌幅）、`盘�
 
 ## 6. 目录覆盖（`v_industry_catalog_coverage`）
 
-口径：`coverage` 二值（已覆盖 = 表里能查到该指标的可比数值，含只有部分维度；未覆盖 = 无源或无数值）；`completeness` 再分「完整/部分」。
+口径：`coverage` 二值（已覆盖 = 表里能查到该指标的可比记录，含只有部分维度；未覆盖 = 无源或无数值）；`completeness` 再分「完整/部分」。其中 5 条是公告/新闻稿标题索引（`text_only`），不是结构化数值，单列计数，不混进「数值覆盖」。
 
 实测（2026-11-25）：
 
@@ -176,4 +181,21 @@ systemctl --user daemon-reload
 - `db/timers/systemd/quantdb-industry.{service,timer}`（新）
 - `db/timers/systemd/quantdb-industry-monthly.{service,timer}`（新）
 - `db/tests/test_industry.py`（新）
+- `scripts/work568_verify.py`（新，三源全量回对）
+- `scripts/work568_build_delivery.py`（新，交付页生成）
 - `docs/industry-ingest-2026.md`（本文件）
+
+## 9. 独立复审记录
+
+第 1 轮（子代理，审 `1d8b9d4`）：**NEEDS WORK，2 blocking**。
+
+| 编号 | 问题 | 处置 |
+|---|---|---|
+| B1 | `parse_number` 把前导负号当装饰符吞掉，`-8.43` 存成 `8.43`，benchmark 15 个指数里 10 个涨跌方向反了 | 保留前导 `-`/`▼` 为负号，`—` 仍作中性；新增 2 个回归测试；重装后库内 10 负 / 3 正与原始 CSV 一致 |
+| B2 | C4 的 `nea` 子闸按行计数，永远 `pairs=0`，等于假 PASS | 改为「同文章同期、指标成对出现时取当月值」，实测 `pairs=1, ok=1`（2026-10-21：135+5800+1852+1210 = 8997 = 全社会用电量）；`pairs=0` 现在判 FAIL 而非 PASS |
+| S1 | C4 的 `ppi` 子闸单位字面量与库内词表不一致，且该源不可能有跨单位样本 | 删除该子闸，改为 `unit_vocabulary`（10 张带单位表，出现新单位即 FAIL） |
+| S2 | 「已覆盖 47」含 5 条文本索引，与「可查到数值」口径不符 | 文档改为「有可查记录（数值 42 + 文本 5）」，C6 报文新增 `text_only=5` |
+| S3 | 单闸运行会覆盖当日 7 闸报告 | 单闸报告改名为 `industry-<date>-<gate>.json` |
+| nit | docstring「六道闸」、mof 注释引用不存在的 `quality_flag`、分区替换测试注释与断言相反 | 已全部改正 |
+
+复审独立复跑：`pytest` 9 passed（当时）、`checks all` 7 PASS、`verify` RESULT PASS；并核对 `db/schema.sql`/`common.py` 零 diff、非 industry 表仍 20 张、`data_catalog` 仍 405 行。

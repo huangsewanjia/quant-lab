@@ -288,7 +288,7 @@ def main() -> None:
 <div class="meta">
   <div class="card"><b>{len(TABLES)}</b><span>industry_* 表</span></div>
   <div class="card"><b>{total_rows:,}</b><span>总行数</span></div>
-  <div class="card"><b>{totals[1]}</b><span>目录指标可查到数值 / 405</span></div>
+  <div class="card"><b>{totals[1]}</b><span>目录指标有可查记录 / 405</span></div>
   <div class="card"><b>{sum(1 for d in gates.values() if d.get('pass'))}/7</b><span>质量闸 PASS</span></div>
 </div>
 
@@ -318,11 +318,12 @@ def main() -> None:
 <figure>
 {coverage_chart(coverage)}
 <figcaption><b>图 3</b> <code>v_industry_catalog_coverage</code> 按行业堆叠：深绿 = 完整，浅绿 = 部分，灰 = 未覆盖。
-右侧标注「已覆盖/目录条数」。已覆盖 = 表里能查到该指标的可比数值（含只覆盖部分维度），「完整」再单独计数。</figcaption>
+右侧标注「已覆盖/目录条数」。已覆盖 = 表里能查到该指标的可比记录（含只覆盖部分维度），「完整」再单独计数；
+其中公告/新闻稿标题索引 5 条单列为文本记录，不计入结构化数值。</figcaption>
 </figure>
 
-<p>全库合计：目录 <b>{totals[0]}</b> 条，可查到数值 <b>{totals[1]}</b> 条，其中严格完整 <b>{totals[2]}</b> 条、部分 <b>{totals[3]}</b> 条。
-验收线「已覆盖 ≥ 30」按可查到数值的口径达标；严格口径只有 {totals[2]} 条，卡点写在 §6.5，没有把「部分」说成「完整」。</p>
+<p>全库合计：目录 <b>{totals[0]}</b> 条，有可查记录 <b>{totals[1]}</b> 条（结构化数值 42 + 文本索引 5），其中严格完整 <b>{totals[2]}</b> 条、部分 <b>{totals[3]}</b> 条。
+验收线「已覆盖 ≥ 30」按可查记录的口径达标；严格口径只有 {totals[2]} 条，卡点写在 §6.5，没有把「部分」说成「完整」。</p>
 
 <h2>4 验收矩阵（逐条可复跑）</h2>
 <table>
@@ -395,7 +396,15 @@ quantdb-industry-monthly.timer  ...  quantdb-industry-monthly.service</pre>
 
 <h3>6.5 覆盖为什么到不了严格的 30</h3>
 <p>目录条目普遍要求「全球 + 月度 + 多品种」，而现有 17 个源是国家统计/协会摘要或单点快照；半导体、医药两行业只有贸易与现货价，
-没有产业统计；汇率、M2、仓单、合约价、地区均价无落盘源。可达上限按「可查到数值」是 {totals[1]} 条，按「完整」是 {totals[2]} 条。</p>
+没有产业统计；汇率、M2、仓单、合约价、地区均价无落盘源。可达上限按「有可查记录」是 {totals[1]} 条（其中结构化数值 42），按「完整」是 {totals[2]} 条。</p>
+
+<h3>6.6 独立复审发现并已修复的问题</h3>
+<p>第 1 轮独立子代理审查（审 <code>1d8b9d4</code>）给出 2 条 blocking，均已修复并重装：</p>
+<ul>
+<li><b>涨跌方向写反</b>：<code>parse_number</code> 把前导负号当装饰符吞掉，benchmark 15 个指数里 10 个 <code>change_pct</code> 由负变正。修复后库内 10 负 / 3 正，与原始 CSV 一致，并新增回归测试。</li>
+<li><b>假 PASS 的闸</b>：C4 的 NEA 子闸按行计数，永远 <code>pairs=0</code> 却算通过。改为同文章同期取当月值后实测 <code>pairs=1, ok=1</code>（135+5800+1852+1210 = 8997 = 全社会用电量）；<code>pairs=0</code> 现在判 FAIL。</li>
+<li>顺带处理 3 条 suggestion：删除不可能成立的 100ppi 跨单位比值闸、改用单位词表闸；覆盖口径单列文本索引；单闸报告不再覆盖当日 7 闸报告。</li>
+</ul>
 
 <h2>7 回滚</h2>
 <pre>duckdb /srv/share/quantdb/db/quantdb.duckdb -c "DROP VIEW v_industry_catalog_coverage_summary; \\
@@ -433,7 +442,8 @@ def _gate_note(name: str, detail: dict) -> str:
     if name == "C5_audit_consistency":
         return f"最新 run {detail['latest_run']} 的审计与现状一致（{len(detail['tables'])} 表）"
     if name == "C6_catalog_coverage":
-        return (f"已覆盖 {detail['covered']}/{detail['catalog_rows']}，完整 {detail['complete']}，"
+        return (f"已覆盖 {detail['covered']}/{detail['catalog_rows']}（其中文本索引 "
+                f"{detail['text_only']}），完整 {detail['complete']}，"
                 f"部分 {detail['partial']}，映射孤儿 {detail['mapping_orphans']}")
     if name == "C7_freshness":
         return f"{len(detail['checks'])} 个时间列在阈值内"
