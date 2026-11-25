@@ -261,6 +261,9 @@ def main():
     h2 = verdict.get("H2", {})
     h3 = verdict.get("H3", {}) or {}
     h4 = verdict.get("H4", {}) or {}
+    # verdict.json 里 H3/H4 直接存 summary；metrics.json 里是完整字典 —— 两种都吃
+    h3s = h3.get("summary", h3) if isinstance(h3, dict) else {}
+    h4s = h4.get("summary", h4) if isinstance(h4, dict) else {}
     tier = metrics["cost_tiers"]["0.0005"]
     v = metrics.get("verdict", "未判定")
 
@@ -283,7 +286,6 @@ def main():
         f"<td class='num'>{fmt(r[6],2)}</td><td class='num'>{fmt(r[7],2)}</td>"
         f"<td class='num'>{fmt(r[8],4)}</td></tr>" for r in rows)
 
-    h4s = h4.get("summary", {})
     comp_rows = []
     comp_csv = os.path.join(OUT, "paper_comparison.csv")
     if os.path.exists(comp_csv):
@@ -318,10 +320,35 @@ def main():
                        f"<td class='num'>{it['rows']}</td><td>{it.get('coverage','')}</td>"
                        f"<td>{'ok' if it.get('ok') else 'error'}</td></tr>")
 
+    # H4 表行（论文 Table 5 对照值预置；预先生成以避开 f-string 大括号转义）
+    PAPER_R4 = {"r0": (9.72, 1.47), "r1": (9.24, 1.46), "r2": (11.26, 1.87), "r3": (10.13, 1.79)}
+    h4_tr = ""
+    for _a in ("r0", "r1", "r2", "r3"):
+        _pr, _psr = PAPER_R4[_a]
+        h4_tr += ("<tr><td class='mono'>{}</td><td class='num'>{}</td><td class='num'>{}</td>"
+                  "<td class='num'>{}</td><td class='num'>{}</td></tr>").format(
+                      _a, fmt(h4s.get(_a + "_rankic"), 3), fmt(h4s.get(_a + "_net_sr"), 3),
+                      _pr, _psr)
+
     # full 档 MDD（跨种子均值与 range）—— 供 §6 回撤对照用
     _full_mdd = [x.get("mdd") for x in tier.get("full", {}).values() if x.get("mdd") is not None]
     mdd_mean = float(np.mean(_full_mdd)) if _full_mdd else None
     mdd_rng = (f"[{min(_full_mdd):.2f}, {max(_full_mdd):.2f}]" if _full_mdd else "—")
+
+    # H3 表行（预先生成，避免 f-string 里嵌套同引号）
+    h3_tr = ""
+    for _arm, _ps in (h3 or {}).items():
+        if not isinstance(_ps, list):
+            continue
+        for _p in _ps:
+            _ci = _p.get("sr_ci95") or [None, None]
+            h3_tr += ("<tr><td class='mono'>{}</td>"
+                      "<td class='num'>{}</td><td class='num'>{}</td>"
+                      "<td class='num'>{}</td><td class='num'>{}</td>"
+                      "<td class='num'>{}</td></tr>").format(
+                          _arm, fmt(_p.get("net_sr"), 3), fmt(_ci[0], 3),
+                          fmt(_p.get("net_ar"), 2), fmt(_p.get("mdd"), 2),
+                          fmt(_p.get("avg_turnover"), 4))
 
     audit_block = ""
     if audit:
@@ -331,6 +358,7 @@ def main():
                        f"复算脚本 <code>audit/recompute_work566.py</code>，"
                        f"<b>不 import 建模阶段任何函数</b>，交易日历从 parquet 独立重取。</p>")
 
+    prereg_sha = os.environ.get("PREREG_SHA", "(见 git log)")
     html = f"""<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="utf-8">
 <title>WORK-566 · STOCK-JEPA（arXiv:2610.07006v1）A 股三段式结构复现</title>
@@ -353,30 +381,30 @@ Learning in Equity Markets</i>. arXiv:2610.07006v1（2026-10-04）· 单号 WORK
 {'「进」区间' if (h1.get('delta_median_pp') or 0) >= 3 else ('「退」区间' if (h1.get('delta_median_pp') or 0) <= 1 else '「部分复现」区间')}；
 ② H2 full vs FMB-style 线性基线 RankIC 差 = {fmt(h2.get('pooled_mean_diff_pp'),3)} pp，
 95% CI {h2.get('pooled_ci95')}，{h2.get('conclusion','')}；
-③ H3 净 SR 95% CI 下界 {fmt((h3.get('summary') or {}).get('full_sr_ci95_lower_min'),3)}
+③ H3 净 SR 95% CI 下界 {fmt(h3s.get('full_sr_ci95_lower_min'),3)}
 （&gt;0 才算可交易；净 SR &lt; 0 直接判退）。</p>
 </div>
 
 <div class="kpi">
 <div><div class="v">{fmt(h1.get('delta_median_pp'),3)} pp</div><div class="k">H1 · ΔRankIC 中位数</div></div>
-<div><div class="v">{fmt((h3.get('summary') or {}).get('full_net_sr_mean'),3)}</div><div class="k">H3 · 净 Sharpe</div></div>
-<div><div class="v">{fmt((h3.get('summary') or {}).get('shrinkage_vs_paper'),3)}</div><div class="k">相对论文净 SR 比率</div></div>
+<div><div class="v">{fmt(h3s.get('full_net_sr_mean'),3)}</div><div class="k">H3 · 净 Sharpe</div></div>
+<div><div class="v">{fmt(h3s.get('shrinkage_vs_paper'),3)}</div><div class="k">相对论文净 SR 比率</div></div>
 <div><div class="v">{fmt(h4s.get('r2_minus_r3_rankic_pp'),3)} pp</div><div class="k">H4 · R2 − R3</div></div>
 <div><div class="v">{audit.get('blocking','—')}</div><div class="k">审计 blocking 数</div></div>
 </div>
 
 <h2>1 · 结论摘要</h2>
 <p>本单在公开 A 股日频数据上复刻了 STOCK-JEPA 的三段式结构（S1 岭回归先验锚点 → S2 Transformer
-修正分支 → S3 冻结表征读出），并按预注册（commit <span class="tag">{PREREG_SHA}</span>）只判一件事：
+修正分支 → S3 冻结表征读出），并按预注册（commit <span class="tag">{prereg_sha}</span>）只判一件事：
 <b>三段式结构相对「仅 S1 先验」有没有增量</b>。</p>
 <ul>
 <li>H1（唯一决定进 / 退）：<b class="mono">{fmt(h1.get('delta_median_pp'),4)} pp</b>，
 论文基准 +6.07 pp ⇒ 判词「<b>{v}</b>」。</li>
 <li>H2（并列）：full vs FMB-style 线性基线的 RankIC 差 {fmt(h2.get('pooled_mean_diff_pp'),3)} pp，
 95% CI {h2.get('pooled_ci95')}；{h2.get('conclusion','')}</li>
-<li>H3（并列）：净 SR {fmt((h3.get('summary') or {}).get('full_net_sr_mean'),3)}，
-95% CI 下界 {fmt((h3.get('summary') or {}).get('full_sr_ci95_lower_min'),3)}，
-相对论文 1.50 的比率 {fmt((h3.get('summary') or {}).get('shrinkage_vs_paper'),3)}。</li>
+<li>H3（并列）：净 SR {fmt(h3s.get('full_net_sr_mean'),3)}，
+95% CI 下界 {fmt(h3s.get('full_sr_ci95_lower_min'),3)}，
+相对论文 1.50 的比率 {fmt(h3s.get('shrinkage_vs_paper'),3)}。</li>
 <li>H4（并列，只报数）：R2（加修正）{fmt(h4s.get('r2_rankic'),3)}% vs
 R3（加等维上下文）{fmt(h4s.get('r3_rankic'),3)}%，差 {fmt(h4s.get('r2_minus_r3_rankic_pp'),3)} pp。</li>
 </ul>
@@ -453,7 +481,7 @@ valid {fmt(stats.get('n_valid'),0)}；test {fmt(stats.get('n_test'),0)}
 <table>
 <tr><th>臂</th><th class="num">净 SR</th><th class="num">净 SR 95% CI 下界</th>
 <th class="num">净 AR(%)</th><th class="num">MDD(%)</th><th class="num">日均换手</th></tr>
-{''.join(f"<tr><td class='mono'>{a}</td>" + "".join(f"<td class='num'>{fmt(p.get('net_sr'),3)}</td><td class='num'>{fmt((p.get('sr_ci95') or [None,None])[0],3)}</td><td class='num'>{fmt(p.get('net_ar'),2)}</td><td class='num'>{fmt(p.get('mdd'),2)}</td><td class='num'>{fmt(p.get('avg_turnover'),4)}</td></tr>" for a, ps in (h3 or {}).items() if isinstance(ps, list) for p in ps)}
+{h3_tr}
 </table>
 <p class="note">「相对论文缩水 ≤60%」在算力降级配置下只作披露（预注册 §11）；净 SR &lt; 0 直接判退的规则照旧生效。</p>
 
@@ -461,7 +489,7 @@ valid {fmt(stats.get('n_valid'),0)}；test {fmt(stats.get('n_test'),0)}
 <table>
 <tr><th>配置</th><th class="num">本单 RankIC(%)</th><th class="num">本单净 SR</th>
 <th class="num">论文 RankIC(%)</th><th class="num">论文净 SR</th></tr>
-{''.join(f"<tr><td class='mono'>{a}</td><td class='num'>{fmt(h4s.get(a+'_rankic'),3)}</td><td class='num'>{fmt(h4s.get(a+'_net_sr'),3)}</td><td class='num'>{{'r0':9.72,'r1':9.24,'r2':11.26,'r3':10.13}}.get(a,'—')}</td><td class='num'>{{'r0':1.47,'r1':1.46,'r2':1.87,'r3':1.79}}.get(a,'—')}</td></tr>" for a in ('r0','r1','r2','r3'))}
+{h4_tr}
 </table>
 <p class="note">只报数，不判进 / 退（任务书规定）。</p>
 
@@ -550,7 +578,6 @@ v1.0 保留不删，阈值/特征/切分/成本/种子全部未动。</li>
 
 </body></html>
 """
-    html = html.replace("PREREG_SHA", os.environ.get("PREREG_SHA", "(见 git log)"))
     path = os.path.join(OUT, "report.html")
     with open(path, "w", encoding="utf-8") as f:
         f.write(html)
