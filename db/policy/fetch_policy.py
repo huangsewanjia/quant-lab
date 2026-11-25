@@ -1,12 +1,15 @@
 """Whitelisted policy collector.
 
-Stores only documents that have BOTH publish_date and effective_date.
-Missing-timeline items are written to policy/missing/YYYYMMDD.jsonl and are not
-stored as full text.
+Stores any document whose text was extracted. A missing effective_date is
+recorded as the string ``unknown`` -- never back-filled with publish_date --
+and the URL is also appended to policy/missing/YYYYMMDD.jsonl so a later run
+can supply the effective date. Documents without publish_date or with fewer
+than 80 text bytes are rejected, not stored.
 
 Examples:
   python -m db.policy.fetch_policy --source all --max-items 2
   python -m db.policy.fetch_policy --source gov --list-only
+  python -m db.policy.fetch_policy --backfill-missing 20261124 20261125
 """
 
 from __future__ import annotations
@@ -234,6 +237,10 @@ def append_missing(record: dict[str, Any]) -> None:
 
 
 def store_document(doc: dict[str, Any]) -> dict[str, Any]:
+    """Persist text and meta. effective_date unknown is materialised as ``unknown``."""
+    doc = dict(doc)
+    if not doc.get("effective_date"):
+        doc["effective_date"] = "unknown"
     key = doc["sha256"][:16]
     folder = common.POLICY_DIR / doc["source_id"] / key
     folder.mkdir(parents=True, exist_ok=True)
@@ -259,6 +266,7 @@ def run_source(
         "source": source["id"],
         "listed": 0,
         "stored": 0,
+        "pending_effective": 0,
         "missing": 0,
         "duplicates": 0,
         "known": 0,
@@ -345,8 +353,6 @@ def _store_item(
     reasons = []
     if not doc["publish_date"]:
         reasons.append("缺 publish_date")
-    if not doc["effective_date"]:
-        reasons.append("缺 effective_date")
     if doc["text_bytes"] < 80:
         reasons.append("正文过短")
     if reasons:
@@ -370,10 +376,32 @@ def _store_item(
     by_sha.add(doc["sha256"])
     by_url.add(url)
     result["stored"] += 1
-    print(
-        f"[store] {source['id']} {doc['publish_date']}..{doc['effective_date']} "
-        f"{title[:50]}"
-    )
+    if meta["effective_date"] == "unknown":
+        # Stored now, effective date still to be supplied: keep the URL on the
+        # missing list with an explicit reason so the follow-up queue stays complete.
+        result["pending_effective"] += 1
+        append_missing(
+            {
+                "source": source["id"],
+                "title": title,
+                "url": url,
+                "publish_date": doc["publish_date"],
+                "effective_date": None,
+                "reason": "缺 effective_date（已入库，待补生效日）",
+                "doc_id": meta["sha256"][:16],
+                "content_path": meta["content_path"],
+                "fetched_at": common.utc_now(),
+            }
+        )
+        print(
+            f"[store-unknown] {source['id']} {doc['publish_date']}..unknown "
+            f"{title[:50]}"
+        )
+    else:
+        print(
+            f"[store] {source['id']} {doc['publish_date']}..{meta['effective_date']} "
+            f"{title[:50]}"
+        )
     return "stored"
 
 
@@ -402,6 +430,7 @@ def reconcile(
             "missing": 0,
             "fetched": 0,
             "stored": 0,
+            "pending_effective": 0,
             "duplicates": 0,
             "errors": [],
             "remaining": 0,
@@ -446,16 +475,136 @@ def reconcile(
     return summary
 
 
+def backfill_missing(
+    sources: list[dict[str, Any]],
+    fetcher: Fetcher,
+    index: dict[str, Any],
+    dates: list[str],
+    *,
+    max_fetch: int | None = None,
+) -> dict[str, Any]:
+    """Re-fetch URLs recorded in policy/missing/<date>.jsonl and store them.
+
+    Records are deduplicated by URL across the requested dates; URLs already in
+    the index are skipped. Fetch failures are reported, never retried here.
+    """
+    by_sha = {str(meta.get("sha256")) for meta in index["documents"]}
+    by_url = _known_urls(index)
+    source_map = {str(src["id"]): src for src in sources}
+    summary: dict[str, Any] = {
+        "ts": common.utc_now(),
+        "dates": dates,
+        "total_records": 0,
+        "total_unique_urls": 0,
+        "total_known": 0,
+        "total_stored": 0,
+        "total_pending_effective": 0,
+        "total_duplicates": 0,
+        "total_failed": 0,
+        "total_remaining": 0,
+        "failures": [],
+    }
+    seen: set[str] = set()
+    queue: list[dict[str, Any]] = []
+    for date in dates:
+        path = common.POLICY_DIR / "missing" / f"{date}.jsonl"
+        if not path.exists():
+            summary["failures"].append(f"{date}: 清单不存在 {path}")
+            continue
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            summary["total_records"] += 1
+            url = str(record.get("url") or "")
+            if not url or url in seen:
+                continue
+            seen.add(url)
+            queue.append(record)
+    summary["total_unique_urls"] = len(queue)
+
+    processed = 0
+    for record in queue:
+        if max_fetch is not None and processed >= max_fetch:
+            break
+        url = str(record["url"])
+        if url in by_url:
+            summary["total_known"] += 1
+            continue
+        source = source_map.get(str(record.get("source")))
+        if source is None:
+            summary["total_failed"] += 1
+            summary["failures"].append(f"{url}: 未知来源 {record.get('source')!r}")
+            continue
+        processed += 1
+        counter: dict[str, Any] = {
+            "stored": 0,
+            "pending_effective": 0,
+            "missing": 0,
+            "duplicates": 0,
+            "errors": [],
+        }
+        status = _store_item(
+            {
+                "title": str(record.get("title") or url),
+                "url": url,
+                "publish_hint": record.get("publish_date"),
+            },
+            source,
+            fetcher,
+            index,
+            by_sha,
+            by_url,
+            counter,
+        )
+        summary["total_stored"] += counter["stored"]
+        summary["total_pending_effective"] += counter["pending_effective"]
+        summary["total_duplicates"] += counter["duplicates"]
+        if status in ("missing", "error"):
+            summary["total_failed"] += 1
+            detail = counter["errors"][0] if counter["errors"] else status
+            summary["failures"].append(f"{url}: {detail}")
+
+    accounted = (
+        summary["total_known"]
+        + summary["total_stored"]
+        + summary["total_duplicates"]
+        + summary["total_failed"]
+    )
+    summary["total_remaining"] = max(0, summary["total_unique_urls"] - accounted)
+    path = common.POLICY_DIR / "meta" / f"backfill-{'-'.join(dates)}.json"
+    common.write_json_atomic(path, summary)
+    print(
+        "[backfill] records={total_records} unique={total_unique_urls} "
+        "known={total_known} stored={total_stored} "
+        "pending_effective={total_pending_effective} "
+        "duplicates={total_duplicates} failed={total_failed} "
+        "remaining={total_remaining} report={path}".format(path=path, **summary)
+    )
+    return summary
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m db.policy.fetch_policy",
-        description="六源白名单政策采集；双时间轴缺一不入库",
+        description="六源白名单政策采集；缺生效日记 unknown 并登记待补",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("--source", default="all", help="源 id 或 all")
     parser.add_argument("--max-items", type=int, default=2, help="每源最多处理条目")
     parser.add_argument("--rpm", type=float, default=60.0, help="请求速率")
     parser.add_argument("--list-only", action="store_true", help="只列标题，不抓正文")
+    parser.add_argument(
+        "--backfill-missing",
+        nargs="+",
+        metavar="YYYYMMDD",
+        default=None,
+        help="回填 policy/missing/<date>.jsonl 中正文仍可取的条目",
+    )
     parser.add_argument(
         "--reconcile",
         action="store_true",
@@ -480,6 +629,25 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit(f"未知政策源: {args.source}")
     fetcher = Fetcher(rpm=args.rpm)
     index = load_index()
+    if args.backfill_missing:
+        if args.reconcile or args.list_only:
+            print("--backfill-missing 不能与 --reconcile/--list-only 同用", file=sys.stderr)
+            return 2
+        summary = backfill_missing(
+            sources,
+            fetcher,
+            index,
+            args.backfill_missing,
+            max_fetch=args.max_fetch or None,
+        )
+        index["generated_at"] = common.utc_now()
+        common.write_json_atomic(common.POLICY_DIR / "index.json", index)
+        common.write_json_atomic(
+            common.POLICY_DIR / "last-backfill.json",
+            summary,
+        )
+        print(json.dumps(summary, ensure_ascii=False, indent=2))
+        return 1 if summary["total_failed"] else 0
     if args.reconcile:
         if args.list_only:
             print("--reconcile 与 --list-only 不能同用", file=sys.stderr)
@@ -515,6 +683,7 @@ def main(argv: list[str] | None = None) -> int:
         "sources": results,
         "total_listed": sum(r["listed"] for r in results),
         "total_stored": sum(r["stored"] for r in results),
+        "total_pending_effective": sum(r["pending_effective"] for r in results),
         "total_missing": sum(r["missing"] for r in results),
         "total_duplicates": sum(r["duplicates"] for r in results),
     }
