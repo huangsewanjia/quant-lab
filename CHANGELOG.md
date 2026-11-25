@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-11-25 · WORK-568 行业层入库与定更
+
+新增：
+
+- `db/schema_industry.sql`：17 张 `industry_*` 表（列名 snake_case、单位进列注释、每表主键）、`industry_catalog_map`（data_catalog 指标名 → 表/字段的人工映射）、`industry_load_audit`（每次装载审计）、`v_industry_catalog_coverage` 与汇总视图。
+- `db/etl/industry.py`：按「源 × 期」分区替换的幂等装载；脏源用 `row_hash` 主键保留原文行，自然键源装前强校验唯一；日期/月份解析保留 `*_raw`，解析失败写 NULL，不推断。
+- `db/checks/industry.py`：7 道闸（行数 / 主键 / 日期域 / 单位勾稽 / 审计一致 / 目录覆盖 / 新鲜度），任一 FAIL 退出 1。
+- `db/timers/industry.sh`：抓取失败重试 2 次、装载+闸整体重试 2 次、与其它 timer 共用 DB 锁；日频/月频两档。
+- `db/timers/systemd/quantdb-industry.{service,timer}`、`quantdb-industry-monthly.{service,timer}`。
+- `db/tests/test_industry.py`：解析、去重、分区幂等、主键冲突共 9 项测试。
+- `docs/industry-ingest-2026.md`：源 → 表 → 字段 → 单位 → 频率 → 口径 → 一手 URL，含 6 项已知缺陷的实测证据与回滚。
+
+要点（实测）：
+
+- 落盘 17 个源（国内 10 + 国际 7）全部进库，16,834 行；同参数重跑行数不变。
+- GFEX `turnover` 源标「元」实为万元：`turnover×10000/volume` 在 1326 个合约×交易日里有 1325 个落在当日 low..high。
+- `cnesa_storage` 只有 2 行是提取器覆盖不足（公开页另有 66.43GW、144.7GW、121.5GWh 等 12+ 个数字），不是源只公开 2 条。
+- `data_catalog` 405 条中 47 条可查到数值（严格完整 8 条），压在 `v_industry_catalog_coverage`，映射孤儿 0 条。
+
 ## 2026-11-23 · WORK-537 外资研报公开层渠道清单与可抓性实测
 
 新增：

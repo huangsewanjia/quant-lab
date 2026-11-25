@@ -1,0 +1,20 @@
+[Unit]
+Description=quantdb industry layer monthly refresh (capacity, output, exports, association stats, fiscal, credit)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/srv/share/quantdb/code/quant-lab
+Environment=QUANTDB_HOME=/srv/share/quantdb
+Environment=QUANTDB_REPO=/srv/share/quantdb/code/quant-lab
+Environment=PYTHONPATH=/srv/share/quantdb/code/quant-lab
+Environment=QUANTDB_PYTHON=/home/moyongkai/.venvs/quantdb/bin/python
+Environment=MULTICA_CLI_PATH=/home/moyongkai/bin/multica
+Environment=QUANTDB_PROJECT_ID=f45e69f4-aca6-46ae-8ccc-b6744eaa7b26
+ExecStart=/srv/share/quantdb/code/quant-lab/db/timers/industry.sh monthly
+TimeoutStartSec=3h
+Nice=5
+
+[Install]
+WantedBy=default.target

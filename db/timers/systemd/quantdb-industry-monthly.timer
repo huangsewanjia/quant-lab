@@ -1,0 +1,11 @@
+[Unit]
+Description=quantdb industry layer monthly refresh on day 3 at 06:40
+
+[Timer]
+OnCalendar=*-*-03 06:40:00
+Persistent=true
+RandomizedDelaySec=600
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

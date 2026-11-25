@@ -25,6 +25,7 @@
 
 - [RUNBOOK.md](RUNBOOK.md)：建库、增量、质量闸、查询、政策、备份、回滚。
 - [WORK-529.md](WORK-529.md)：定时更新、增量水位、systemd timer、告警与验收证据。
+- [industry-ingest-2026.md](industry-ingest-2026.md)：行业层 17 源入库、质量闸、日/月 timer、覆盖口径与已知缺陷（WORK-568）。
 - [foreign_research_brief.md](foreign_research_brief.md)：外资研报公开层渠道与可抓性实测的一页结论（WORK-537）。
 - [foreign_research_brief.html](foreign_research_brief.html)：同上，单文件论文版（配图 base64 内嵌，可直接打印）。
 - [foreign_research_channels.csv](foreign_research_channels.csv)：29 个渠道清单与实测证据（WORK-537）。
