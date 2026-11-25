@@ -400,6 +400,14 @@ def test_raw_snapshot_is_archived_once_per_content(qdb):
     assert len(after_change) == 4, after_change
     assert sum(1 for n in after_change if n.endswith(".json")) == 2
 
+    # 拷贝中断留下截断文件时，同内容重载必须重拷（只判「文件存在」会永久损坏）
+    data_file = next(p for p in history.iterdir() if p.suffix == ".parquet")
+    full = data_file.read_bytes()
+    data_file.write_bytes(full[: len(full) // 2])
+    with qdb.duckdb_connect() as con:
+        ind.load_source(con, source, "run-4")
+    assert data_file.stat().st_size == len(full), "截断的归档没有被修复"
+
 
 LEGACY_SCHEMA = """
 CREATE TABLE industry_load_diff (

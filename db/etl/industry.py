@@ -702,7 +702,18 @@ def archive_raw_snapshot(source: Source) -> Path | None:
     history.mkdir(exist_ok=True)
     stamp = dt.datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y%m%dT%H%M%S")
     finals = [history / f"{key}-{stamp}{part.suffix}" for part in parts]
-    if all(final.exists() for final in finals):
+
+    def intact() -> bool:
+        # 只判「文件存在」会把拷贝中断留下的截断文件当成已归档、以后永不重拷，
+        # 所以逐个比大小，再对数据文件比 sha256。
+        for part, final in zip(parts, finals):
+            if not final.exists() or final.stat().st_size != part.stat().st_size:
+                return False
+        return hashlib.sha256(finals[0].read_bytes()).digest() == hashlib.sha256(
+            parts[0].read_bytes()
+        ).digest()
+
+    if intact():
         return None
     for part, final in zip(parts, finals):
         tmp = history / f".tmp-{final.name}"
