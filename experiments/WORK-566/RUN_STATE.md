@@ -89,13 +89,19 @@ cd /srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/wor
 bash scripts/work566_run_stage3.sh          # JOBS=3 可调并行度
 ```
 
-六步：组合回测（9 臂 × 2 种子 × 3 成本 = 54 次）→ 主检验与判词 → 独立复算（`audit/`）→
-单文件 HTML 报告 → 渲染（1440×900 首屏 PNG + A4 PDF）→ 快照 manifest。
+七步：组合回测（9 臂 × 2 种子 × 3 成本 = 54 次）→ 主检验与判词 → 独立复算（`audit/`）→
+单文件 HTML 报告 → 渲染（1440×900 首屏 PNG + A4 PDF）→ 快照 manifest → **交付物自检（C1–C8）**。
 
-- **独立复算不 import 建模阶段任何函数**（预注册硬约束），相对差 ≤1e-6 才算一致。
+- **交付物自检**：`scripts/work566_delivery_check.py`（已接入链尾）核验
+  C1 16 个臂×种子预测产物齐备且 test 长度正确 / C2 关键产物齐备 / C3 独立复算 BLOCKING=0 /
+  C4 H1 判词与预注册阈值一致 / C5 报告 HTML 单文件（无外链、无本地引用）/
+  C6 1440×900 PNG + A4 PDF / C7 registry 与评论正文无占位符 / C8 预注册 commit 早于首个回测产物 commit。
+  产物 `experiments/WORK-566/delivery_check.json`。
+- **独立复算不 import 建模阶段任何函数**（预注册硬约束，已核：只 import stdlib + numpy + duckdb），
+  相对差 ≤1e-6 才算一致。
 - 判词阈值写死在 `scripts/work566_primary_test.py`：
   ΔRankIC **≥ +3.0pp = 进**；**≤ +1.0pp 或负 = 退**；**(1.0, 3.0) = 部分复现**；
-  **种子数 < 2 → 判「未交付」**。
+  **种子数 < 2 → 判「未交付」**；H3 净 SR<0 直接判退。
 - 收口前还要跑《估值规程》的三处数值勾稽与倍数翻转检验（只针对评级/目标价；本单不产出评级，
   但结论性表述仍需自洽）。
 
