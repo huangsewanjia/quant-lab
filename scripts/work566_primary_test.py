@@ -231,8 +231,17 @@ def main():
         h2["ci_contains_zero"] = bool(lo <= 0 <= hi)
         h2["conclusion"] = ("增量统计上不可证（CI 含 0）—— 不算失败，报告原样写这句话"
                             if h2["ci_contains_zero"] else "增量统计上可证（CI 不含 0）")
+    # N-R9（2026-11-25 第 3 轮复审）：H1 有「种子 < 2 → 未交付」守卫，H2 原来没有 →
+    # 缺一个种子的 fmb 预测时，H2 会用**单种子**照常出结论。补同等守卫。
+    h2["n_seeds"] = len(diffs)
+    if len(diffs) < 2:
+        h2["conclusion"] = "未交付（有效种子 < 2）—— 预注册 §9「只报单种子结果 = 未交付」"
+        h2["delivered"] = False
+    else:
+        h2["delivered"] = True
     metrics["H2"] = h2
-    log(f"H2 full vs FMB-style: {h2.get('pooled_mean_diff_pp')} pp, CI {h2.get('pooled_ci95')}")
+    log(f"H2 full vs FMB-style: {h2.get('pooled_mean_diff_pp')} pp, CI {h2.get('pooled_ci95')}"
+        f"（有效种子 {h2['n_seeds']}）")
 
     # ---------------- H3（可交易性）
     h3 = {}
@@ -249,6 +258,8 @@ def main():
                         "sr_ci95": [lo, hi]})
         if per:
             h3[arm] = per
+            # N-R9：H3 与 H1/H2 同口径 —— 有效种子 < 2 的臂标「未交付」，不参与结论
+            h3.setdefault("delivered", {})[arm] = len(per) >= 2
     if h3.get("full"):
         los = [p["sr_ci95"][0] for p in h3["full"] if p["sr_ci95"][0] is not None]
         srs = [p["net_sr"] for p in h3["full"] if p["net_sr"] is not None]
@@ -280,6 +291,8 @@ def main():
                         "net_sr": j["net_sr"], "net_ar": j["net_ar"]})
         if per:
             h4[arm] = per
+    h4["n_seeds"] = {a: len(v) for a, v in h4.items() if isinstance(v, list)}
+    h4["delivered"] = all(v >= 2 for v in h4["n_seeds"].values()) if h4["n_seeds"] else False
     if h4.get("r2") and h4.get("r3"):
         r2r = float(np.mean([p["rankic_mean_pct"] for p in h4["r2"]]))
         r3r = float(np.mean([p["rankic_mean_pct"] for p in h4["r3"]]))

@@ -22,6 +22,31 @@ for s in $SEEDS; do
 done
 echo "  训练产物齐备：$(echo $SEEDS | wc -w) 种子 × 8 臂"
 
+# N-R8（2026-11-25 第 3 轮复审）：只验「存在且非空」会放过**冒烟产物**（pred_test 只有 3 个预测日）
+# → 这里逐个核对 pred_test 行数是否等于样本统计里的 test 样本数
+SEEDS="$SEEDS" $PY - <<'PYEOF'
+import json, os, sys
+import numpy as np
+DATA = "data/WORK-566"
+stats = json.load(open(os.path.join("experiments/WORK-566", "sample_stats.json"), encoding="utf-8"))
+n_test = int(stats["n_test"])
+bad = []
+seeds = os.environ.get("SEEDS", "42 2024").split()
+for s in seeds:
+    for arm in ["s1_only", "s3_only", "s1_s2", "full", "r0", "r1", "r2", "r3"]:
+        p = os.path.join(DATA, f"preds_seed{s}_{arm}.npz")
+        z = np.load(p)
+        nt = len(z["pred_test"])
+        if nt != n_test:
+            bad.append(f"{os.path.basename(p)}: pred_test {nt} != {n_test}")
+        if "idx_test" not in z.files or "date_test" not in z.files:
+            bad.append(f"{os.path.basename(p)}: 缺 idx_test/date_test")
+if bad:
+    print("训练产物内容异常（可能是冒烟产物）：", bad, file=sys.stderr)
+    sys.exit(6)
+print(f"  训练产物内容校验通过：pred_test 行数 = {n_test:,}（非冒烟规模）")
+PYEOF
+
 # FMB 基线臂的产物由 work566_baselines.py 产出（**不是**训练脚本产出）——
 # 回测对任意 --arm 都要求 preds_seed{seed}_{arm}.npz，漏掉 fmb 会让回测在
 # 跑到 fmb 时才崩（2026-11-25 第 3 轮复审 B4）。缺失就在这里补齐。

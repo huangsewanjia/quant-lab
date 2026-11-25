@@ -240,7 +240,8 @@ def _clone_sd(sd):
     return {k: (v.detach().clone() if torch.is_tensor(v) else v) for k, v in sd.items()}
 
 
-def snapshot_state(enc, tenc_ema, proj, proj_ema, qpred, m_k, v_k, upd, vloss):
+def snapshot_state(enc, tenc_ema, proj, proj_ema, qpred, m_k, v_k, upd, vloss,
+                   cfg=None, complete=True):
     """取一份**真正的 checkpoint 快照**（不是活引用）。
 
     B3（2026-11-25 第 3 轮独立复审，实测坐实）：`Module.state_dict()` 返回的张量
@@ -262,7 +263,9 @@ def snapshot_state(enc, tenc_ema, proj, proj_ema, qpred, m_k, v_k, upd, vloss):
         "v_k": v_k.detach().clone(),
         "upd": int(upd),
         "vloss": float(vloss),
-        "selected": "best_vloss",
+        "selected": "best_vloss" if complete else "periodic",
+        "complete": bool(complete),
+        "cfg": dict(cfg) if cfg else {},
     }
 
 
@@ -292,6 +295,23 @@ def snapshot_selftest():
         raise SystemExit("SELF-TEST 失败：in-place 语义与假设不符")
     log("[SELF-TEST] checkpoint 快照语义 PASS（旧写法=别名 / 新写法=独立副本 / m_k in-place 已确认）")
     return True
+
+
+def _content_hash(path, chunk=4 * 1024 * 1024):
+    """文件**内容**哈希（首 4MB + 末 4MB 的 sha256）——比 size+mtime 更严的指纹。
+
+    N-R4（2026-11-25 第 3 轮复审）：size + 秒级 mtime 覆盖不到「内容变了但两者都没变」。
+    这里取首末各 4MB 做 sha256：足以区分「面板被重建」这类改动，代价只有几十毫秒。
+    """
+    import hashlib
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        h.update(f.read(chunk))
+        size = os.fstat(f.fileno()).st_size
+        if size > chunk:
+            f.seek(max(0, size - chunk))
+            h.update(f.read(chunk))
+    return h.hexdigest()[:32]
 
 
 def make_mask_token(d_model):
@@ -345,11 +365,13 @@ class Panel:
         n = hi - lo + 1
         shape = (self.feat.shape[0], n, self.feat.shape[2])
         dst = "/dev/shm/w566_feat_train.npy"
-        # 陈旧校验：shape + 起日 + 源文件指纹（大小 + mtime）三者都对上才复用，
-        # 否则重建 —— 面板若被重建（内容变、shape 不变）而静默复用旧副本就是数值污染
+        # 陈旧校验：shape + 起日 + 源文件指纹（大小 + mtime + **内容哈希**）三者都对上才复用，
+        # 否则重建 —— 面板若被重建（内容变、shape 不变）而静默复用旧副本就是数值污染。
+        # N-R4（2026-11-25 第 3 轮复审）：原指纹只有 size + **秒级** mtime，
+        # 覆盖不到「内容变了但 size 与 mtime 都没变」的情形 → 加内容哈希（首 4MB + 末 4MB）。
         src_path = os.path.join(DATA, "feat.npy")
         st_src = os.stat(src_path)
-        fp = f"{st_src.st_size}:{int(st_src.st_mtime)}"
+        fp = f"{st_src.st_size}:{int(st_src.st_mtime)}:{_content_hash(src_path)}"
         side = dst + ".fp"
         if os.path.exists(dst) and os.path.exists(side):
             try:
@@ -383,8 +405,13 @@ class Panel:
                 f.write(os.pread(fd, bytes_per_stock, base))
         os.close(fd)
         os.replace(tmp, dst)
-        with open(side, "w", encoding="utf-8") as f:
+        # N-R5：sidecar 也用 tmp + os.replace 原子写，避免半写被下次读到
+        side_tmp = side + f".tmp{os.getpid()}"
+        with open(side_tmp, "w", encoding="utf-8") as f:
             f.write(fp)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(side_tmp, side)
         self.stg = np.load(dst, mmap_mode="r")
         self.stg_lo = lo
         log(f"  tmpfs 训练日期片预置完成：{shape} {shape[0] * shape[1] * shape[2] * 4 / 1048576:.0f} MB，"
@@ -515,6 +542,10 @@ def train_representation(panel, args, seed):
     n_upd = 0
     best = (float("inf"), None)
     ckpt_path = os.path.join(DATA, f"ckpt_seed{seed}_rep.pt")
+    # 配置指纹（B5）：复用 checkpoint 时必须与当前 args 完全一致
+    cfg = {"d_model": args.d_model, "layers": args.layers, "heads": args.heads,
+           "ff": args.ff, "epochs": args.epochs, "max_updates": args.max_updates,
+           "batch": args.batch, "val_stride": args.val_stride}
 
     def encode_batch(idx):
         si, di = panel.stock[idx], panel.date[idx]
@@ -578,7 +609,7 @@ def train_representation(panel, args, seed):
                 # 周期快照写到**独立路径**：修前它直接覆盖 ckpt_path，
                 # 会把「验证损失最小者」的 checkpoint 冲掉（B3 的第二个面）。
                 torch.save(snapshot_state(enc, tenc_ema, proj, proj_ema, qpred,
-                                          m_k, v_k, upd, float("inf")),
+                                          m_k, v_k, upd, float("inf"), cfg, complete=False),
                            ckpt_path + ".periodic.tmp")
                 os.replace(ckpt_path + ".periodic.tmp", ckpt_path + ".periodic")
            
@@ -594,7 +625,7 @@ def train_representation(panel, args, seed):
         if vloss < best[0]:
             # **深拷贝快照**：state_dict() 是活引用，直接存会让 best[1] 跟着训练推进而变（B3）
             best = (vloss, snapshot_state(enc, tenc_ema, proj, proj_ema, qpred,
-                                          m_k, v_k, upd, vloss))
+                                          m_k, v_k, upd, vloss, cfg, complete=True))
             torch.save(best[1], ckpt_path)
     if best[1] is not None:
         torch.save(best[1], ckpt_path)
@@ -604,6 +635,7 @@ def train_representation(panel, args, seed):
         assert abs(float(chk.get("vloss", -1)) - float(best[0])) < 1e-12, \
             f"checkpoint 记录的 vloss={chk.get('vloss')} 与 best={best[0]} 不一致"
         assert int(chk.get("upd", -1)) == int(best[1]["upd"]), "checkpoint 的 upd 与快照不一致"
+        assert chk.get("complete") is True, "checkpoint 未标记训练完成"
         log(f"  seed{seed} 已落盘最优快照：vloss={best[0]:.4f}（upd={best[1]['upd']}，"
             f"共 {upd} updates，最优在第 {best[1]['upd'] // max(args.max_updates, 1)} epoch）")
     log(f"  seed{seed} 表征训练完成：{upd} updates，{time.time()-t0:.0f}s，验证损失 {best[0]:.4f}")
@@ -724,8 +756,13 @@ def build_reps(panel, args, seed, ckpt_path):
         #   ② `perm = np.lexsort((di, si))` 退化为**恒等置换** → u 的写回变成**连续写**。
         # 改之前 idx_all 是日期序 → u[pos] 是散写 → 每次写都触发 read-modify-write，
         # 叠加内核 128KB readahead（实测 4.3MB/s 读、每批仅 45 步 → train 切分要 ~17 小时）。
+        # **N-R1 限定**：这一改动**只影响 train 切分** —— 面板样本行本身就是 (stock, date) 序，
+        # valid/test 的 `perm` 改前就已经是恒等置换；只有 train 因「每日期取前 stock_cap 只」
+        # 的抽样（`order = np.argsort(dts)`）被打成日期序，才出现散写。
         # 每个 (stock, date) 的取值**完全不变**（只改行序，不改任何数值）；
         # 下游（读出按日期分组、回测与独立复算按日期分桶）都与行序无关。
+        # **N-R3 限定**：「逐位相同」在 per-row 层面成立（实测 max|Δ| = 0.000e+00）；
+        # 聚合标量（mu/sd/mu_u/sd_u）是**顺序相关归约**，正式规模下可有 ≤1 ulp 末位差。
         idx_all = idx_all[np.lexsort((panel.date[idx_all], panel.stock[idx_all]))]
         si, di = panel.stock[idx_all], panel.date[idx_all]
         bid = panel.block_id(panel.dts[idx_all])
@@ -736,8 +773,10 @@ def build_reps(panel, args, seed, ckpt_path):
         # 面板读取按 (stock, date) 顺序（顺序 I/O）；idx_all 已按 (stock, date) 排好，
         # 故 perm 为恒等置换 → u 写回也是连续写（见上）。
         perm = np.lexsort((di, si))
-        assert np.array_equal(perm, np.arange(len(perm))), \
-            "perm 应为恒等置换（idx_all 已按 (stock, date) 排序），否则 u 写回退化为散写"
+        # N-R2：`assert` 在 `python -O` 下会被剥离 → 失效时静默退回散写。这里用显式 raise。
+        if not np.array_equal(perm, np.arange(len(perm))):
+            raise RuntimeError("perm 应为恒等置换（idx_all 已按 (stock, date) 排序），"
+                               "否则 u 写回退化为散写")
         with torch.no_grad():
             for k in range(0, len(idx_all), B):
                 pos = perm[k:k + B]
@@ -1019,13 +1058,21 @@ def main():
             # 修前周期快照与最优快照共用同一个路径，且内容是活引用 → 续跑会静默
             # 拿半成品/末轮权重当表征。带 selected 标记才允许复用。
             chk = torch.load(ck, map_location="cpu", weights_only=False)
-            if chk.get("selected") != "best_vloss":
+            if chk.get("selected") != "best_vloss" or chk.get("complete") is not True:
                 raise SystemExit(
-                    f"--resume-rep 拒绝复用 {ck}：它不是「验证损失最小者」快照"
-                    f"（selected={chk.get('selected')!r}, upd={chk.get('upd')}）——"
-                    f"该文件由修复前的路径产生，需删除后完整重训")
+                    f"--resume-rep 拒绝复用 {ck}：它不是「训练完成后的验证损失最小者」快照"
+                    f"（selected={chk.get('selected')!r}, complete={chk.get('complete')!r}, "
+                    f"upd={chk.get('upd')}）—— 该文件由修复前的路径产生，需删除后完整重训")
+            # B5：配置指纹必须与当前 args 一致，否则「复用」等于换了实验设置
+            cur_cfg = {"d_model": args.d_model, "layers": args.layers, "heads": args.heads,
+                       "ff": args.ff, "epochs": args.epochs, "max_updates": args.max_updates,
+                       "batch": args.batch, "val_stride": args.val_stride}
+            old_cfg = chk.get("cfg") or {}
+            diff = {k: (old_cfg.get(k), cur_cfg.get(k)) for k in cur_cfg if old_cfg.get(k) != cur_cfg.get(k)}
+            if old_cfg and diff:
+                raise SystemExit(f"--resume-rep 拒绝复用 {ck}：配置指纹不一致 {diff}（checkpoint={old_cfg}）")
             log(f"  --resume-rep：复用已有表征 checkpoint {ck}"
-                f"（vloss={chk.get('vloss')}，upd={chk.get('upd')}）")
+                f"（vloss={chk.get('vloss')}，upd={chk.get('upd')}，配置指纹一致）")
         else:
             ck = train_representation(panel, args, seed)
         warm_cache(os.path.join(DATA, "feat.npy"), "feat.npy（表征重建前再预热一次）")
