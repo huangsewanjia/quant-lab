@@ -4,7 +4,7 @@
     python -m db.checks.industry C1_rows_nonzero
     python -m db.checks.industry all --out /srv/share/quantdb/meta/checks/industry.json
 
-七道闸，任一 FAIL 退出 1：
+九道闸，任一 FAIL 退出 1：
 
   C1_rows_nonzero        17 张 industry_* 表都存在且行数 > 0
   C2_primary_key         主键列无 NULL、主键唯一；哈希主键的源另报业务键重复数
@@ -22,8 +22,11 @@
                            主键唯一、必填列非空、period_target 晚于今天、
                            period_target_type 与日期编码/原文表述一致、单位在词表内、
                            context 含「预计/有望」类语气词且能在正文快照里逐字定位
+  C9_load_diff           装载留痕完整性（WORK-585）：最新一次覆盖 17 张表的运行，每张表都要
+                          留过痕（差异行或 no_change 汇总行）；diff 行须能对上 audit、
+                          change_type 合法、各类型的字段组合正确（不判断变化是否符合预期）
 
-C1..C7 是观测表的既有 7 道闸，判据未改；C8 只查预测表，不看观测表。
+C1..C7 是观测表的既有 7 道闸，判据未改；C8 只查预测表，C9 只查留痕完整性。
 只读打开 DuckDB；本模块不写主库，只写 meta/checks 下的 JSON 报告。
 """
 

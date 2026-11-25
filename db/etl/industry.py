@@ -5,6 +5,11 @@
     python -m db.etl.industry load --sources cnesa_forecast   # 只装预测表
     python -m db.etl.industry load --full          # 清表重装（只在排查时用）
 
+设计要点（WORK-585 追加）：每次装载在同一事务内**先写差异、后替换**——库内现状 vs 本次快照
+的逐行差异落 ``industry_load_diff``（0 差异写一行 no_change 汇总），替换与审计同事务提交，
+任一步失败整体回滚；``cnesa_storage`` 为整源替换（``replace_mode="source"``，修 WORK-577 F3），
+整源模式遇到空快照直接报错拒绝清表（``--full`` 也不例外）。
+
 设计要点（WORK-568）：
 
 * 只读 ``raw/industry/*/part.parquet`` 与 ``raw/industry_alt/*/data.csv``，
@@ -768,7 +773,9 @@ def load_source(
         existing = int(
             con.execute(f"SELECT count(*) FROM {source.table}").fetchone()[0]
         )
-        if mode == "source" and len(staged) == 0 and existing:
+        # 按源自身的模式判定，而不是派生出的 mode：--full 也不能绕过这道阀，
+        # 否则「快照抓空 + --full」会把整源清空，随后的正常装载又被阀挡住。
+        if source.replace_mode == "source" and len(staged) == 0 and existing:
             raise SystemExit(
                 f"[industry] {source.name} 整源替换收到 0 行而库内 {existing} 行，"
                 "拒绝清空（多半是快照抓空或解析失败），先查 raw 再处理"

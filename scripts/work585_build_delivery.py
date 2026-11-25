@@ -104,8 +104,11 @@ def demo_svg(demo: dict | None) -> str:
         return '<p class="muted">未找到 meta/industry/work585-demo.json</p>'
     rounds = [
         ("第 1 轮 首次装载（空表）", [("row_added", demo.get("round1_rows", 0))]),
-        ("第 2 轮 值修改 + 撤期", [("value_changed", 1), ("row_dropped", 1)]),
-        ("第 3 轮 同 raw 重跑", [("no_change", 1)]),
+        ("第 2 轮 值修改 + 撤期", [
+            ("value_changed", len(demo.get("changed") or [])),
+            ("row_dropped", len(demo.get("dropped") or [])),
+        ]),
+        ("第 3 轮 同 raw 重跑", [("no_change", len(demo.get("no_change") or []))]),
     ]
     per_row, cell, gap = 22, 12, 3
     left, top, row_h = 210, 18, 34
@@ -392,6 +395,9 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 <li><b>C9 只查留痕完整性</b>，不判断变化是否符合业务预期——那是人看视图的事。</li>
 <li><b>diff 不清理</b>：每日/每月累积，量级是「每次装载的变更行数」，正常重跑每表 1 行；
 若将来需要保留窗口，另开单做归档，不在本单。</li>
+<li><b><code>--full</code> 的 diff 会放大</b>：清表重装会为被清掉的行各写一条 <code>row_dropped</code>
+（<code>industry_stats_gov_release</code> 13.7 万行 → 约 27 万条 diff，实测 <code>executemany</code>
+约 2,450 行/秒，仅插入约 2 分钟），所以它仍是「排查时用」的手工命令，不进定时任务。</li>
 <li><b>数据库结构</b>：新增 1 表 + 1 视图，17 张观测表零改动；旧版本 DuckDB 客户端读到
 <code>industry_load_diff</code> 不影响既有查询。</li>
 </ul>

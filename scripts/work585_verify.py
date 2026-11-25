@@ -140,8 +140,9 @@ def cmd_demo() -> dict:
     check(changed.shape[0] == 1 and float(changed.loc[0, "new_value"]) == 150.9,
           "value_changed 的 new_value = 150.9")
     check(dropped.shape[0] == 1, f"期消失落 row_dropped 1 行（实际 {dropped.shape[0]} 行）")
-    check(str(after["period"].max())[:7] == "2026-01",
-          "整源替换后 2022-01 期已从库内消失（F3）")
+    periods_after = sorted({str(p)[:7] for p in after["period"]})
+    check("2022-01" not in periods_after,
+          f"整源替换后 2022-01 期已从库内消失（F3），现存期 {periods_after}")
 
     payload = {
         "demo_home": str(DEMO),
@@ -152,7 +153,7 @@ def cmd_demo() -> dict:
         "dropped": dropped.to_dict("records"),
         "no_change": diff3.to_dict("records"),
         "rows_after": int(after.shape[0]),
-        "periods_after": sorted({str(p)[:7] for p in after["period"]}),
+        "periods_after": periods_after,
         "loader_out": [out2[-400:], out3[-400:]],
     }
     META.mkdir(parents=True, exist_ok=True)

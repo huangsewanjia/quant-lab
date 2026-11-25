@@ -1027,6 +1027,16 @@ where run_id = '20261125T231500' and change_type = 'no_change';
 | 快照抓空/解析失败 | 整页 0 行 → 按期替换什么也不删（安全） | **拒绝清空**：`SystemExit` 报错，事务回滚，库内保持原状 |
 
 安全阀的理由：整源替换一旦遇到空快照就会把整表抹掉，比 F3 更严重；宁可失败并告警，让人先查 raw。
+阀门按**源自身的模式**判定，`--full` 也不豁免——否则「快照抓空 + `--full`」会清空整源，而随后的
+正常装载又被同一个阀门挡住，形成「表空且装不进去」的卡死态。确需清空请手工 `DELETE` 并写明原因。
+
+量级提醒：`--full` 会为被清掉的行各写一条 `row_dropped`（`industry_stats_gov_release` 13.7 万行
+→ 约 27 万条 diff，`executemany` 实测约 2,450 行/秒），所以它只用于排查，不进定时任务。
+
+F3 回归的覆盖面：`db/tests/test_industry_diff.py::test_f3_regression_from_offline_html_fixture` 从
+**离线 HTML fixture** 走抓取器正文解析（HTML → 文本 → 期与指标）再装载，覆盖「上游删句 → 少一期 →
+库内清除并进日志」整条链路；抓取器本体在 `/srv/share/quantdb/code/industry_fetch/`（不在本仓库，
+既有形态），测试在目录不存在时 skip。
 
 ### 14.5 质量闸 C9_load_diff
 
@@ -1049,7 +1059,7 @@ cd /srv/share/quantdb/code/quant-lab
 PYTHONPATH=$PWD /home/moyongkai/.venvs/quantdb/bin/python -m pytest db/tests/test_industry_diff.py -q
 
 # 只装载快照源，看 diff 落库
-QUANTDB_HOME=/srv/share/quantdb flock /srv/share/quantdb/logs/.quantdb-db.lock \
+QUANTDB_HOME=/srv/share/quantdb flock -w 1800 /srv/share/quantdb/logs/.quantdb-db.lock \
   /home/moyongkai/.venvs/quantdb/bin/python -m db.etl.industry load --sources cnesa_storage
 
 # 复核视图

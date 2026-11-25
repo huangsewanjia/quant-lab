@@ -6,7 +6,10 @@
 from __future__ import annotations
 
 import datetime as dt
+import importlib
 import json
+import sys
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -208,13 +211,16 @@ def test_source_replace_refuses_empty_snapshot(qdb):
         _write_cnesa([])
         with pytest.raises(SystemExit):
             ind.load_source(con, source, "run-2")
+        # --full 也不能绕过：安全阀看源自身模式，不看派生出的 mode
+        with pytest.raises(SystemExit):
+            ind.load_source(con, source, "run-3", full=True)
         rows = con.execute("SELECT count(*) FROM industry_cnesa_storage").fetchone()[0]
         diff = con.execute(
-            "SELECT count(*) FROM industry_load_diff WHERE run_id = 'run-2'"
+            "SELECT count(*) FROM industry_load_diff WHERE run_id IN ('run-2','run-3')"
         ).fetchone()[0]
 
     assert rows == 1
-    assert diff == 0  # 失败的那次装载同事务回滚，不留痕迹
+    assert diff == 0  # 失败的那两次装载同事务回滚，不留痕迹
 
 
 def test_c9_requires_a_diff_record_for_every_table(qdb):
@@ -266,3 +272,92 @@ def test_c9_rejects_malformed_diff_rows(qdb):
 
     assert not ok
     assert detail["malformed_diff_rows"] == 1
+
+
+def test_integer_values_are_not_reported_as_changes(qdb):
+    """S1：库里是 DOUBLE、staged 是 int64，869 与 869.0 是同一个值。
+
+    去掉 `_cell_text` 的数值归一后这条会红：同一份全整数快照重载会写出
+    `value: 869.0 → 869` 一类假变化，复核视图被假变化淹没。
+    """
+    _prepare_db(qdb)
+    source = ind.SOURCE_BY_NAME["cnesa_storage"]
+    data = [
+        _row("2026-01", "新增储能相关政策数量", "869", unit="项"),
+        _row("2026-01", "EPC招标标段数量", "42", unit="个"),
+    ]
+    _write_cnesa(data)
+    with qdb.duckdb_connect() as con:
+        ind.load_source(con, source, "run-1")
+        _write_cnesa(data)
+        ind.load_source(con, source, "run-2")
+        rows = _diff_rows(con, "run-2")
+
+    assert len(rows) == 1, rows
+    assert rows[0][0] == "no_change", rows
+
+
+FETCH_DIR = Path("/srv/share/quantdb/code/industry_fetch")
+SENTENCE_TOTAL = "截至2025年12月底，中国新型储能累计装机规模达到 144.7GW，同比+85% 。"
+SENTENCE_DURATION = (
+    "储能时长方面 ，CNESA统计显示，新型储能累计装机的平均时长在2021-2025年呈缓慢上升趋势，"
+    "由2.11小时逐步增至2.58小时。"
+)
+
+
+def _cnesa_rows_from_html(sentences: list[str]) -> pd.DataFrame:
+    """离线 HTML fixture -> 抓取器正文解析 -> raw 行（不联网、不写生产 raw）。"""
+    if not (FETCH_DIR / "fetch_cnesa_storage.py").exists():
+        pytest.skip("CNESA 抓取脚本不在本机（/srv/share/quantdb/code/industry_fetch）")
+    sys.path.insert(0, str(FETCH_DIR))
+    fetch = importlib.import_module("fetch_cnesa_storage")
+    html = (
+        "<html><body><h1>2025年度CNESA储能数据重磅发布</h1>"
+        + "".join(f"<p>{s}</p>" for s in sentences)
+        + "</body></html>"
+    )
+    rows, _spans, _fails = fetch.extract(
+        fetch.to_text(html), "2026-01-22", "2025年度CNESA储能数据重磅发布"
+    )
+    return pd.DataFrame(rows)
+
+
+def test_f3_regression_from_offline_html_fixture(qdb):
+    """S3 / 规格第 2 条：上游删掉「2021 年末那句」→ 解析少一期 → 装载后库内清除并进日志。
+
+    走的是抓取器的正文解析（HTML -> 文本 -> 期与指标），不是直接改 parquet，
+    这样「句式漂移导致少解析一期」也能被这条测试抓住。
+    """
+    _prepare_db(qdb)
+    source = ind.SOURCE_BY_NAME["cnesa_storage"]
+
+    full = _cnesa_rows_from_html([SENTENCE_TOTAL, SENTENCE_DURATION])
+    periods = sorted({str(p) for p in full["period"]})
+    assert "2022-01" in periods and "2026-01" in periods, periods
+    _write_cnesa(full.to_dict("records"))
+
+    with qdb.duckdb_connect() as con:
+        ind.load_source(con, source, "run-1")
+        assert con.execute(
+            "SELECT count(*) FROM industry_cnesa_storage WHERE period = DATE '2022-01-01'"
+        ).fetchone()[0] == 1
+
+        # 上游改版：那句「2021-2025 年由 2.11 小时增至 2.58 小时」被删掉
+        shrunk = _cnesa_rows_from_html([SENTENCE_TOTAL])
+        assert "2022-01" not in {str(p) for p in shrunk["period"]}
+        _write_cnesa(shrunk.to_dict("records"))
+        ind.load_source(con, source, "run-2")
+
+        left = [r[0] for r in con.execute(
+            "SELECT DISTINCT period FROM industry_cnesa_storage ORDER BY 1"
+        ).fetchall()]
+        rows = _diff_rows(con, "run-2")
+
+    assert left == [dt.date(2026, 1, 1)]
+    dropped = [r for r in rows if r[0] == "row_dropped"]
+    # 那句时长原文同时给出 2021 年末 2.11 与 2025 年末 2.58 两个值，删句后两条都消失
+    assert len(dropped) == 2, rows
+    f3 = [r for r in dropped if r[5] == dt.date(2022, 1, 1)]
+    assert len(f3) == 1, dropped
+    assert "平均时长" in f3[0][1]
+    assert "value=2.11" in f3[0][3]

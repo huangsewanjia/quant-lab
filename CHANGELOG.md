@@ -18,8 +18,9 @@
 - `db/checks/industry.py`：`C9_load_diff`（最新一次覆盖 17 表的运行必须每表留痕：差异行或
   `no_change` 汇总行；diff 行的 run 必须在 audit 里、change_type 合法、各类型字段非空组合正确）。
   C1–C8 判据未改；闸数 8 → 9。
-- `db/tests/test_industry_diff.py`：7 项行为测试（值修改 + 新增行、快照源撤期 F3 回归、
-  幂等 0 差异汇总、分区源只碰本期、空快照拒绝清表、C9 缺留痕、C9 畸形行）。
+- `db/tests/test_industry_diff.py`：9 项行为测试（值修改 + 新增行、快照源撤期 F3 回归、
+  幂等 0 差异汇总、分区源只碰本期、空快照拒绝清表【含 `--full` 不豁免】、整数与浮点同值不误报、
+  离线 HTML fixture 的 F3 全链路回归、C9 缺留痕、C9 畸形行）。
 - `scripts/work585_verify.py`：复核脚本（离线演示 / 主库现状 / 分项自检 / C9）。
 - `scripts/work585_build_delivery.py`：从现场数据生成单文件 `docs/DELIVERY-WORK-585.html`。
 - `docs/industry-ingest-2026.md` §14：表结构、写入时机、查询与复核流程、F3 修复、C9 判据、回滚。
