@@ -18,6 +18,19 @@ init_task backup
 
 SG_BIN="${SG_BIN:-/usr/bin/sg}"
 DUMPS="${DUMPS:-/srv/backup/dumps}"
+
+# Paths this user cannot read, measured with
+#   find /srv/share /srv/data -xdev ! -readable -print   (2026-11-25)
+# lost+found is fsck's root-only scratch dir; catl/pgdata is a PostgreSQL data
+# dir owned by uid 70 inside its container. borg reports both as dir_open EACCES
+# and exits 1 even when the archive itself is written, so they are excluded
+# explicitly and listed in the log: nothing is silently dropped.
+EXCLUDES=(
+  /srv/share/lost+found
+  /srv/data/lost+found
+  /srv/share/catl/pgdata
+  /srv/data/multica/node_modules
+)
 WORK_TMP="$(mktemp -d "${TMPDIR:-/tmp}/backup-nightly-XXXXXX")"
 
 # Same line format as common.sh log(), but stdout only: run_backup already
@@ -110,9 +123,29 @@ prune_dumps() {
   fi
 }
 
+# backup-quantdb.sh builds SHA256SUMS from the source after rsync and verifies
+# it against the copy, so any writer active in between fails the self-check
+# (measured twice on 2026-11-25 while an ETL agent rewrote raw/industry). The
+# copy itself is still verified, so one bounded retry is safe: it can only turn
+# a transient inconsistency into a consistent copy, never hide a real one.
+cold_copy() {
+  local attempt
+  for attempt in 1 2; do
+    if "${SCRIPT_DIR}/backup-quantdb.sh"; then
+      return 0
+    fi
+    if [ "${attempt}" -eq 1 ]; then
+      note "冷备第 1 次自校验未通过（源目录被并发写入）；30 秒后整步重试一次"
+      sleep 30
+    fi
+  done
+  note "失败步骤：冷备 rsync + SHA256SUMS；两次自校验均未通过；可能是源目录持续被写入"
+  return 1
+}
+
 run_backup() {
   set -e
-  "${SCRIPT_DIR}/backup-quantdb.sh"
+  cold_copy
 
   export BORG_REPO=/srv/backup/borg
   export BORG_PASSCOMMAND="systemd-creds --user decrypt $HOME/.config/multica/secrets/BORG_PASSPHRASE.cred"
@@ -120,6 +153,7 @@ run_backup() {
 
   STAMP=$(date +%Y%m%d-%H%M)
   mkdir -p "${DUMPS}"
+  note "备份排除（不读、不入归档）：${EXCLUDES[*]}"
 
   # Interrupted runs leave .part files and temp dirs that retention never sees.
   find "${DUMPS}" -maxdepth 1 -name '*.part*' -mtime +1 -print -delete
@@ -137,10 +171,17 @@ run_backup() {
   prune_dumps weknora
   prune_dumps langfuse
 
+  # Any non-zero from borg is a failure even though borg 1.x uses 1 for
+  # warnings: a warning here means a path could not be archived, so it must be
+  # an explicit exclusion (EXCLUDES) rather than a quiet gap.
+  borg_excludes=()
+  local pat
+  for pat in "${EXCLUDES[@]}"; do
+    borg_excludes+=(--exclude "${pat}")
+  done
   run_step "borg create snap-${STAMP}" - \
     borg create --stats --compression zstd,8 "::snap-$STAMP" \
-    /srv/share /srv/data "${DUMPS}" \
-    --exclude '/srv/data/multica/node_modules'
+    /srv/share /srv/data "${DUMPS}" "${borg_excludes[@]}"
 
   run_step "borg prune" - borg prune --list --keep-daily=7 --keep-weekly=4 --keep-monthly=6
   run_step "borg compact" - borg compact
@@ -150,6 +191,20 @@ run_backup() {
 cleanup_tmp() {
   rm -rf "${WORK_TMP}"
 }
+
+# systemd kills the unit with SIGTERM when TimeoutStartSec expires; without this
+# trap the run leaves no log line and no alert, so a nightly kill stays silent.
+# alert_failure dedups per task/day, so a signal followed by a retry still files
+# one issue.
+on_signal() {
+  local sig="$1" code="$2"
+  log "失败步骤：收到 SIG${sig}，备份被中断（TimeoutStartSec 到期或人工 stop）；退出码=${code}"
+  cleanup_tmp
+  alert_failure backup "${code}" || true
+  exit "${code}"
+}
+trap 'on_signal TERM 143' TERM
+trap 'on_signal INT 130' INT
 
 log "backup start"
 set +e
