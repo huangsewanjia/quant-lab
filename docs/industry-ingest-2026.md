@@ -1062,7 +1062,9 @@ change_type / column_name / old_value / new_value / source_doc / reason / change
 → 约 27 万条 diff，`executemany` 实测约 2,450 行/秒），所以它只用于排查，不进定时任务。
 
 **raw 快照版本化（`history/`）**：每次装载读 raw 之前，`archive_raw_snapshot()` 把该源当前快照复制到
-`raw/<kind>/<source>/history/<sha256前12位>-<mtime><后缀>`，同一份快照只留一份。
+`raw/<kind>/<source>/history/<sha256前12位>-<mtime><后缀>`。去重按**内容**判定（逐个比大小 + 数据文件
+sha256）；文件名里的 `<mtime>` 只是给人看的时间戳，因此「内容相同、mtime 不同」（例如人工 `touch`）
+会另存一份——这种重复不损坏数据，只多一点体积。
 原始数据因此只增不删：上游改版、抓取脚本换解析口径，都能回到任意历史版本比对。
 
 **膨胀口径要说清**：哈希覆盖数据文件 + `manifest.json`（+ `article.txt`），而 `manifest.fetched_at`
