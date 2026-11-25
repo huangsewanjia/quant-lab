@@ -18,6 +18,10 @@ init_task backup
 
 SG_BIN="${SG_BIN:-/usr/bin/sg}"
 DUMPS="${DUMPS:-/srv/backup/dumps}"
+# Per-step stderr must not live on tmpfs: /tmp here is a size-capped tmpfs with
+# usrquota, and 2026-11-25 it hit EDQUOT for this user, which would silently
+# break "stderr first line" logging exactly when a step fails.
+TEMP_BASE="${TEMP_BASE:-/srv/backup/tmp}"
 
 # Paths this user cannot read, measured with
 #   find /srv/share /srv/data -xdev ! -readable -print   (2026-11-25)
@@ -31,7 +35,12 @@ EXCLUDES=(
   /srv/share/catl/pgdata
   /srv/data/multica/node_modules
 )
-WORK_TMP="$(mktemp -d "${TMPDIR:-/tmp}/backup-nightly-XXXXXX")"
+if ! mkdir -p "${TEMP_BASE}" 2>/dev/null ||
+   ! WORK_TMP="$(mktemp -d "${TEMP_BASE}/backup-nightly-XXXXXX" 2>/dev/null)"; then
+  log "失败步骤：创建临时目录 ${TEMP_BASE}；退出码=1；磁盘或配额不足"
+  alert_failure backup 1 || true
+  exit 1
+fi
 
 # Same line format as common.sh log(), but stdout only: run_backup already
 # appends its stdout to LOG, so teeing here would write every line twice.
@@ -129,18 +138,23 @@ prune_dumps() {
 # copy itself is still verified, so one bounded retry is safe: it can only turn
 # a transient inconsistency into a consistent copy, never hide a real one.
 cold_copy() {
-  local attempt
-  for attempt in 1 2; do
-    if "${SCRIPT_DIR}/backup-quantdb.sh"; then
+  local attempt code first err="${WORK_TMP}/cold.err"
+  for attempt in 1 2 3; do
+    code=0
+    "${SCRIPT_DIR}/backup-quantdb.sh" 2>"${err}" || code=$?
+    if [ "${code}" -eq 0 ]; then
+      [ -s "${err}" ] && cat "${err}"
       return 0
     fi
-    if [ "${attempt}" -eq 1 ]; then
-      note "冷备第 1 次自校验未通过（源目录被并发写入）；30 秒后整步重试一次"
+    first=$(head -n 1 "${err}" 2>/dev/null || true)
+    note "失败步骤：冷备 rsync + SHA256SUMS（第 ${attempt} 次）；退出码=${code}；stderr 首行=${first:-<空>}"
+    if [ "${attempt}" -lt 3 ]; then
+      note "冷备第 ${attempt} 次未通过，30 秒后整步重试"
       sleep 30
     fi
   done
-  note "失败步骤：冷备 rsync + SHA256SUMS；两次自校验均未通过；可能是源目录持续被写入"
-  return 1
+  note "冷备三次均未通过；源目录持续被写入时需在静默窗口重跑"
+  return "${code}"
 }
 
 run_backup() {
@@ -157,7 +171,7 @@ run_backup() {
 
   # Interrupted runs leave .part files and temp dirs that retention never sees.
   find "${DUMPS}" -maxdepth 1 -name '*.part*' -mtime +1 -print -delete
-  find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'backup-nightly-*' -mtime +1 -exec rm -rf {} + || true
+  find "${TEMP_BASE}" -maxdepth 1 -name 'backup-nightly-*' -mtime +1 -exec rm -rf {} + || true
 
   dump_db multica /srv/data/multica multica_v2 multica \
     -f docker-compose.selfhost.yml
@@ -199,6 +213,10 @@ cleanup_tmp() {
 on_signal() {
   local sig="$1" code="$2"
   log "失败步骤：收到 SIG${sig}，备份被中断（TimeoutStartSec 到期或人工 stop）；退出码=${code}"
+  if [ -s "${WORK_TMP}/step.err" ]; then
+    log "中断时步骤 stderr 尾部："
+    tail -n 20 "${WORK_TMP}/step.err" >>"${LOG}" || true
+  fi
   cleanup_tmp
   alert_failure backup "${code}" || true
   exit "${code}"
