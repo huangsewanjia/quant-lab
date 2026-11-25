@@ -318,6 +318,11 @@ def main():
                        f"<td class='num'>{it['rows']}</td><td>{it.get('coverage','')}</td>"
                        f"<td>{'ok' if it.get('ok') else 'error'}</td></tr>")
 
+    # full 档 MDD（跨种子均值与 range）—— 供 §6 回撤对照用
+    _full_mdd = [x.get("mdd") for x in tier.get("full", {}).values() if x.get("mdd") is not None]
+    mdd_mean = float(np.mean(_full_mdd)) if _full_mdd else None
+    mdd_rng = (f"[{min(_full_mdd):.2f}, {max(_full_mdd):.2f}]" if _full_mdd else "—")
+
     audit_block = ""
     if audit:
         audit_block = (f"<p>独立复算：<b>{audit.get('conclusion','')}</b>"
@@ -462,7 +467,7 @@ valid {fmt(stats.get('n_valid'),0)}；test {fmt(stats.get('n_test'),0)}
 
 <h2>6 · 回撤对照与基准调整 alpha</h2>
 <p><b>回撤对照（并列验收项）：</b>本单 full 档 MDD
-<b class="mono">{fmt((h3.get('full') or [{}])[0].get('mdd') if isinstance(h3.get('full'), list) and h3.get('full') else None, 2)}%</b>；
+<b class="mono">{fmt(mdd_mean,2)}%</b>（跨种子 range {mdd_rng}）；
 论文自曝 Stock-JEPA −31.09% vs MASTER −21.46%（Table 1, p.8）。本单把「MDD 是否差于最强基线」
 与 Sharpe 并列报告，不只报 Sharpe。</p>
 <table>
@@ -494,12 +499,29 @@ valid {fmt(stats.get('n_valid'),0)}；test {fmt(stats.get('n_test'),0)}
 <li><b>40 维字段自定</b>：论文只给「28 资产级 + 12 市场级 / 6 类别」，未给字段名 → 绝对水平不可比。</li>
 <li><b>算力降级</b>：论文 8×RTX 5090，本机无 GPU；d_model 128→64、层数 4→2、头 8→4、FFN 512→128、
 d_z 128→64、fp32 而非 bf16 → 压低绝对水平，结论限于降级配置内的相对比较。</li>
-<li><b>种子 3 → 2</b>：跨种子方差估计精度下降。</li>
+<li><b>种子 3 → 2</b>：跨种子方差估计精度下降（range 只有 2 个观测）。</li>
 <li><b>切分以论文原文为准</b>：论文为 2014–15 先验初装 / 2016–21 训练 / 2022–23 验证 / 2024–26 测试；
-派单卡正文写的「2009–2019 训练 / 2020–2021 验证」与原文不符（两份已在评论里并列）。</li>
-<li><b>A 股执行约束自加</b>：涨停不可买（顺延补位）、跌停顺延、停牌顺延、退市 1% 清算 —— 论文完全未建模。</li>
+派单卡正文写的「2009–2019 训练 / 2020–2021 验证」与原文不符（两份已在评论里并列，不合成）。</li>
+<li><b>A 股执行约束自加</b>：涨停不可买（顺延补位）、跌停顺延、停牌顺延、退市 1% 清算 —— 论文完全未建模（p.18）。</li>
 <li><b>基本面未纳入 40 维</b>：<code>fina_indicator</code> 的 PIT 口径已实测可用，但论文 6 类别不含基本面，
 纳入会扩大「40 维自定」的自由度。</li>
+<li><b>股票池比论文大 2.0%</b>：库内 <code>daily</code> 全历史 5,887 只、本单窗口 5,783 只，
+论文 Wind CN ALL 5,669 只 → <b>是盈余不是缺口</b>，不触发预注册「缺口 &gt;10%」失败判据。</li>
+<li><b>市场级 12 维自定</b>：论文只给 5 个市场类别且未点名 SHIBOR / USDCNH / 信用利差，
+本单不引入任何外部宏观端点，改用库内可聚合的 12 个市场维度 → 与论文市场维度不可比。</li>
+<li><b>测试段右边界</b>：目标窗越过数据截止日（2026-06-26）的最后 21 个交易日无实现收益 →
+本单测试段实际 <b>578 个预测日</b>；论文报告 599 个。样本总数几乎一致
+（本单 2,949,469 vs 论文 2,965,433，−0.54%），差异来自右边界处理。</li>
+<li><b>预注册 v1.1（唯一的增补）</b>：<code>mlp_std</code> 读出分支按训练集统计量标准化后加
+<code>[−8, 8]</code> 裁剪（与本单 S1 标准化同常数）。根因是训练集标准化在重尾列上产生
+max|z| = 20.36 的离群点，R0–R3 验证损失达 8.5e3 ~ 9.2e3（其余四臂 0.33 ~ 0.36）。
+<b>只作用于 R0–R3（H4 只报数）</b>；H1 / H2 / H3 的计算路径一行未改。
+v1.0 保留不删，阈值/特征/切分/成本/种子全部未动。</li>
+<li><b>两处数学等价的实现提速（不改数值口径）</b>：① S2 编码器前向换成等价的
+<code>scaled_dot_product_attention</code> 实现，权重沿用官方模块（初始化逐位一致），
+自检逐元素最大差 <b>4.77e-07</b>（见 <code>fast_encoder_selftest.json</code>）；
+② 读出预测由「8 臂各读一遍 u」改为「每切分读一遍、一次写 8 臂」。
+本机 CPU 上前者提速 3~11×（否则全链需 6 小时以上）。</li>
 </ul>
 
 <h2>9 · 审计</h2>
@@ -516,6 +538,9 @@ d_z 128→64、fp32 而非 bf16 → 压低绝对水平，结论限于降级配�
 <tr><td>主检验</td><td class="mono">python scripts/work566_primary_test.py --seeds 42 2024</td></tr>
 <tr><td>独立复算</td><td class="mono">python audit/recompute_work566.py --seeds 42 2024</td></tr>
 <tr><td>本报告</td><td class="mono">python scripts/work566_report.py</td></tr>
+<tr><td>渲染交付件</td><td class="mono">python scripts/work566_render.py</td></tr>
+<tr><td>快照 manifest</td><td class="mono">python scripts/work566_snapshot_manifest.py</td></tr>
+<tr><td>预注册（先于任何回测产物）</td><td class="mono">experiments/WORK-566/preregistration.md（v1.0）<br>experiments/WORK-566/preregistration_v1.1.md（唯一增补）</td></tr>
 </table>
 
 <div class="disclaimer" style="margin-top:26px">
