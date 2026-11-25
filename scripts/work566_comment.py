@@ -73,6 +73,29 @@ def main():
             out.append(f"{arm} {m:.4f}%{rng}")
         return "；".join(out)
 
+    alpha = metrics.get("benchmark_alpha", {}) or {}
+    paper = metrics.get("paper", {}) or {}
+    t1 = paper.get("table1", {}) or {}
+
+    def alpha_row(arm):
+        """基准调整 alpha：等权 + 市值加权各一行（跨种子 mean）。"""
+        per = alpha.get(arm) or []
+        if not isinstance(per, list) or not per:
+            return "—"
+        out = []
+        for kind, label in (("ew", "等权全市场"), ("cap", "市值加权")):
+            vals = [x.get(kind, {}).get("alpha_ann_pct") for x in per
+                    if isinstance(x.get(kind), dict) and x[kind].get("alpha_ann_pct") is not None]
+            tst = [x.get(kind, {}).get("t_stat") for x in per
+                   if isinstance(x.get(kind), dict) and x[kind].get("t_stat") is not None]
+            if not vals:
+                out.append(f"{label} —")
+                continue
+            m = sum(vals) / len(vals)
+            t = (f"（t={sum(tst)/len(tst):.2f}）" if tst else "")
+            out.append(f"{label} {m:+.2f}%/年{t}")
+        return "；".join(out)
+
     n_ep = (man.get("summary", {}) or {}).get("n_endpoints", 0)
     n_ep_ok = (man.get("summary", {}) or {}).get("n_endpoints_ok", 0)
     n_snap = (man.get("summary", {}) or {}).get("n_snapshot_files", 0)
@@ -106,6 +129,32 @@ def main():
 - **H3**（可交易性）：full 净 SR {num((h3 or {}).get('full_net_sr_mean'), 3)}，95% CI 下界 {num((h3 or {}).get('full_sr_ci95_lower_min'), 3)}，相对论文 1.50 的比率 {num((h3 or {}).get('shrinkage_vs_paper'), 3)}（降级配置下只披露不判定；净 SR < 0 直接判退仍生效）
 - **H4**（R2 vs R3，只报数）：R2 {num((h4 or {}).get('r2_rankic'), 3)}% vs R3 {num((h4 or {}).get('r3_rankic'), 3)}%，差 {num((h4 or {}).get('r2_minus_r3_rankic_pp'), 3)} pp
 
+### 3b · 基准调整 alpha（等权 + 市值加权）与回撤对照
+
+**基准调整 alpha**（口径：日超额收益 = 组合日收益 − 基准日收益；等权基准 = 面板内当日有 bar 的全部股票等权平均，
+市值加权基准 = 同日 `circ_mv` 加权平均；年化 = 252 × 日均超额；括号内为超额日均的 t 统计；种子 42 / 2024 的均值）
+
+| 臂 | 基准调整 alpha（年化超额） |
+|---|---|
+| full | {alpha_row('full')} |
+| S1-only | {alpha_row('s1_only')} |
+| FMB-style 基线 | {alpha_row('fmb')} |
+
+**回撤对照**（任务书「MDD 是否差于最强基线」并列验收项，不许只报 Sharpe）
+
+| 口径 | MDD |
+|---|---|
+| 论文 STOCK-JEPA（Table 1） | {num((t1.get('Stock-JEPA') or {}).get('MDD'), 2)}% |
+| 论文 MASTER（Table 1，最强基线） | {num((t1.get('MASTER') or {}).get('MDD'), 2)}% |
+| 论文 FMB-style（Table 1） | {num((t1.get('FMB-style') or {}).get('MDD'), 2)}% |
+| 本单 full（主成本档 5bps） | {cell('full', 'mdd', 2)}% |
+| 本单 S1-only | {cell('s1_only', 'mdd', 2)}% |
+| 本单 FMB-style 基线 | {cell('fmb', 'mdd', 2)}% |
+
+- 本单**绝对水平与论文不可比**（40 维字段自定、市场级 12 维自定、算力降级、股票池 +2.0%、A 股执行约束），
+  上表并列只为给出**量级参照**；可判的只有同一降级配置内三档之间的相对增量。
+- 逐项论文对照表（论文值 / 本单值 / range / 差异 / 差异原因）见交付物 `paper_comparison.csv` 与 `paper_comparison.md`。
+
 ### 4 · 独立复算与代码审查
 
 - **独立复算**：{audit.get('conclusion', '—')}（PASS {audit.get('pass', 0)} / BLOCKING {audit.get('blocking', 0)}）；判据逐项相对差 ≤ 1e-6；复算脚本**不 import 建模阶段任何函数**，交易日历从 parquet 独立重取
@@ -122,7 +171,7 @@ def main():
 - 样本量：train {stats.get('n_train', 0):,} / valid {stats.get('n_valid', 0):,} / test {stats.get('n_test', 0):,}（论文 Table 3：3,883,006 / 1,990,842 / 2,965,433）
 - 端点复测 {n_ep_ok}/{n_ep} ok；快照 manifest 锁定 {n_snap} 个文件 sha256；代码提交 `{repo_commit}`
 - 预注册 commit `16b24fb`（v1.0）→ `7580a3d`（v1.1，唯一增补）→ 首个回测产物 commit `a3d8b88`，**次序由 `git log` 可查**
-- 交付物：`report.html`（单文件，图 base64 内嵌、CSS 内联、无外链、断网可读）+ 1440×900 首屏 PNG + A4 打印 PDF + `metrics.json` / `verdict.json` / `metrics_table.csv` / `paper_comparison.csv|md` / `audit_findings.json` / `data_probe.json` / `panel_audit.json` / `sample_stats.json` / `code_review_work566.md` / `failure_log.md`
+- 交付物：`report.html`（单文件，图 base64 内嵌、CSS 内联、无外链、断网可读）+ 1440×900 首屏 PNG + A4 打印 PDF + `metrics.json` / `verdict.json` / `metrics_table.csv` / `paper_comparison.csv|md` / `audit_findings.json` / `data_probe.json` / `panel_audit.json` / `sample_stats.json` / `code_review_work566.md` / `code_review_work566_round3.md` / `code_review_work566_round4.md` / `failure_log.md` / `train_log_seed42.log` / `train_log_seed2024.log` / `ckpt_snapshot_test_output.txt` / `assert_violation_log.txt`
 
 ### 6 · 必须并列的口径冲突与已知限制
 
