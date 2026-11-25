@@ -244,9 +244,11 @@ class Panel:
     def __init__(self, stage_tmpfs=True):
         self.feat = np.load(os.path.join(DATA, "feat.npy"), mmap_mode="r")
         self.tgt = np.load(os.path.join(DATA, "targets.npy"), mmap_mode="r")
-        # 随机访问面板：关掉内核 readahead（否则 129× 读放大）
-        tune_mmap(self.feat, mmap.MADV_RANDOM)
-        tune_mmap(self.tgt, mmap.MADV_RANDOM)
+        # 注意：**不设 MADV_RANDOM**。
+        # 训练期的随机取数已由 tmpfs 训练日期片承担（RAM 速，不受 madvise 影响）；
+        # 验证遍历与 build_reps 是**按 (stock, date) 的顺序读**，内核默认 readahead
+        # 在这里能显著提速；关掉 readahead 会把每批退化成上千次随机 4KB 读
+        # （实测验证一遍从 ~3 分钟涨到 20 分钟以上）。
         self.stg = None          # tmpfs 上的训练日期片（RAM 速随机读）
         self.stg_lo = 0
         self.prior = json.load(open(os.path.join(DATA, "prior.json"), encoding="utf-8"))
