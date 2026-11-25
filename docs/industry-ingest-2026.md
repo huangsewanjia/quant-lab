@@ -443,6 +443,9 @@ QUANTDB_HOME=/srv/share/quantdb QUANTDB_PYTHON=/home/moyongkai/.venvs/quantdb/bi
 分项耗时：gfex 3.1s、LPR 9.2s、benchmark 7s、exchange 1s（`http_calls=0`，6 个交易日已在 raw）、
 ppi 13s、trendforce 3s。`real 17m48s` 里的 16m41s 是等锁，不是抓取成本。
 
+21:36:59 的第二次复跑（`run_source()` 重构后）没有等锁：抓取 + 装载 + 闸合计 **63 秒**（`real 1m3s`），
+其中抓取 34 秒；闸在 C4 因并行单的 nea 新单位 FAIL（见 §11.5），不是耗时问题。
+
 GFEX 的实际参数（`jq '{params:.params, elapsed:.elapsed_seconds}' raw/industry/gfex_lithium_carbonate/manifest.json`）：
 
 ```json
@@ -532,6 +535,15 @@ QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
 `{GW, %, GWh, 个, 项, 元/kWh, 小时}`，而 raw 里的 33 行新单位在 20:27 已落盘。
 即：失败来自并行单的中间状态，不是本单代码；用本单分支（不含 WORK-577 改动的 checks）单独跑闸，
 C4 仍会因这 33 行报 FAIL——这与本单无关，归 WORK-577 收口时一并生效。
+
+21:37 的第二轮复跑（验证 `run_source()` 重构与 ALT 显式传参）结果：
+
+- 抓取 6/6 成功、装载 17 表成功，日志逐源打印 `args`（exchange 为 `--days 7 --resume`）；
+- C4 再次 FAIL，但这次是 `industry_nea_power`：WORK-579 在 21:34 重写提取器，表从 606 行扩到 **1,677 行**，
+  新增单位 `万千瓦 / 亿元 / % / 万百万千焦 / 千米 / 克/千瓦时 / 万吨 / 万千伏安`，超出 568 版词表的
+  `{亿千瓦, 亿千瓦时, 小时}`；自动告警单 **WORK-583** 由此产生。
+- 归因同上：并发单改数据、词表未同步；本单不改 `db/checks/industry.py` 的词表，也不改 nea 提取器。
+  运营动作：WORK-579 收口时更新词表并关闭 WORK-583。
 
 ### 11.6 已知边界
 
