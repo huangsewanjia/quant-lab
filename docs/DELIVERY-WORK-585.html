@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WORK-585 交付说明 · 行业装载变更留痕</title>
+<style>
+:root{--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--bg:#ffffff;--accent:#1d4ed8;--warn:#b45309;--ok:#15803d;--bad:#b91c1c}
+*{box-sizing:border-box}
+body{margin:0;background:#f8fafc;color:var(--ink);
+ font:16px/1.75 "Noto Serif CJK SC","Source Han Serif SC","Songti SC",Georgia,serif}
+main{max-width:980px;margin:0 auto;padding:48px 28px 96px;background:var(--bg);
+ box-shadow:0 0 0 1px var(--line)}
+h1{font-size:28px;line-height:1.35;margin:0 0 6px;letter-spacing:.2px}
+h2{font-size:20px;margin:44px 0 12px;padding-bottom:6px;border-bottom:2px solid var(--ink)}
+h3{font-size:16px;margin:24px 0 8px;color:#1e293b}
+p,li{font-size:15.5px}
+.sub{color:var(--muted);font-size:13.5px;margin:0 0 22px;font-family:ui-monospace,monospace}
+.lede{background:#f1f5f9;border-left:4px solid var(--accent);padding:14px 18px;margin:18px 0 8px}
+.lede b{color:var(--accent)}
+table{border-collapse:collapse;width:100%;margin:12px 0 8px;font-size:14px;
+ font-family:"Noto Sans CJK SC","Source Han Sans SC",system-ui,sans-serif}
+th,td{border-bottom:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:#f1f5f9;font-weight:600}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+.ok{color:var(--ok);font-weight:600} .bad{color:var(--bad);font-weight:600}
+.muted{color:var(--muted)}
+figure{margin:20px 0;padding:14px;border:1px solid var(--line);border-radius:8px;background:#fff}
+figcaption{font-size:12.5px;color:var(--muted);margin-top:10px;
+ font-family:"Noto Sans CJK SC",system-ui,sans-serif}
+pre.term{background:#0f172a;color:#e2e8f0;padding:14px 16px;border-radius:6px;
+ overflow-x:auto;font-size:12.2px;line-height:1.55;
+ font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;
+ background:#f1f5f9;padding:1px 5px;border-radius:3px}
+.matrix td:first-child{width:34%}
+.tag{display:inline-block;font-size:11.5px;padding:1px 8px;border-radius:999px;
+ background:#dbeafe;color:#1e40af;font-family:system-ui,sans-serif}
+footer{margin-top:56px;border-top:1px solid var(--line);padding-top:14px;
+ color:var(--muted);font-size:12.5px}
+</style></head><body><main>
+
+<h1>行业装载变更留痕：diff 日志 + 快照源整源替换</h1>
+<p class="sub">WORK-585 · 数据底座 quantdb · 生成于 2026-11-25 23:42 CST · 目标 runtime：Mo-server</p>
+
+<div class="lede">
+<b>一句话：</b>装载器现在每次替换前先把「库内现状 vs 本次快照」的逐行差异写进
+<code>industry_load_diff</code>，再动手替换（同一事务，失败一起回滚）；
+<code>cnesa_storage</code> 改为整源替换，WORK-577 遗留的 F3（上游删期、库内残留幽灵行）消除；
+复核用 <code>v_industry_load_changes_recent</code> 看近 30 天的值变化与被删行。
+现有 17 张观测表结构、C1–C8 判据、<code>industry.sh</code> 调用方式一律未改。
+</div>
+
+<h2>1. 用途与受众</h2>
+<p><b>给谁用：</b>负责行业层数据的人（复核者），以及任何要引用 <code>industry_*</code> 表之前
+想知道「这条数什么时候被人改过」的研究者。</p>
+<p><b>解决什么：</b>旧装载只有 <code>DELETE + INSERT</code>，审计表只记行数与耗时。
+上游把某个值改了、或删掉一整期，库内变化没有任何记录——复核者只能看到「行数没变」，
+看不到「3.7 亿千瓦变成了别的数」。本单把「替换」变成一件有账可查的事。</p>
+<p><b>不解决什么：</b>不判断变化是否符合业务预期，不做审批流，不发消息；它只保证
+「改了什么、删了什么」逐行可读、可追、可复跑。</p>
+
+<h2>2. 首次使用（三步）</h2>
+<ol>
+<li><b>确认表在</b>：<code>select count(*) from industry_load_diff;</code>
+（表由 <code>db/schema_industry.sql</code> 随每次装载自动建立，无需手工执行 DDL）。</li>
+<li><b>找最近一次运行</b>：<code>select run_id, max(finished_at) from industry_load_audit
+group by 1 having count(*) = 17 order by 2 desc limit 1;</code></li>
+<li><b>看要人复核的变更</b>：<code>select * from v_industry_load_changes_recent
+order by changed_at desc limit 50;</code></li>
+</ol>
+
+<h2>3. 主流程：装载一次到底发生什么</h2>
+<figure><svg viewBox="0 0 860 361" width="100%" role="img" aria-label="装载流水线"><rect x="24" y="6" width="290" height="30" rx="5" fill="#f1f5f9" stroke="#cbd5e1"/><text x="36" y="26" font-size="12.5" fill="#0f172a">读 raw（parquet / csv）</text><path d="M169 36 L169 45" stroke="#94a3b8"/><rect x="24" y="45" width="290" height="30" rx="5" fill="#f1f5f9" stroke="#cbd5e1"/><text x="36" y="65" font-size="12.5" fill="#0f172a">transform → staged</text><path d="M169 75 L169 84" stroke="#94a3b8"/><rect x="24" y="84" width="290" height="30" rx="5" fill="#fef3c7" stroke="#cbd5e1"/><text x="36" y="104" font-size="12.5" fill="#0f172a">BEGIN TRANSACTION</text><path d="M169 114 L169 123" stroke="#94a3b8"/><rect x="24" y="123" width="290" height="30" rx="5" fill="#dbeafe" stroke="#cbd5e1"/><text x="36" y="143" font-size="12.5" fill="#0f172a">① 算差异 → industry_load_diff</text><path d="M169 153 L169 162" stroke="#94a3b8"/><rect x="24" y="162" width="290" height="30" rx="5" fill="#dbeafe" stroke="#cbd5e1"/><text x="36" y="182" font-size="12.5" fill="#0f172a">② DELETE（分区 / 整源）</text><path d="M169 192 L169 201" stroke="#94a3b8"/><rect x="24" y="201" width="290" height="30" rx="5" fill="#dbeafe" stroke="#cbd5e1"/><text x="36" y="221" font-size="12.5" fill="#0f172a">③ INSERT OR REPLACE</text><path d="M169 231 L169 240" stroke="#94a3b8"/><rect x="24" y="240" width="290" height="30" rx="5" fill="#dbeafe" stroke="#cbd5e1"/><text x="36" y="260" font-size="12.5" fill="#0f172a">④ industry_load_audit</text><path d="M169 270 L169 279" stroke="#94a3b8"/><rect x="24" y="279" width="290" height="30" rx="5" fill="#fef3c7" stroke="#cbd5e1"/><text x="36" y="299" font-size="12.5" fill="#0f172a">COMMIT（失败则 ROLLBACK）</text><path d="M169 309 L169 318" stroke="#94a3b8"/><rect x="24" y="318" width="290" height="30" rx="5" fill="#dcfce7" stroke="#cbd5e1"/><text x="36" y="338" font-size="12.5" fill="#0f172a">C1–C9 质量闸</text><path d="M330 81 L338 81 L338 312 L330 312" fill="none" stroke="#f59e0b" stroke-width="2"/><text x="348" y="190.5" font-size="12" fill="#b45309">同一事务</text><text x="348" y="206.5" font-size="11" fill="#92400e">先记账、后动手</text><text x="440" y="26" font-size="11.5" fill="#475569">只读已有 raw，不重抓</text><text x="440" y="65" font-size="11.5" fill="#475569">日期/数值按值规范化</text><text x="440" y="143" font-size="11.5" fill="#475569">逐行差异（含 0 差异汇总行）</text><text x="440" y="182" font-size="11.5" fill="#475569">分区源只删本期；快照源删全表</text><text x="440" y="221" font-size="11.5" fill="#475569">空快照整源替换直接拒绝</text><text x="440" y="260" font-size="11.5" fill="#475569">行数/耗时/模式</text><text x="440" y="299" font-size="11.5" fill="#475569">失败不留半表</text><text x="440" y="338" font-size="11.5" fill="#475569">C9 验「每表每轮都留过痕」</text></svg>
+<figcaption>图 1｜装载流水线。橙色括号内是一个事务：差异先落库，再删旧插新，
+审计同事务写入；任一步抛错整体回滚，库内保持装载前状态。旧实现 DELETE 与 INSERT 各自
+autocommit，INSERT 失败会留下空表/半表。</figcaption></figure>
+
+<h3>3.1 差异怎么算</h3>
+<table>
+<tr><th>源类型</th><th>比对键</th><th>能产出什么</th></tr>
+<tr><td>自然主键源（gfex / lpr / cnesa / cninfo / pbc / stats / comtrade / exchange / owid / sne）</td>
+<td>表的真实主键（如 <code>period × indicator</code>）</td>
+<td><code>value_changed</code>（逐列一行）、<code>row_added</code>、<code>row_dropped</code></td></tr>
+<tr><td><code>row_hash</code> 主键源（caam / cpca / mof / nea / benchmark / ppi / trendforce）</td>
+<td><code>row_hash</code>（内容哈希）</td>
+<td><code>row_added</code> / <code>row_dropped</code>：内容改版天然表现为「旧 hash 走、新 hash 来」，
+<code>indicator</code> 用业务键文本渲染，人一眼能对上</td></tr>
+</table>
+<p class="muted">数值按「值」比对（<code>80620</code> 与 <code>80620.0</code> 视为同一个值），
+DATE 与零点 TIMESTAMP 规范化到同一天——否则每次重载都会把全表记成「变了」。
+这两条是实测踩出来的：首版草稿在真实库上做只读演练时，
+<code>exchange_daily_quotes</code> 报了 87,024 个假变化。</p>
+
+<h2>4. 主流程控件与命令</h2>
+<table>
+<tr><th>入口</th><th>作用</th><th>说明</th></tr>
+<tr><td><code>python -m db.etl.industry load</code></td><td>装全部源（17 观测 + 1 预测，分两组 run_id）</td>
+<td>定时任务 <code>db/timers/industry.sh</code> 的调用方式未变</td></tr>
+<tr><td><code>--sources cnesa_storage</code></td><td>只装一个源（排查用）</td><td>同样留痕</td></tr>
+<tr><td><code>--tier daily|monthly</code></td><td>只装该调度档</td><td>未变</td></tr>
+<tr><td><code>--full</code></td><td>清表重装（排查用）</td><td>留痕覆盖被清掉的全部行</td></tr>
+<tr><td><code>v_industry_load_changes_recent</code></td><td>近 30 天 <code>value_changed</code> / <code>row_dropped</code></td>
+<td>新增行是常态（源在扩），只有这两类需要人看一眼</td></tr>
+<tr><td><code>python -m db.checks.industry all</code></td><td>9 道闸</td><td>新增 C9，编号让开 WORK-584 的 C8</td></tr>
+</table>
+
+<h2>5. 需求符合性矩阵</h2>
+<table class="matrix">
+<tr><th>需求（本单原文）</th><th>交付物</th><th>状态</th></tr>
+<tr><td>新表 <code>industry_load_diff</code>（run_id / source / table / period / indicator / change_type /
+old_value / new_value / changed_at），同事务先记账后替换，0 差异写汇总行</td>
+<td><code>db/schema_industry.sql</code>（10 列，多一列 <code>column_name</code> 定位变化的列）+
+<code>db/etl/industry.py::load_source</code></td><td class="ok">完成</td></tr>
+<tr><td>快照型源（本单只 cnesa_storage）整源替换，删掉的行全部落 diff → 消 F3</td>
+<td><code>Source.replace_mode</code>；<code>cnesa_storage</code> 设 <code>"source"</code></td>
+<td class="ok">完成</td></tr>
+<tr><td>视图 <code>v_industry_load_changes_recent</code>（近 30 天 value_changed / row_dropped）</td>
+<td>schema 内建视图</td><td class="ok">完成</td></tr>
+<tr><td>文档增补「变更留痕」小节</td><td><code>docs/industry-ingest-2026.md</code> §14</td>
+<td class="ok">完成</td></tr>
+<tr><td>可为 diff 加一条独立新检查，编号不与 WORK-584 冲突；不改 7 闸判据、不动 17 表结构</td>
+<td><code>C9_load_diff</code>（C1–C8 判据未改）</td><td class="ok">完成</td></tr>
+<tr><td>演示用例：值修改 + 期消失</td><td><code>scripts/work585_verify.py demo</code> +
+<code>db/tests/test_industry_diff.py</code></td><td class="ok">见 §6.1</td></tr>
+<tr><td>F3 回归：模拟上游删 2021 年末那句 → 2022-01 清除且进日志</td>
+<td><code>test_snapshot_source_drops_vanished_period_and_logs_it</code></td>
+<td class="ok">见 §6.2</td></tr>
+<tr><td>幂等：0 差异写汇总行、17 表行数不变、连跑两次一致</td>
+<td><code>test_rerun_without_changes_writes_one_no_change_row</code></td>
+<td class="ok">见 §6.3</td></tr>
+<tr><td>既有闸 PASS、audit 照常、<code>pytest db/tests/</code> 全过、回滚写清</td>
+<td>§6.4 / §6.5 / §8</td><td class="ok">完成</td></tr>
+</table>
+
+<h2>6. 实测证据</h2>
+
+<h3>6.1 演示：值修改 + 期消失 + 幂等（离线，不碰生产表）</h3>
+<p>把生产 raw 的 <code>cnesa_storage/part.parquet</code>（33 行）复制到演示库
+<code>$QUANTDB_HOME/staging/work585-demo</code>（每次重建、脚本可复跑），第 2 轮把「新型储能累计装机规模」从
+144.7 改成 150.9，并删掉 2022-01 那一期，第 3 轮原样重跑。</p>
+<figure><svg viewBox="0 0 630 154" width="100%" role="img" aria-label="三轮演示的差异构成"><text x="4" y="31" font-size="12" fill="#334155">第 1 轮 首次装载（空表）</text><rect x="210" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="225" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="240" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="255" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="270" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="285" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="300" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="315" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="330" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="345" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="360" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="375" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="390" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="405" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="420" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="435" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="450" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="465" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="480" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="495" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="510" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="525" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="210" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="225" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="240" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="255" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="270" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="285" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="300" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="315" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="330" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="345" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="360" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><text x="548" y="29" font-size="12" fill="#0f172a">33 行</text><text x="4" y="65" font-size="12" fill="#334155">第 2 轮 值修改 + 撤期</text><rect x="210" y="52" width="12" height="12" rx="2" fill="#f59e0b"><title>值变化</title></rect><rect x="225" y="52" width="12" height="12" rx="2" fill="#dc2626"><title>行被删</title></rect><text x="548" y="63" font-size="12" fill="#0f172a">2 行</text><text x="4" y="99" font-size="12" fill="#334155">第 3 轮 同 raw 重跑</text><rect x="210" y="86" width="12" height="12" rx="2" fill="#94a3b8"><title>无变化汇总</title></rect><text x="548" y="97" font-size="12" fill="#0f172a">1 行</text><rect x="210" y="133" width="11" height="11" rx="2" fill="#1d4ed8"/><text x="226" y="144" font-size="11" fill="#334155">新增行</text><rect x="360" y="133" width="11" height="11" rx="2" fill="#f59e0b"/><text x="376" y="144" font-size="11" fill="#334155">值变化</text><rect x="510" y="133" width="11" height="11" rx="2" fill="#dc2626"/><text x="526" y="144" font-size="11" fill="#334155">行被删</text><rect x="660" y="133" width="11" height="11" rx="2" fill="#94a3b8"/><text x="676" y="144" font-size="11" fill="#334155">无变化汇总</text></svg>
+<figcaption>图 2｜三轮演示各自的 diff 构成。第 1 轮空表装载全是 <code>row_added</code>；
+第 2 轮恰好 1 条 <code>value_changed</code>（144.7 → 150.9）+ 1 条 <code>row_dropped</code>（2022-01 撤期）；
+第 3 轮同 raw 重跑只写 1 行 <code>no_change</code> 汇总。</figcaption></figure>
+<table>
+<tr><th>轮次</th><th>change_type</th><th>indicator</th><th>column</th><th>old → new</th></tr>
+<tr><td>2</td><td>value_changed</td><td>period=2026-01-01|indicator=新型储能累计装机规模</td>
+<td>value</td>
+<td>144.7 → <b>150.9</b></td></tr>
+<tr><td>2</td><td>row_dropped</td><td>period=2022-01-01|indicator=新型储能累计装机平均时长</td><td>—</td>
+<td>period=2022-01-01|period_raw=2022-01|indicator=新型储能累计装机平均时长|value=2.11|unit=小时|caliber=2021 年末值（原文：2021-2025 年由 2.11 小时增…</td></tr>
+<tr><td>3</td><td>no_change</td><td>(全表)</td><td>—</td>
+<td>staged=32 库内=32 差异=0</td></tr>
+</table>
+<pre class="term">[industry] industry_cnesa_storage                     raw=    32 staged=    32 dedup=  0 total=    32 partitions=   1 diff=    2 source      0.03s
+[industry] 报表: /srv/share/quantdb/staging/work585-demo/meta/industry/load-20261125T233014.json
+
+[industry] industry_cnesa_storage                     raw=    32 staged=    32 dedup=  0 total=    32 partitions=   1 diff=    1 source      0.03s
+[industry] 报表: /srv/share/quantdb/staging/work585-demo/meta/industry/load-20261125T233017.json
+</pre>
+
+<h3>6.2 F3 回归：上游删期，库内不留幽灵行</h3>
+<p>第 2 轮删掉 2022-01 后，演示库最终只剩这些期：
+<b>2026-01</b>（32 行）。
+改前按期替换只删「本次出现的期」，2022-01 会一直留在库里且 7 闸全绿——这正是 F3。</p>
+
+<h3>6.3 幂等</h3>
+<p>第 3 轮与第 2 轮 raw 完全相同，写入 1 行 <code>no_change</code>
+（<code>staged=32 库内=32 差异=0</code>），
+库内行数保持 32。</p>
+
+<h3>6.4 主库现状（本轮正式装载）</h3>
+<p>run <code>20261125T232942</code>：diff 行合计 <b>17</b>，
+覆盖 <b>17</b> 张表；库内 <code>industry_*</code> 基表
+<b>21</b> 张（17 观测 + 1 预测 + audit + diff + catalog_map），
+行业层业务表合计（17 观测 + 1 预测）<b>265,026</b> 行；近 30 天复核视图 <b>0</b> 行
+（本次装载与库内一致，没有值变化与被删行，视图为空是正确结果）。</p>
+<table>
+<tr><th>table_name</th><th>change_type</th><th class="num">n</th></tr>
+<tr><td>industry_benchmark_public_index</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_caam_auto_output</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_chinamoney_lpr</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_cnesa_storage</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_cninfo_announcements</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_comtrade_trade_values</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_cpcaauto_nev</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_exchange_daily_quotes</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_gfex_lithium_carbonate</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_mof_fiscal</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_nea_power</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_ow_iea_usgs_timeseries</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_pbc_shrzgm</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_ppi_spot_prices</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_sne_public_battery</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_stats_gov_release</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_trendforce_spot_price</td><td>no_change</td><td class='num'>1</td></tr>
+</table>
+<p class="muted">自检：各 <code>change_type</code> 分项相加 = 17；
+各表相加 = 17。统计时点 2026-11-25 23:42 CST。</p>
+
+<h3>6.5 质量闸</h3>
+<table><tr><th>闸</th><th>结果</th></tr><tr><td>C1_rows_nonzero</td><td class="ok">PASS</td></tr><tr><td>C2_primary_key</td><td class="ok">PASS</td></tr><tr><td>C3_date_domain</td><td class="ok">PASS</td></tr><tr><td>C4_unit_reconciliation</td><td class="ok">PASS</td></tr><tr><td>C5_audit_consistency</td><td class="ok">PASS</td></tr><tr><td>C6_catalog_coverage</td><td class="ok">PASS</td></tr><tr><td>C7_freshness</td><td class="ok">PASS</td></tr><tr><td>C8_forecast</td><td class="ok">PASS</td></tr><tr><td>C9_load_diff</td><td class="ok">PASS</td></tr></table>
+<p>9/9 PASS（报告文件 <code>industry-20261125.json</code>）。</p>
+
+<h3>6.6 离线测试</h3>
+<p><code>pytest db/tests/</code> 全绿，其中 <code>db/tests/test_industry_diff.py</code>
+<b>9</b> 项为本单新增：值修改 + 新增行、快照源撤期（F3 回归）、幂等 0 差异、
+分区源只碰本期、空快照拒绝清表（含 <code>--full</code>）、整数与浮点同值不误报、
+离线 HTML fixture 的 F3 全链路、C9 缺留痕、C9 畸形行。</p>
+
+<h2>7. 已知限制</h2>
+<ul>
+<li><b>整源替换只给了 <code>cnesa_storage</code></b>。其余快照型源（benchmark / ppi / trendforce）按
+<code>snapshot_date</code>/<code>as_of</code> 分区替换，旧快照按设计保留；它们是否也该整源替换，
+要看「同一快照日上游会不会删行」，需要各自的一次实测，不在本单范围。</li>
+<li><b>row_hash 源没有「值变化」</b>：内容改版显示为一行 add + 一行 drop。不把两行配成一条，
+是因为业务键不唯一（146 行对 98 个业务键），配对靠推断、推断错比不推断更糟。</li>
+<li><b>C9 只查留痕完整性</b>，不判断变化是否符合业务预期——那是人看视图的事。</li>
+<li><b>diff 不清理</b>：每日/每月累积，量级是「每次装载的变更行数」，正常重跑每表 1 行；
+若将来需要保留窗口，另开单做归档，不在本单。</li>
+<li><b><code>--full</code> 的 diff 会放大</b>：清表重装会为被清掉的行各写一条 <code>row_dropped</code>
+（<code>industry_stats_gov_release</code> 13.7 万行 → 约 27 万条 diff，实测 <code>executemany</code>
+约 2,450 行/秒，仅插入约 2 分钟），所以它仍是「排查时用」的手工命令，不进定时任务。</li>
+<li><b>数据库结构</b>：新增 1 表 + 1 视图，17 张观测表零改动；旧版本 DuckDB 客户端读到
+<code>industry_load_diff</code> 不影响既有查询。</li>
+</ul>
+
+<h2>8. 回滚</h2>
+<pre class="term"># ① 代码（二选一）
+git -C /srv/share/quantdb/code/quant-lab revert &lt;交付 SHA&gt;
+#   或直接还原改前备份：
+cp db/etl/industry.py.bak-&lt;时间戳&gt;         db/etl/industry.py
+cp db/checks/industry.py.bak-&lt;时间戳&gt;      db/checks/industry.py
+cp db/schema_industry.sql.bak-&lt;时间戳&gt;     db/schema_industry.sql
+
+# ② 库对象（只删留痕对象，不动任何观测表数据）
+flock /srv/share/quantdb/logs/.quantdb-db.lock   /home/moyongkai/.venvs/quantdb/bin/python - &lt;&lt;'SQL'
+import duckdb
+con = duckdb.connect("/srv/share/quantdb/db/quantdb.duckdb")
+con.execute("DROP VIEW IF EXISTS v_industry_load_changes_recent")
+con.execute("DROP TABLE IF EXISTS industry_load_diff")
+con.execute("CHECKPOINT"); con.close()
+SQL
+
+# ③ 数据：整源替换已经清掉的残留行不会因回滚代码复活；
+#    需要恢复就按 raw 重新装载（raw 未改动）。</pre>
+<p class="muted"><code>industry.sh</code> 调用方式未改，回滚代码即恢复原行为；
+C9 随 <code>industry_load_diff</code> 一起消失，C1–C8 不受影响。</p>
+
+<h2>9. 附录</h2>
+<h3>9.1 表结构</h3>
+<pre class="term">CREATE TABLE IF NOT EXISTS industry_load_diff (
+    run_id      VARCHAR NOT NULL,   -- 与 industry_load_audit.run_id 同一次运行
+    source      VARCHAR NOT NULL,   -- Source.name
+    table_name  VARCHAR NOT NULL,
+    period      DATE,               -- 分区日期；非日期分区源为 NULL
+    indicator   VARCHAR NOT NULL,   -- 业务键文本 k=v|k=v
+    change_type VARCHAR NOT NULL,   -- value_changed | row_added | row_dropped | no_change
+    column_name VARCHAR,            -- value_changed 时变化的列名
+    old_value   VARCHAR,            -- 变化前 / 被删行整行文本；源侧为空记 ∅
+    new_value   VARCHAR,            -- 变化后 / 新增行整行文本；no_change 存汇总文本
+    changed_at  TIMESTAMP NOT NULL
+);</pre>
+
+<h3>9.2 常用查询</h3>
+<pre class="term">-- 近 30 天需要人复核的变更
+select * from v_industry_load_changes_recent order by changed_at desc;
+
+-- 某次运行改了什么
+select change_type, table_name, period, indicator, column_name, old_value, new_value
+from industry_load_diff where run_id = '20261125T232942'
+order by table_name, indicator;
+
+-- 本轮跑过没有
+select table_name, new_value from industry_load_diff
+where run_id = '20261125T232942' and change_type = 'no_change';</pre>
+
+<h3>9.3 复跑命令</h3>
+<pre class="term">cd /srv/share/quantdb/code/quant-lab
+# 离线行为测试（raw 与库都在 pytest tmp_path，不碰生产）
+PYTHONPATH=$PWD /home/moyongkai/.venvs/quantdb/bin/python -m pytest db/tests/test_industry_diff.py -q
+# 复核脚本：演示 / 主库现状 / 自检 / C9
+QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
+  /home/moyongkai/.venvs/quantdb/bin/python scripts/work585_verify.py all
+# 9 道闸
+QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
+  /home/moyongkai/.venvs/quantdb/bin/python -m db.checks.industry all</pre>
+
+<h3>9.4 代码锁版（sha256）</h3>
+<pre class="term"># WORK-585 代码锁版（2026-11-25，第 2 轮复审锁版）
+branch: agent/work-585-diff-log
+base_sha: 59e5682e438373d594c482257a095a364adf20f8   # WORK-584 交付 tip
+head_sha: 58935fb9a65a936c10757f204e4a1056c7eae020
+files (8):
+f762b18212c1557bb7b4ea435e5a94d7c0ab17c6fa696d6946edfa7cc22a26d8  db/etl/industry.py
+922aa92917f40637a5f37b9c7ce362171cc33f4d2b52fe38939bba986691e627  db/checks/industry.py
+6cb2f3aebaf23b4483d935218a8a207f592671bc3bc58c5b6e8b71f4dd7fe0f7  db/schema_industry.sql
+e3a9867d668befbbde1e5001c7ded8125025f2417f71e83cf40e81778b133657  db/tests/test_industry_diff.py
+946a6608f26a15187737658401acc759b5620bf5393989e9f20d5a0ff5581c3a  scripts/work585_verify.py
+1df3b8c57250346b9e1bc7a2f7257ecf2ac62b7969ce38694126d9c1240df323  scripts/work585_build_delivery.py
+6f7ffcd123bd29fd1639f34ed175abedc9c6e793eb5e2e1ca8c39ece7bc135e5  docs/industry-ingest-2026.md
+5fac87622315984985060632952ed26930a90f6872ee7691aa8b66620acc2e82  CHANGELOG.md</pre>
+
+<footer>
+本页由 <code>scripts/work585_build_delivery.py</code> 从现场数据生成；所有数字来自
+<code>db/quantdb.duckdb</code> 只读查询、<code>meta/industry/work585-*.json</code> 与
+<code>meta/checks/</code> 闸报告，无手工填写。图 1/图 2 为内联 SVG，断网可读、可直接打印。
+</footer>
+</main></body></html>

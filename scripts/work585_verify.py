@@ -141,8 +141,9 @@ def cmd_demo() -> dict:
           "value_changed 的 new_value = 150.9")
     check(dropped.shape[0] == 1, f"期消失落 row_dropped 1 行（实际 {dropped.shape[0]} 行）")
     periods_after = sorted({str(p)[:7] for p in after["period"]})
-    check("2022-01" not in periods_after,
-          f"整源替换后 2022-01 期已从库内消失（F3），现存期 {periods_after}")
+    check("2022-01" not in periods_after and "2026-01" in periods_after,
+          f"整源替换后 2022-01 消失、2026-01 仍在（F3），现存期 {periods_after}"
+          f"，{after.shape[0]} 行")
 
     payload = {
         "demo_home": str(DEMO),

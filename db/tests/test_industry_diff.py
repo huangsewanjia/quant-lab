@@ -8,7 +8,6 @@ from __future__ import annotations
 import datetime as dt
 import importlib
 import json
-import sys
 from pathlib import Path
 
 import pandas as pd
@@ -305,11 +304,11 @@ SENTENCE_DURATION = (
 )
 
 
-def _cnesa_rows_from_html(sentences: list[str]) -> pd.DataFrame:
+def _cnesa_rows_from_html(sentences: list[str], monkeypatch) -> pd.DataFrame:
     """离线 HTML fixture -> 抓取器正文解析 -> raw 行（不联网、不写生产 raw）。"""
     if not (FETCH_DIR / "fetch_cnesa_storage.py").exists():
         pytest.skip("CNESA 抓取脚本不在本机（/srv/share/quantdb/code/industry_fetch）")
-    sys.path.insert(0, str(FETCH_DIR))
+    monkeypatch.syspath_prepend(str(FETCH_DIR))
     fetch = importlib.import_module("fetch_cnesa_storage")
     html = (
         "<html><body><h1>2025年度CNESA储能数据重磅发布</h1>"
@@ -322,7 +321,7 @@ def _cnesa_rows_from_html(sentences: list[str]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def test_f3_regression_from_offline_html_fixture(qdb):
+def test_f3_regression_from_offline_html_fixture(qdb, monkeypatch):
     """S3 / 规格第 2 条：上游删掉「2021 年末那句」→ 解析少一期 → 装载后库内清除并进日志。
 
     走的是抓取器的正文解析（HTML -> 文本 -> 期与指标），不是直接改 parquet，
@@ -331,7 +330,7 @@ def test_f3_regression_from_offline_html_fixture(qdb):
     _prepare_db(qdb)
     source = ind.SOURCE_BY_NAME["cnesa_storage"]
 
-    full = _cnesa_rows_from_html([SENTENCE_TOTAL, SENTENCE_DURATION])
+    full = _cnesa_rows_from_html([SENTENCE_TOTAL, SENTENCE_DURATION], monkeypatch)
     periods = sorted({str(p) for p in full["period"]})
     assert "2022-01" in periods and "2026-01" in periods, periods
     _write_cnesa(full.to_dict("records"))
@@ -343,7 +342,7 @@ def test_f3_regression_from_offline_html_fixture(qdb):
         ).fetchone()[0] == 1
 
         # 上游改版：那句「2021-2025 年由 2.11 小时增至 2.58 小时」被删掉
-        shrunk = _cnesa_rows_from_html([SENTENCE_TOTAL])
+        shrunk = _cnesa_rows_from_html([SENTENCE_TOTAL], monkeypatch)
         assert "2022-01" not in {str(p) for p in shrunk["period"]}
         _write_cnesa(shrunk.to_dict("records"))
         ind.load_source(con, source, "run-2")

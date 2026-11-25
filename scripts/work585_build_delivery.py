@@ -186,7 +186,18 @@ def main() -> None:
     n_tests = len(re.findall(r"^def test_", test_file.read_text(encoding="utf-8"), re.M)) \
         if test_file.exists() else 0
 
-    check_file = sorted(CHECKS.glob("industry-*.json"))[-1] if CHECKS.exists() else None
+    # 挑「含 9 道闸」的最新报告，而不是文件名字典序最大：单闸排查会写
+    # industry-<日期>-<闸名>.json，按名字排会把它选进来，页面上只剩 1/1 PASS。
+    reports: list[tuple[int, float, Path]] = []
+    if CHECKS.exists():
+        for path in CHECKS.glob("industry-*.json"):
+            try:
+                gates = len(json.loads(path.read_text(encoding="utf-8")).get("gates", {}))
+            except (OSError, ValueError):
+                continue
+            reports.append((gates, path.stat().st_mtime, path))
+    full = [r for r in reports if r[0] == 9]
+    check_file = max(full or reports, key=lambda r: r[1])[2] if reports else None
     gate = json.loads(check_file.read_text()) if check_file else {"gates": {}}
     gate_rows = "".join(
         f'<tr><td>{esc(name)}</td><td class="{"ok" if d.get("pass") else "bad"}">'
