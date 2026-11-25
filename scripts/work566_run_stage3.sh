@@ -9,11 +9,26 @@ SEEDS=${SEEDS:-"42 2024"}
 ARMS="s1_only s3_only s1_s2 full r0 r1 r2 r3 fmb"
 COSTS="0.0005 0.0015 0.0030"
 
+echo "=== [0/7] 前置检查：训练产物齐备性（缺产物直接停，不空跑 54 次回测）==="
+# 失败即停（set -e）：任何种子/臂的 preds npz 缺失就立刻报错退出
+for s in $SEEDS; do
+  for arm in s1_only s3_only s1_s2 full r0 r1 r2 r3; do
+    p="data/WORK-566/preds_seed${s}_${arm}.npz"
+    if [ ! -s "$p" ]; then
+      echo "缺少训练产物：$p —— Stage 3 不启动" >&2
+      exit 3
+    fi
+  done
+done
+echo "  训练产物齐备：$(echo $SEEDS | wc -w) 种子 × 8 臂"
+
 echo "=== [1/7] 组合回测（各臂 × 种子 × 成本档）==="
 # 54 次回测串行约 1 小时（每次 ~65s）；回测是单线程 numpy + 读小面板，
 # 用 JOBS 路并行（默认 3 路，产物按臂/种子/成本分文件，互不冲突）
 JOBS=${JOBS:-3}
-JOBFILE=$(mktemp /tmp/w566_bt_jobs.XXXXXX)
+# jobfile 放 data/WORK-566/（gitignored）：/tmp 配额被同机其他 agent 占满，不再依赖 /tmp
+mkdir -p data/WORK-566
+JOBFILE="data/WORK-566/bt_jobs.txt"
 for arm in $ARMS; do
   for s in $SEEDS; do
     for c in $COSTS; do
