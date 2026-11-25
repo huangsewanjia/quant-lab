@@ -48,11 +48,21 @@ TABLES = [s.table for s in SOURCES]
 UNIT_VOCABULARY: dict[str, tuple[str, str, set[str]]] = {
     "industry_gfex_lithium_carbonate": ("unit", "value", {"元/吨", "手", "万元"}),
     "industry_chinamoney_lpr": ("unit", "value", {"%"}),
-    "industry_cnesa_storage": ("unit", "value", {"GW", "%"}),
+    # CNESA 词表扩到 WORK-577 实测单位（该改动此前只在 live 树、未入 git，本单随
+    # 本单分支同步，保证分支上的闸可独立复跑）
+    "industry_cnesa_storage": ("unit", "value",
+                               {"GW", "%", "GWh", "个", "项", "元/kWh", "小时"}),
     "industry_caam_auto_output": ("unit", "value", {"万辆"}),
     "industry_cpcaauto_nev": ("unit", "value", {"万辆", "%", "条"}),
     "industry_mof_fiscal": ("unit", "value", {"亿元"}),
-    "industry_nea_power": ("unit", "value", {"亿千瓦", "亿千瓦时", "小时"}),
+    # nea 的单位来自两种正文形态：散文摘要用 亿千瓦/亿千瓦时/小时；2021–2023 的
+    # 电力统计稿正文是整张 HTML 表（WORK-581），表内按上游原样出现 万千瓦（装机）、
+    # 亿元（电源/电网投资）、%（厂用电率）、克/千瓦时（供电煤耗）、万百万千焦（供热量）、
+    # 万吨（供热耗煤）、万千伏安/千米（新增变电设备与线路）。词表按实测全集固定，
+    # 上游再出现新单位仍判 FAIL。
+    "industry_nea_power": ("unit", "value",
+                           {"亿千瓦", "亿千瓦时", "小时", "万千瓦", "亿元", "%",
+                            "克/千瓦时", "万百万千焦", "万吨", "万千伏安", "千米"}),
     "industry_pbc_shrzgm": ("unit", "value", {"亿元"}),
     "industry_ppi_spot_prices": ("price_unit", "price", {"吨", "公斤", "千克"}),
     "industry_stats_gov_release": ("unit", "value", {"%", "亿元/%"}),
@@ -236,7 +246,9 @@ def c4_unit_reconciliation(con) -> tuple[bool, dict[str, Any]]:
 
     # nea: 同文章同期「当月」全社会用电量 ≈ 四个分产业当月值之和（容差 1%）。
     # 抓取层对每个指标同时落了当月与累计，同一 (文章, 期, 指标) 有两行；
-    # 只取成对出现（count=2）的指标，用 min() 取当月值（流量累计值 ≥ 当月值）。
+    # 分产业与全社会用电量都按 min() 取当月（流量累计值 ≥ 当月值），两侧同口径。
+    # 全社会用电量先按 (文章, 期) 收敛成一行再参与连接：2021–2023 的用电量稿
+    # 同时给当月和累计，若直接 JOIN 会让分产业行数翻倍、n_parts≠4 而被静默排除。
     nea_rows = con.execute(
         """
         WITH monthly AS (
@@ -246,16 +258,20 @@ def c4_unit_reconciliation(con) -> tuple[bool, dict[str, Any]]:
                                 '第三产业用电量','城乡居民生活用电量')
             GROUP BY 1, 2, 3
             HAVING count(*) = 2
+        ), total AS (
+            SELECT source_url, period, min(value) AS monthly_total
+            FROM industry_nea_power
+            WHERE indicator = '全社会用电量'
+            GROUP BY 1, 2
         ), a AS (
             SELECT m.source_url, m.period,
-                   max(t.value) AS total,
+                   max(t.monthly_total) AS total,
                    sum(m.monthly) AS parts,
                    count(*) AS n_parts
             FROM monthly m
-            JOIN industry_nea_power t
+            JOIN total t
               ON t.source_url = m.source_url
              AND t.period IS NOT DISTINCT FROM m.period
-             AND t.indicator = '全社会用电量'
             GROUP BY 1, 2
         )
         SELECT count(*) FILTER (WHERE n_parts = 4),

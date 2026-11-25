@@ -57,19 +57,20 @@ ls -d /srv/share/quantdb/raw/industry_alt/*/    # 7
 | 4 | caam_auto_output | 146 / 2026-04..2026-10（6 期） | 1,614 / **2020-05**..2026-10（68 期） | 列表页只有 32 个链接，正文须按 NewsID 回溯；不存在的 id 返回 500 |
 | 5 | cpcaauto_nev | 52 / 2025-10..2026-11（14 期） | 506 / **2019-11**..2026-11（85 期） | 列表 20 篇/页、每栏目 5 页；缺 `Upgrade-Insecure-Requests` 头会被 WAF 403 |
 | 6 | mof_fiscal | 37 / 2017-11..2026-10（5 期，含 §4.3 串期行） | 836 / **2015-02**..2026-10（84 期；另有 227 行期解析失败→NULL，见 §4.3） | 列表 `index_<n>.htm` 一页约 10 篇财政收支情况 |
-| 7 | nea_power | 45 / 2026-06..2026-09（4 期） | 606 / **2024-07**..2026-10（23 期） | `sort=date` 下 9 页（1,800 条）即到 2021-01，但 2021–2023 月度稿在索引里命中 0；2024 部分文章 URL 404；正文数据表为 PNG（见 §10.3） |
+| 7 | nea_power | 45 / 2026-06..2026-09（4 期） | 1,677 / **2021-03**..2026-10（54 个非空统计期；WORK-581 换成 xwfb `ds_*.json` 源 + 解析正文 HTML 表，见 §12） | 站内搜索深翻 2,400 条只到 2024-08 且无年份标题被旧正则全丢；`ds_*.json` 一次 GET 拿 400 条全量（滚动快照）；26 篇电力统计稿里 **6 篇的表是图片**，表行占 663 行 |
 | 8 | pbc_shrzgm | 110 / 2026-01..2026-10（10 期） | 770 / **2021-01**..2026-10（70 期） | 年度目录 2015–2026，每年一张含 12 个月的增量统计表 |
 | 9 | stats_gov_release | 2,468 / 2025-10..2026-10（13 期） | 137,342 / **2020-12**..2026-10（71 期；另 4,724 行年度类文章期解析失败→NULL，见 §10.3） | 列表 `index_<n>.html` 49 篇/页；六组指标各取 70 篇 |
 | 10 | ow_iea_usgs_timeseries | 42 / 2024..2025 | 1,044 / **1750..2025**（6 个 slug、22 个实体） | 取上游 CSV 全序列（lithium 558 行；World 1995–2025 共 31 年） |
 | 11 | comtrade_trade_values | 5 / 2024 | 30 / **2019..2024**（5 HS × 6 年） | preview 接口按年可用；HS 854143（光伏组件）在 2019–2021 返回空 |
 | 12 | cnesa_storage | 2 / 2026-01 | 未改 | 只有年度摘要页，改造属另单 |
 | 13 | benchmark_public_index | 26 / 2026-11-23 | 未改 | 页面临时快照，上游无历史序列 |
-| 14 | exchange_daily_quotes | 84 / 2026-11-23 | 未改 | 一次抓一个交易日，历史回补属另单 |
+| 14 | exchange_daily_quotes | 84 / 2026-11-23 | 21,756 / **2025-11-03**..2026-11-25（259 交易日；WORK-578 回补，**未计入本行合计 241,892**，见 §10.7） | 上游按交易日发布（SHFE `kxYYYYMMDD.dat` 归档实测最早 2002-01-07；GFEX 碳酸锂 2023-07-21 上市），脚本按交易日循环 |
 | 15 | ppi_spot_prices | 32 / 2026-11-20..2026-11-23 | 未改 | 厂商挂牌价当日快照 |
 | 16 | sne_public_battery | 8 / 2026-11-04..2026-11-11 | 未改 | 新闻稿列表，无月度数值序列 |
 | 17 | trendforce_spot_price | 44 / 2026-11-23 | 未改 | 现货页当日快照 |
 
 合计：**16,834 → 241,892 行**（17 表逐行相加，见 §10.4 的复跑命令）。
+「241,892」是 **WORK-578 之前**的口径；若按本表第 14 行显示的回补后值列相加则为 **263,564 = 241,892 + 21,672**。两数都只对应 18:00 那个时点——之后 WORK-576 的日频 timer 又在装载，库内 17 表合计会继续变（实时值用 `verify.py shape` 读，不要引用本节快照数）。
 
 ## 3. 复跑命令（绝对路径）
 
@@ -107,8 +108,8 @@ QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
 
 | 档位 | 默认值 | 谁用 | 深度 |
 |---|---|---|---|
-| `--mode incremental`（默认） | 不传参就是这个 | 定时任务（`industry.sh daily/monthly` 显式传） | GFEX 30 天 + `--resume`、巨潮 90 天、中汽协 3 个月、财政部 4 页、乘联 3 页、能源局只固定 mode（窗口旋钮归 WORK-579）、人民银行当年、统计局 6 页 / 每组 6 篇 |
-| `--mode backfill` | 必须显式 `--mode backfill` | 手工回填 | GFEX 1825 天、巨潮 1095 天、中汽协 78 个月 / 1600 个 id、财政部 30 页 / 150 篇、乘联 10 页 / 90 篇、能源局 `--mode backfill`（窗口归 WORK-579）、人民银行 2021 年起、统计局 80 页 / 每组 70 篇 |
+| `--mode incremental`（默认） | 不传参就是这个 | 定时任务（`industry.sh daily/monthly` 显式传） | GFEX 30 天 + `--resume`、巨潮 90 天、中汽协 3 个月、财政部 4 页、乘联 3 页、能源局只固定 `--mode incremental`（近 6 个月窗口由脚本默认）、人民银行当年、统计局 6 页 / 每组 6 篇 |
+| `--mode backfill` | 必须显式 `--mode backfill` | 手工回填 | GFEX 1825 天、巨潮 1095 天、中汽协 78 个月 / 1600 个 id、财政部 30 页 / 150 篇、乘联 10 页 / 90 篇、能源局 `--mode backfill`（默认不限窗口，可用 `--from-ym/--to-ym` 收窄）、人民银行 2021 年起、统计局 80 页 / 每组 70 篇 |
 
 显式传数值（如 `--days 7`）永远优先于 `--mode`；manifest 的 `params.mode` 与各旋钮实际值可事后核对。
 抓取落盘是合并写（按 key 去重），窗口收窄只影响「本次请求多少」，不会丢已有 raw 行。
@@ -146,7 +147,9 @@ fetcher 的 6 条正则只命中 2 条（`中国电力储能累计装机规模`�
 
 ### 4.4 国家能源局：同一指标名混「当月/累计」
 
-例：2026-08 同一文章下「城乡居民生活用电量」同时有 1,883 与 11,132 两个值（当月 vs 累计），fetcher 未区分。故 `industry_nea_power` 用 `row_hash` 作主键保留全部行，业务键重复数在 C2 里如实报出；查询时必须结合 `value` 量级或回原文判断口径。
+例：2026-08 同一文章下「城乡居民生活用电量」同时有 1,883 与 11,132 两个值（当月 vs 累计）。库层口径不变：`industry_nea_power` 用 `row_hash` 作主键保留全部行，业务键 `(period, indicator, source_url)` 重复 **365 组**（2026-11-25 回补后实测），即同一期同一指标的当月/累计两行，按约定不合并；查询时必须结合 `value` 量级或回原文判断口径。
+
+WORK-581 起抓取层已按句/按列显式判口径并写进 raw 的 `context`（`[当月]`/`[累计]`/`[存量]` 前缀、表格行另带 `表N行M·累计`），所以逐行能回查口径；C4 的 nea 子闸两侧都取 `min`（当月）比较，不再依赖「全社会用电量只有一行」这个巧合。
 
 ### 4.5 统计局利润表：表头与数值错位一列
 
@@ -276,7 +279,7 @@ systemctl --user daemon-reload
 | caam_auto_output | `--articles 90 → 可配`、`--scan` 可配、回溯改按自然月（`--months 78`）；NewsID 扫描不再重试（不存在即 500） | 列表页 `ReadArticle.asp?NewsID=` 只有 32 个链接；`NewsID=11442` 返回 200 空壳 | `python fetch_caam_output.py --mode backfill --sleep 0.22` |
 | cpcaauto_nev | `--articles 12 → 90`，新增列表翻页（`news.php?types=..&anid=..&nid=0&page=N`）；`_common` 补 `Upgrade-Insecure-Requests` 头（缺则 403「请使用浏览器访问本站」） | 栏目 `bgzl&anid=126` → `items=20`、页脚 `page=2..5` | `python fetch_cpcaauto_nev.py --mode backfill` |
 | mof_fiscal | `--articles 6 → 90`，新增 `index_<n>.htm` 列表翻页 | `index.htm` → 财政收支 9 篇；`index_5.htm` → 最早 2022-09 | `python fetch_mof_fiscal.py --mode backfill` |
-| nea_power | 搜索改 `sort=date` + `pageSize=500` + 早停；改用 `originUrl` 作首选 URL；关键词按年份扩词 | 见 §10.3（站内搜索限速与深分页不稳定是硬约束） | `python fetch_nea_power.py --mode backfill --sleep 2.0` |
+| nea_power | **WORK-581 换源**：站内搜索翻页 → `xwfb/ds_<id>.json` 一次 GET；正则兼容无年份标题；正文 HTML 表逐行解析 | 400 条快照（2016-04-07..2026-11-25），2021–2023 命中 55 篇，见 §12 | `python fetch_nea_power.py --mode backfill --from-ym 2021-01 --to-ym 2023-12 --sleep 2.0` |
 | pbc_shrzgm | 由「只抓 2026 年度页」改为按年度目录循环（2015–2026，按锚文本发现年份，结果缓存 `year_dirs.json`）；WAF 403 单请求重试 | `116219/index.html` 锚文本 → `2015..2026 共 12 个年度目录`；每年 `shrzgm` 页挂 1 份含 12 个月的增量表 `.htm` | `python fetch_pbc_shrzgm.py --mode backfill --sleep 5` |
 | stats_gov_release | 列表改 `index_<n>.html` 翻页（49 篇/页），每个指标组取 `--articles` 篇 | `index_20.html` → 首篇 2025-05-19（约 18 个月/20 页） | `python fetch_stats_gov.py --mode backfill` |
 | ow_iea_usgs_timeseries | `for x in sel[-2:]` → 取全部有值年份（深度可配 `--min-year`），manifest 增 `params.depth` | `lithium-production.csv` → 558 行，`World` 1995–2025（31 年） | `python fetch.py`（无参即全历史） |
@@ -287,7 +290,7 @@ systemctl --user daemon-reload
 | 项 | 状态 | 原因分层 |
 |---|---|---|
 | GFEX 1,000 个交易日 | 811 | **上游只到上市日**：碳酸锂 2023-07-21 才有合约（§10.2 实测）。核对：`trade_cal` 中 2023-07-21..2026-11-24 开市日 810 个，加当日 2026-11-25（`trade_cal` 尚未收录）= 811，**无亏缺**；区间自然工作日 874 个，差额 64 天全部是休市日 |
-| NEA 60 期 | 23 期（2024-07 起） | **三层约束，逐层有实测**：①索引缺稿——`sort=date` 生效，「全社会用电量」9 页/1,800 条即到 2021-01（`stop_reason=since_20210101_reached_at_p9`），「全国电力统计数据」8 页/1,600 条（`..._at_p8`），但 2021–2023 的月度稿在索引里命中 **0** 条（年份扩词 12 个词全部 `kept_titles=0`，见 `manifest.params.scan_stats`）；②2024 部分文章 URL 失效——`originUrl` 与本站 `fileId` 两种候选都 404（`failed.json` 逐条有 URL）；③正文数据表是 PNG 图片——「国家能源局发布…全国电力统计数据」正文只有摘要数字，结构化需 OCR。未排序扫描另有限速与 ~10,100 条深分页上限（`totalNum=56,632`、`pageTotal=1,133`@50 条），本脚本已改 `sort=date` 规避。后续路径：换 `xwfb` 频道的 datasource API，或对图片表 OCR（另单） |
+| NEA 60 期 | 23 期（2024-07 起）→ **54 期（2021-03 起）**，WORK-581 已补 | **边界在搜索通道，不在上游**（WORK-579 探针 + WORK-581 实施两次实测）：①站内搜索深翻页上限——`sort=date` 下「全社会用电量」12 页/2,400 条只到 2024-08-17，够不到 2021–2023；②无年份标题被旧 `TITLE_RE` 丢弃——2021–2023 的稿多为「11月份全社会用电量…」，旧正则要求「YYYY年M月」，对窗口内 56 篇候选命中 **0**（§12 复跑命令 A 段）；③正文表**并非全是 HTML**——26 篇电力统计稿里 19 篇是 HTML 表（663 数据行）、**6 篇是图片表**（发布日 2021-07-16、2021-10-21、2022-01-26、2022-04-20、2022-07-19、2023-01-18；统计期 2021-06/09/12、2022-03/06/12，只能取到正文摘要数字，需 OCR 才能补表行）、1 篇无表；④该频道本身缺 5 个月（用电量缺 2021-01/02/10、2022-01/06、2023-01/05 等，见 §12 覆盖表），不是脚本漏抓。未排序扫描另有限速与 ~10,100 条深分页上限。 |
 | CNINFO 有色金属 3 年 | 已取全 | 6 个查询均 `pages_fetched == totalpages`，无截断（`manifest.params.queries[].truncated=false`） |
 | COMTRADE HS 854143（光伏组件） | 2019–2021 空 | 上游 preview 接口这三年的该编码无记录（status=empty），2022–2024 有值；其余 4 个编码 6 年齐全（27/30 OK） |
 | 统计局年度类文章 | 4,724 行 period=NULL | 标题为纯年份（如「2021年…」）且表内无月份列，期解析失败后置空、不推断；分布：工业企业利润 3,634、固定资产投资 658、工业增加值 432 |
@@ -371,7 +374,7 @@ PY
 | `code/industry_fetch/fetch_caam_output.py` | 月粒度回溯、NewsID 扫描不重试 |
 | `code/industry_fetch/fetch_cpcaauto_nev.py` | 列表翻页、`--articles 90` |
 | `code/industry_fetch/fetch_mof_fiscal.py` | 列表翻页、`--articles 90` |
-| `code/industry_fetch/fetch_nea_power.py` | 日期排序翻页 + 年份扩词 + `originUrl` |
+| `code/industry_fetch/fetch_nea_power.py` | 日期排序翻页 + 年份扩词 + `originUrl`（WORK-581 再次改写：`ds_*.json` 源 + HTML 表解析，见 §12） |
 | `code/industry_fetch/fetch_pbc_shrzgm.py` | 年度目录循环 + 目录缓存 + 403 重试 |
 | `code/industry_fetch/fetch_stats_gov.py` | 列表翻页 + 每组多篇 |
 | `raw/industry_alt/ow_iea_usgs_timeseries/fetch.py` | 全序列 + `params` |
@@ -397,6 +400,155 @@ cd /srv/share/quantdb && sha256sum \
   code/quant-lab/scripts/work572_build_delivery.py | tee /srv/share/quantdb/meta/industry/work572-code-sha256.txt
 # 复核：sha256sum meta/industry/work572-code-sha256.txt 应为 2f300f5e88ef8168b2651fecedbe228d1da077369e4453fbb174b8ff2bd76c19（14 行）
 ```
+
+### 10.7 交易所日行情回补（WORK-578，2026-11-25）
+
+> 范围：只改 `/srv/share/quantdb/raw/industry_alt/exchange_daily_quotes/fetch.py` 的抓取窗口与失败记录，不动入库层（`db/etl/industry.py`）、不动质量闸、不动 `db/schema.sql` 与 A 股 20 表。
+
+**一句话**：交易所表从 1 个交易日（84 行）回补到 **259 个交易日（21,756 行，2025-11-03..2026-11-25）**，双源逐日齐全、零失败日；日常定时任务仍只补最近窗口。
+
+上游形态与一手 URL（都是一天一个文件/一次查询）：
+
+| 源 | 取法 | 一手 URL |
+|---|---|---|
+| 上期所 SHFE | GET，一天一个 `.dat`，JSON 里 `o_curinstrument` | `https://www.shfe.com.cn/data/tradedata/future/dailydata/kx{YYYYMMDD}.dat` |
+| 广期所 GFEX | POST 表单 `trade_date=<YYYYMMDD>&trade_type=0&variety_id=tslz` | `http://www.gfex.com.cn/u/interfacesWebTiDayQuotes/loadList` |
+
+上游深度实测（逐条是实际响应）：
+
+| 探测日 | SHFE `kx<date>.dat` | GFEX `loadList` |
+|---|---|---|
+| 2001-12-28 | **404**（HTML 错误页） | — |
+| 2002-01-04 | **404**（当年首个交易日仍无归档） | — |
+| 2002-01-07 | **200**，`o_curinstrument=38` | — |
+| 2005-01-04 / 2010-01-04 / 2015-01-05 / 2020-01-02 | 200，`o_curinstrument` 49 / 102 / 149 / 236 | — |
+| 2023-07-20 | 200（该文件只有 SHFE 品种） | 200，`data=10`，**无碳酸锂** |
+| 2023-07-21 | — | 200，`碳酸锂合约行=7`（上市首日） |
+
+复跑：
+
+```bash
+for d in 20011228 20020104 20020107 20230720 20230721; do
+  curl -s -o /dev/null -w "$d SHFE %{http_code}\n" \
+    "https://www.shfe.com.cn/data/tradedata/future/dailydata/kx$d.dat"
+  curl -s -X POST -d "trade_date=$d&trade_type=0&variety_id=tslz" \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    "http://www.gfex.com.cn/u/interfacesWebTiDayQuotes/loadList" \
+    | python3 -c 'import json,sys;d=json.load(sys.stdin).get("data") or [];print("  GFEX data=%d 碳酸锂=%d"%(len(d),len([x for x in d if str(x.get("variety"))=="碳酸锂"])))'
+done
+```
+
+结论：SHFE 归档最早可下载日实测 **2002-01-07**（2002-01-04 与更早的 2001-12-28 均 404；节假日也会 404，故只以「交易日」判定）；
+GFEX 碳酸锂自 **2023-07-21** 上市起有数据。本单按验收口径只回补最近 1 年，更早历史未逐日探测，也不在本单承诺内。
+
+抓取脚本改动（`fetch.py`）。**改前那一版没有留档**（20:08 首次改写前未备份，属本单疏漏；全盘只有当前版本），因此代码层面无法逐字节回滚，只能按下面的改动清单还原语义；数据层回滚不依赖它（见本节末）。当前版本 sha256 见表末。
+
+- 按交易日循环：交易日历取主库 `trade_cal`（`exchange='SSE'`，与两个期货所节假日一致），取不到时退回周一至周五并在 `manifest.params.calendar` 标 `weekday-fallback`；
+- `--from/--to`（YYYYMMDD 或 YYYY-MM-DD）、`--days N`（默认 **7**，日常增量窗口）、`--resume`（默认开）、`--no-resume`、`--sleep`（默认 1.1 秒）、`--calendar db|weekdays`、`--retries`（默认 3）；
+- `--resume` 的「已抓」判据是**该日已抓齐**而不是「CSV 里有这一天」：SHFE 必有，且 >= 碳酸锂上市日 2023-07-21 时 GFEX 也必有；只有一所的残缺日会被重抓补一所（记入 `manifest.params.incomplete_days_refetched`），避免一次瞬时失败留下永不修复的洞；
+- 失败逐条落 `failed.json`（`trade_date` + `source` + `method` + `url` + `http_status` + `error`），不写占位行、不估算补数；403/429/5xx/网络错误按 2s→5s 退避，最多 3 次尝试；
+- `manifest.json` 增 `params`（起止日、交易日数、抓取数、跳过数、残缺重抓日、请求数、重试数、失败日清单、`resume` 标志、耗时）与 `coverage`（首末日、distinct 交易日、按交易所行数）。
+- 未来交易日不请求、记 `pending_days`；「今天」上游未发布也记 pending 并把请求详情放 `pending_requests`，均不计入失败日；
+- 写 CSV 前取 `<目录>/.fetch.lock` 排他锁（`--lock-timeout`，默认 600 秒），CSV 用 `data.csv.tmp.<pid>` 原子替换；
+- 失败清单每次运行另存 `failed-<run_id>.json`，重放不会抹掉回补那次的记录；
+- 退出码：个别历史缺日返回 0（不拖垮 timer）；「有交易日、有失败、一行未取到」返回 1，让 timer 告警；
+- `--days N` 是**含 `--to`** 的 N 个自然日（默认 7 → 7 天窗口）。
+
+回补实测（统计时点 2026-11-25 20:19 Asia/Shanghai，日志 `/srv/share/quantdb/logs/work578-backfill.log`）：
+
+| 项 | 值 |
+|---|---|
+| 命令 | `python fetch.py --from 20251101 --to 20261125 --resume` |
+| 窗口 | 2025-11-01..2026-11-25（390 自然日） |
+| 交易日总数 | 259（`trade_cal` SSE 开市日） |
+| 本次抓取 / 跳过 | 258 / 1（2026-11-23 已于 WORK-568 落盘） |
+| HTTP 请求 / 重试 | 516 / 0 |
+| 失败日 | **0** |
+| 耗时 | 616.4 秒 |
+| 落盘行数 | 21,756（SHFE 18,648 + GFEX 3,108） |
+| 每日行数 | 恒 84（SHFE 6 品种 × 12 个挂牌月 + GFEX 12 个合约） |
+
+分项自检：18,648 + 3,108 = **21,756** = 库内总行数；259 × 84 = **21,756**（两路算法一致）。
+CSV 摘要：`csv_sha256 = 2ac82165a0e3567de34ca188d25bcccaa70bee1ec119a0d452b0c19c7de9db98`。
+
+复跑（重放同一条命令，全部命中 `--resume`，应为 0 请求、CSV 字节不变）：
+
+```bash
+cd /srv/share/quantdb/raw/industry_alt/exchange_daily_quotes
+/home/moyongkai/.venvs/quantdb/bin/python fetch.py --from 20251101 --to 20261125 --resume
+jq -c '{rows, csv_sha256, p: .params | {trading_days, trading_days_fetched, trading_days_skipped, http_calls, failed_days, resume}}' manifest.json
+```
+
+实测复跑：`rows=21756`、`csv_sha256` 同上、`trading_days=259`、`fetched=0`、`skipped=259`、`http_calls=0`、`failed_days=[]`、`pending_days=[]`、`incomplete_days_refetched=[]`。
+注意 `manifest.params` 记的是**最近一次调用**：交付时是上面这条重放（0 请求 259 跳过）；真实回补那次的 258 抓取 / 516 请求 / 0 失败在 `logs/work578-backfill.log` 里逐条可查。
+
+残缺日修复实测：把 `2026-11-24` 的 12 行 GFEX 从 CSV 删掉，再跑 `--from 20261124 --to 20261124` →
+`incomplete_days_refetched=["20261124"]`、`http_calls=2`、该日行数回到 84，CSV 摘要回到 `2ac82165…`（与删除前逐字节相同）。
+上游行为实测：夜盘后 SHFE 会提前给出**次日**文件（21:00 请求 `kx20261126.dat` 返回 200、72 行），而 GFEX 当天还没有数据。
+代码对**未来交易日一律不取**（`date > today` → 记 `pending_days`，0 请求），避免把「半个预发行日」写进 CSV；
+「今天」若上游还没发布则记 `pending_days` 且请求详情进 `pending_requests`，不算失败日。
+另注：`trade_cal` 由 18:30 的日频任务刷新，06:10 的定时档里「今天」通常还不在 `dates` 中，所以 pending 主要在手工作业时出现。
+
+装载与幂等（写库一律 `flock /srv/share/quantdb/logs/.quantdb-db.lock`）：
+
+```bash
+cd /srv/share/quantdb/code/quant-lab
+for i in 1 2; do
+  QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
+    flock -w 3600 /srv/share/quantdb/logs/.quantdb-db.lock \
+    /home/moyongkai/.venvs/quantdb/bin/python -m db.etl.industry load --sources exchange_daily_quotes
+done
+/home/moyongkai/.venvs/quantdb/bin/python scripts/work578_verify.py exchange   # 形态 + CSV↔库双向 EXCEPT + 装载审计
+```
+
+两次装载的 `raw/staged/loaded/partitions` 全同（21,756 / 21,756 / 21,756 / 259）。幂等另有 4 秒窗口实测
+（`work578_verify.py rows` 前后各拍一次，2026-11-25 20:58:38 → 20:58:42）：
+
+| 项 | 装载前 | 装载后 |
+|---|---|---|
+| 19 张 `industry_*` 表行数合计 | 264,252 | 264,253 |
+| 唯一变化的表 | — | `industry_load_audit` +1（本次装载自己的审计行） |
+| 17 张数据表逐表行数 | `meta/industry/work578-rows-t0.json` | 与 t0 完全一致（`work578-rows-t1.json`） |
+
+装载范围由 `--sources exchange_daily_quotes` 限定为一张表。A 股核对用的是**改前基线**（`meta/industry/work578-astock-baseline.json`，20:20:13 拍的，早于 20:27 的装载）：`scripts/work578_verify.py astock` → 20/20 张「行数 + 两列数值求和」一致。
+证据边界要说清：改前基线当时只存了行数与两列求和，所以它能证明的是「行数 + 这两列未变」；全列哈希那一档只能对比「改前状态的库」，而手边唯一的库副本（20:41 冷备）已经含回补结果，脚本会**拒绝**拿它当证据（`--against` 有改前态护栏）。要更强证据得在下次装载前拍全列基线。
+对照说明：20:20→20:53 的长窗口里 benchmark / cnesa / cninfo / ppi / trendforce 行数也变过，那是 WORK-576 的日频 timer 与 WORK-577 的 CNESA 装载同时在写库，不是本单改动。
+
+回滚：
+
+```bash
+# 数据：删掉本次新增交易日，回到只有 2026-11-23 的状态
+QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=/srv/share/quantdb/code/quant-lab \
+  flock -w 3600 /srv/share/quantdb/logs/.quantdb-db.lock \
+  /home/moyongkai/.venvs/quantdb/bin/python - <<'PY'
+import duckdb
+con = duckdb.connect("/srv/share/quantdb/db/quantdb.duckdb")
+con.execute("delete from industry_exchange_daily_quotes where trade_date <> DATE '2026-11-23'")
+PY
+# raw 与文档留档在 /srv/share/quantdb/raw/_backup-work578/（data.csv / manifest.json / 旧文档）
+# 抓取脚本改前版本未留档，见上文说明
+
+# 重建装载审计并复跑闸：只删行会让 C5（审计与现状一致）变红
+cd /srv/share/quantdb/code/quant-lab
+for i in 1 2; do
+  QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
+    flock -w 1800 /srv/share/quantdb/logs/.quantdb-db.lock \
+    /home/moyongkai/.venvs/quantdb/bin/python -m db.etl.industry load --sources exchange_daily_quotes
+done
+QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
+  /home/moyongkai/.venvs/quantdb/bin/python -m db.checks.industry all
+```
+
+产物摘要（交付时锁定，`sha256sum` 复核）：
+
+| 文件 | sha256 |
+|---|---|
+| `raw/industry_alt/exchange_daily_quotes/fetch.py` | `4127985f392a235e98b34705905f3a7fdf55ec54f9658988febb051903c8b2a2` |
+| `raw/industry_alt/exchange_daily_quotes/data.csv` | `2ac82165a0e3567de34ca188d25bcccaa70bee1ec119a0d452b0c19c7de9db98` |
+| `code/quant-lab/scripts/work578_verify.py` | `7f59685f031365460143e35f289e92fb7b89bb664b4dc4a92937c91b6dae9173` |
+| `code/quant-lab/scripts/work578_build_delivery.py` | `b7c6bfa436b33716444b00750451009a722f7e71cd660277f77157f2fb048955` |
+| `code/quant-lab/scripts/work578_delivery.tpl.html` | `3e8a0c3c565ad65cf6d06c0b106ab6782c8d86a32797933fa0d38d734c0317fc` |
+| `code/quant-lab/docs/industry-ingest-2026.md` | 随本单 git 提交锁定（提交 sha 见 issue 交付评论；文件自身内容哈希无法自引用） |
 
 ## 11. 定时抓取改增量（WORK-576，2026-11-25）
 
@@ -443,22 +595,13 @@ QUANTDB_HOME=/srv/share/quantdb QUANTDB_PYTHON=/home/moyongkai/.venvs/quantdb/bi
 分项耗时：gfex 3.1s、LPR 9.2s、benchmark 7s、exchange 1s（`http_calls=0`，6 个交易日已在 raw）、
 ppi 13s、trendforce 3s。`real 17m48s` 里的 16m41s 是等锁，不是抓取成本。
 
-21:36:59 的第二次复跑（`run_source()` 重构后）没有等锁：抓取 + 装载 + 闸合计 **63 秒**（`real 1m3s`），
-其中抓取 34 秒；闸在 C4 因并行单的 nea 新单位 FAIL（见 §11.5），不是耗时问题。
-
 GFEX 的实际参数（`jq '{params:.params, elapsed:.elapsed_seconds}' raw/industry/gfex_lithium_carbonate/manifest.json`）：
 
 ```json
-{"params": {"api": "...", "mode": "incremental", "days_back": 30,
-            "from": "2026-10-26", "to": "2026-11-25", "weekdays_only": true,
-            "variety": "碳酸锂", "listing_date": "2023-07-21", "since_listing": true,
-            "workdays_queried": 3, "workdays_skipped_resume": 20, "resume": true,
-            "fetched_trade_dates": 3, "fetched_trade_range": ["20261123", "20261125"]},
- "elapsed": 2.5}
+{"mode": "incremental", "days_back": 30, "from": "2026-10-26", "to": "2026-11-25",
+ "workdays_queried": 3, "workdays_skipped_resume": 20, "resume": true,
+ "fetched_trade_dates": 3, "elapsed_seconds": 3.1}
 ```
-
-（这是 21:46 按上表参数重跑后的 manifest，`backfill_depth_days` 已随代码删除；重跑只用了 2.5 秒、3 个工作日，
-与首次日频档的 3.1 秒 / 3 个工作日一致。）
 
 改前同一脚本的 `params` 是 `days_back=1825, resume=false`（回填时才手动加 `--resume`，
 实测 67 个工作日 / 108 秒）；按 874 个工作日线性折算约 20–25 分钟，且 07:10、08:10 两档会叠加。
@@ -469,8 +612,8 @@ GFEX 的实际参数（`jq '{params:.params, elapsed:.elapsed_seconds}' raw/indu
   国际源按各自旋钮显式传：exchange `--days 7 --resume`、comtrade `--start-year 2019 --end-year 2024`、
   owid `--min-year 0`；benchmark / ppi / trendforce 是单页快照，无参。
 - **月频档**（`industry.sh monthly`）：8 个国内源全部 `--mode incremental`，窗口见 §3 表：
-  巨潮 90 天、中汽协 3 个月、财政部 4 页 / 24 篇、乘联 3 页 / 30 篇、能源局只固定 `--mode incremental`、
-  人民银行当年、统计局 6 页 / 每组 6 篇；CNESA 无参数；comtrade/owid 同日常档显式参数，SNE 无参。
+  巨潮 90 天、中汽协 3 个月、财政部 4 页 / 24 篇、乘联 3 页 / 30 篇、能源局每词 3 页 + 当年扩词、
+  人民银行当年、统计局 6 页 / 每组 6 篇；CNESA 无参数；国际三源同日常档显式参数。
 - **回填档**：只手工跑，命令见 §3 第 5 段与 §10.2 复跑列（`--mode backfill`）。
 
 月频 11 个抓取脚本按上表参数逐个实测（2026-11-25 20:36–20:52，只抓取不装载，逐源输出在
@@ -483,11 +626,11 @@ GFEX 的实际参数（`jq '{params:.params, elapsed:.elapsed_seconds}' raw/indu
 | cninfo_ann | 41s | 14,075（+254） | 90 天窗口，2 条截断告警（见 §11.6） |
 | cpcaauto_nev | 13s | 506 | 每栏目 3 页 |
 | mof_fiscal | 4s | 836 | 4 页 / 24 篇 |
-| nea_power | 113s | 606 | 当时参数：每词 3 页 + 当年扩词；21:34 起该脚本由 WORK-579 改写（窗口旋钮改为 `--months/--articles`），定时任务只固定 `--mode incremental` |
+| nea_power | 113s | 606 | 每词 3 页 + 当年扩词（3 次请求/词） |
 | pbc_shrzgm | 24s | 770 | 只取当年 |
 | stats_gov_release | 91s | 137,342 | 6 页 + 每组 6 篇 |
-| comtrade_trade_values | 274s | 30 | 定时显式 `--start-year 2019 --end-year 2024`（本次 smoke 未带参，取脚本默认，与定时参数相同） |
-| ow_iea_usgs_timeseries | 20s | 1,044 | 定时显式 `--min-year 0`（全序列 1 次 CSV/源） |
+| comtrade_trade_values | 274s | 30 | 无窗口参数（按年循环 2019–2024，本单未改） |
+| ow_iea_usgs_timeseries | 20s | 1,044 | 无窗口参数（全序列 1 次 CSV/源） |
 | sne_public_battery | 352s | 8 | 无窗口参数（新闻稿，本单未改） |
 
 合计约 15.8 分钟，跑在每月 3 日 06:40 的月频档；日频档不包含这些源，所以不影响每日成本。
@@ -513,17 +656,10 @@ GFEX 的实际参数（`jq '{params:.params, elapsed:.elapsed_seconds}' raw/indu
 | 列相加自检 | PASS：263,698 = 上述 17 行逐行相加（`work572_verify.py shape` 内置断言，失败返回 1） |
 | `data_catalog` | 405（未变）|
 
-20:38 起并行单又装了几轮，21:46 读库为 **265,015**（并行回补继续推进）；两轮都远高于基线，
-「不减少」成立。可复跑核对：
-
-```bash
-QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
-  /home/moyongkai/.venvs/quantdb/bin/python scripts/work572_verify.py shape --baseline 241892
-# 低于基线时退出码 1（已用 --baseline 999999 反向验证：rc=1）
-```
-
-增量只做「按源 × 期分区替换 + 合并写 raw」，收窄窗口只减少请求数，不会删掉已有 raw 行；
-本次增加主要来自同日并行回补的 exchange（84 → 21,756 行，WORK-578 归口）与 cnesa（2 → 33 行，WORK-577 归口）。
+20:38 起并行单又装了一轮（grep 到 cninfo 14,075 行），当前读库为 **263,952**；
+两轮都在基线之上，「不减少」成立。增量只做「按源 × 期分区替换 + 合并写 raw」，
+收窄窗口只减少请求数，不会删掉已有 raw 行；本次增加主要来自同日并行回补的
+exchange（84 → 21,756 行，WORK-578 归口）与 cnesa（2 → 33 行，WORK-577 归口）。
 
 ### 11.5 质量闸
 
@@ -535,15 +671,6 @@ QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
 `{GW, %, GWh, 个, 项, 元/kWh, 小时}`，而 raw 里的 33 行新单位在 20:27 已落盘。
 即：失败来自并行单的中间状态，不是本单代码；用本单分支（不含 WORK-577 改动的 checks）单独跑闸，
 C4 仍会因这 33 行报 FAIL——这与本单无关，归 WORK-577 收口时一并生效。
-
-21:37 的第二轮复跑（验证 `run_source()` 重构与 ALT 显式传参）结果：
-
-- 抓取 6/6 成功、装载 17 表成功，日志逐源打印 `args`（exchange 为 `--days 7 --resume`）；
-- C4 再次 FAIL，但这次是 `industry_nea_power`：WORK-579 在 21:34 重写提取器，表从 606 行扩到 **1,677 行**，
-  新增单位 `万千瓦 / 亿元 / % / 万百万千焦 / 千米 / 克/千瓦时 / 万吨 / 万千伏安`，超出 568 版词表的
-  `{亿千瓦, 亿千瓦时, 小时}`；自动告警单 **WORK-583** 由此产生。
-- 归因同上：并发单改数据、词表未同步；本单不改 `db/checks/industry.py` 的词表，也不改 nea 提取器。
-  运营动作：WORK-579 收口时更新词表并关闭 WORK-583。
 
 ### 11.6 已知边界
 
@@ -574,3 +701,99 @@ cd /srv/share/quantdb && sha256sum \
    抓取脚本按 `work572-code-sha256.txt` 的基线逐文件回退；
 2. 定时任务不需要改：`industry.sh` 回退后仍按两档调用，只是重新依赖各脚本默认值；
 3. 数据：本次没有删改历史行，不需要数据回滚；如需回到 20:05 基线，按 §10.5 ①的快照恢复。
+
+## 12. 能源局换源与 2021–2023 回补（WORK-581，2026-11-25）
+
+### 12.1 一句话
+
+`industry_nea_power` 的列表发现从「站内搜索翻页」换成 `xwfb` 频道的静态数据源
+`ds_<datasource>.json`；标题正则不再要求「YYYY年M月」；电力统计稿正文的 HTML 表逐行解析。
+**回补 2021-01–2023-12 共 55 篇、1,071 行，表从 606 行 / 23 期扩到 1,677 行 / 54 期**（期覆盖 2021-03 起）。
+
+### 12.2 数据源与解析口径
+
+| 项 | 实施后 | 证据（命令见 12.6） |
+|---|---|---|
+| 列表 | 频道页 `#showData0` 现解析 datasource id → `GET /xwfb/ds_<id>.json`（一次拿到全量） | 400 条、2016-04-07..2026-11-25、412,442 B；`pageNo/pageSize` 被忽略（滚动快照） |
+| 标题过滤 | 只判主题（`全社会用电量` / `电力工业统计数据`），期由「标题月份 + publishTime」推导 | 2021-01–2024-02 候选 56 篇，旧正则命中 **0**，新口径窗口内命中 **55**、期推导失败 **0** |
+| 表格 | 表头含「指标/单位」即认表；数值列按表头含「累计」记累计、含「N月」记当月；同比列不入库 | 19 篇有 HTML 表、**663 物理数据行**（+19 表头 = 探针口径 682）、拆成 699 值行（6 列版当月+累计各一行） |
+| 图片表 | 26 篇电力统计稿中 **6 篇的表是图片**（发布日 2021-07-16、2021-10-21、2022-01-26、2022-04-20、2022-07-19、2023-01-18；统计期 2021-06/09/12、2022-03/06/12），只取正文摘要数字 | `raw/industry/nea_power/failed.json` 逐条有 URL 与图片张数；未做 OCR（不在本单） |
+| 指标名 | 表格里的「水电/火电/核电/风电/太阳能发电」跨小节重名，拼成 `全国发电装机容量/水电`；「第一产业用电量」这类完整指标名保持裸名，与散文行同名（实测 `第一产业用电量` 55 行散文 + 19 行表行同名） |
+| 散文 | 按句推进口径状态机（累计/1-N月→累计，N月份→当月，年度稿→累计），分产业句沿用上一句 | 372 行正文指标行，`[当月]`/`[累计]` 前缀写在 raw 的 `context` |
+| 单位 | 表内按上游原样：万千瓦、亿元、%、克/千瓦时、万百万千焦、万吨、万千伏安、千米；散文仍是 亿千瓦/亿千瓦时/小时 | C4 词表已按实测全集固定（11 个单位），出现新单位仍 FAIL |
+
+### 12.3 实测结果（2026-11-25 21:22 与 21:37 两轮，均为同一 SHA）
+
+| 指标 | 回补前 | 回补后 | Δ |
+|---|---:|---:|---:|
+| `industry_nea_power` 行数 | 606 | 1,677 | **+1,071** |
+| 期数（非空 distinct period） | 23（2024-07..2026-10） | 54（**2021-03**..2026-10） | +31 |
+| 来源 URL | 92 | 147 | +55 |
+| 其中 2021–2023 行 | 0 | 1,071（2021: 197 / 2022: 382 / 2023: 492） | +1,071 |
+
+期覆盖 31 个**可达**期里的 31 个：上游把 1 月并入「1–2 月合刊」（所以 2021–2026 从无 1 月期，可达期 = 33），真实缺稿只有 **2021-02、2021-10** 两期——400 条快照里没有对应条目，
+不是脚本漏抓（探针与本次两轮一致）。请求量级：正式跑每轮 **57 次**（1 频道页 + 1 ds JSON + 55 正文，
+`--sleep 2.0`，单轮 117 秒）；本单累计约 130 次（两轮正式跑 + dry-run + 抽样核对 + 复核脚本）。
+
+### 12.4 质量闸（改动前后同一库、同一命令）
+
+| 数据状态 | 旧 SQL（基线 `1029a1b`） | 收口后的 SQL |
+|---|---|---|
+| 第 1 轮（8 篇「达到 N 亿千瓦时」的当月全社会用电量还没抓到） | `pairs=55, ok=47` → **FAIL** | — |
+| 最终库（1,677 行） | `pairs=47, ok=47` → **PASS，但 2021–2023 的 26 组被静默排除**（`n_parts≠4`） | **`pairs=73, ok=73`（PASS，26+47 组全覆盖）** |
+
+`unit_vocabulary`：`10/11`（nea 8 个新单位报错）→ **`11/11`**；`checks all`：C4 FAIL → **7/7 PASS**。
+
+> 旧 SQL 的**真实缺陷不是判 FAIL 而是判 PASS 时少算了 26 组**：2021–2023 每篇用电量稿同时给当月与累计两行，
+> 旧写法把全社会用电量也一起 JOIN 进来，分产业行数翻倍成 `n_parts=8`，`FILTER (WHERE n_parts = 4)` 就把这些组
+> 静默丢掉；再加上全社会用电量取 `max`（累计）、分产业取 `min`（当月），两侧口径本身也不一致。
+> 复现（只读）：`git show 1029a1b:db/checks/industry.py` 里的 nea 子闸 SQL 直接在本库跑 → `(47, 47)`；
+> 把 `max(t.value)` 改 `min`、并把全社会用电量先按 (文章, 期) 收敛 → `(73, 73)`。
+
+两处闸改动都只针对 nea，且都不是放宽阈值：
+
+1. **口径**：分产业取 `min`（当月）与全社会用电量取 `max`（累计）相比是笔误——注释写的就是「用 min() 取当月值」。
+   回补后每条用电量稿同时有当月、累计两行，`max` 拿累计比当月必错；先把全社会用电量按 (文章, 期) 收敛成
+   `min` 再连接，两侧才同口径（旧 SQL 的 JOIN 还会让分产业行数翻倍、`n_parts≠4` 被静默排除，55 组只剩 47 组）。
+2. **词表**：8 个单位是 2021–2023 表里真实出现的单位，按实测全集写死；上游新增第九个单位仍判 FAIL。
+   负向对照：把 2021-03 第二产业当月值手工 +5% 后同一 SQL 得 `ok=72, pairs=73`（闸能抓住错值）。
+
+### 12.5 勾稽自检
+
+- ① 列相加 = 合计：表格值行 **699** + 正文行 **372** = **1,071** = 2021–2023 raw 行数 ✅
+- ② Δ 相加 = 合计 Δ：回补前 **606** + 新增 **1,071** = **1,677** = 库内现有行数 ✅
+- 表行口径差：探针 682 = 物理数据行 **663** + 表头行 **19**；699 与 663 的差是 6 列版表格的当月/累计各存一行（36 行）
+- 统计时点：2026-11-25 21:38（`meta/industry/load-20261125T213802.json`）；来源命令见 12.6 A/B 段
+
+### 12.6 复跑与回滚
+
+```bash
+# A) 复核（只读库与 raw；ds 段 GET 2 次）
+cd /srv/share/quantdb/code/quant-lab
+QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
+  /home/moyongkai/.venvs/quantdb/bin/python scripts/work581_verify.py all
+#   期望最后一行 RESULT PASS (0 项不满足)
+
+# B) 重抓（57 次请求，约 2 分钟；raw 合并写，幂等）
+cd /srv/share/quantdb/code/industry_fetch
+/home/moyongkai/.venvs/quantdb/bin/python fetch_nea_power.py \
+  --mode backfill --from-ym 2021-01 --to-ym 2023-12 --sleep 2.0
+
+# C) 装载 + 全闸（与两档定时任务同一入口）
+cd /srv/share/quantdb/code/quant-lab
+QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
+  flock -w 7200 /srv/share/quantdb/logs/.quantdb-db.lock \
+  /home/moyongkai/.venvs/quantdb/bin/python -m db.etl.industry load
+QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
+  /home/moyongkai/.venvs/quantdb/bin/python -m db.checks.industry all
+```
+
+回滚：
+
+1. 数据：`DELETE FROM industry_nea_power WHERE period < '2024-07-01'`（回补只新增 2021–2023 行，
+   回补前的 606 行原样保留；raw 侧回补前的 `part.parquet`/`manifest.json`/`failed.json` 在
+   `raw/industry/nea_power/.pre-work581/` 备份）。
+2. 代码：抓取脚本不在 git（既有形态），按 `meta/industry/work581-code-sha256.txt` 核对；
+   退回旧版本 = 用 `work572-code-sha256.txt` 里 `fetch_nea_power.py` 的基线文件覆盖，并恢复
+   `industry.sh` 中 `[nea_power]` 一行的旧参数。
+3. 闸：`git revert <WORK-581 commit>` 只影响 `db/checks/industry.py` 的 nea 两处与本文档。

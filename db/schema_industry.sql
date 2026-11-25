@@ -71,9 +71,10 @@ CREATE TABLE IF NOT EXISTS industry_cnesa_storage (
     "source_url"     VARCHAR,
     PRIMARY KEY ("period", "indicator")
 );
-COMMENT ON TABLE industry_cnesa_storage IS 'CNESA 年度储能数据（公开页摘要）；2026-11-23 抓取只有 2 个指标，公开页实际另有 10+ 个数字未被提取，见 docs/industry-ingest-2026.md §4';
-COMMENT ON COLUMN industry_cnesa_storage.period IS '统计截止月（当月 1 日）：2026-01 = 截至 2025-12 年底';
-COMMENT ON COLUMN industry_cnesa_storage.value IS '数值，单位见 unit（GW 或 %）';
+COMMENT ON TABLE industry_cnesa_storage IS 'CNESA 年度储能数据（公开页摘要）；WORK-577 起按句式规则提取 33 行（2025 年末 32 行 + 2021 年末时长 1 行），未提取的 11 个数字逐条登记在 raw/industry/cnesa_storage/failed.json，见 docs/industry-ingest-2026.md §4.2';
+COMMENT ON COLUMN industry_cnesa_storage.period IS '报告月（当月 1 日）：2026-01 = 截至 2025-12 年底；2022-01 = 2021 年末值';
+COMMENT ON COLUMN industry_cnesa_storage.value IS '数值，单位见 unit（GW / GWh / % / 个 / 项 / 元/kWh / 小时）';
+COMMENT ON COLUMN industry_cnesa_storage.caliber IS '口径说明 + 原文句子（「｜原句：」之后），用于回指出处；原文句子同存 raw parquet 的 context 列';
 
 -- ---------------------------------------------------------------------------
 -- 4. 巨潮资讯网·指定关键词公告索引（事件驱动）
@@ -403,7 +404,7 @@ SELECT * FROM (VALUES
   ('储能与电力设备','全国发电装机容量与结构','industry_nea_power','value','部分','只有总量/太阳能/风电，缺火电核电水电分项'),
   ('储能与电力设备','全社会用电量与分产业用电量','industry_nea_power','value','完整','分产业用电量 + 全社会用电量'),
   ('储能与电力设备','发电设备平均利用小时数','industry_nea_power','value','完整','累计利用小时'),
-  ('储能与电力设备','新型储能累计装机规模（功率/能量）','industry_cnesa_storage','value','部分','抓取到的是电力储能累计 213.3GW 与同比 54%；新型储能 144.7GW/66.43GW 未提取'),
+  ('储能与电力设备','新型储能累计装机规模（功率/能量）','industry_cnesa_storage','value','部分','已提取新型储能累计 144.7GW、新增投运 66.43GW/189.48GWh（WORK-577）；仍缺累计装机的能量口径（GWh）与新型储能占比精确值（原文仅“超过 2/3”）'),
   ('储能与电力设备','碳酸锂期货结算价、持仓与仓单','industry_gfex_lithium_carbonate','value','部分','有结算价/持仓/成交，仓单日报为 JS 页面未取'),
   ('储能与电力设备','电池级碳酸锂与氢氧化锂现货价','industry_ppi_spot_prices','price','部分','有电池级碳酸锂，无氢氧化锂'),
   ('储能与电力设备','全球电池原材料供需平衡','industry_ow_iea_usgs_timeseries','value','部分','只有锂/钴产量，无需求与平衡表'),
