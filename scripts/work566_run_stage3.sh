@@ -125,7 +125,23 @@ cp -f figures/WORK-566/report_full.pdf         experiments/WORK-566/report_print
 echo "=== [6/8] 快照 manifest ==="
 $PY scripts/work566_snapshot_manifest.py
 
-echo "=== [7/8] 收口文案重生成（registry 登记行 + 最终评论正文，数字只抄产物）==="
+echo "=== [7/8] 故意违规开关：刷新引擎级断言证据 + 收口文案重生成 ==="
+# 用**故意违规开关**触发引擎自身的不可成交价守卫，把告警原文写进交付物。
+# 预期行为：断言抛出 → 进程非零退出 → 这里必须显式吞掉退出码（否则 set -e 会中断链）。
+# 若反而没抛异常 → 断言失效 → 判失败退出。
+SEED0="${SEEDS%% *}"
+if ! $PY scripts/work566_backtest.py --arm fmb --seed "$SEED0" --cost 0.0005 --assert-violation \
+     > experiments/WORK-566/assert_violation_log.txt 2>&1; then
+  if grep -q "\[ASSERT\] 不可成交价" experiments/WORK-566/assert_violation_log.txt; then
+    echo "  故意违规断言已触发（原文见 experiments/WORK-566/assert_violation_log.txt）"
+  else
+    echo "故意违规开关抛了异常但不是不可成交价断言 → 证据无效" >&2
+    exit 7
+  fi
+else
+  echo "故意违规开关没有触发断言 → 引擎守卫失效" >&2
+  exit 7
+fi
 # 训练日志入库（可核验证据）：.w566tmp 下由全链守护写入
 for s in $SEEDS; do
   src_log="../.w566tmp/w566_s${s}.log"
