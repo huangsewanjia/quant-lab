@@ -5,13 +5,16 @@
 修复：
 
 - `db/timers/backup-nightly.sh`：所有 docker 调用统一走 `dk()`（`/usr/bin/sg docker -c`）。
-  `systemd --user` 的服务会话不继承 `107(docker)` 补充组，原脚本 6 处直接 `docker compose`
-  在 03:30 必然 EACCES；自 2026-11-20 起连续 6 晚失败。
+  `systemd --user` 的服务会话不继承 `107(docker)` 补充组，原脚本 3 处直接 `docker compose`
+  （multica / weknora / langfuse 各一处）在 03:30 必然 EACCES；自 2026-11-20 起连续 6 晚失败。
 - 三个 `pg_dump` 先写 `<file>.part`，校验大小与 `PGDMP` 头后再改名；任一步失败删除不完整文件。
   原实现用 `>` 直接落盘，失败后留下 0 字节 dump，看起来像一次成功备份。
 - 新增 `run_step`：`pg_dump` / `borg create` / `borg prune` / `borg compact` 失败时日志写出
   「步骤 + 库 + 退出码 + stderr 首行」；原日志只有一个 `exit=1`。
-- 中断遗留的 `*.dump.part` 超过 1 天在下次启动时清理并打印路径。
+- `pg_restore -l` 读不出归档目录即判失败（不再把「头部正常」当通过）。本机客户端落后于容器
+  归档格式时会明确报 `unsupported version` 并停止，需升级客户端——宁可响，不可静默收下损坏文件。
+- 失败归属细化：进目录失败单独报「进入 <dir>」；每步的临时文件收敛到一次运行一个
+  `/tmp/backup-nightly-XXXXXX/` 目录，中断遗留的目录与 `*.dump.part*` 超过 1 天在下次启动时清理。
 
 文档：
 
