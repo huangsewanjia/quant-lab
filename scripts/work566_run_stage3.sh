@@ -10,14 +10,25 @@ ARMS="s1_only s3_only s1_s2 full r0 r1 r2 r3 fmb"
 COSTS="0.0005 0.0015 0.0030"
 
 echo "=== [1/6] 组合回测（各臂 × 种子 × 成本档）==="
+# 54 次回测串行约 1 小时（每次 ~65s）；回测是单线程 numpy + 读小面板，
+# 用 JOBS 路并行（默认 3 路，产物按臂/种子/成本分文件，互不冲突）
+JOBS=${JOBS:-3}
+JOBFILE=$(mktemp /tmp/w566_bt_jobs.XXXXXX)
 for arm in $ARMS; do
   for s in $SEEDS; do
     for c in $COSTS; do
-      $PY scripts/work566_backtest.py --arm "$arm" --seed "$s" --cost "$c" > /dev/null
+      echo "$arm $s $c" >> "$JOBFILE"
     done
   done
-  echo "  臂 $arm 完成"
 done
+export PY
+xargs -P "$JOBS" -n 3 bash -c '
+  arm=$1; s=$2; c=$3
+  "$PY" scripts/work566_backtest.py --arm "$arm" --seed "$s" --cost "$c" > /dev/null
+  echo "  完成 arm=$arm seed=$s cost=$c"
+' _ < "$JOBFILE"
+rm -f "$JOBFILE"
+echo "  回测全部完成"
 
 echo "=== [2/6] 主检验量与判词（H1/H2/H3/H4 + 基准调整 alpha + 论文对照表）==="
 $PY scripts/work566_primary_test.py --seeds $SEEDS
