@@ -184,7 +184,8 @@ cp /srv/share/quantdb/raw/_backup-work578/data.csv \
 
 <h3>8.2 定时任务的口径（为什么不会每天重抓一年）</h3>
 <p><code>db/timers/industry.sh</code> 调 <code>fetch.py</code> 不带参数：默认 <code>--days 7</code> + <code>--resume</code>，
-即每天只补最近 7 个自然日里 CSV 还没有的交易日（通常 1 天 = 2 个请求）；深度回补必须显式传 <code>--from</code>。</p>
+即每天只补最近 7 个自然日里还没抓齐的交易日（通常 1 天 = 2 个请求）。「已抓齐」= SHFE 有当日数据，且 2023-07-21 起 GFEX 也有；
+只有一所的残缺日会被重抓补齐（记入 <code>manifest.params.incomplete_days_refetched</code>）。深度回补必须显式传 <code>--from</code>。</p>
 
 <h3>8.3 独立审查</h3>
 <p>实现完成后由独立子代理按《code-review-and-quality》复审（不复用开发上下文），分级结论与锁定 SHA 见 issue 评论。</p>

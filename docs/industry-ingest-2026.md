@@ -442,9 +442,11 @@ GFEX 碳酸锂自 **2023-07-21** 上市起有数据。本单按验收口径只�
 抓取脚本改动（`fetch.py`，改动前 78 行、sha256 见下）：
 
 - 按交易日循环：交易日历取主库 `trade_cal`（`exchange='SSE'`，与两个期货所节假日一致），取不到时退回周一至周五并在 `manifest.params.calendar` 标 `weekday-fallback`；
-- `--from/--to`（YYYYMMDD 或 YYYY-MM-DD）、`--days N`（默认 **7**，日常增量窗口）、`--resume`（默认开，跳过 CSV 已有 `trade_date`）、`--no-resume`、`--sleep`（默认 1.1 秒）、`--calendar db|weekdays`、`--retries`（默认 3）；
+- `--from/--to`（YYYYMMDD 或 YYYY-MM-DD）、`--days N`（默认 **7**，日常增量窗口）、`--resume`（默认开）、`--no-resume`、`--sleep`（默认 1.1 秒）、`--calendar db|weekdays`、`--retries`（默认 3）；
+- `--resume` 的「已抓」判据是**该日已抓齐**而不是「CSV 里有这一天」：SHFE 必有，且 >= 碳酸锂上市日 2023-07-21 时 GFEX 也必有；只有一所的残缺日会被重抓补一所（记入 `manifest.params.incomplete_days_refetched`），避免一次瞬时失败留下永不修复的洞；
 - 失败逐条落 `failed.json`（`trade_date` + `source` + `method` + `url` + `http_status` + `error`），不写占位行、不估算补数；403/429/5xx/网络错误按 2s→5s 退避，最多 3 次尝试；
-- `manifest.json` 增 `params`（起止日、交易日数、抓取数、跳过数、请求数、重试数、失败日清单、`resume` 标志、耗时）与 `coverage`（首末日、distinct 交易日、按交易所行数）。
+- `manifest.json` 增 `params`（起止日、交易日数、抓取数、跳过数、残缺重抓日、请求数、重试数、失败日清单、`resume` 标志、耗时）与 `coverage`（首末日、distinct 交易日、按交易所行数）。
+- 当日/未来交易日上游尚未发布（SHFE `.dat` 404 且 GFEX 空）时记 `pending_days`，**不计入失败日**——定时任务 06:10 跑必然命中这一天；只有一所成功、另一所失败的残缺日仍记失败日，留待下一轮补齐。
 
 回补实测（统计时点 2026-11-25 20:19 Asia/Shanghai，日志 `/srv/share/quantdb/logs/work578-backfill.log`）：
 
@@ -471,8 +473,13 @@ cd /srv/share/quantdb/raw/industry_alt/exchange_daily_quotes
 jq -c '{rows, csv_sha256, p: .params | {trading_days, trading_days_fetched, trading_days_skipped, http_calls, failed_days, resume}}' manifest.json
 ```
 
-实测复跑：`rows=21756`、`csv_sha256` 同上、`trading_days=259`、`fetched=0`、`skipped=259`、`http_calls=0`、`failed_days=[]`。
+实测复跑：`rows=21756`、`csv_sha256` 同上、`trading_days=259`、`fetched=0`、`skipped=259`、`http_calls=0`、`failed_days=[]`、`pending_days=[]`、`incomplete_days_refetched=[]`。
 注意 `manifest.params` 记的是**最近一次调用**：交付时是上面这条重放（0 请求 259 跳过）；真实回补那次的 258 抓取 / 516 请求 / 0 失败在 `logs/work578-backfill.log` 里逐条可查。
+
+残缺日修复实测：把 `2026-11-24` 的 12 行 GFEX 从 CSV 删掉，再跑 `--from 20261124 --to 20261124` →
+`incomplete_days_refetched=["20261124"]`、`http_calls=2`、该日行数回到 84，CSV 摘要回到 `2ac82165…`（与删除前逐字节相同）。
+另有一条上游行为实测：`--to` 取到「今天」时，夜盘后可取到**次日**的 SHFE 文件（21:00 请求 `kx20261126.dat` 返回 200、72 行），
+而当日 GFEX 还没有数据 → 该日按残缺日处理；定时任务的默认窗口止于当天，不受影响。
 
 装载与幂等（写库一律 `flock /srv/share/quantdb/logs/.quantdb-db.lock`）：
 
@@ -517,11 +524,11 @@ PY
 
 | 文件 | sha256 |
 |---|---|
-| `raw/industry_alt/exchange_daily_quotes/fetch.py` | `cd0d5ce70c9f4c59274f254cf6220ce5f151f2e83fcce6b69ce1a95f93c0f629` |
+| `raw/industry_alt/exchange_daily_quotes/fetch.py` | `1ae5a1745a9ce2d4314ca347231a652102cb6f19527900e9feee6e6d70f5f63e` |
 | `raw/industry_alt/exchange_daily_quotes/data.csv` | `2ac82165a0e3567de34ca188d25bcccaa70bee1ec119a0d452b0c19c7de9db98` |
 | `code/quant-lab/scripts/work578_verify.py` | `8105c0d1122a48a78dfc3ce038ec435bd2cdf18d7125be08d0b5905711241baf` |
 | `code/quant-lab/scripts/work578_build_delivery.py` | `a6e7d9470080003133748bef0da0132c1f83fc09a1ae618c0691575015db911d` |
-| `code/quant-lab/scripts/work578_delivery.tpl.html` | `2c88d426b824433408518e65803171972124d2be45a2a527d7276d59b8132a3f` |
+| `code/quant-lab/scripts/work578_delivery.tpl.html` | `1b1d1eeb150e7ceb757f66f512beb61f6bc86966c377521de114b347a19427ee` |
 | `code/quant-lab/docs/industry-ingest-2026.md` | 随本单 git 提交锁定（提交 sha 见 issue 交付评论；文件自身内容哈希无法自引用） |
 
 ## 11. 定时抓取改增量（WORK-576，2026-11-25）
@@ -569,7 +576,7 @@ QUANTDB_HOME=/srv/share/quantdb QUANTDB_PYTHON=/home/moyongkai/.venvs/quantdb/bi
 分项耗时：gfex 3.1s、LPR 9.2s、benchmark 7s、exchange 1s（`http_calls=0`，6 个交易日已在 raw）、
 ppi 13s、trendforce 3s。`real 17m48s` 里的 16m41s 是等锁，不是抓取成本。
 
-GFEX 的实际参数（`jq .params raw/industry/gfex_lithium_carbonate/manifest.json`）：
+GFEX 的实际参数（`jq '{params:.params, elapsed:.elapsed_seconds}' raw/industry/gfex_lithium_carbonate/manifest.json`）：
 
 ```json
 {"mode": "incremental", "days_back": 30, "from": "2026-10-26", "to": "2026-11-25",
@@ -583,14 +590,15 @@ GFEX 的实际参数（`jq .params raw/industry/gfex_lithium_carbonate/manifest.
 ### 11.3 两档参数（与 §3 的表同一份口径）
 
 - **日常档**（`industry.sh daily`）：gfex `--mode incremental --days 30 --resume`、LPR `--start 2019-08-20`；
-  4 个国际快照源无深度参数（每源固定 1 次请求）。
+  国际源按各自旋钮显式传：exchange `--days 7 --resume`、comtrade `--start-year 2019 --end-year 2024`、
+  owid `--min-year 0`；benchmark / ppi / trendforce 是单页快照，无参。
 - **月频档**（`industry.sh monthly`）：8 个国内源全部 `--mode incremental`，窗口见 §3 表：
   巨潮 90 天、中汽协 3 个月、财政部 4 页 / 24 篇、乘联 3 页 / 30 篇、能源局每词 3 页 + 当年扩词、
-  人民银行当年、统计局 6 页 / 每组 6 篇；CNESA 无参数。
+  人民银行当年、统计局 6 页 / 每组 6 篇；CNESA 无参数；国际三源同日常档显式参数。
 - **回填档**：只手工跑，命令见 §3 第 5 段与 §10.2 复跑列（`--mode backfill`）。
 
-月频 11 个抓取脚本按上表参数逐个实测（2026-11-25 20:36–20:51，只抓取不装载，日志在
-`meta/industry/w576-smoke/*.log`，全部 rc=0）：
+月频 11 个抓取脚本按上表参数逐个实测（2026-11-25 20:36–20:52，只抓取不装载，逐源输出在
+`meta/industry/w576-smoke/*.log`，本轮 11 个源退出码均为 0，逐个人工核对）：
 
 | 源 | 耗时 | 本次抓到的行数（raw 合并后） | 备注 |
 |---|---:|---:|---|
@@ -608,23 +616,31 @@ GFEX 的实际参数（`jq .params raw/industry/gfex_lithium_carbonate/manifest.
 
 合计约 15.8 分钟，跑在每月 3 日 06:40 的月频档；日频档不包含这些源，所以不影响每日成本。
 
+表中的「耗时」是 smoke 脚本的墙钟（含解释器启动与 import pandas），比 fetcher 自报的
+`elapsed_seconds` 多 1–7 秒（如 stats 91s vs 84.0s、pbc 24s vs 20.6s）。本轮 smoke 脚本的
+`SMOKE <源> rc=…` 汇总只打到终端；脚本已改为 `… | tee meta/industry/w576-smoke/index.log`，
+下一轮可直接复核退出码，不再依赖人工核对。
+
 设计要点：脚本里所有深度旋钮 `default=None`，由 `--mode` 解析（`_common.resolve_mode`），
 显式数值永远优先；manifest 的 `params.mode` 与解析后的实际值可事后核对，
 不会出现「以为传了、其实走了默认」的静默偏差。
 
 ### 11.4 行数不减少（装载后 17 表）
 
-统计时点 2026-11-25 20:52（`python scripts/work572_verify.py shape`）：
+统计时点 2026-11-25 **20:29**（`python scripts/work572_verify.py shape`，输出存
+`meta/industry/work576-shape-after.txt`，mtime 20:29:51）：
 
 | 检查 | 数值 |
 |---|---|
 | `industry_*` 17 表合计（改前 20:05 基线） | 241,892 |
-| `industry_*` 17 表合计（增量装载后） | **263,698** |
-| 列相加自检 | 263,698 = 上表 17 行逐行相加 |
+| `industry_*` 17 表合计（本次增量装载后，20:29） | **263,698** |
+| 列相加自检 | PASS：263,698 = 上述 17 行逐行相加（`work572_verify.py shape` 内置断言，失败返回 1） |
 | `data_catalog` | 405（未变）|
 
-增量只做「按源 × 期分区替换 + 合并写 raw」，收窄窗口只减少请求数，不会删掉已有 raw 行；
-本次增加主要来自同日并行回补的 exchange（84 → 21,756 行）、cnesa（2 → 33 行）与快照源当日行。
+20:38 起并行单又装了一轮（grep 到 cninfo 14,075 行），当前读库为 **263,952**；
+两轮都在基线之上，「不减少」成立。增量只做「按源 × 期分区替换 + 合并写 raw」，
+收窄窗口只减少请求数，不会删掉已有 raw 行；本次增加主要来自同日并行回补的
+exchange（84 → 21,756 行，WORK-578 归口）与 cnesa（2 → 33 行，WORK-577 归口）。
 
 ### 11.5 质量闸
 
