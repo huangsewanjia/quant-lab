@@ -89,6 +89,16 @@ WORK-529 起，稳定代码路径是 `/srv/share/quantdb/code/quant-lab`；四�
 `db/timers/backup-nightly.sh`、`db/timers/systemd/backup-nightly.*`；
 `/home/moyongkai/bin/backup-nightly.sh` 只是兼容 shim。
 
+`backup-nightly.service` 里的 `pg_dump` 要走 docker socket，而 `systemd --user` 启动的服务
+**不继承补充组**：`getent group docker` 里有 `moyongkai`，可该会话内 `docker ps` 仍报
+`permission denied ... /var/run/docker.sock`（2026-11-25 实测）。因此脚本统一用
+`dk()` = `/usr/bin/sg docker -c '<命令>'` 进组，不用 sudo、不改 socket 权限。
+
+```bash
+systemd-run --user --scope docker ps                   # 失败：EACCES（会话无 docker 组）
+systemd-run --user --scope /usr/bin/sg docker -c 'docker ps'  # 成功
+```
+
 实测的上游约束（2026-11-22 直连 `api.tushare.pro`，非 MCP）：
 
 | 接口 | 实测到的行数上限 | 本库的处理 |

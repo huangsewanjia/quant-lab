@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-11-25 · WORK-559 夜间备份恢复（docker 组 + 失败自证）
+
+修复：
+
+- `db/timers/backup-nightly.sh`：所有 docker 调用统一走 `dk()`（`/usr/bin/sg docker -c`）。
+  `systemd --user` 的服务会话不继承 `107(docker)` 补充组，原脚本 6 处直接 `docker compose`
+  在 03:30 必然 EACCES；自 2026-11-20 起连续 6 晚失败。
+- 三个 `pg_dump` 先写 `<file>.part`，校验大小与 `PGDMP` 头后再改名；任一步失败删除不完整文件。
+  原实现用 `>` 直接落盘，失败后留下 0 字节 dump，看起来像一次成功备份。
+- 新增 `run_step`：`pg_dump` / `borg create` / `borg prune` / `borg compact` 失败时日志写出
+  「步骤 + 库 + 退出码 + stderr 首行」；原日志只有一个 `exit=1`。
+- 中断遗留的 `*.dump.part` 超过 1 天在下次启动时清理并打印路径。
+
+文档：
+
+- `docs/ENVIRONMENT.md` 记录「systemd --user 不继承补充组」的实测与 `sg docker` 绕过方式。
+- `db/README.md` 删除「borg 原始错误仍需单独处理」一条（已在本单修复）。
+
 ## 2026-11-23 · WORK-537 外资研报公开层渠道清单与可抓性实测
 
 新增：

@@ -578,7 +578,5 @@ systemctl --user daemon-reload
 
 - 政策库目前只入库了少量样本；周一对账单轮默认补抓 200 条，`remaining` 会逐周下降。
 - 非报告期的周一财务任务会处理最近 7 天实际披露的代码；披露密集时可能跑几十分钟。
-- 现有 `backup-nightly.service` 在 WORK-529 之前就是 failed 状态；本单只在其前面增加 quantdb
-  冷备，没有改 borg 逻辑。borg 的原始错误仍需单独处理。
 - issue 描述里的 `M = 15M` 与 `AGENTS.md` 第一部分「一·五」的「不设 issue 级 token 总额」冲突；
   本单按 `AGENTS.md` 执行，不因额度停手。
