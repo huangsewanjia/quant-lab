@@ -1,6 +1,6 @@
 # 外资研报公开层 · 渠道清单与可抓性实测（一页结论）
 
-**测量日期**：2026-11-23（UTC+8） · **样本**：29 个渠道 · **请求总量**：185 次（上限 200） · **口径**：公开、无需账号、无需付费墙；不绕过登录/验证码/robots
+**测量日期**：2026-11-23（UTC+8） · **样本**：29 个渠道 · **请求量（可核对口径）**：台账 85 条（73 重建 + 12 带时间戳），实际发出 **≥87 次**（round1 46 + round2 29 + 审计 12，均不含 robots.txt 抓取）；**185 为不可由台账复现的上界估计** · **口径**：公开、无需账号、无需付费墙；不绕过登录/验证码/robots
 
 ## 一句话结论
 
@@ -12,7 +12,7 @@
 |---|---|---|
 | **能机器采（13）** | Goldman Sachs Insights、Morgan Stanley Ideas、J.P. Morgan Insights、BofA Institute、HSBC GBM Insights、Macquarie Insights、dbInsights（德银）、CNBC Investing、SEC EDGAR（公开 JSON）、慧博投研、发现报告、格隆汇、巨潮资讯 | 入口列表页在 HTML 里就能解析出「标题+日期」，正文详情页可直接抓（已抓 9 篇样例，字符数 2,742–26,064，sha256 齐） |
 | **只能人工看（14）** | 列表需 JS 渲染（8）：Citi Institute、Barclays、Nomura、Daiwa、NYSE、萝卜投研、东方财富研报中心、雪球；403（1）：UBS；落地登录页（1）：Bernstein；本机出口不可达（4）：Reuters、Bloomberg、FT、WSJ | 内容公开存在，但机器在列表层拿不到 |
-| **不采（2）** | Barron's（robots.txt 对 `*` 为 Disallow）、FINRA（robots.txt 不可读，HTTP 403） | 合规侧不应抓，本单**未发正文请求** |
+| **不采（2）** | Barron's（robots.txt 对 `*` 为 Disallow）、FINRA（robots.txt 不可读，HTTP 403） | 合规侧不应抓：**round-2 起未发正文请求**。如实披露——round-1（robots 判定生效前）曾实发 5 次（Barron's `/` 401、Barron's `/market-data` **200**、FINRA 三入口各 403），其中取到正文的那次**未进入任何分析、未入样例、未入结论** |
 
 **要点**：四个欧美大媒体（Reuters/Bloomberg/FT/WSJ）在本机**网络层不可达**（DNS 返回污染地址、IPv6 无路由，
 连 robots.txt 都取不到，`fetch` 服务侧同样失败）——这是**本机出口问题，不是站点拒绝**，不能据此说这些站点不可抓。
@@ -60,6 +60,11 @@
 4. Bernstein 的公开研究内容**完全未取到**（落地登录页），未验证是否另有可采入口。
 5. 样本量 **9 篇、1 个时间点**，支持「实测 0 命中」这一事实陈述，**不构成**公开层评级可得率的统计估计。
 6. 抓到的正文只作内部研究，**不入 public 仓库**（`raw/foreign_research` 已排除）。
+7. **已发生的 robots 违规 1 次（如实披露）**：round-1（robots 判定生效前）实发 5 次——Barron's `/` 401、
+   Barron's `/market-data` **200（正文已取到）**、FINRA 三入口各 403；该正文**未进入任何分析、未入样例、未入结论**，
+   round-2 起 robots 优先未再发生。
+8. **请求量口径**：台账可核对 **85 条**（73 重建 + 12 带时间戳）；实际发出 **≥87 次**
+   （round1 46 + round2 29 + 审计 12，均不含 robots.txt 抓取）；**185 为不可由台账复现的上界估计**。
 
 **产物**：`docs/foreign_research_channels.csv`（29 行 × 12 列，实测证据列无空）·
 `docs/WORK-537/02-data.csv`（29 行 × 25 列机器证据）·

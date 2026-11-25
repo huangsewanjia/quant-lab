@@ -1,8 +1,10 @@
-# WORK-537 快照校验值 · 生成于 2026-11-23 (UTC+8) · sha256sum -c 可直接校验
-7cc60aa2e57ae79c92ba83dc0ba18e42bf6fdeb2f00a489f04c469b0ab4ba6d6  docs/foreign_research_channels.csv
-8b4a9cf65fe683b229d0a62bd05deb49d901423dc484385c7a6982901552f1e4  docs/WORK-537/02-data.csv
+# WORK-537 快照校验值 · 生成于 2026-11-26 补正（UTC+8） · sha256sum -c 可直接校验
+bd719770c207ceaf6d35504391273807d13d3f51d1f49f42f70bfc42927c915b  docs/foreign_research_channels.csv
+f99cd10ff452af3fa9eda73d9bb4873685c5565fda5a5beabf3d1e01d9575f36  docs/WORK-537/02-data.csv
 13af504291164c1a09c878769e891892a7aa402bb89f35875852d508dc5c94c9  /srv/share/quantdb/raw/foreign_research/_probe/probe_log.json
+20477b921276707347501c34ebcaa0cd3b30ac549c91d5ce9ae67a0d3140896e  /srv/share/quantdb/raw/foreign_research/_probe/probe_log_run1_robots_bug.json
 999afa2fa3ff7268271e87c152306761220133cdf447f3d367c24ed62a15abd4  /srv/share/quantdb/raw/foreign_research/_probe/request_ledger.json
+55e7c5cbcf5e809487c33a9d35112c14b117bc28084e7dc9b4158c8a94765d6e  /srv/share/quantdb/raw/foreign_research/_probe/audit_ledger.json
 2065719ffac8ab1c1734e91706d1b8f1b748e986bb3a4a1afbcb9288a65e17e8  /srv/share/quantdb/raw/foreign_research/citi/2026-06-01/Tokenization-2030/Tokenization-2030.md
 9ce7d9da8a1c088ebeb43216772b010d5916953c209fd0b4bbaa353a47e03b46  /srv/share/quantdb/raw/foreign_research/cnbc/2026-11-19/AMD-stock-dives-on-short-seller-report-of-alleged-China-expo/AMD-stock-dives-on-short-seller-report-of-alleged-China-expo.md
 250a37bcd38bf10fec718c53be5b6b0a3475a10d8ad11a614cb9a503112bef6b  /srv/share/quantdb/raw/foreign_research/db/2026-11-12/Sea-change-the-market-implications-of-the-threat-to-the-mari/Sea-change-the-market-implications-of-the-threat-to-the-mari.md

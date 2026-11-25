@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-26 · WORK-537 补正（定向，0 新请求）
+
+按验收意见做三条定向补正，只改文字与 CSV，**未发出任何新探测请求**：
+
+- 请求量改为**可核对口径**：台账 85 条（73 重建 + 12 带时间戳）／实际发出 ≥87 次（round1 46 + round2 29 + 审计 12，均不含 robots.txt 抓取）；185 降级为「不可由台账复现的上界估计」。
+- 如实写入 round-1 的 **5 次 robots 违规相关请求**（Barron's 401/200、FINRA 403×3），并新增结论行「本次发生 1 次 robots 违规（round 1，已修正；抓取内容未进入任何分析、未入样例）」；删除原文「未发任何正文请求 / 零次」。
+- CSV 两行填真实状态码：Barron's（round-1 401 与 200）、FINRA（round-1 403×3）；Reuters/Bloomberg/FT/WSJ 措辞改为「无 HTTP 响应（DNS 污染 + IPv6 无路由 → 连接失败，非站点拒绝）」。
+
+配套：`docs/WORK-537/verify_corrections.py`（0 请求复算请求量口径）；三个脚本的仓库路径改为**跟随脚本所在仓库**，可在 git worktree 中安全运行；`probe_log*.json` 与 `request_ledger.json` 逐字节不变（sha256 可核）。
+
 ## 2026-11-23 · WORK-537 外资研报公开层渠道清单与可抓性实测
 
 新增：

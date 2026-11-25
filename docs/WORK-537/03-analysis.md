@@ -37,7 +37,7 @@
 | nomuraholdings.com | 403 | 200 需JS（nomura.com/insights 301 到 nomuraholdings 首页） | 403 的具体路径与基线不同 |
 | HSBC | — | 200 直连（business.hsbc.com/en-gb/insights） | `www.hsbc.com/insights` 已 404（基线未测） |
 | Deutsche Bank | — | 200 直连（dbresearch.com dbInsights） | `db.com/insights` 等 3 个路径全部 404 |
-| Barron's | — | robots 禁（**未发正文请求**） | robots.txt 对 `*` 为 Disallow |
+| Barron's | — | robots 禁（round-2 起**未发正文请求**） | robots.txt 对 `*` 为 Disallow；**round-1 曾实发 2 次：401 与 200（`/market-data` 的正文已取到，未进入任何分析、未入样例、未入结论）** |
 
 ## 2. 事实层：正文样例（Top-5 外资投行 + 4 个补充，全部 >500 字符、sha256 已核）
 

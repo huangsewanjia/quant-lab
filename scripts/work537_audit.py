@@ -33,7 +33,7 @@ from work537_probe import (  # noqa: E402  仅复用**解析**函数，不复用
     clean_text, extract_title, parse_robots, select_group, robots_allows, UA_BROWSER)
 
 CST = timezone(timedelta(hours=8))
-REPO = "/srv/share/quantdb/code/quant-lab"
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # 跟随脚本所在仓库（worktree 安全）
 RAW = "/srv/share/quantdb/raw/foreign_research"
 PROBE_DIR = os.path.join(RAW, "_probe")
 CSV_DELIVER = os.path.join(REPO, "docs", "foreign_research_channels.csv")
@@ -167,7 +167,17 @@ def cmd_gates(args) -> None:
 
 def cmd_ledger(args) -> None:
     led = json.load(open(os.path.join(PROBE_DIR, "request_ledger.json"), encoding="utf-8"))
+    rec = [e for e in led if e.get("reconstructed")]
+    tsd = [e for e in led if e.get("ts")]
     total = len(led)
+    print(f"[ledger] 台账条目 {total}（{len(rec)} 重建 + {len(tsd)} 带时间戳）")
+    print("[ledger] 注：台账条目 ≠ 实际请求数（未覆盖 round-1，且含 13 条未发出的 robots禁 条目）")
+    r1_all = 0
+    p1 = os.path.join(PROBE_DIR, "probe_log_run1_robots_bug.json")
+    if os.path.exists(p1):
+        r1_all = sum(len(rec1.get("tried", [])) for rec1 in json.load(open(p1, encoding="utf-8")))
+    print(f"[ledger] round-1 实际发出 {r1_all} 次（tried 全发，含 9 次连接失败无状态码）；"
+          f"round-2 发出 29 次（42 条 tried − 13 条 robots禁）；审计复跑 12 次 → 实际发出下界 {r1_all + 29 + 12}")
     # 同域最小间隔
     gaps = {}
     prev = {}
@@ -184,7 +194,6 @@ def cmd_ledger(args) -> None:
                 pass
         prev[d] = ts
     tight = {d: g for d, g in gaps.items() if g < 1.0}
-    print(f"[ledger] 探测请求总数 {total}（含第一轮 75 次，脚本内计数器输出）")
     print(f"[ledger] 同域最小间隔 <1.0s 的域名：{tight if tight else '无'}")
     domains = {}
     for r in led:
@@ -194,15 +203,38 @@ def cmd_ledger(args) -> None:
     bytes_total = sum(r.get("bytes", 0) for r in led)
     print(f"[ledger] 累计下载字节 {bytes_total/1e6:.2f} MB；单次最大 {max(r.get('bytes',0) for r in led)} 字节")
 
-    # robots 合规：按「探测记录里的每渠道 robots 判定」交叉核对 ledger
+    # round-1（robots 判定生效前）实发的请求：台账未覆盖，必须单独如实列出
+    r1_path = os.path.join(PROBE_DIR, "probe_log_run1_robots_bug.json")
+    r1_sent = []
+    blocked_ids = set()
+    p2 = os.path.join(PROBE_DIR, "probe_log.json")
+    if os.path.exists(p2):
+        for rec2 in json.load(open(p2, encoding="utf-8")):
+            if rec2.get("crawlability") in ("robots禁", "robots不可读(HTTP 403)"):
+                blocked_ids.add(rec2["id"])
+    if os.path.exists(r1_path):
+        for rec1 in json.load(open(r1_path, encoding="utf-8")):
+            for t in rec1.get("tried", []):
+                if isinstance(t.get("status"), int) and t["status"] > 0:
+                    r1_sent.append((rec1["id"], t["status"], t["url"]))
+    r1_blocked = [x for x in r1_sent if x[0] in blocked_ids]
+    print(f"[ledger] round-1 实发（带状态码）{len(r1_sent)} 次，"
+          f"其中落在 robots 禁止/不可读渠道的 {len(r1_blocked)} 次：")
+    for cid, st, u in r1_blocked:
+        print(f"          · [{cid}] HTTP {st}  {u}")
+    if r1_blocked:
+        got200 = [x for x in r1_blocked if x[1] == 200]
+        if got200:
+            print("[ledger] 其中取到正文的那次（HTTP 200）内容未进入任何分析、未入样例、未入结论；"
+                  "round-2 起 robots 优先未再发")
+    print("[ledger] 其余 round-1 请求为本次分析的正样本来源（13 个直连渠道的入口页）")
+
+    # robots 合规：台账条目本身的状态（round-2 口径）
     viol = []
-    for rec in json.load(open(os.path.join(PROBE_DIR, "probe_log.json"), encoding="utf-8")):
-        if rec["crawlability"] not in ("robots禁", "robots不可读(HTTP 403)"):
-            continue
-        for r in led:
-            if r["domain"] == re.sub(r"^www\.", "", rec["entry_url"].split("//")[-1].split("/")[0]):
-                viol.append((rec["id"], rec["crawlability"], r["url"]))
-    print(f"[ledger] robots 禁止/不可读渠道却仍发了正文请求：{viol if viol else '无'}")
+    for e in led:
+        if e.get("status") == "robots禁":
+            viol.append((e["n"], e["url"]))
+    print(f"[ledger] 台账中标记为 robots禁（即未发出）的条目：{len(viol)} 条")
 
 
 def cmd_replay(args) -> None:

@@ -20,7 +20,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib import font_manager
 
-REPO = "/srv/share/quantdb/code/quant-lab"
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # 跟随脚本所在仓库（worktree 安全）
 CSV_DELIVER = os.path.join(REPO, "docs", "foreign_research_channels.csv")
 RAW = "/srv/share/quantdb/raw/foreign_research"
 FIG_DIR = os.path.join(REPO, "docs", "WORK-537", "figures")

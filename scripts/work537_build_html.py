@@ -16,7 +16,7 @@ import os
 import re
 from collections import Counter
 
-REPO = "/srv/share/quantdb/code/quant-lab"
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # 跟随脚本所在仓库（worktree 安全）
 CSV_DELIVER = os.path.join(REPO, "docs", "foreign_research_channels.csv")
 FIG_DIR = os.path.join(REPO, "docs", "WORK-537", "figures")
 RAW = "/srv/share/quantdb/raw/foreign_research"
@@ -151,7 +151,7 @@ a{color:inherit;text-decoration:none}
 <body><div class="page">
 
 <h1>外资研报公开层：渠道清单与可抓性实测</h1>
-<div class="sub">WORK-537 · 测量日期 2026-11-23（UTC+8） · 样本 {len(rows)} 个渠道 · 请求总量 185 次（上限 200） · 口径：公开、无需账号、无需付费墙</div>
+<div class="sub">WORK-537 · 测量日期 2026-11-23（UTC+8） · 样本 {len(rows)} 个渠道 · 请求量（可核对口径）：台账 85 条 / 实际发出 ≥87 次，185 为不可复现上界 · 口径：公开、无需账号、无需付费墙</div>
 <div class="rule"></div>
 
 <div class="lede">
@@ -164,6 +164,7 @@ a{color:inherit;text-decoration:none}
 <div><b>{crawl['直连']}</b><span>可直接机器采</span></div>
 <div><b>{rec['观察']}</b><span>只能人工看</span></div>
 <div><b>{rec['不采']}</b><span>robots 禁 / 不可读</span></div>
+<div><b>1</b><span>已发生的 robots 违规（round 1）</span></div>
 <div><b>0</b><span>外资样本的评级命中</span></div>
 <div><b>{len(samples)}</b><span>已抓正文样例</span></div>
 </div>
@@ -220,7 +221,7 @@ Citi、CNBC）全部 0 命中；JPM 的 1 次为 <i>underperforming other develo
 <tr><td>13 个直连渠道</td><td class="c"><b>每周一次增量</b></td><td>实测间隔中位数 3–7 天居多（HSBC 5d、JPM 7d、德银 7d、慧博/发现报告 3d）</td><td class="c mono">≈26 次/周</td></tr>
 <tr><td>CNBC、SEC EDGAR</td><td class="c">每日或每 2 日</td><td>实测 1 天 / 4 天</td><td class="c mono">2–4 次/天</td></tr>
 <tr><td>需 JS / 403 / 登录的 10 个</td><td class="c">人工看</td><td>机器在列表层拿不到；robots 禁的 2 个不采</td><td class="c mono">0</td></tr>
-<tr><td>Reuters、Bloomberg、FT、WSJ</td><td class="c">换出口后重测</td><td>本机网络层不可达，非站点策略</td><td class="c mono">0</td></tr>
+<tr><td>Reuters、Bloomberg、FT、WSJ</td><td class="c">换出口后重测</td><td>无 HTTP 响应（DNS 污染 + IPv6 无路由 → 连接失败，非站点拒绝）</td><td class="c mono">0</td></tr>
 </tbody></table>
 
 <h2>四、与中资券商研报（WORK-536）如何合并成一张「研究内容表」</h2>
@@ -244,6 +245,8 @@ Citi、CNBC）全部 0 命中；JPM 的 1 次为 <i>underperforming other develo
 <li>Bernstein 的公开研究内容<b>完全未取到</b>（落地登录页），未验证是否另有可采入口。</li>
 <li>样本量 <b>9 篇、1 个时间点</b>，支持「实测 0 命中」这一事实陈述，<b>不构成</b>公开层评级可得率的统计估计。</li>
 <li>抓到的正文只作内部研究，<b>不入 public 仓库</b>（<code>raw/foreign_research</code> 已排除）。</li>
+<li><b>已发生的 robots 违规 1 次（如实披露）</b>：round-1（robots 判定生效前）实发 5 次——Barron's <code>/</code> 401、Barron's <code>/market-data</code> <b>200（正文已取到）</b>、FINRA 三入口各 403；
+该正文<b>未进入任何分析、未入样例、未入结论</b>，round-2 起 robots 优先未再发生。</li>
 </ol>
 
 <div class="foot">

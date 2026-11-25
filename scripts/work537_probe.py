@@ -40,7 +40,7 @@ UA_BROWSER = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like G
 # 少数站点（SEC）在 robots/服务条款里要求声明式 UA（含联系邮箱），不是绕过手段，是其公开的使用要求。
 UA_DECLARED = "Multica-QuantLab/1.0 (research@quant-lab.local)"
 
-REPO = "/srv/share/quantdb/code/quant-lab"
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # 跟随脚本所在仓库（worktree 安全）
 RAW_ROOT = "/srv/share/quantdb/raw/foreign_research"
 PROBE_DIR = os.path.join(RAW_ROOT, "_probe")
 CSV_DATA = os.path.join(REPO, "docs", "WORK-537", "02-data.csv")
@@ -546,22 +546,22 @@ CHANNELS = [
          entry="https://www.reuters.com/markets/",
          fallbacks=["https://www.reuters.com/business/finance/"],
          form="文章/摘要", freq="日更", coverage="全球",
-         note="公开页；文章多受登录/自动化防护限制"),
+         note="公开页；本机出口不可达（DNS 污染 + IPv6 无路由 → 连接失败，非站点拒绝）；文章多受登录/自动化防护限制"),
     dict(id="bloomberg", name="Bloomberg 公开页", org="Bloomberg", type="财经媒体",
          entry="https://www.bloomberg.com/markets",
          fallbacks=["https://www.bloomberg.com/"],
          form="文章/摘要", freq="日更", coverage="全球",
-         note="公开页；Bloomberg Terminal 需订阅"),
+         note="公开页；本机出口不可达（DNS 污染 + IPv6 无路由 → 连接失败，非站点拒绝）；Bloomberg Terminal 需订阅"),
     dict(id="ft", name="FT 公开页", org="Financial Times", type="财经媒体",
          entry="https://www.ft.com/",
          fallbacks=["https://www.ft.com/markets"],
          form="文章/摘要", freq="日更", coverage="全球/欧洲",
-         note="公开页；正文多在付费墙后"),
+         note="公开页；本机出口不可达（DNS 污染 + IPv6 无路由 → 连接失败，非站点拒绝）；正文多在付费墙后"),
     dict(id="wsj", name="WSJ 公开页", org="Wall Street Journal", type="财经媒体",
          entry="https://www.wsj.com/",
          fallbacks=["https://www.wsj.com/market-data"],
          form="文章/摘要", freq="日更", coverage="美国/全球",
-         note="公开页；正文多在付费墙后"),
+         note="公开页；本机出口不可达（DNS 污染 + IPv6 无路由 → 连接失败，非站点拒绝）；正文多在付费墙后"),
     dict(id="cnbc", name="CNBC Investing / Research", org="CNBC", type="财经媒体",
          entry="https://www.cnbc.com/investing/",
          fallbacks=["https://www.cnbc.com/research/", "https://www.cnbc.com/"],
@@ -571,7 +571,9 @@ CHANNELS = [
          entry="https://www.barrons.com/",
          fallbacks=["https://www.barrons.com/market-data"],
          form="文章/摘要", freq="日更", coverage="美国/全球",
-         note="公开页；正文多在付费墙后"),
+         note="公开页；正文多在付费墙后。round-1（robots 判定生效前）实发 2 次："
+              "https://www.barrons.com/ → HTTP 401、https://www.barrons.com/market-data → HTTP 200"
+              "（该次正文已取到，但未进入任何分析、未入样例、未入结论）；round-2 起 robots 优先，未再发正文请求"),
 
     # ---------------- 监管 / 披露 3 ----------------
     dict(id="sec", name="SEC EDGAR（公开机器接口）", org="U.S. SEC", type="监管披露",
@@ -584,7 +586,9 @@ CHANNELS = [
          entry="https://www.finra.org/finra-data",
          fallbacks=["https://www.finra.org/media-center/newsroom", "https://www.finra.org/rules-guidance"],
          form="文章/公告", freq="日更", coverage="美国",
-         note="自律组织公开信息；含分析师研究相关的公开指引"),
+         note="自律组织公开信息；含分析师研究相关的公开指引。robots.txt 不可读（HTTP 403）；"
+              "round-1（robots 判定生效前）实发 3 次均 HTTP 403（finra-data / media-center/newsroom / "
+              "rules-guidance）；round-2 起 robots 优先，未再发正文请求"),
     dict(id="exch", name="交易所公开披露", org="NYSE / 交易所", type="监管披露",
          entry="https://www.nyse.com/listed-company-information",
          fallbacks=["https://www.nyse.com/quote/XNYS", "https://www.hkexnews.hk/"],
@@ -669,9 +673,42 @@ def classify(ch: dict, resp: dict, an: dict, rob: dict, rob_hit: str) -> str:
     return f"HTTP{st}"
 
 
-def evidence_text(resp: dict, an: dict, rob: dict, cls: str) -> str:
+RUN1_LOG = os.path.join(PROBE_DIR, "probe_log_run1_robots_bug.json")
+
+
+def round1_facts() -> dict:
+    """读取 round-1（robots 判定生效前）的实际发出记录：{channel_id: [(status, url), ...]}。
+
+    只收录**带真实 HTTP 状态码**的尝试（200/401/403 等），status=0（连接失败）不收，
+    因为那是网络层失败、没有状态码可写。
+    """
+    out: dict[str, list] = {}
+    if not os.path.exists(RUN1_LOG):
+        return out
+    try:
+        log = json.load(open(RUN1_LOG, encoding="utf-8"))
+    except Exception:
+        return out
+    for rec in log:
+        for t in rec.get("tried", []):
+            st = t.get("status")
+            if not isinstance(st, int) or st <= 0:
+                continue
+            out.setdefault(rec["id"], []).append((st, t.get("url", "")))
+    return out
+
+
+def evidence_text(resp: dict, an: dict, rob: dict, cls: str, r1: list | None = None) -> str:
     st = resp["status"]
-    bits = [f"HTTP {st if st else '无响应'}"]
+    bits = []
+    if st == 0:
+        if rob.get("robots_status") == 0:
+            # robots.txt 本身就取不到 = 网络层失败，与站点策略无关
+            bits.append("无 HTTP 响应（DNS 污染 + IPv6 无路由 → 连接失败，非站点拒绝）")
+        else:
+            bits.append("无 HTTP 响应（round-2 未发出正文请求：robots 禁 / robots 不可读）")
+    else:
+        bits.append(f"HTTP {st}")
     if resp.get("chain"):
         bits.append("跳转:" + " -> ".join(resp["chain"])[:120])
     if resp.get("headers", {}).get("content-type"):
@@ -696,6 +733,10 @@ def evidence_text(resp: dict, an: dict, rob: dict, cls: str) -> str:
         bits.append(f'失败原文="{snippet}"')
     elif resp.get("error"):
         bits.append(f'失败原文="{resp["error"][:80]}"')
+    if r1:
+        items = " ; ".join(f"HTTP {st} {u}" for st, u in r1)
+        bits.append(f"round1 实发: {items}"
+                    f"（robots 判定生效前的尝试；抓取内容未进入任何分析、未入样例、未入结论）")
     return " | ".join(bits)
 
 
@@ -1045,8 +1086,11 @@ def cmd_reclass(args) -> None:
     """离线重判可抓性：0 请求，用已保存的列表页快照重跑 analyse_page + classify。
 
     用于「分类逻辑修正后不重新打站」：判据变化时，对同一份快照重放判定，结果可复现。
+    `--keep-log` 只重生成 CSV，不回写 probe_log.json（原始快照保持逐字节不变）。
     """
     log = json.load(open(os.path.join(PROBE_DIR, "probe_log.json"), encoding="utf-8"))
+    r1facts = round1_facts()
+    notes = {c["id"]: c["note"] for c in CHANNELS}
     changed = []
     for r in log:
         body = ""
@@ -1089,14 +1133,19 @@ def cmd_reclass(args) -> None:
             r["has_rating_tp"] = ("部分（列表页出现评级/目标价字样：%s）" % "、".join(hits[:6])) if hits \
                 else "无（列表页全文未出现评级/目标价字样）"
             r["rating_hits"] = len(hits)
-        r["evidence"] = evidence_text(resp, an, rob, new)
+        r["evidence"] = evidence_text(resp, an, rob, new, r1facts.get(r["id"]))
+        if r["id"] in notes:
+            r["note"] = notes[r["id"]]          # 渠道元数据以 CHANNELS 表为单一事实源
         full_text = clean_text(body) if body else ""
         cad = observed_cadence(full_text)
         r["freq_observed"] = cad
         if old != new:
             changed.append((r["id"], old, new))
-    json.dump(log, open(os.path.join(PROBE_DIR, "probe_log.json"), "w", encoding="utf-8"),
-              ensure_ascii=False, indent=1)
+    if not getattr(args, "keep_log", False):
+        json.dump(log, open(os.path.join(PROBE_DIR, "probe_log.json"), "w", encoding="utf-8"),
+                  ensure_ascii=False, indent=1)
+    else:
+        print("[reclass] --keep-log：probe_log.json 未回写（原始快照逐字节不变）", flush=True)
     write_csvs(log)
     print(f"[reclass] 0 请求，重判 {len(log)} 个渠道；判定变化 {len(changed)} 个：", flush=True)
     for cid, old, new in changed:
@@ -1123,29 +1172,14 @@ def observed_cadence(text: str) -> str:
 
 
 def cmd_csv(args) -> None:
-    """离线重生成 CSV：不发任何请求，从已保存的列表页 HTML 重算评级字样命中。"""
+    """离线重生成 CSV：不发任何请求，从已保存的列表页 HTML 重算派生字段。
+
+    与 `reclass` 同一套派生逻辑，额外保证 **probe_log.json 不被回写**（原始快照逐字节不变）。
+    """
+    args.keep_log = True
+    cmd_reclass(args)
     log = json.load(open(os.path.join(PROBE_DIR, "probe_log.json"), encoding="utf-8"))
-    for r in log:
-        body = ""
-        if os.path.exists(r.get("body_path", "")):
-            body = open(r["body_path"], encoding="utf-8").read()
-        full = clean_text(body) if body else ""
-        if r["status"] != 200:
-            r["has_rating_tp"] = f"未取到原文（HTTP {r['status']}）"
-            r["rating_hits"] = 0
-        elif "需登录" in r.get("crawlability", "") or "付费墙" in r.get("crawlability", ""):
-            r["has_rating_tp"] = "未取到原文（需登录/付费墙）"
-            r["rating_hits"] = 0
-        elif not r.get("list_parseable"):
-            r["has_rating_tp"] = "未取到原文（列表未渲染/无可解析日期）"
-            r["rating_hits"] = 0
-        else:
-            hits = sorted(set(m.group(0).lower() for m in RATING_PAT.finditer(full)))
-            r["has_rating_tp"] = ("部分（列表页出现评级/目标价字样：%s）" % "、".join(hits[:6])) if hits \
-                else "无（列表页全文未出现评级/目标价字样）"
-            r["rating_hits"] = len(hits)
-    write_csvs(log)
-    print(f"[csv] 已重生成 {CSV_DATA} 与 {CSV_DELIVER}（{len(log)} 行，0 请求）", flush=True)
+    print(f"[csv] 已重生成 {CSV_DATA} 与 {CSV_DELIVER}（{len(log)} 行，0 请求，probe_log.json 未改）", flush=True)
 
 
 if __name__ == "__main__":
@@ -1155,6 +1189,8 @@ if __name__ == "__main__":
     ap.add_argument("--channels", default="")
     ap.add_argument("--meta", default="")
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--keep-log", action="store_true",
+                    help="只重生成 CSV，不回写 probe_log.json（原始快照逐字节不变）")
     ap.add_argument("--max-requests", type=int, default=200)
     ap.add_argument("--tries", type=int, default=1)
     args = ap.parse_args()
