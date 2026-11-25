@@ -184,13 +184,20 @@ else
 fi
 
 # 训练日志入库（可核验证据）：.w566tmp 下由全链守护写入
+# 注意（2026-11-25 §17.4 起）：全链守护改为**每次尝试一个日志文件**
+# （w566_s${s}_try${try}.log），因为 `>` 重定向会吃掉上一轮失败的唯一证据。
+# 因此这里必须**挑带「全部完成」的那一份**入库 —— 崩掉的尝试日志不是有效训练证据。
+T="../.w566tmp"
 for s in $SEEDS; do
-  src_log="../.w566tmp/w566_s${s}.log"
-  if [ -s "$src_log" ]; then
+  src_log=""
+  for cand in "$T/w566_s${s}.log" $(ls -1t "$T"/w566_s${s}_try*.log 2>/dev/null); do
+    if [ -s "$cand" ] && grep -q "全部完成" "$cand"; then src_log="$cand"; break; fi
+  done
+  if [ -n "$src_log" ]; then
     cp -f "$src_log" "experiments/WORK-566/train_log_seed${s}.log"
-    echo "  训练日志入库：train_log_seed${s}.log（$(wc -l < "$src_log") 行）"
+    echo "  训练日志入库：train_log_seed${s}.log ← $(basename "$src_log")（$(wc -l < "$src_log") 行）"
   else
-    echo "  警告：找不到训练日志 $src_log（交付自检会报缺）" >&2
+    echo "  警告：找不到带「全部完成」的种子 $s 训练日志（$T/w566_s${s}_try*.log）—— 交付自检会报缺" >&2
   fi
 done
 $PY scripts/work566_registry_row.py
