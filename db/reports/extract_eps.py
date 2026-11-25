@@ -300,17 +300,22 @@ def extract_from_table(text: str, years: set[int]) -> list[EpsValue]:
 
 
 _NUM = r"-?\d+(?:\.\d+)?"
-_SEP = r"(?:\s*元)?\s*[、,，/和及与]\s*"
-_VALUES = rf"{_NUM}(?:{_SEP}{_NUM}){{1,5}}"
+_TAIL = r"(?:\s*[（(][^）)]{0,20}[）)])?"  # "11.2(-4.2)" / "11.2（-4.2）" — revision note
+_SEP = r"(?:\s*元)?\s*[、,，/\\／和及与]\s*"
+_VALUES = rf"{_NUM}{_TAIL}(?:{_SEP}{_NUM}{_TAIL}){{1,5}}"
 
 # "EPS分别为69.57、81.81和96.47元" — the year anchor is looked up separately
 # in the same sentence, because sell-side prose often puts it several clauses
 # before the numbers ("预计2024-2026年营收…，EPS分别为…").
 EPS_VALUES_RE = re.compile(
-    r"(?:EPS|每股收益)[^。；;\n]{0,16}?(?:分别为|为|达到|预计为|约|达)?\s*(" + _VALUES + r")\s*元",
+    r"(?:EPS|每股收益)[^。；;\n]{0,16}?(?:分别为|分别|为|达到|预计为|约|达)?\s*(" + _VALUES + r")"
+    r"\s*(?:元(?:/股)?|(?=[。，,；;]))",
     re.IGNORECASE,
 )
 YEAR_RANGE_RE = re.compile(r"(20\d{2})\s*年?\s*[-~～至—–]\s*(20\d{2})")
+SHORT_YEAR_RANGE_RE = re.compile(r"(?<!\d)(\d{2})\s*[-~～至—–]\s*(\d{2})\s*年?")
+FULL_YEAR_LIST_RE = re.compile(r"(20\d{2})\s*/\s*(20\d{2})\s*/\s*(20\d{2})\s*年")
+SHORT_YEAR_LIST_RE = re.compile(r"(?<!\d)(\d{2})\s*/\s*(\d{2})\s*/\s*(\d{2})\s*年")
 SINGLE_RE = re.compile(
     r"(20\d{2})\s*年[^。；;\n]{0,20}?(?:EPS|每股收益)[^。；;\n]{0,16}?(?:为|预计为|约为|达|达到)\s*"
     r"(-?\d+(?:\.\d+)?)\s*元",
@@ -323,7 +328,9 @@ def _sentences(text: str) -> list[tuple[int, str]]:
     out: list[tuple[int, str]] = []
     start = 0
     for idx, char in enumerate(text):
-        if char in "。；;\n":
+        # split on full stops and line breaks only: a year anchor and the EPS
+        # numbers are often separated by "；" inside one paragraph.
+        if char in "。\n":
             end = idx if char == "\n" else idx + 1
             chunk = text[start:end]
             if chunk.strip():
@@ -334,30 +341,74 @@ def _sentences(text: str) -> list[tuple[int, str]]:
     return out
 
 
+def _year_anchors(sentence: str) -> list[tuple[int, list[int]]]:
+    """Every explicit year anchor in the sentence: ("2024-2026", "23-25年", "23/24/25年")."""
+    anchors: list[tuple[int, list[int]]] = []
+    for match in YEAR_RANGE_RE.finditer(sentence):
+        y0, y1 = int(match.group(1)), int(match.group(2))
+        if y1 >= y0 and y1 - y0 <= 5:
+            anchors.append((match.start(), list(range(y0, y1 + 1))))
+    for match in SHORT_YEAR_RANGE_RE.finditer(sentence):
+        y0, y1 = 2000 + int(match.group(1)), 2000 + int(match.group(2))
+        if 2000 <= y0 <= 2099 and 0 <= y1 - y0 <= 5:
+            anchors.append((match.start(), list(range(y0, y1 + 1))))
+    for match in FULL_YEAR_LIST_RE.finditer(sentence):
+        years = [int(match.group(i)) for i in (1, 2, 3)]
+        if years == list(range(years[0], years[0] + 3)):
+            anchors.append((match.start(), years))
+    for match in SHORT_YEAR_LIST_RE.finditer(sentence):
+        years = [2000 + int(match.group(i)) for i in (1, 2, 3)]
+        if years == list(range(years[0], years[0] + 3)):
+            anchors.append((match.start(), years))
+    return sorted(anchors)
+
+
 def _bind_years(sentence: str, value_start: int, n_values: int) -> tuple[list[int], str] | None:
-    """Resolve the fiscal years a value list belongs to, or None if ambiguous."""
-    ranges = list(YEAR_RANGE_RE.finditer(sentence, 0, value_start))
-    if ranges:
-        last = ranges[-1]
-        years = list(range(int(last.group(1)), int(last.group(2)) + 1))
+    """Resolve the fiscal years a value list belongs to, or None if ambiguous.
+
+    The nearest explicit anchor before the numbers wins; only anchors whose
+    span length equals the number of values are accepted, so "2024-2025年"
+    followed by three values is treated as ambiguous instead of guessed.
+    """
+    before = [anchor for anchor in _year_anchors(sentence) if anchor[0] < value_start]
+    for _pos, years in reversed(before):
         if len(years) == n_values:
             return years, "text_range"
-        return None
     hits = [int(y) for y in YEAR_TOKEN_RE.findall(sentence[:value_start])]
     if len(hits) >= 2:
-        years = list(range(hits[0], hits[0] + n_values))
-        return years, "text_list"
+        return list(range(hits[0], hits[0] + n_values)), "text_list"
     return None
+
+
+def _parse_value_list(group: str) -> list[float]:
+    """First number of each token: keeps 11.2 from "11.2(-4.2)"."""
+    values: list[float] = []
+    for piece in re.split(r"[、,，/\\／和及与]", group):
+        match = NUM_RE.search(piece)
+        if match:
+            try:
+                values.append(float(match.group(0)))
+            except ValueError:
+                continue
+    return values
+
+
+ANCHOR_LOOKBACK_CHARS = 300
 
 
 def extract_from_text(text: str, years: set[int]) -> list[EpsValue]:
     found: list[EpsValue] = []
     for offset, sentence in _sentences(text):
+        # The year anchor often sits in the previous sentence of the same
+        # paragraph ("预计2024/2025/2026年营收…。对应EPS10.53/…元。"), so the
+        # search space is the sentence plus a short look-behind.
+        prefix = text[max(0, offset - ANCHOR_LOOKBACK_CHARS) : offset]
+        search_space = prefix + sentence
         for match in EPS_VALUES_RE.finditer(sentence):
-            values = _parse_numbers(match.group(1))
+            values = _parse_value_list(match.group(1))
             if len(values) < 2:
                 continue
-            bound = _bind_years(sentence, match.start(), len(values))
+            bound = _bind_years(search_space, len(prefix) + match.start(), len(values))
             if bound is None:
                 continue
             fiscal_years, extractor = bound

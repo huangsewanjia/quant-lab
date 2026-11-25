@@ -399,7 +399,7 @@ def classify(result: FetchResult, content_type: str = "") -> str:
     status = result.http_status
     text = visible_text(result.content or "")
     lowered = text.lower()
-    if result.error == "timeout" or (status is None and result.exit_code == 124):
+    if result.error == "timeout" or status in (None, 0) or result.exit_code == 124:
         return "timeout"
     if status == 403:
         return "403-WAF"
@@ -780,6 +780,7 @@ def _fetch_impl(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
             "url_template": template,
             "http_status": result.http_status,
             "error": result.error,
+            "exit_code": result.exit_code,
             "failure_class": failure,
             "fetched_at": now.isoformat(),
             "elapsed_s": result.elapsed_s,
@@ -868,6 +869,40 @@ def scan_detail(paths: DetailPaths) -> dict[str, Any]:
     return {"ok_docs": ok, "by_failure": classes, "by_month": dict(sorted(dates.items())), "gzip_bytes": total_gzip}
 
 
+def cmd_reclassify(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
+    """Recompute failure_class from the archived body; never touches the network."""
+    changed = 0
+    scanned = 0
+    for meta_path in sorted(paths.detail_dir.glob("*/*/meta.json")):
+        scanned += 1
+        try:
+            meta = read_json(meta_path)
+        except Exception:
+            continue
+        body = meta_path.parent / "body.html.gz"
+        content = ""
+        if body.exists():
+            with gzip.open(body, "rb") as fh:
+                content = fh.read().decode("utf-8", errors="replace")
+        result = FetchResult(
+            http_status=meta.get("http_status"),
+            content=content,
+            error=meta.get("error"),
+            bot_challenge=None,
+            stderr=meta.get("stderr_tail") or "",
+            elapsed_s=float(meta.get("elapsed_s") or 0.0),
+            exit_code=int(meta.get("exit_code") or 0),
+        )
+        new_class = classify(result)
+        if new_class != meta.get("failure_class"):
+            meta["failure_class_previous"] = meta.get("failure_class")
+            meta["failure_class"] = new_class
+            meta["reclassified_at"] = dt.datetime.now(dt.timezone.utc).isoformat()
+            write_json_atomic(meta_path, meta)
+            changed += 1
+    return {"scanned": scanned, "changed": changed}
+
+
 def cmd_stats(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
     con = connect_ro(paths.db_path)
     try:
@@ -929,6 +964,7 @@ def build_parser() -> argparse.ArgumentParser:
     fetch.add_argument("--timeout", type=float, default=90.0)
     fetch.add_argument("--verbose", action="store_true")
 
+    sub.add_parser("reclassify", help="recompute failure_class from stored bodies (no network)")
     sub.add_parser("stats", help="coverage vs report_meta (no network)")
     return p
 
@@ -946,6 +982,8 @@ def main(argv: list[str] | None = None) -> int:
             payload = cmd_probe(args, paths)
         elif args.command == "fetch":
             payload = cmd_fetch(args, paths)
+        elif args.command == "reclassify":
+            payload = cmd_reclassify(args, paths)
         elif args.command == "stats":
             payload = cmd_stats(args, paths)
         else:

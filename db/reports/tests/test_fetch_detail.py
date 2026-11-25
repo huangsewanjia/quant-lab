@@ -177,6 +177,8 @@ def test_classify_login_wall():
 
 def test_classify_timeout_and_pdf():
     assert classify(_result(None, "", error="timeout", exit_code=124)) == "timeout"
+    # no response at all (navigation failed): http_status 0, not "schema-changed"
+    assert classify(_result(0, "")) == "timeout"
     assert classify(_result(200, "%PDF-1.4"), content_type="application/pdf") == "pdf-only"
 
 
