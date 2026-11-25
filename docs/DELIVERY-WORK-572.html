@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WORK-572 行业层历史回填｜交付说明</title>
+<style>
+ body{font-family:-apple-system,"Segoe UI","Noto Sans CJK SC","Source Han Sans SC",sans-serif;
+   margin:0 auto;max-width:980px;padding:32px 24px 64px;color:#0f172a;line-height:1.65;background:#fff}
+ h1{font-size:26px;margin:0 0 4px} h2{font-size:19px;margin:34px 0 10px;border-left:4px solid #2563eb;padding-left:10px}
+ h3{font-size:15px;margin:18px 0 6px;color:#1e293b} .sub{color:#64748b;font-size:13px}
+ table{border-collapse:collapse;width:100%;font-size:13px;margin:10px 0}
+ th,td{border:1px solid #e2e8f0;padding:6px 8px;text-align:left;vertical-align:top}
+ th{background:#f8fafc} td.num{text-align:right;font-variant-numeric:tabular-nums}
+ .ok{color:#047857;font-weight:600} .bad{color:#b91c1c;font-weight:600}
+ code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+ pre{background:#f8fafc;border:1px solid #e2e8f0;padding:10px;overflow-x:auto;border-radius:6px}
+ .card{border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;margin:12px 0;background:#fcfdff}
+ .kpi{display:flex;gap:14px;flex-wrap:wrap;margin:12px 0}
+ .kpi div{border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;min-width:150px}
+ .kpi b{display:block;font-size:20px;color:#1d4ed8}
+ ul{margin:6px 0 6px 18px} li{margin:3px 0}
+</style></head><body>
+<h1>行业层历史回填（WORK-572）· 交付说明</h1>
+<p class="sub">交付日期 2026-11-25 · 对象：/srv/share/quantdb · 代码摘要见 §6 · 数据统计时点 2026-11-25 18:00 (Asia/Shanghai)</p>
+
+<div class="kpi">
+ <div>回填前 industry_* 17 表行数<b>16,834</b></div>
+ <div>回填后 industry_* 17 表行数<b>241,892</b></div>
+ <div>改动源<b>11 / 17</b></div>
+ <div>质量闸<b>7/7 PASS</b></div>
+</div>
+
+<h2>1 做了什么</h2>
+<p>把行业层 11 个源的历史深度补起来：只改抓取窗口参数与取法，不动入库层与表结构。用户可感知的变化是
+<strong>同一张表能查的区间变长</strong>（例如碳酸锂期货从 4 个月到 3.3 年、社融从 10 期到 70 期、LPR 从 12 期到 88 期），
+表名、字段、单位、口径均未变。</p>
+<svg viewBox="0 0 760 420" width="100%" role="img" aria-label="回填前后行数对比"><text x="0" y="16" font-size="12" fill="#475569">行数（对数刻度）</text><text x="0" y="42" font-size="12" fill="#0f172a">GFEX 碳酸锂期货</text><rect x="250" y="30" width="312.2" height="10" fill="#cbd5e1"/><text x="566.2" y="39" font-size="10" fill="#64748b">12,960</text><rect x="250" y="44" width="374.2" height="10" fill="#2563eb"/><text x="628.2" y="53" font-size="10" fill="#1d4ed8">84,951</text><text x="0" y="76" font-size="12" fill="#0f172a">LPR 报价</text><rect x="250" y="64" width="104.8" height="10" fill="#cbd5e1"/><text x="358.8" y="73" font-size="10" fill="#64748b">24</text><rect x="250" y="78" width="170.5" height="10" fill="#2563eb"/><text x="424.5" y="87" font-size="10" fill="#1d4ed8">176</text><text x="0" y="110" font-size="12" fill="#0f172a">巨潮公告索引</text><rect x="250" y="98" width="218.2" height="10" fill="#cbd5e1"/><text x="472.2" y="107" font-size="10" fill="#64748b">749</text><rect x="250" y="112" width="314.3" height="10" fill="#2563eb"/><text x="568.3" y="121" font-size="10" fill="#1d4ed8">13,821</text><text x="0" y="144" font-size="12" fill="#0f172a">中汽协产销</text><rect x="250" y="132" width="164.3" height="10" fill="#cbd5e1"/><text x="418.3" y="141" font-size="10" fill="#64748b">146</text><rect x="250" y="146" width="243.5" height="10" fill="#2563eb"/><text x="497.5" y="155" font-size="10" fill="#1d4ed8">1,614</text><text x="0" y="178" font-size="12" fill="#0f172a">乘联分会新能源</text><rect x="250" y="166" width="130.3" height="10" fill="#cbd5e1"/><text x="384.3" y="175" font-size="10" fill="#64748b">52</text><rect x="250" y="180" width="205.3" height="10" fill="#2563eb"/><text x="459.3" y="189" font-size="10" fill="#1d4ed8">506</text><text x="0" y="212" font-size="12" fill="#0f172a">财政部收支</text><rect x="250" y="200" width="119.0" height="10" fill="#cbd5e1"/><text x="373.0" y="209" font-size="10" fill="#64748b">37</text><rect x="250" y="214" width="221.8" height="10" fill="#2563eb"/><text x="475.8" y="223" font-size="10" fill="#1d4ed8">836</text><text x="0" y="246" font-size="12" fill="#0f172a">国家能源局电力</text><rect x="250" y="234" width="125.5" height="10" fill="#cbd5e1"/><text x="379.5" y="243" font-size="10" fill="#64748b">45</text><rect x="250" y="248" width="211.2" height="10" fill="#2563eb"/><text x="465.2" y="257" font-size="10" fill="#1d4ed8">606</text><text x="0" y="280" font-size="12" fill="#0f172a">人民银行社融</text><rect x="250" y="268" width="155.0" height="10" fill="#cbd5e1"/><text x="409.0" y="277" font-size="10" fill="#64748b">110</text><rect x="250" y="282" width="219.1" height="10" fill="#2563eb"/><text x="473.1" y="291" font-size="10" fill="#1d4ed8">770</text><text x="0" y="314" font-size="12" fill="#0f172a">统计局发布</text><rect x="250" y="302" width="257.5" height="10" fill="#cbd5e1"/><text x="511.5" y="311" font-size="10" fill="#64748b">2,468</text><rect x="250" y="316" width="390.0" height="10" fill="#2563eb"/><text x="644.0" y="325" font-size="10" fill="#1d4ed8">137,342</text><text x="0" y="348" font-size="12" fill="#0f172a">OWID/IEA/USGS</text><rect x="250" y="336" width="123.2" height="10" fill="#cbd5e1"/><text x="377.2" y="345" font-size="10" fill="#64748b">42</text><rect x="250" y="350" width="229.1" height="10" fill="#2563eb"/><text x="483.1" y="359" font-size="10" fill="#1d4ed8">1,044</text><text x="0" y="382" font-size="12" fill="#0f172a">UN Comtrade</text><rect x="250" y="370" width="53.1" height="10" fill="#cbd5e1"/><text x="307.1" y="379" font-size="10" fill="#64748b">5</text><rect x="250" y="384" width="112.1" height="10" fill="#2563eb"/><text x="366.1" y="393" font-size="10" fill="#1d4ed8">30</text><line x1="250" y1="24" x2="250" y2="412" stroke="#94a3b8"/></svg>
+<table>
+<tr><th>源</th><th>频率</th><th>回填前行数</th><th>回填前区间</th><th>回填后行数</th><th>回填后区间</th></tr>
+<tr><td>GFEX 碳酸锂期货</td><td>日</td><td class='num'>12,960</td><td>2026-05-28..2026-11-20</td><td class='num'>84,951</td><td>2023-07-21..2026-11-25</td></tr><tr><td>LPR 报价</td><td>月</td><td class='num'>24</td><td>2025-12-22..2026-11-20</td><td class='num'>176</td><td>2019-08-20..2026-11-20</td></tr><tr><td>巨潮公告索引</td><td>事件</td><td class='num'>749</td><td>2026-10-24..2026-11-23</td><td class='num'>13,821</td><td>2023-12-12..2026-11-25</td></tr><tr><td>中汽协产销</td><td>月</td><td class='num'>146</td><td>2026-04-01..2026-10-01</td><td class='num'>1,614</td><td>2020-05-01..2026-10-01</td></tr><tr><td>乘联分会新能源</td><td>月</td><td class='num'>52</td><td>2025-10-01..2026-11-01</td><td class='num'>506</td><td>2019-11-01..2026-11-01</td></tr><tr><td>财政部收支</td><td>月</td><td class='num'>37</td><td>2017-11-01..2026-10-01</td><td class='num'>836</td><td>2015-02-01..2026-10-01</td></tr><tr><td>国家能源局电力</td><td>月</td><td class='num'>45</td><td>2026-06-01..2026-09-01</td><td class='num'>606</td><td>2024-07-01..2026-10-01</td></tr><tr><td>人民银行社融</td><td>月</td><td class='num'>110</td><td>2026-01-01..2026-10-01</td><td class='num'>770</td><td>2021-01-01..2026-10-01</td></tr><tr><td>统计局发布</td><td>月</td><td class='num'>2,468</td><td>2025-10-01..2026-10-01</td><td class='num'>137,342</td><td>2020-12-01..2026-10-01</td></tr><tr><td>OWID/IEA/USGS</td><td>年</td><td class='num'>42</td><td>2024..2025</td><td class='num'>1,044</td><td>1750..2025</td></tr><tr><td>UN Comtrade</td><td>年</td><td class='num'>5</td><td>2024..2024</td><td class='num'>30</td><td>2019..2024</td></tr>
+<tr><th colspan="2">合计（17 表；含 6 个未改快照源）</th><th class="num">16,834</th><th></th><th class="num">241,892</th><th></th></tr>
+</table>
+<p class="sub">口径自检：上表 11 个回填源「回填后行数」逐行相加 = 241,696；再加 6 个未改动的快照源，才是 17 表合计 241,892（见 §2 形态核对）。</p>
+
+<h3>关键改动（详见 docs/industry-ingest-2026.md §10）</h3>
+<ul>
+<li><strong>LPR</strong>：`pageNum/startDate` 被服务端忽略（分页失效），改用 `strStartDate/strEndDate` 按日历年切片。</li>
+<li><strong>OWID/IEA/USGS</strong>：原脚本对每个实体只取 `sel[-2:]`，改为全序列（锂产量 World 1995–2025）。</li>
+<li><strong>GFEX</strong>：`DAYS 180→1825`，起点夹到碳酸锂上市日 2023-07-21，新增 `--resume` 补漏。</li>
+<li><strong>巨潮</strong>：30 天 → 3 年，按响应 `totalpages` 全取分页并记截断标志。</li>
+<li><strong>社融</strong>：只抓 2026 年度页 → 按年度目录循环 2021–2026（每年一张 12 个月增量表）。</li>
+<li><strong>统计局 / 财政部 / 中汽协 / 乘联会 / 能源局</strong>：列表翻页 + 每篇多取，窗口按自然月/年回溯。</li>
+<li><strong>Comtrade</strong>：只查 2024 → 2019–2024 按年循环。</li>
+</ul>
+
+<h2>2 怎么验证</h2>
+<div class="card"><strong>质量闸（只读，2026-11-25）</strong>
+<table><tr><th>闸</th><th>结果</th></tr><tr><td>C1_rows_nonzero</td><td class="ok">PASS</td></tr><tr><td>C2_primary_key</td><td class="ok">PASS</td></tr><tr><td>C3_date_domain</td><td class="ok">PASS</td></tr><tr><td>C4_unit_reconciliation</td><td class="ok">PASS</td></tr><tr><td>C5_audit_consistency</td><td class="ok">PASS</td></tr><tr><td>C6_catalog_coverage</td><td class="ok">PASS</td></tr><tr><td>C7_freshness</td><td class="ok">PASS</td></tr></table>
+<p class="sub">C4 含三个子闸：gfex 成交额反推 VWAP 落在当日 low..high（9,252/9,274 对）、能源局当月分产业用电量合计、
+11 张带单位表的单位词表。全部 PASS。</p></div>
+
+<h3>幂等（同参数连跑两次装载）</h3>
+<pre>{
+ &quot;run_1&quot;: &quot;load-20261125T182850.json&quot;,
+ &quot;run_2&quot;: &quot;load-20261125T182900.json&quot;,
+ &quot;tables&quot;: 17,
+ &quot;diffs&quot;: {},
+ &quot;pass&quot;: true,
+ &quot;compared_at&quot;: &quot;2026-11-25T18:29:18+08:00&quot;
+}</pre>
+
+<h3>A 股 20 表零 diff</h3>
+<pre>{
+ &quot;tables&quot;: 20,
+ &quot;unchanged&quot;: 20,
+ &quot;diffs&quot;: [],
+ &quot;pass&quot;: true,
+ &quot;checked_at&quot;: &quot;2026-11-25T18:29:45+08:00&quot;,
+ &quot;baseline&quot;: &quot;/srv/share/quantdb/meta/industry/work572-astock-baseline.json&quot;
+}</pre>
+
+<h3>与原始文件回对（双向 EXCEPT，差集 0）</h3>
+<pre>python scripts/work572_verify.py spot
+[spot] owid slug/entity/year/value（排除 status 行）: 左-右=0 右-左=0
+[spot] gfex 2023-08 新增期间（排除单位列，成交额单位属已知规范化）: 左-右=0 右-左=0
+[spot] PASS（差集必须为 0）</pre>
+
+<h3>形态核对</h3>
+<ul>
+<li>表数：industry_* 数据表 <strong>17</strong> 张（不新增表）；<code>data_catalog</code> <strong>405</strong> 行。</li>
+<li>17 表逐表行数（列相加 = 合计 241,892）：</li>
+</ul>
+<table><tr><th>表</th><th>行数</th></tr>
+<tr><td>industry_benchmark_public_index</td><td class='num'>26</td></tr><tr><td>industry_caam_auto_output</td><td class='num'>1,614</td></tr><tr><td>industry_chinamoney_lpr</td><td class='num'>176</td></tr><tr><td>industry_cnesa_storage</td><td class='num'>2</td></tr><tr><td>industry_cninfo_announcements</td><td class='num'>13,821</td></tr><tr><td>industry_comtrade_trade_values</td><td class='num'>30</td></tr><tr><td>industry_cpcaauto_nev</td><td class='num'>506</td></tr><tr><td>industry_exchange_daily_quotes</td><td class='num'>84</td></tr><tr><td>industry_gfex_lithium_carbonate</td><td class='num'>84,951</td></tr><tr><td>industry_mof_fiscal</td><td class='num'>836</td></tr><tr><td>industry_nea_power</td><td class='num'>606</td></tr><tr><td>industry_ow_iea_usgs_timeseries</td><td class='num'>1,044</td></tr><tr><td>industry_pbc_shrzgm</td><td class='num'>770</td></tr><tr><td>industry_ppi_spot_prices</td><td class='num'>32</td></tr><tr><td>industry_sne_public_battery</td><td class='num'>8</td></tr><tr><td>industry_stats_gov_release</td><td class='num'>137,342</td></tr><tr><td>industry_trendforce_spot_price</td><td class='num'>44</td></tr>
+<tr><th>合计</th><th class="num">241,892</th></tr></table>
+<p class="sub">复跑：<code>python scripts/work572_verify.py shape</code></p>
+
+<h2>3 怎么回滚</h2>
+<p>回填前的 19 张行业表已快照到 <code>raw/_backup-work572/db-pre-work572/</code>（2026-11-25 17:05，行数见快照
+<code>_meta.json</code>）。回滚只需在库锁下按表恢复：</p>
+<pre>cd /srv/share/quantdb/code/quant-lab
+QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
+  flock -w 1800 /srv/share/quantdb/logs/.quantdb-db.lock \
+  /home/moyongkai/.venvs/quantdb/bin/python - <<'PY'
+import duckdb, glob, os
+con = duckdb.connect("/srv/share/quantdb/db/quantdb.duckdb")
+for p in sorted(glob.glob("/srv/share/quantdb/raw/_backup-work572/db-pre-work572/*.parquet")):
+    t = os.path.basename(p)[:-8]
+    con.execute(f"DELETE FROM {t}")
+    con.execute(f"INSERT INTO {t} BY NAME SELECT * FROM read_parquet('{p}')")
+PY</pre>
+<p class="sub">抓取代码回滚：本次改动集中在 <code>code/industry_fetch/*.py</code> 与两个国际 fetcher；这些文件不在 git 里，
+按 §6 的摘要核对，需要退回时按 <code>docs/industry-ingest-2026.md §10.2</code> 的「改了什么」逐条还原（唯一结构性改动是 LPR
+接口参数与 OWID 全序列）。raw 为合并写，回填前的旧行仍在 parquet 内。</p>
+
+<h2>4 遗留与需要确认</h2>
+<ul>
+<li><strong>能源局（nea_power）未达 60 期</strong>：站内搜索限速 + 深分页不稳定；「全国电力统计数据」正文数据表是 PNG 图片，
+结构化需 OCR（不在本单范围）。已取到的期间见覆盖表，未取到的按「上游只给近 N 年 / 限速 / 图片表」分层登记。</li>
+<li><strong>GFEX 1,000 个交易日不可达</strong>：碳酸锂 2023-07-21 才上市，上游最早只有该日（实测 2023-01-03 无碳酸锂行）。</li>
+<li><strong>财政部 §4.3 串期缺陷原样保留</strong>：2017-11 那批行未修，按原处置只做日期域检查。</li>
+<li><strong>6 个快照/新闻源未回填</strong>：上游只给当日/当年值，无历史序列。</li>
+<li><strong>独立代码审查</strong>：见收口评论，审查为独立子代理执行、只读复跑；审查报告原文落 <code>docs/industry-ingest-2026.md</code> 后续轮次或评论附件。</li>
+</ul>
+
+<h2>5 复跑命令（一键）</h2>
+<pre>cd /srv/share/quantdb/code/quant-lab
+QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
+  flock -w 1800 /srv/share/quantdb/logs/.quantdb-db.lock \
+  /home/moyongkai/.venvs/quantdb/bin/python -m db.etl.industry load
+QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
+  /home/moyongkai/.venvs/quantdb/bin/python -m db.checks.industry all
+QUANTDB_HOME=/srv/share/quantdb /home/moyongkai/.venvs/quantdb/bin/python scripts/work572_verify.py shape</pre>
+
+<h2>6 代码与产物摘要</h2>
+<pre>07485fc6a10b9f6f00a2fa6ab712e043ec860d35a2a44d3576c285405eaf4703  code/industry_fetch/_common.py
+1aa45f04c388541e6e1cba0b7ea9eb4210b54bfeb13f750127ab6924934e8557  code/industry_fetch/fetch_gfex_lithium.py
+c11171131b065c392c7889b96ca451f2e7a884bea4204d4e0bb91c004b48bc87  code/industry_fetch/fetch_chinamoney_lpr.py
+63af00d748f4c4300f71da2574f2b6e4df2b9b44a2c087458667f524207132ba  code/industry_fetch/fetch_cninfo_ann.py
+9a812375a66b9c5e233b7ceee4d5487c7b76b8974f83b94aa63ff99511f5f73f  code/industry_fetch/fetch_caam_output.py
+eee46a31c204e2ddd1ab7b4b58e91a4eccbdf286be6d410785a35e5b0db27b3b  code/industry_fetch/fetch_cpcaauto_nev.py
+fd6bc8ae8ae7538db416589bdb2cb6b3a772856a5dffab5e049506723fdec2ab  code/industry_fetch/fetch_mof_fiscal.py
+4625422902d0622a8c40487d5f9235bed0fde99502369f0b32df7afea83a5889  code/industry_fetch/fetch_nea_power.py
+97b4907d0eb7983edde1b2c1a072876418f9e029110d830cd0c4de8344ccb9c0  code/industry_fetch/fetch_pbc_shrzgm.py
+e3be146d863c8c257ff60bad86faf59b86fe966eff6b5c8059bb9e562f40e3b8  code/industry_fetch/fetch_stats_gov.py
+37b2467774f9f4297d00e2c3c285c16f7bb752e981d9e0ad3e3e3ef816db1181  raw/industry_alt/ow_iea_usgs_timeseries/fetch.py
+5404b4088c7292c3a7d76a625e0003552733056aa35d5c94c5c31de3d0690b53  raw/industry_alt/comtrade_trade_values/fetch.py
+e1b452bd1e775ed1cc82b4f1801d589f69fbf7dfb96989e05eb0b9f095d575f0  code/quant-lab/scripts/work572_verify.py
+2be27aef16cae645da29d2bfaec54daaf39c574498f25967f7afcb335ffc3794  code/quant-lab/scripts/work572_build_delivery.py
+</pre>
+<p class="sub">本页由 <code>scripts/work572_build_delivery.py</code> 生成；数字全部从主库与快照现场读取，无手工填写。</p>
+</body></html>

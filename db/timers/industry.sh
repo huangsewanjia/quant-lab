@@ -72,6 +72,24 @@ else
   ALT_SOURCES=(comtrade_trade_values ow_iea_usgs_timeseries sne_public_battery)
 fi
 
+# 抓取窗口（WORK-576）：两档都显式传参，不再依赖各脚本 argparse 默认值。
+#   * 定时任务只走 --mode incremental（最近窗口/缺日）；--mode backfill 是手工回填，
+#     深度大、耗时长，绝不出现在本脚本里。
+#   * 国际源是「快照/年度循环」型（每源固定 1 页或按年循环），无深度参数；
+#     owid 取全序列只花 1 次 CSV 请求，收窄反而会丢历史，故保持无参。
+declare -A FETCH_ARGS=(
+  [gfex_lithium]="--mode incremental --days 30 --resume"
+  [chinamoney_lpr]="--start 2019-08-20"
+  [caam_output]="--mode incremental --months 3 --articles 20 --scan 400"
+  [cnesa_storage]=""
+  [cninfo_ann]="--mode incremental --days 90 --max-pages 60"
+  [cpcaauto_nev]="--mode incremental --articles 30 --pages 3"
+  [mof_fiscal]="--mode incremental --articles 24 --pages 4"
+  [nea_power]="--mode incremental --pages 3 --articles 20 --year-pages 1"
+  [pbc_shrzgm]="--mode incremental"
+  [stats_gov]="--mode incremental --pages 6 --articles 6"
+)
+
 log "抓取 ${#CNN_SOURCES[@]} 个国内源"
 for name in "${CNN_SOURCES[@]}"; do
   script="${CN_FETCH_DIR}/fetch_${name}.py"
@@ -80,7 +98,12 @@ for name in "${CNN_SOURCES[@]}"; do
     log "  !!   ${script} 不存在，跳过"
     continue
   fi
-  run_fetcher "${name}" "${PY}" "${script}"
+  src_args=()
+  if [ -n "${FETCH_ARGS[${name}]:-}" ]; then
+    read -r -a src_args <<<"${FETCH_ARGS[${name}]}"
+  fi
+  log "  args ${name}: ${FETCH_ARGS[${name}]:-(none)}"
+  run_fetcher "${name}" "${PY}" "${script}" ${src_args[@]+"${src_args[@]}"}
 done
 
 log "抓取 ${#ALT_SOURCES[@]} 个国际源"

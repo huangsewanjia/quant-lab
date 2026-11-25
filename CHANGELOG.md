@@ -26,6 +26,43 @@
 - C4 删除不可能成立的 100ppi 跨单位比值闸，改为 `unit_vocabulary`（10 张带单位表）；单闸报告不再覆盖当日 7 闸报告。
 - 覆盖口径改为「有可查记录」并单列 `text_only`；docstring/注释 3 处 nit 修正。
 
+## 2026-11-25 · WORK-572 行业层历史回填
+
+改动（只动抓取窗口/取法，不动 `db/etl/industry.py`、`db/checks/industry.py`、表结构与 A 股表）：
+
+- GFEX 碳酸锂：`DAYS 180 → 1825`，起点夹到上市日 2023-07-21；新增 `--resume` 只补缺日（实测 67 个工作日 / 108 秒）。
+- LPR：换 `strStartDate/strEndDate` 按日历年切片（`pageNum/startDate` 被服务端忽略），2019-08-20 起 8 个窗口。
+- 巨潮公告：`--days 30 → 1095`、`--max-pages 400 → 1200`，按响应 `totalpages` 全取并记 `truncated`。
+- 中汽协：回溯改按自然月（`--months 78`），`--articles/--scan` 可配；乘联分会：新增列表翻页（`--pages`）。
+- 财政部：新增 `index_<n>.htm` 列表翻页；统计局：同法翻页，每组取 `--articles` 篇。
+- 能源局：搜索改 `sort=date` + `pageSize=500` + 早停，取 `originUrl` 作首选 URL；人民银行：按年度目录循环（2015–2026 自动发现，缓存 `year_dirs.json`）。
+- OWID：取全部有值年份（原 `sel[-2:]` 只取最近 2 年）；Comtrade：按年循环 2019–2024。
+
+实测（2026-11-25 18:00 统计时点）：
+
+- `industry_*` 17 表 16,834 → **241,892 行**；11 个源有新增，6 个快照/新闻类源上游无历史序列，保持原样。
+- 质量闸 7/7 PASS；同参数连跑两次装载 17 表行数完全一致；A 股 20 表装载前后零 diff。
+- 未取到：NEA 2021–2023 月度稿（索引 0 命中 + 部分文章 URL 404 + 表格是 PNG）、Comtrade HS 854143 2019–2021 上游无记录、GFEX 1,000 交易日（碳酸锂 2023-07-21 才上市，811 个开市日无亏缺）。
+
+新增文件：`scripts/work572_verify.py`（覆盖/幂等/抽点/A 股零 diff 核对）、`scripts/work572_build_delivery.py`（交付页生成）、`docs/DELIVERY-WORK-572.html`。抓取脚本本体在 `/srv/share/quantdb/code/industry_fetch/` 与 `raw/industry_alt/*/fetch.py`，不在本仓库（既有形态），改动以 `meta/industry/work572-code-sha256.txt` 锁版。
+
+## 2026-11-25 · WORK-576 行业层定时抓取改增量
+
+修复：
+
+- `db/timers/industry.sh`：daily / monthly 两档**显式传窗口参数**，不再依赖各脚本 argparse 默认值；日志逐源打印 `args <源>: …`，便于事后核对。
+- 抓取脚本统一 `--mode incremental|backfill`（`_common.add_mode_arg` / `resolve_mode`）：所有深度旋钮改 `default=None`，默认档 = 小窗口，回填必须显式 `--mode backfill`；显式数值优先。
+  - GFEX：`--days` 默认 1825 → 日常 30，`--resume` 两档默认开（`--no-resume` 强制重取）。
+  - 巨潮 90 天 / 60 页、中汽协 3 个月 / 400 id、财政部 4 页 / 24 篇、乘联 3 页 / 30 篇、能源局每词 3 页 + 当年扩词、人民银行当年、统计局 6 页 / 每组 6 篇。
+- manifest 增 `params.mode`，回填语义字段从 `backfill_*` 改为实际值（`window_days` / `pages_scanned` 等），不再写「回填」标签。
+
+实测（2026-11-25 20:27，日志 `logs/industry-20261125.log`）：
+
+- `industry.sh daily`：拿到数据库锁后 **67 秒**完成抓取 + 装载 + 7 道闸；GFEX `workdays_queried=3`（改前 874 个工作日 / 20–25 分钟）。
+- `industry_*` 17 表 241,892 → 263,698 行（增量未丢历史；含同日并行回补的 exchange / cnesa 行）。
+- 7/7 PASS；`pytest db/tests/test_industry.py -q` 11 passed（需 `TMPDIR=/srv/backup/tmp`，`/tmp` 是 7.5G tmpfs 且已用 80%，默认 TMPDIR 会 `Disk quota exceeded`）。
+- 文档 §3 / §10.2 / §11 同步新口径；回填命令全部标注「手动、非定时」。
+
 ## 2026-11-23 · WORK-537 外资研报公开层渠道清单与可抓性实测
 
 新增：
