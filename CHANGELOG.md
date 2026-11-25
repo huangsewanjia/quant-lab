@@ -1,5 +1,39 @@
 # Changelog
 
+## 2026-11-25 · WORK-585 行业装载变更留痕（diff 日志 + 快照源整源替换）
+
+新增：
+
+- `db/schema_industry.sql`：`industry_load_diff`（10 列：run_id / source / table_name / period /
+  indicator / change_type / column_name / old_value / new_value / changed_at；无主键，一次变更一行）
+  与复核视图 `v_industry_load_changes_recent`（近 30 天的 value_changed / row_dropped）。
+  17 张观测表结构、`industry_load_audit` 结构一律未改。
+- `db/etl/industry.py`：`load_source` 改为「同事务：先记账、后替换」——先算库内现状 vs 本次快照的
+  逐行差异写 `industry_load_diff`，再 DELETE + INSERT，审计同事务写入；任一步失败整体回滚
+  （旧实现 DELETE 与 INSERT 各自 autocommit，INSERT 失败会留下空表/半表）。
+  新增 `Source.replace_mode`：`cnesa_storage` 设 `"source"`（整源替换，修 WORK-577 F3：
+  上游删掉的期会从库内消失并落 `row_dropped`），其余 16 源维持按期替换。
+  整源模式下空快照直接报错拒绝清表。`BUSINESS_KEYS` 迁入本模块（差异日志渲染 indicator 与
+  checks 的 C2 共用一份定义）。
+- `db/checks/industry.py`：`C9_load_diff`（最新一次覆盖 17 表的运行必须每表留痕：差异行或
+  `no_change` 汇总行；diff 行的 run 必须在 audit 里、change_type 合法、各类型字段非空组合正确）。
+  C1–C8 判据未改；闸数 8 → 9。
+- `db/tests/test_industry_diff.py`：7 项行为测试（值修改 + 新增行、快照源撤期 F3 回归、
+  幂等 0 差异汇总、分区源只碰本期、空快照拒绝清表、C9 缺留痕、C9 畸形行）。
+- `scripts/work585_verify.py`：复核脚本（离线演示 / 主库现状 / 分项自检 / C9）。
+- `scripts/work585_build_delivery.py`：从现场数据生成单文件 `docs/DELIVERY-WORK-585.html`。
+- `docs/industry-ingest-2026.md` §14：表结构、写入时机、查询与复核流程、F3 修复、C9 判据、回滚。
+
+要点（2026-11-25 实测）：
+
+- 离线演示：33 行首次装载 → 改为「值 144.7→150.9 + 撤掉 2022-01 期」→ diff 恰好 1 条
+  `value_changed` + 1 条 `row_dropped`，库内 2022-01 消失；同 raw 重跑写 1 行 `no_change`。
+- 主库：正式装载后 17 表全部 `no_change`（零误报），diff 行数与库内一致。
+- 质量闸 9/9 PASS（C1–C8 判据未改 + C9）；`pytest db/tests/` 252 项全过。
+
+代码改动在 `/srv/share/quantdb/code/quant-lab`（git 分支 `agent/work-585-diff-log`），以
+`meta/industry/work585-code-sha256.txt` 锁版。
+
 ## 2026-11-25 · WORK-584 行业预测表（储能 CNESA 3 条展望）
 
 新增：

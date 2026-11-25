@@ -954,3 +954,116 @@ raw 摘要（2026-11-25 22:55 最终版）：`part.parquet` 12,237 B，sha256
   避免文档里的例行核对命令因第 18 张表静默返回 1。
 - live 树 `/srv/share/quantdb/code/industry_fetch/fetch_cnesa_storage.py`：预测句式、预测数据集、
   正文快照与 failed.json（不在本仓库，既有形态；按 sha256 锁版）。
+
+## 14. 装载变更留痕（WORK-585，2026-11-25）
+
+### 14.1 一句话
+
+每次装载替换之前，先算「库内现状 vs 本次快照」的逐行差异写进 `industry_load_diff`，再执行替换
+（同事务，先记账后动手）；`cnesa_storage` 改为**整源替换**，WORK-577 遗留 F3（上游删期、库内残留
+幽灵行）随之消除；复核看 `v_industry_load_changes_recent`（近 30 天的值变化与被删行）。
+
+### 14.2 表结构
+
+`industry_load_diff`（10 列，**无主键**：一次变更一行，同一 run 同一表可有多行）：
+
+| 列 | 类型 | 含义 |
+|---|---|---|
+| `run_id` | VARCHAR | 与 `industry_load_audit.run_id` 同一次运行（预测组带 `F` 后缀） |
+| `source` | VARCHAR | 源名（`Source.name`） |
+| `table_name` | VARCHAR | 目标表 |
+| `period` | DATE | 分区日期；非日期分区源为 NULL |
+| `indicator` | VARCHAR | 业务键文本 `k=v\|k=v`（row_hash 表用 `BUSINESS_KEYS` 渲染） |
+| `change_type` | VARCHAR | `value_changed` / `row_added` / `row_dropped` / `no_change` |
+| `column_name` | VARCHAR | `value_changed` 时变化的列名 |
+| `old_value` | VARCHAR | 变化前列值 / 被删行整行文本；源侧为空记 `∅` |
+| `new_value` | VARCHAR | 变化后列值 / 新增行整行文本；`no_change` 存汇总文本 |
+| `changed_at` | TIMESTAMP | 写入时刻（本地墙钟） |
+
+写入时机在 `db/etl/industry.py::load_source`：
+
+```
+BEGIN TRANSACTION
+  1. 读库内现状（分区模式：本次 staged 覆盖的期；整源模式：全表）
+  2. 算差异 → INSERT INTO industry_load_diff
+  3. DELETE（分区 / 整源）→ INSERT OR REPLACE
+  4. INSERT industry_load_audit
+COMMIT                （任一步失败 → ROLLBACK，库内保持装载前状态）
+```
+
+顺带修掉旧实现的隐患：原来的 DELETE 与 INSERT 各自 autocommit，INSERT 失败会留下空表/半表。
+
+**为什么单独一张表**：`industry_load_audit` 只记行数与耗时，回答不了「这次替换改了什么、删了什么」；
+复核要求逐行可读，因此差异单独落表，audit 结构与 17 张观测表都不动。
+
+**为什么没有 `row_dropped` 的「配对」**：`row_hash` 主键的表内容改版时主键本身变了，库里看到的就是
+「旧 hash 行没了 + 新 hash 行来了」。要不要把这两行认成「同一条业务记录被改了」需要推断（业务键不唯一，
+146 行只对应 98 个业务键），推断错的代价比不推断大，因此保留 add/drop 两行，`indicator` 用同一业务键
+文本渲染，人一眼能对上。
+
+### 14.3 怎么查
+
+```sql
+-- 近 30 天需要人看一眼的变更（值变化 + 行被删）
+select * from v_industry_load_changes_recent order by changed_at desc limit 50;
+
+-- 某一次运行改了什么
+select change_type, table_name, period, indicator, column_name, old_value, new_value
+from industry_load_diff where run_id = '20261125T231500' order by table_name, indicator;
+
+-- 本轮到底跑过没有（no_change 汇总行）
+select table_name, new_value from industry_load_diff
+where run_id = '20261125T231500' and change_type = 'no_change';
+```
+
+### 14.4 快照源整源替换（F3 修复）
+
+`Source` 增 `replace_mode`：`"partition"`（默认，按期替换）与 `"source"`（整表替换）。
+**本单只给 `cnesa_storage` 设 `"source"`**，其余 16 个观测源与预测源维持原模式不变。
+
+| 场景 | 改前 | 改后 |
+|---|---|---|
+| 上游改版删掉某一期（如 2021 年末时长行） | 按期替换只删「本次出现的期」，被删的期在库内残留，7 闸全绿（F3） | 整源替换，被删期从库内消失，并落一行 `row_dropped` |
+| 快照抓空/解析失败 | 整页 0 行 → 按期替换什么也不删（安全） | **拒绝清空**：`SystemExit` 报错，事务回滚，库内保持原状 |
+
+安全阀的理由：整源替换一旦遇到空快照就会把整表抹掉，比 F3 更严重；宁可失败并告警，让人先查 raw。
+
+### 14.5 质量闸 C9_load_diff
+
+新加第 9 道闸（编号让开 WORK-584 的 `C8_forecast`；C1–C7 判据未改）：
+
+1. 取「覆盖全部 17 张表」的最新一次运行（与 C5 同一查询口径）；
+2. 该 run 的 17 张表**每张都要留过痕**（差异行或 `no_change` 汇总行）——「跑过必留痕」；
+3. 每条 diff 的 `(run_id, table_name)` 在 `industry_load_audit` 里存在；
+4. `change_type` ∈ 4 个合法值；`value_changed` 必须有 `column_name` 与前后值，
+   `row_added` 必须有 `new_value`，`row_dropped` 必须有 `old_value`，`no_change` 的 `column_name`
+   与 `old_value` 必须为 NULL。
+
+它只回答「替换有没有记账」，不判断变化是否符合业务预期——后者是人看 §14.3 视图的事。
+
+### 14.6 复跑命令（绝对路径）
+
+```bash
+# 离线行为测试（不碰生产库：raw 与库都在 pytest tmp_path 里）
+cd /srv/share/quantdb/code/quant-lab
+PYTHONPATH=$PWD /home/moyongkai/.venvs/quantdb/bin/python -m pytest db/tests/test_industry_diff.py -q
+
+# 只装载快照源，看 diff 落库
+QUANTDB_HOME=/srv/share/quantdb flock /srv/share/quantdb/logs/.quantdb-db.lock \
+  /home/moyongkai/.venvs/quantdb/bin/python -m db.etl.industry load --sources cnesa_storage
+
+# 复核视图
+QUANTDB_HOME=/srv/share/quantdb /home/moyongkai/.venvs/quantdb/bin/python -c "
+import os, duckdb
+con = duckdb.connect(os.environ['QUANTDB_HOME'] + '/db/quantdb.duckdb', read_only=True)
+print(con.execute('select * from v_industry_load_changes_recent limit 20').df().to_string())
+"
+```
+
+### 14.7 回滚
+
+1. 代码：`db/etl/industry.py`、`db/checks/industry.py`、`db/schema_industry.sql` 回退到 `*.bak-<时间戳>`
+   或 `git revert <交付 SHA>`；`industry.sh` 调用方式未变，回滚代码即恢复原行为。
+2. 库：`DROP VIEW v_industry_load_changes_recent; DROP TABLE industry_load_diff;`
+   —— 两对象只被留痕逻辑与 C9 使用，删掉后 C9 自然消失，C1–C8 与 17 张观测表数据零改动。
+3. 数据：整源替换已经清掉的残留行不会因回滚代码而复活；需要恢复时按 raw 重新装载（raw 未改）。
