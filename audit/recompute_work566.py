@@ -112,11 +112,19 @@ def recompute_portfolio(panel, pred_stock, pred_val, pred_date, dates_sorted, co
     last_bar = {}
 
     def lb(s):
+        """该股在整个窗口内的最后一个有 bar 的下标（**仅用于退市判定**）。"""
         if s not in last_bar:
             row = np.asarray(panel["has_bar"][s])
             nz = np.nonzero(row)[0]
             last_bar[s] = int(nz[-1]) if len(nz) else -1
         return last_bar[s]
+
+    # 估值盯市用「估值日（含）之前最后一个有 bar 的下标」——独立实现，不复用建模侧代码，
+    # 也不使用全局最后一个 bar（那是未来价格：2026-11-25 独立代码审查 B1）
+    td = np.asarray(dates_sorted, dtype=np.int64)
+    hb = np.asarray(panel["has_bar"][:, td])
+    bar_idx = np.where(hb, td[None, :], -1)
+    last_before = np.maximum.accumulate(bar_idx, axis=1)
 
     prev_nav = None
     for i, d in enumerate(dates_sorted):
@@ -169,7 +177,9 @@ def recompute_portfolio(panel, pred_stock, pred_val, pred_date, dates_sorted, co
                     p = float(panel["close_hfq"][s, lb(s)])
                     u = batch["units"].pop(s)
                     cash += u * p * 0.99
-                    traded[i] += abs(u) * p
+                    fee = abs(u) * p
+                    cash -= fee * cost          # 最终清算同样计成本（预注册 §7.1）
+                    traded[i] += fee
                     delisted += 1
                     continue
                 if not panel["has_bar"][s, day]:
@@ -185,7 +195,9 @@ def recompute_portfolio(panel, pred_stock, pred_val, pred_date, dates_sorted, co
                 p = float(panel["close_hfq"][s, day])
                 u = batch["units"].pop(s)
                 cash += u * p
-                traded[i] += abs(u) * p
+                fee = abs(u) * p
+                cash -= fee * cost              # 卖出端成本（预注册 §7.1「买入与卖出都收」）
+                traded[i] += fee
             if not batch["units"]:
                 for _bi in range(len(open_batches)):
                     if open_batches[_bi] is batch:
@@ -198,8 +210,14 @@ def recompute_portfolio(panel, pred_stock, pred_val, pred_date, dates_sorted, co
             for s, u in batch["units"].items():
                 p = float(panel["close_hfq"][s, day])
                 if not np.isfinite(p) or p <= 0:
-                    p = float(panel["close_hfq"][s, lb(s)])
+                    lb_past = int(last_before[s, i])
+                    if lb_past < 0:
+                        raise AssertionError(
+                            f"[AUDIT] 无可得估值价：stock={s} day={day}")
+                    p = float(panel["close_hfq"][s, lb_past])
                 v += u * p
+        if not np.isfinite(v) or v <= 0:
+            raise AssertionError(f"[AUDIT] 账户失败：NAV ≤ 0 day={day} nav={v}")
         nav_out.append(v)
         ret_out.append((v / prev_nav - 1.0) if prev_nav else np.nan)
         to_out.append(traded[i] / (2 * prev_nav) if prev_nav else np.nan)
@@ -403,15 +421,19 @@ def main():
                 claimed = json.load(open(jp, encoding="utf-8"))
                 pd_ = z["date_test"]
                 ew, cw = bench_series(pd_)
-                # 日历独立核对
+                # 日历独立核对：样本里存的是**日历下标**，日历里存的是**日期值**，需换算
                 uniq_d = np.unique(pd_)
-                n_in_cal = sum(1 for d in uniq_d if int(d) in cal_set)
+                cal_vals = [int(cal[i]) for i in uniq_d if 0 <= i < len(cal)]
+                n_in_cal = sum(1 for v in cal_vals if v in cal_set)
                 findings.setdefault("calendar_crosscheck", []).append({
                     "arm": arm, "seed": seed,
                     "n_prediction_dates": int(len(uniq_d)),
                     "n_dates_found_in_independent_calendar": int(n_in_cal),
                     "first_date_idx": int(uniq_d[0]), "last_date_idx": int(uniq_d[-1]),
+                    "first_date": cal_vals[0] if cal_vals else None,
+                    "last_date": cal_vals[-1] if cal_vals else None,
                     "independent_calendar_len": int(len(cal)),
+                    "note": "样本 date_idx 是面板日历下标；此处用独立重取的 trade_cal 换算成日期值后核对",
                 })
                 # 建模侧的基准调整 alpha 记录在 metrics.json
                 mp = os.path.join(OUT, "metrics.json")

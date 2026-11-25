@@ -174,23 +174,36 @@ def main():
                             "delta_rankic_pp": jf["rankic_mean_pct"] - j1["rankic_mean_pct"]})
     deltas = [r["delta_rankic_pp"] for r in h1_rows]
     h1 = {"per_seed": h1_rows,
+          "n_seeds": len(h1_rows),
           "delta_median_pp": float(np.median(deltas)) if deltas else None,
+          "delta_min_pp": float(min(deltas)) if deltas else None,
+          "delta_max_pp": float(max(deltas)) if deltas else None,
           "paper_delta_pp": 6.07,
           "paper_note": "论文 Table 4：S1-only 5.15% → full 11.22% = +6.07pp（已对原文核对）"}
-    if h1["delta_median_pp"] is None:
+    # 预注册 §9：所有指标报 mean ± range，**只报单种子结果 = 未交付**（2026-11-25 审查 N6：补代码守卫）
+    # 预注册失败判据 3：**两个种子均 ≤ +1.0 → 判退**
+    n_seeds = len(h1_rows)
+    if n_seeds < 2:
+        verdict = "未交付（有效种子 < 2）"
+        h1["verdict_rule"] = "预注册 §9「只报单种子结果 = 未交付」"
+    elif h1["delta_median_pp"] is None:
         verdict = "数据不可用"
-        h1["verdict"] = verdict
+        h1["verdict_rule"] = "无 full/s1_only 配对结果"
+    elif all(d <= 1.0 for d in deltas):
+        verdict = "未复现"
+        h1["verdict_rule"] = "预注册失败判据 3：两个种子 ΔRankIC 均 ≤ +1.0pp → 判退"
     elif h1["delta_median_pp"] >= 3.0:
         verdict = "三段式增量复现成立"
-        h1["verdict"] = verdict
+        h1["verdict_rule"] = "预注册 §11 H1：跨种子中位数 ≥ +3.0pp"
     elif h1["delta_median_pp"] <= 1.0:
         verdict = "未复现"
-        h1["verdict"] = verdict
+        h1["verdict_rule"] = "预注册 §11 H1：跨种子中位数 ≤ +1.0pp（或负）"
     else:
         verdict = "部分复现"
-        h1["verdict"] = verdict
+        h1["verdict_rule"] = "预注册 §11 H1：跨种子中位数落在 (1.0, 3.0)pp"
+    h1["verdict"] = verdict
     metrics["H1"] = h1
-    log(f"H1 ΔRankIC 中位数 = {h1['delta_median_pp']} pp（论文 +6.07）→ {verdict}")
+    log(f"H1 ΔRankIC 中位数 = {h1['delta_median_pp']} pp（论文 +6.07；种子数 {n_seeds}）→ {verdict}")
 
     # ---------------- H2（block bootstrap）
     h2 = {"n_boot": BOOT_N, "block": BOOT_BLOCK, "seed": BOOT_SEED}
@@ -316,6 +329,22 @@ def main():
         metrics["benchmark_alpha"] = {"error": f"{type(e).__name__}: {e}"}
         log(f"基准调整 alpha 失败：{e}")
 
+    # ---------------- 交付守卫（预注册 §9：只报单种子结果 = 未交付）
+    thin = []
+    for cost in COSTS:
+        for arm in sorted(set(ARMS) | {"fmb"}):
+            n = len(metrics["cost_tiers"][str(cost)].get(arm, {}))
+            if 0 < n < 2:
+                thin.append({"cost": cost, "arm": arm, "n_seeds": n})
+    metrics["seed_guard"] = {
+        "rule": "预注册 §9：所有指标报 mean ± range（两档种子）；只报单种子结果 = 未交付",
+        "thin_arms": thin,
+        "all_present_arms_have_2_seeds": not thin,
+    }
+    if thin:
+        verdict = (verdict + f"（注意：{len(thin)} 个臂×成本档只有 1 个种子，"
+                             f"按预注册 §9 该档次结果按未交付处理）")
+
     # ---------------- 结论
     metrics["verdict"] = verdict
     metrics["verdict_rule"] = {
@@ -323,6 +352,8 @@ def main():
         "退": "ΔRankIC ≤ +1.0 pp 或为负",
         "部分复现": "+1.0 < ΔRankIC < +3.0 pp",
         "H3_override": "净 SR < 0 → 直接判退",
+        "失败判据3": "两个种子 ΔRankIC 均 ≤ +1.0 pp → 判退",
+        "种子守卫": "有效种子 < 2 → 未交付（不判进/退）",
     }
     with open(os.path.join(OUT, "metrics.json"), "w", encoding="utf-8") as f:
         json.dump(metrics, f, ensure_ascii=False, indent=2)

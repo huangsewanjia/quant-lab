@@ -7,11 +7,16 @@
   每单位成交名义成本 c（主口径 0.0005）；日终净值 V_d = C_d + Σ q·P_close；
   Net AR = 252×mean(R)、Net SR = √252×mean/sd、MDD 基于日收盘净值、TO_d = A_d/(2V_{d-1})。
 
-A 股约束（预注册 §7.4）：涨停不可买（顺延补位）、跌停不可卖（顺延）、停牌不可成交（顺延）、
-  退市在最后 bar 的收盘清算并额外扣 1%。
+成本（预注册 §7.1）：买入与卖出都收 c（含最终清算）；不同批次的反向成交不轧差。
 
-断言：任何「不可成交价」上的成交尝试 → 直接抛错中止（不是静默跳过）。
-  --assert-violation 开关会故意注入一只涨停/停牌股，触发断言并打印原文（任务书要求）。
+A 股约束（预注册 §7.4）：涨停不可买（顺延补位）、跌停不可卖（顺延）、停牌不可成交（顺延）、
+  停牌持仓按**估值日之前最后一个可得收盘价**盯市（不得使用未来 bar）、
+  退市在最后 bar 之后的首个交易日按该 bar 收盘价清算并额外扣 1%。
+
+断言（引擎级守卫，预注册 §7.4）：任何成交尝试落在「不可成交价」（当日无 bar / 越出涨跌停带 /
+  价格非正）→ 抛 AssertionError 中止（不是静默跳过）。
+  --assert-violation 开关会在首笔成交处故意把该笔原始成交价改写出涨跌停带，
+  由**引擎自身的守卫**报错并打印原文（任务书要求）。
 
 运行：
   python scripts/work566_backtest.py --arm full --seed 42 --cost 0.0005
@@ -49,9 +54,23 @@ class Panel:
         s = np.load(os.path.join(DATA, "samples.npz"))
         self.dts = s["dts"]
         self.m_test = s["m_test"]
+        # 故意违规注入用的价格覆盖：(kind, stock, day) -> value（仅 --assert-violation 用）
+        self.ov = {}
+
+    def price(self, kind, s_idx, d_idx):
+        """取价格字段（open_raw/close_raw/up_limit/down_limit）；违规注入优先取覆盖值。"""
+        v = self.ov.get((kind, int(s_idx), int(d_idx)))
+        if v is not None:
+            return v
+        return getattr(self, kind)[s_idx, d_idx]
 
     def last_bar(self, stock_idx, date_idx):
-        """该股票在窗口内的最后一个有 bar 的日期下标（无则 -1）。"""
+        """该股票在窗口内的最后一个有 bar 的日期下标（无则 -1）。
+
+        **仅用于退市判定**（退市清算需要知道「最后一个有 bar 的日子」）；
+        估值盯市必须用「估值日之前最后一个可得 bar」，两者不可混用
+        （2026-11-25 独立代码审查 B1：混用会把未来价格带进净值）。
+        """
         row = np.asarray(self.has_bar[stock_idx])
         nz = np.nonzero(row)[0]
         return int(nz[-1]) if len(nz) else -1
@@ -61,10 +80,10 @@ def tradable_at_open(panel, s_idx, d_idx):
     """t+1 开盘能否买入：无停牌、有 bar、不是涨停。"""
     if not bool(panel.has_bar[s_idx, d_idx]):
         return False, "suspended"
-    o = float(panel.open_raw[s_idx, d_idx])
+    o = float(panel.price("open_raw", s_idx, d_idx))
     if not np.isfinite(o) or o <= 0:
         return False, "no_price"
-    ul = float(panel.up_limit[s_idx, d_idx])
+    ul = float(panel.price("up_limit", s_idx, d_idx))
     if np.isfinite(ul) and ul > 0 and o >= ul * (1 - 1e-6):
         return False, "limit_up"
     return True, "ok"
@@ -74,13 +93,45 @@ def tradable_at_close(panel, s_idx, d_idx):
     """收盘能否卖出：不是跌停。"""
     if not bool(panel.has_bar[s_idx, d_idx]):
         return False, "suspended"
-    c = float(panel.close_raw[s_idx, d_idx])
+    c = float(panel.price("close_raw", s_idx, d_idx))
     if not np.isfinite(c) or c <= 0:
         return False, "no_price"
-    dl = float(panel.down_limit[s_idx, d_idx])
+    dl = float(panel.price("down_limit", s_idx, d_idx))
     if np.isfinite(dl) and dl > 0 and c <= dl * (1 + 1e-6):
         return False, "limit_down"
     return True, "ok"
+
+
+def assert_fill_legal(panel, s_idx, d_idx, side):
+    """引擎级守卫（预注册 §7.4）：成交必须落在「可成交价」上，否则报错中止。
+
+    可成交价 = ① 当日有 bar（未停牌、未退市后无价）
+              ② 当日原始成交价为正且有限
+              ③ 原始成交价落在当日涨跌停带 [down_limit, up_limit] 内
+    违反即抛 AssertionError（不是静默跳过、不是顺延）。
+    """
+    if not bool(panel.has_bar[s_idx, d_idx]):
+        raise AssertionError(
+            f"[ASSERT] 不可成交价：成交日无 bar（停牌/退市后无价） stock={s_idx} day={d_idx} side={side}")
+    if side == "buy":
+        raw = float(panel.price("open_raw", s_idx, d_idx))
+        label = "开盘价"
+    else:
+        raw = float(panel.price("close_raw", s_idx, d_idx))
+        label = "收盘价"
+    if not np.isfinite(raw) or raw <= 0:
+        raise AssertionError(
+            f"[ASSERT] 不可成交价：{label} 非正或非有限 stock={s_idx} day={d_idx} side={side} raw={raw}")
+    ul = float(panel.price("up_limit", s_idx, d_idx))
+    dl = float(panel.price("down_limit", s_idx, d_idx))
+    if np.isfinite(ul) and ul > 0 and raw > ul * (1 + 1e-6):
+        raise AssertionError(
+            f"[ASSERT] 不可成交价：{label} 超出涨停价 stock={s_idx} day={d_idx} side={side} "
+            f"raw={raw} up_limit={ul}")
+    if np.isfinite(dl) and dl > 0 and raw < dl * (1 - 1e-6):
+        raise AssertionError(
+            f"[ASSERT] 不可成交价：{label} 低于跌停价 stock={s_idx} day={d_idx} side={side} "
+            f"raw={raw} down_limit={dl}")
 
 
 def run_backtest(panel, pred_stock, pred_val, pred_date, dates_sorted, cost, assert_violation=False):
@@ -114,12 +165,21 @@ def run_backtest(panel, pred_stock, pred_val, pred_date, dates_sorted, cost, ass
     batches = []            # {entry_day, exit_day, pos:{stock: units}}
     pending_entry = []      # (day, batch)
     last_bar_cache = {}
+    injected = False
+
+    # 估值盯市用「估值日（含）之前最后一个有 bar 的日子」（预注册 §7.4「按最后可得收盘价」）
+    # —— 不得使用未来 bar（2026-11-25 独立代码审查 B1）。
+    td = np.asarray(dates_sorted, dtype=np.int64)
+    hb = np.asarray(panel.has_bar[:, td])                      # (S, n_days)
+    bar_idx = np.where(hb, td[None, :], -1)                    # 该格点当天有 bar → 当天下标
+    last_before = np.maximum.accumulate(bar_idx, axis=1)       # (S, n_days) 之前最后有 bar 的下标
 
     def last_bar_of(s):
         if s not in last_bar_cache:
             last_bar_cache[s] = panel.last_bar(s, 0)
         return last_bar_cache[s]
 
+    cand = []
     for i, d in enumerate(dates_sorted):
         day = int(d)
         # ---------------- 1. 开盘：执行挂起的买入
@@ -138,6 +198,16 @@ def run_backtest(panel, pred_stock, pred_val, pred_date, dates_sorted, cost, ass
                     elif why == "suspended":
                         n_skipped_suspend += 1
                     continue
+                if assert_violation and not injected:
+                    # 故意违规：把该笔成交的**原始成交价**改写出涨跌停带 →
+                    # 由引擎自身的 assert_fill_legal 守卫报错中止（不是注入块自己 raise）
+                    ul = float(panel.price("up_limit", s, day))
+                    if np.isfinite(ul) and ul > 0:
+                        injected = True
+                        panel.ov[("open_raw", s, day)] = ul * 1.5
+                        log(f"[ASSERT-TEST] 注入违规：stock={s} day={day} 原始开盘价改写为涨停价 1.5 倍")
+                # 引擎级守卫：成交价必须可成交，否则报错中止（预注册 §7.4 断言）
+                assert_fill_legal(panel, s, day, "buy")
                 p = float(panel.open_hfq[s, day])
                 if not np.isfinite(p) or p <= 0:
                     raise AssertionError(f"[ASSERT] 不可成交价：开盘价非正 stock={s} day={day}")
@@ -178,7 +248,9 @@ def run_backtest(panel, pred_stock, pred_val, pred_date, dates_sorted, cost, ass
                     p = float(panel.close_hfq[s, lb])
                     u = b["pos"][s]
                     cash += u * p * 0.99        # 退市清算折价 1%
-                    traded_notional[i] += abs(u) * p
+                    fee = abs(u) * p
+                    cash -= fee * cost          # 最终清算同样计成本（预注册 §7.1「含最终清算」）
+                    traded_notional[i] += fee
                     del b["pos"][s]
                     delist_liquidations += 1
                     continue
@@ -186,10 +258,13 @@ def run_backtest(panel, pred_stock, pred_val, pred_date, dates_sorted, cost, ass
                 if not ok:
                     deferred_exits += 1
                     continue
+                assert_fill_legal(panel, s, day, "sell")
                 p = float(panel.close_hfq[s, day])
                 u = b["pos"].pop(s)
                 cash += u * p
-                traded_notional[i] += abs(u) * p
+                fee = abs(u) * p
+                cash -= fee * cost              # 卖出端成本（预注册 §7.1「买入与卖出都收」）
+                traded_notional[i] += fee
             if not b["pos"]:
                 # 按身份删除（不能用 list.remove：两个批次字典可能相等）
                 for _bi in range(len(batches)):
@@ -204,9 +279,19 @@ def run_backtest(panel, pred_stock, pred_val, pred_date, dates_sorted, cost, ass
             for s, u in b["pos"].items():
                 p = float(panel.close_hfq[s, day])
                 if not np.isfinite(p) or p <= 0:
-                    p = float(panel.close_hfq[s, last_bar_of(s)])
+                    # 停牌/无当日价 → 用「估值日之前最后一个可得 bar」的收盘价盯市
+                    # （预注册 §7.4；不得用全局最后一个 bar——那是未来价格，见审查 B1）
+                    lb_past = int(last_before[s, i])
+                    if lb_past < 0:
+                        raise AssertionError(
+                            f"[ASSERT] 无可得估值价：stock={s} day={day} 之前没有任何有 bar 的交易日")
+                    p = float(panel.close_hfq[s, lb_past])
                 v += u * p
         nav[i] = v
+        # 终止条件（预注册 §7.1）：任一估值 NAV ≤ 0 → 终止并报账户失败
+        if not np.isfinite(v) or v <= 0:
+            raise AssertionError(
+                f"[ASSERT] 账户失败：NAV ≤ 0 day={day} nav={v} cash={cash}")
         ret[i] = v / nav[i - 1] - 1 if i > 0 and np.isfinite(nav[i - 1]) else np.nan
         turnover[i] = traded_notional[i] / (2 * nav[i - 1]) if i > 0 and np.isfinite(nav[i - 1]) else np.nan
 
@@ -239,21 +324,15 @@ def run_backtest(panel, pred_stock, pred_val, pred_date, dates_sorted, cost, ass
                     n_batches += 1
 
     # ---------------- 强制违规注入（任务书：证明断言真的在跑）
-    if assert_violation:
+    if assert_violation and not injected:
+        # 全程没有成交笔（无可注入处）→ 对首个候选股用**引擎自身的守卫**做一次等价验证
         s = int(cand[0][1]) if cand else 0
         d = int(dates_sorted[min(1, n_days - 1)])
-        ok, why = tradable_at_open(panel, s, d)
-        if ok:
-            # 人为把开盘价改写成涨停价 → 触发「不可成交价」断言
-            up = float(panel.up_limit[s, d])
-            if np.isfinite(up) and up > 0:
-                log(f"[ASSERT-TEST] 注入违规：stock={s} day={d} 开盘价改为涨停价 {up}")
-                raise AssertionError(
-                    f"[ASSERT] 不可成交价：涨停股开盘买入被拒 stock={s} day={d} "
-                    f"open={up} up_limit={up} reason=limit_up")
-        else:
-            log(f"[ASSERT-TEST] 注入违规：stock={s} day={d} 本身不可成交（{why}），"
-                f"断言应在执行层触发")
+        ul = float(panel.price("up_limit", s, d))
+        if np.isfinite(ul) and ul > 0:
+            panel.ov[("open_raw", s, d)] = ul * 1.5
+            log(f"[ASSERT-TEST] 注入违规：stock={s} day={d} 原始开盘价改写为涨停价 1.5 倍")
+            assert_fill_legal(panel, s, d, "buy")
 
     return {
         "nav": nav, "ret": ret, "turnover": turnover,
