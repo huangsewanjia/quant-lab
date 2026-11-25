@@ -14,7 +14,7 @@
 - `pg_restore -l` 读不出归档目录即判失败（不再把「头部正常」当通过）。本机客户端落后于容器
   归档格式时会明确报 `unsupported version` 并停止，需升级客户端——宁可响，不可静默收下损坏文件。
 - 失败归属细化：进目录失败单独报「进入 <dir>」；每步的临时文件收敛到一次运行一个
-  `/tmp/backup-nightly-XXXXXX/` 目录，中断遗留的目录与 `*.dump.part*` 超过 1 天在下次启动时清理。
+  `/tmp/backup-nightly-XXXXXX/` 目录，中断遗留的目录与 `*.dump.part*` 在下次启动时按 `find -mtime +1`（≥48 小时）清理。
 
 文档：
 
