@@ -361,6 +361,14 @@ def classify(result: FetchResult, content_type: str = "") -> str:
     return "ok"
 
 
+def resolve_item_url(item: dict[str, Any], override: str | None = None) -> tuple[str, str]:
+    """Return (url, template) for a worklist row, honouring a CLI override."""
+    template = override or item.get("url_template") or "info"
+    if override or not item.get("url"):
+        return build_url(item["info_code"], item.get("encode_url"), template), template
+    return item["url"], template
+
+
 def build_url(info_code: str, encode_url: str | None, template: str) -> str:
     pattern = URL_TEMPLATES[template]
     if template == "zw_encode":
@@ -672,7 +680,7 @@ def cmd_fetch(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
         if args.resume and doc_done(paths, item):
             stats["skipped_done"] += 1
             continue
-        url = item.get("url") or build_url(item["info_code"], item.get("encode_url"), item.get("url_template", "info"))
+        url, template = resolve_item_url(item, args.url_template)
         if not robots.allows(url):
             stats["skipped_robots"] += 1
             failures["robots-disallowed"] = failures.get("robots-disallowed", 0) + 1
@@ -699,7 +707,7 @@ def cmd_fetch(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
             "stock_code": item.get("stock_code"),
             "publish_date": item["publish_date"],
             "url": url,
-            "url_template": item.get("url_template", "info"),
+            "url_template": template,
             "http_status": result.http_status,
             "error": result.error,
             "failure_class": failure,
@@ -846,6 +854,7 @@ def build_parser() -> argparse.ArgumentParser:
     fetch.add_argument("--no-resume", dest="resume", action="store_false")
     fetch.add_argument("--run-cap", type=int, default=RUN_CAP)
     fetch.add_argument("--daily-cap", type=int, default=DAILY_CAP)
+    fetch.add_argument("--url-template", choices=sorted(URL_TEMPLATES), help="override the worklist template")
     fetch.add_argument("--wait-ms", type=int, default=5000)
     fetch.add_argument("--timeout", type=float, default=90.0)
     fetch.add_argument("--verbose", action="store_true")

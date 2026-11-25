@@ -34,7 +34,7 @@
 | `zw_infocode` | `https://data.eastmoney.com/report/zw_stock.jshtml?infocode={info_code}` |
 | `zw_encode` | `https://data.eastmoney.com/report/zw_stock.jshtml?encodeUrl={urlencode(encode_url)}` |
 
-`probe` 子命令对同一批研报依次试三个模板，实测哪个返回可解析正文就锁进 worklist（`url_template` 字段），全量抓取只用一个模板，不做运行期试探。
+`probe` 子命令对同一批研报依次试三个模板，实测哪个返回可解析正文就锁进 worklist（`url_template` 字段），全量抓取只用一个模板，不做运行期试探。`fetch --url-template <name>` 可在不重写 worklist 的前提下覆盖模板。
 
 ---
 

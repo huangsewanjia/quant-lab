@@ -14,6 +14,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from db.reports.fetch_detail import (  # noqa: E402
+    resolve_item_url,
     Clock,
     DetailPaths,
     FetchResult,
@@ -192,6 +193,22 @@ def test_build_url_templates():
     assert "infocode=AP1" in build_url("AP1", None, "zw_infocode")
     encoded = build_url("AP1", "a/b+c=", "zw_encode")
     assert "a%2Fb%2Bc%3D" in encoded
+
+
+def test_resolve_item_url_honours_override():
+    item = {
+        "info_code": "AP1",
+        "encode_url": "a/b+c=",
+        "url": "https://data.eastmoney.com/report/info/AP1.html",
+        "url_template": "info",
+    }
+    assert resolve_item_url(item) == (item["url"], "info")
+    url, template = resolve_item_url(item, "zw_encode")
+    assert template == "zw_encode"
+    assert url.endswith("encodeUrl=a%2Fb%2Bc%3D")
+    # a row without a stored URL is rebuilt from its template
+    rebuilt, template = resolve_item_url({"info_code": "AP2", "url_template": "zw_infocode"})
+    assert template == "zw_infocode" and "infocode=AP2" in rebuilt
 
 
 def test_systematic_sample_spans_the_list():
