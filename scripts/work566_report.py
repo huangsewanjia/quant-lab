@@ -357,7 +357,12 @@ def main():
                        f"（PASS {audit.get('pass')} / BLOCKING {audit.get('blocking')}）；"
                        f"判据：指标类逐项相对差 ≤ 1e-6，不一致以复算值为准。"
                        f"复算脚本 <code>audit/recompute_work566.py</code>，"
-                       f"<b>不 import 建模阶段任何函数</b>，交易日历从 parquet 独立重取。</p>")
+                       f"<b>不 import 建模阶段任何函数</b>，交易日历从 parquet 独立重取。</p>"
+                       f"<p><b>独立子代理代码审查</b>（verifier，只读，不在本仓自审）：判定 "
+                       f"<b>FAIL — 1 项 BLOCKING（B1 组合估值用未来 bar 价格盯市）+ 11 项 NON-BLOCKING</b>，"
+                       f"全部已修并重跑全链；审查原文与逐条整改记录见 "
+                       f"<code>experiments/WORK-566/code_review_work566.md</code>，"
+                       f"整改前后的数字变化见 <code>failure_log.md</code> §10–§11。</p>")
 
     prereg_sha = os.environ.get("PREREG_SHA", "(见 git log)")
     html = f"""<!DOCTYPE html>
@@ -400,7 +405,9 @@ Learning in Equity Markets</i>. arXiv:2610.07006v1（2026-10-04）· 单号 WORK
 <b>三段式结构相对「仅 S1 先验」有没有增量</b>。</p>
 <ul>
 <li>H1（唯一决定进 / 退）：<b class="mono">{fmt(h1.get('delta_median_pp'),4)} pp</b>，
-论文基准 +6.07 pp ⇒ 判词「<b>{v}</b>」。</li>
+论文基准 +6.07 pp ⇒ 判词「<b>{v}</b>」。
+（有效种子 {h1.get('n_seeds',0)} 个；判定规则：{h1.get('verdict_rule','—')}；
+每种子 ΔRankIC：{h1.get('delta_min_pp','—')} ~ {h1.get('delta_max_pp','—')} pp）</li>
 <li>H2（并列）：full vs FMB-style 线性基线的 RankIC 差 {fmt(h2.get('pooled_mean_diff_pp'),3)} pp，
 95% CI {h2.get('pooled_ci95')}；{h2.get('conclusion','')}</li>
 <li>H3（并列）：净 SR {fmt(h3s.get('full_net_sr_mean'),3)}，
@@ -422,8 +429,8 @@ R3（加等维上下文）{fmt(h4s.get('r3_rankic'),3)}%，差 {fmt(h4s.get('r2_
 <tr><td>切分</td><td>2014–2015 先验初装 / 2016–2021 训练 / 2022–2023 验证 / 2024-01-02~2026-06-26 测试
 （以论文原文为准；派单卡写的「2009–2019 训练」与原文不符，已在评论里两说并列）</td></tr>
 <tr><td>复权</td><td>后复权 hfq：<code>logC = log(close_raw) + log(adj/adj_first)</code></td></tr>
-<tr><td>停牌</td><td>保留行、价格前向填充、vol/amount 置 0；<b>147 日连续性断言</b>
-（上下文 126 + 目标 21 必须每天有 bar）</td></tr>
+<tr><td>停牌</td><td>保留行、价格留空（NaN，<b>不做前向填充</b>；估值按「最后可得收盘价」盯市）；
+<b>147 日连续性断言</b>（上下文 126 + 目标 21 必须每天有 bar）</td></tr>
 <tr><td>样本量</td><td>总 {fmt(stats.get('n_samples_total'),0)}；train {fmt(stats.get('n_train'),0)}；
 valid {fmt(stats.get('n_valid'),0)}；test {fmt(stats.get('n_test'),0)}
 （论文 Table 3：总 8,839,281 / train 3,883,006 / valid 1,990,842 / test 2,965,433）</td></tr>
@@ -548,9 +555,29 @@ max|z| = 20.36 的离群点，R0–R3 验证损失达 8.5e3 ~ 9.2e3（其余四�
 v1.0 保留不删，阈值/特征/切分/成本/种子全部未动。</li>
 <li><b>两处数学等价的实现提速（不改数值口径）</b>：① S2 编码器前向换成等价的
 <code>scaled_dot_product_attention</code> 实现，权重沿用官方模块（初始化逐位一致），
-自检逐元素最大差 <b>4.77e-07</b>（见 <code>fast_encoder_selftest.json</code>）；
-② 读出预测由「8 臂各读一遍 u」改为「每切分读一遍、一次写 8 臂」。
+自检逐元素最大差 <b>eval 4.77e-07 / train 0.00e+00（逐位一致）</b>
+（见 <code>fast_encoder_selftest.json</code>）；② 读出预测由「8 臂各读一遍 u」改为「每切分读一遍、一次写 8 臂」。
 本机 CPU 上前者提速 3~11×（否则全链需 6 小时以上）。</li>
+<li><b>三处纯 I/O 层优化（不改任何取值与口径）</b>：① 面板 memmap 设 <code>MADV_RANDOM</code>
+（消除内核 readahead 造成的 <b>129× 读放大</b>：每批 4.9MB 有用数据实测读盘 636MB → 1.6MB）；
+② train 切分所需日期片（1400MB）预置到 <code>/dev/shm</code>（tmpfs），与源文件切片
+<b>sha256 完全一致</b>；③ 验证遍历与表征重建按 (stock, date) 顺序读（面板布局为 (stock, date, feat)），
+u 仍写回原行号 → 读出分组与取值不变。修后两种子并行各 1.26 upd/s（此前 0.12 upd/s）。</li>
+<li><b>独立子代理代码审查（FAIL → 整改后重跑）</b>：审查判定 1 项 BLOCKING + 11 项 NON-BLOCKING，
+全部已修：<b>B1</b> 组合估值原用「全局最后一个 bar」的收盘价盯市（前视泄漏，触发 188 次、100% 用未来价）
+→ 改用「估值日之前最后一个可得 bar」；<b>N1</b> 卖端与最终清算补计交易成本（预注册 §7.1 本就要求）；
+<b>N2</b> S2 编码器训练期 dropout 位置/次数与官方不等价 → 按 torch 2.15 源码逐位复刻（train 逐位一致）；
+<b>N5</b> 读出推理补 <code>clamp(-8,8)</code>；<b>N6</b> 加「种子 &lt; 2 → 未交付」与失败判据 3；
+<b>N7</b> 加 NAV ≤ 0 守卫；<b>N9</b> 断言改为由<b>引擎自身守卫</b>触发（原文见
+<code>assert_violation_log.txt</code>）。审查全文与逐条整改记录：
+<code>experiments/WORK-566/code_review_work566.md</code>；整改前后数字变化见
+<code>failure_log.md</code> §10。</li>
+<li><b>停牌日价格未前向填充</b>：面板 docstring 与 <code>meta.json</code> 原写「停牌前向填充到上一收盘」，
+实测<b>未填充</b>（停牌格价格留空）。影响为 0（连续性断言已剔除停牌格，样本对中无停牌格），
+且估值口径本就按「最后可得收盘价」→ 已改文案与描述，<b>不重建面板</b>，在此披露。</li>
+<li><b>退市清算晚 1 个交易日</b>：预注册字面是「自其最后一个有 bar 的交易日起清算」；
+实现为「该日收盘价、但在其<b>后</b>首个交易日入账」——当日无法知道那是没有 bar 的最后一天，
+按此实现才是因果口径（金额口径一致）→ 不改实现，在此披露。</li>
 </ul>
 
 <h2>9 · 审计</h2>
