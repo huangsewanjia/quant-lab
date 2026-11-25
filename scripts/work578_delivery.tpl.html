@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>WORK-578 交易所行情历史回补 · 交付说明</title>
+<style>
+  :root { --ink:#1a1a1a; --muted:#5f6368; --line:#e3e3e3; --accent:#0b6bcb; --bg:#fff; }
+  * { box-sizing:border-box; }
+  body { margin:0 auto; max-width:860px; padding:38px 26px 64px; background:var(--bg); color:var(--ink);
+         font-family:"Noto Serif CJK SC","Source Han Serif SC",Georgia,"Songti SC",serif; line-height:1.72; font-size:15px; }
+  h1 { font-size:25px; line-height:1.35; margin:0 0 6px; letter-spacing:.2px; }
+  h2 { font-size:18px; margin:38px 0 10px; padding-bottom:5px; border-bottom:1px solid var(--line); }
+  h3 { font-size:15px; margin:22px 0 6px; }
+  p, li { color:#222; }
+  .lead { color:var(--muted); font-size:14px; margin:0 0 22px; }
+  .kpi { display:flex; gap:14px; flex-wrap:wrap; margin:18px 0 6px; }
+  .kpi div { flex:1 1 150px; border:1px solid var(--line); border-radius:8px; padding:10px 12px; background:#fbfbfb; }
+  .kpi b { display:block; font-size:21px; font-family:"DejaVu Sans",sans-serif; }
+  .kpi span { color:var(--muted); font-size:12px; }
+  table { width:100%; border-collapse:collapse; margin:10px 0 6px; font-size:13.5px; }
+  th, td { border-bottom:1px solid var(--line); padding:6px 8px; text-align:left; vertical-align:top; }
+  th { background:#f6f7f9; font-weight:600; font-size:13px; }
+  td.n, th.n { text-align:right; font-family:"DejaVu Sans Mono",monospace; }
+  code, pre { font-family:"DejaVu Sans Mono",Menlo,Consolas,monospace; font-size:12.5px; }
+  pre { background:#f7f8fa; border:1px solid var(--line); border-radius:8px; padding:11px 13px; overflow-x:auto; line-height:1.55; }
+  .note { border-left:3px solid var(--accent); background:#f5f9ff; padding:9px 13px; margin:13px 0; font-size:14px; }
+  .warn { border-left:3px solid #c2410c; background:#fff7f3; padding:9px 13px; margin:13px 0; font-size:14px; }
+  figure { margin:20px 0 8px; }
+  figure img { width:100%; border:1px solid var(--line); border-radius:6px; }
+  figcaption { color:var(--muted); font-size:12.5px; margin-top:5px; }
+  .toc { font-size:14px; columns:2; column-gap:26px; margin:14px 0 4px; }
+  .toc a { color:var(--accent); text-decoration:none; }
+  .foot { margin-top:44px; padding-top:12px; border-top:1px solid var(--line); color:var(--muted); font-size:12.5px; }
+  @media print { body { max-width:none; padding:0 8mm; font-size:11.5pt; } h2 { break-after:avoid; } figure { break-inside:avoid; } }
+</style></head><body>
+
+<h1>交易所行情历史回补：1 个交易日 → $dates 个交易日</h1>
+<p class="lead">WORK-578 · 数据底座 quantdb · 交付说明（2026-11-25）。面向需要国内期货日频行情的研究与策略同事，也面向后续维护 ETL 的工程师。</p>
+
+<div class="kpi">
+  <div><b>$total</b><span>库内行数</span></div>
+  <div><b>$dates</b><span>交易日数（目标 ≥245）</span></div>
+  <div><b>$first</b><span>起始交易日</span></div>
+  <div><b>$last</b><span>最新交易日</span></div>
+</div>
+
+<div class="toc">
+  <a href="#s1">1. 这次解决了什么</a><br>
+  <a href="#s2">2. 首次使用（3 条查询）</a><br>
+  <a href="#s3">3. 数据形态与口径</a><br>
+  <a href="#s4">4. 需求符合性矩阵</a><br>
+  <a href="#s5">5. 证据：命令与输出</a><br>
+  <a href="#s6">6. 已知限制</a><br>
+  <a href="#s7">7. 怎么回滚</a><br>
+  <a href="#s8">8. 附录</a>
+</div>
+
+<h2 id="s1">1. 这次解决了什么</h2>
+<p>原来 <code>industry_exchange_daily_quotes</code> 只有 <b>1 个交易日</b>（库内 $before_rows 行，2026-11-23 一天），
+因为抓取脚本一次只取「当天」。上游其实是「一天一个文件/一次查询」的形态，历史一直在，只是没人循环。</p>
+<p>本次把抓取改成<b>按交易日循环</b>，回补了最近一年的完整窗口：<b>$total 行 / $dates 个交易日</b>，
+双源（上期所 SHFE、广期所 GFEX 碳酸锂）逐日齐全，零失败日。定时任务仍按日增量跑，不会每天重抓一年。</p>
+
+<h2 id="s2">2. 首次使用</h2>
+<pre>import duckdb
+con = duckdb.connect("/srv/share/quantdb/db/quantdb.duckdb", read_only=True)
+
+# ① 某品种某日全合约
+con.execute("select month, close, settle, volume, oi from industry_exchange_daily_quotes "
+            "where exchange='SHFE' and contract='CU' and trade_date=DATE '2026-11-25' "
+            "order by month").df()
+
+# ② 碳酸锂近月连续序列（合约月份 ≥ 当月的最小合约）
+con.execute("""select trade_date, month, close from industry_exchange_daily_quotes
+              where exchange='GFEX' and contract='碳酸锂'
+                and month >= strftime(trade_date, '%y%m')
+              qualify row_number() over (partition by trade_date order by month)=1
+              order by trade_date""").df()
+
+# ③ 覆盖自检
+con.execute("select count(*) rows, count(distinct trade_date) dates, min(trade_date), max(trade_date) "
+            "from industry_exchange_daily_quotes").fetchall()</pre>
+
+<h2 id="s3">3. 数据形态与口径</h2>
+<table>
+  <tr><th>列</th><th>含义</th><th>单位 / 说明</th></tr>
+  <tr><td>exchange</td><td>交易所</td><td><code>SHFE</code> / <code>GFEX</code></td></tr>
+  <tr><td>contract</td><td>品种</td><td>SHFE：CU/AL/ZN/PB/NI/SN；GFEX：碳酸锂</td></tr>
+  <tr><td>month</td><td>交割月</td><td>YYMM 四位字符串，如 <code>2612</code></td></tr>
+  <tr><td>close / settle</td><td>收盘价 / 结算价</td><td>元/吨（上游原值，未复权、未换算）</td></tr>
+  <tr><td>volume / oi</td><td>成交量 / 持仓量</td><td>手</td></tr>
+  <tr><td>trade_date</td><td>交易日</td><td>DATE；上游给的是交易日，不做推断</td></tr>
+</table>
+<p>分项数字（$last 装载后现场读数）：</p>
+<table>
+  <tr><th>exchange</th><th class="n">行数</th><th class="n">交易日数</th><th class="n">品种数</th></tr>
+  $ex_rows
+  <tr><th>合计</th><th class="n">$sum_ex</th><th class="n">$dates</th><th class="n">7</th></tr>
+</table>
+<p class="note">列相加自检：$sum_ex = $sum_expr = 库内总行数 $total，一致。
+每个交易日固定 84 行（SHFE 6 品种 × 12 个挂牌月 + GFEX 12 个合约），$dates × 84 = $row_check。</p>
+
+<figure><img alt="上游可得区间与本次回补窗口" src="data:image/png;base64,$fig1">
+<figcaption>图 1：上期所 <code>.dat</code> 归档实测最早 2002-01-07，广期所碳酸锂 2023-07-21 上市；蓝色为本次交付窗口。</figcaption></figure>
+
+<figure><img alt="库内实值示例序列" src="data:image/png;base64,$fig2">
+<figcaption>图 2：直接从主库读出，未做任何平滑。碳酸锂全窗口收盘价区间 $lc_min–$lc_max 元/吨。</figcaption></figure>
+
+<h2 id="s4">4. 需求符合性矩阵</h2>
+<table>
+  <tr><th>验收项</th><th>结果</th><th>证据</th></tr>
+  <tr><td>库内 distinct trade_date ≥ 245</td><td><b>达成</b>：$dates</td><td>§5 命令 ①</td></tr>
+  <tr><td>失败日清单（逐日 URL + 状态）</td><td><b>0 失败</b>：<code>failed.json</code> 的 <code>failed</code> 为空数组</td><td>§5 命令 ②</td></tr>
+  <tr><td>幂等：同参数连跑两次装载，17 表行数不变</td><td><b>达成</b>：4 秒窗口单次装载前后，17 张数据表逐表行数不变（仅装载审计表 +1 行）；两次装载 <code>raw/staged/loaded/partitions</code> 全同（21756/21756/21756/259）</td><td>§5 命令 ③</td></tr>
+  <tr><td>质量闸 7/7 PASS；pytest 全过</td><td><b>达成</b>：C1–C7 全 PASS；test_industry.py 11 passed</td><td>§5 命令 ④⑤</td></tr>
+  <tr><td>表数 / data_catalog / A 股 20 表零 diff</td><td><b>达成</b>：BASE TABLE $tabs 张、<code>data_catalog</code> $catalog 行、A 股 $zero_diff/20 零 diff（对 20:20 当日基线）</td><td>§5 命令 ⑥⑦</td></tr>
+  <tr><td>manifest.params 可复跑</td><td><b>达成</b>：复跑同参数 0 请求、CSV 字节不变</td><td>§5 命令 ⑧</td></tr>
+</table>
+
+<h2 id="s5">5. 证据：命令与输出</h2>
+<h3>① 覆盖与形态</h3>
+<pre>cd /srv/share/quantdb/code/quant-lab
+/home/moyongkai/.venvs/quantdb/bin/python scripts/work578_verify.py exchange</pre>
+<p>输出含 <code>dates=$dates</code>、<code>first=$first</code>、<code>last=$last</code>、
+<code>coverage_gap_shfe=0</code>，CSV 与库双向 EXCEPT 均为 0。</p>
+
+<h3>② 失败日</h3>
+<pre>jq '.params | {trading_days, trading_days_fetched, trading_days_skipped, http_calls, failed_days}' \
+  /srv/share/quantdb/raw/industry_alt/exchange_daily_quotes/manifest.json
+jq '.failed | length' /srv/share/quantdb/raw/industry_alt/exchange_daily_quotes/failed.json</pre>
+
+<h3>③ 幂等（两次装载的装载审计）</h3>
+<table>
+  <tr><th>run_id</th><th class="n">raw</th><th class="n">staged</th><th class="n">loaded</th><th class="n">分区数</th><th>完成时间</th></tr>
+  $audit_rows
+</table>
+
+<h3>④⑤ 质量闸与单元测试</h3>
+<pre>QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$$PWD /home/moyongkai/.venvs/quantdb/bin/python -m db.checks.industry all
+QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$$PWD /home/moyongkai/.venvs/quantdb/bin/python -m pytest db/tests/test_industry.py -q</pre>
+
+<h3>⑥⑦ 表数 / 目录 / A 股零 diff</h3>
+<pre>/home/moyongkai/.venvs/quantdb/bin/python scripts/work578_verify.py shape
+/home/moyongkai/.venvs/quantdb/bin/python scripts/work578_verify.py astock</pre>
+
+<h3>⑧ 复跑一条命令（回补，手动、非定时）</h3>
+<pre>cd /srv/share/quantdb/raw/industry_alt/exchange_daily_quotes
+/home/moyongkai/.venvs/quantdb/bin/python fetch.py --from 20251101 --to 20261125 --resume \
+  | tee /srv/share/quantdb/logs/work578-backfill.log</pre>
+
+<h2 id="s6">6. 已知限制</h2>
+<ul>
+  <li><b>只覆盖最近一年</b>：上游还有更早历史（SHFE 实测到 2002-01-07），本单按验收口径回补 1 年；加深只需换 <code>--from</code> 的手动命令，不是定时任务。</li>
+  <li><b>品种限于原有选择</b>：只取 SHFE 六个金属品种与 GFEX 碳酸锂，与 WORK-568 的抓取口径一致；未扩到其他品种或期权。</li>
+  <li><b>未收录成交额</b>：上游 .dat 有成交额字段，本表沿用原 schema 未加列；要加列属改入库层，需另行确认。</li>
+  <li><b>交易日历依赖主库 <code>trade_cal</code></b>：取不到时退回「周一至周五」，并在 <code>manifest.params.calendar</code> 标 <code>weekday-fallback</code>。</li>
+</ul>
+
+<h2 id="s7">7. 怎么回滚</h2>
+<pre># ① 数据：删掉本次新增的交易日，只留原来那 1 天
+cd /srv/share/quantdb/code/quant-lab
+QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$$PWD \
+  flock -w 1800 /srv/share/quantdb/logs/.quantdb-db.lock \
+  /home/moyongkai/.venvs/quantdb/bin/python - &lt;&lt;'PY'
+import duckdb
+con = duckdb.connect("/srv/share/quantdb/db/quantdb.duckdb")
+con.execute("delete from industry_exchange_daily_quotes where trade_date &lt;&gt; DATE '2026-11-23'")
+PY
+
+# ② raw 层：改前的 data.csv / manifest.json 留档在 /srv/share/quantdb/raw/_backup-work578/
+cp /srv/share/quantdb/raw/_backup-work578/data.csv \
+   /srv/share/quantdb/raw/industry_alt/exchange_daily_quotes/data.csv</pre>
+<p>抓取脚本本身不回滚也不影响老数据：默认窗口 7 天，不带参数调用只是「补最近几天」，不会删行。</p>
+
+<h2 id="s8">8. 附录</h2>
+<h3>8.1 本次改动的文件</h3>
+<table>
+  <tr><th>路径</th><th>改动</th></tr>
+  <tr><td><code>/srv/share/quantdb/raw/industry_alt/exchange_daily_quotes/fetch.py</code></td><td>按交易日循环、<code>--from/--to/--days</code>、<code>--resume</code>、<code>failed.json</code>、manifest.params</td></tr>
+  <tr><td><code>/srv/share/quantdb/raw/industry_alt/exchange_daily_quotes/manifest.json</code></td><td>新增 <code>params</code> 与 <code>coverage</code></td></tr>
+  <tr><td><code>/srv/share/quantdb/raw/industry_alt/exchange_daily_quotes/failed.json</code></td><td>逐条失败记录（本次为空）</td></tr>
+  <tr><td><code>/srv/share/quantdb/code/quant-lab/scripts/work578_verify.py</code></td><td>基线 / A 股零 diff / 17 表行数 / 表数 / 交易所形态校验</td></tr>
+  <tr><td><code>/srv/share/quantdb/code/quant-lab/scripts/work578_build_delivery.py</code> + <code>.tpl.html</code></td><td>生成本页</td></tr>
+  <tr><td><code>/srv/share/quantdb/code/quant-lab/docs/industry-ingest-2026.md</code></td><td>§2.2 覆盖表该行 + §10.7 回补记录</td></tr>
+</table>
+
+<h3>8.2 定时任务的口径（为什么不会每天重抓一年）</h3>
+<p><code>db/timers/industry.sh</code> 调 <code>fetch.py</code> 不带参数：默认 <code>--days 7</code> + <code>--resume</code>，
+即每天只补最近 7 个自然日里 CSV 还没有的交易日（通常 1 天 = 2 个请求）；深度回补必须显式传 <code>--from</code>。</p>
+
+<h3>8.3 独立审查</h3>
+<p>实现完成后由独立子代理按《code-review-and-quality》复审（不复用开发上下文），分级结论与锁定 SHA 见 issue 评论。</p>
+
+<div class="foot">
+数据源：上期所 <code>https://www.shfe.com.cn/data/tradedata/future/dailydata/kxYYYYMMDD.dat</code>；
+广期所 <code>http://www.gfex.com.cn/u/interfacesWebTiDayQuotes/loadList</code>。
+主库 <code>/srv/share/quantdb/db/quantdb.duckdb</code>（只读连接）。本页由 <code>scripts/work578_build_delivery.py</code> 现场读数生成，图片 base64 内嵌，断网可读。
+</div>
+</body></html>
