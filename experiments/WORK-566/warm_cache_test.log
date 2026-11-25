@@ -1,0 +1,13 @@
+WORK-566 · 页缓存区间预热回归测试
+  [PASS] T1a np.memmap 没有 .close() 属性 —— type=memmap
+  [PASS] T1b 旧写法 arr.close() 抛 AttributeError
+[20:21:21]   页缓存区间预热 合成文件 日期 [2, 6] 0 MB 用时 0s
+  [PASS] T2a 预热返回正数字节数 —— 返回 420
+  [PASS] T2b 股票 0 区间字节与数组逐位一致
+  [PASS] T2b 股票 3 区间字节与数组逐位一致
+  [PASS] T2b 股票 6 区间字节与数组逐位一致
+[20:21:21]   页缓存区间预热 真实面板小区间 日期 [100, 101] 0 MB 用时 0s
+  [PASS] T3a 真实面板预热字节数自洽 —— 实得 960，期望 960
+
+结果：0 项 FAIL
+全部 PASS

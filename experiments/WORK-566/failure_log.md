@@ -855,3 +855,58 @@ Nov 25 20:01:25 Mo-server kernel: Out of memory: Killed process 3267519 (python)
   sha256 `e2facddefeb0856c128e2b0cfc061fd261f0b9c97292f09ca30b13a164d40c02`（启动时由守护脚本打印）。
 - **两个种子跑的是同一份计算代码**（页缓存预热只影响 I/O，不影响任何数值），本节 §16.3 的其余各项
   属链式脚本与启动参数，不进计算路径。
+
+## §17 §16 处置引入的**代码缺陷**：两次「重跑消失」的真因是 AttributeError，**不是 OOM**（2026-11-25 20:07 / 20:10）
+
+### 17.1 事实经过（时间戳取自 `.w566tmp/w566_fullchain.log`，可核）
+| 时刻 | 事件 | 证据 |
+|---|---|---|
+| 20:07:06 | 启动种子 42（第 1/3 次），train.py sha256 `e2facddf…` | 链日志 |
+| 20:09:32 | 链判定「未出现『全部完成』即消失」→ 记为「很可能是整机 OOM」 | 链日志 |
+| 20:10:32 | 启动种子 42（第 2/3 次），**同一份** train.py sha256 `e2facddf…` | 链日志 |
+| 20:12:58 | 再次「消失」 | 链日志 |
+| 20:13:2x | 人工取日志 → **看到 Python traceback，不是内核 OOM** | `.w566tmp/w566_s42.log` |
+
+第 2 次的 traceback 原文（`.w566tmp/w566_s42.log`，未删改）：
+
+```
+  File ".../scripts/work566_train.py", line 108, in warm_cache_range
+    arr.close()
+AttributeError: 'memmap' object has no attribute 'close'. Did you mean: 'choose'?
+```
+
+### 17.2 真因
+`warm_cache_range`（§16.3 第 1 项新增）里为了拿 `.npy` 头部偏移写了 `arr = np.load(path, mmap_mode="r")`，
+随后调用 `arr.close()`。但 `np.load(mmap_mode="r")` 返回的是 **`numpy.memmap`**，
+numpy 2.x（实测本机 numpy 2.5.5）下 **`hasattr(memmap, "close") == False`** → 抛 `AttributeError`，
+训练在**预热第一步就崩掉**（不是被内核杀）。
+
+**订正 §16**：§16 关于 20:01:25 那次整机 OOM 的结论**不变**（内核 `oom-kill … global_oom` 原文是硬证据）。
+但 20:07 / 20:10 这两次「消失」**不是 OOM**，是我自己在 §16 处置里引入的代码缺陷。
+
+第 1 次（20:07）的**确切**死因未直接留痕——它的日志被第 2 次的 `>` 重定向覆盖；
+按「两次跑的是同一份 sha256 完全相同的 train.py、第 2 次崩在预热第一步」推断为同一 `AttributeError`，
+**此条属推断，不当作已证事实**（已证事实是：第 2 次是 `AttributeError`；第 1 次是「日志被覆盖 + 同码」）。
+
+### 17.3 修复
+1. `scripts/work566_train.py` `warm_cache_range`：`arr.close()` → `del arr`（释放 memmap 映射），
+   并在注释里写明「numpy.memmap 没有 `.close()`」这个坑。
+2. 附带把 `warm_cache_range` 的返回值改为已算好的字节数 `total`（原先返回 `None`），**不改任何数值计算**。
+3. 新增回归测试 `scripts/work566_warm_cache_test.py`（**7/7 PASS**）：
+   - T1a/T1b（先红）：断言 `numpy.memmap` 没有 `.close()`，且旧写法必抛 `AttributeError` —— 把这个坑变成可断言的；
+   - T2a/T2b：对合成 `.npy`，断言预热不崩 + **读到的字节与数组逐位一致**（证明不是瞎读、偏移算对了）；
+   - T3a：对真实面板 `data/WORK-566/feat.npy` 用真实 header 偏移跑一次，字节数自洽（960 = 3 股 × 2 日 × 40 维 × 4B）。
+4. 链脚本 `.w566tmp/w566_fullchain.sh` 加固：种子进程消失时**先打印该次日志尾部 15 行**，
+   并按「日志是否命中 OOM 关键字」区分「整机 OOM」与「脚本自身异常」——
+   §16 那次就是因为不看日志原文，把代码 bug 误判成系统故障，还自动重跑了 2 次。
+
+### 17.4 教训（与 §16 并列，都写进 failure_log）
+- **自动重跑会放大代码缺陷**：带同一个 bug 的代码重跑 3 次 = 同一个错 3 次，
+  只有把「日志尾部原文」贴出来才看得见；此前把「进程消失」直接等同于「被内核杀」是错的口径。
+- **重定向 `>` 会吃掉上一轮的唯一证据**：链脚本应 `>>` 追加或每次存不同文件名。本轮未改（链脚本在
+  `.w566tmp/`，不入库），但下一次「消失」时能立刻看到本轮 traceback。
+
+### 17.5 口径影响
+- **无**：本节修的是 I/O 预热辅助函数的实现缺陷与返回值，**不在任何数值计算路径上**；
+  预注册协议、40 维特征契约、切分、模型与读出参数**一字未改**。
+- 两个种子仍跑**同一份**计算代码（修好后由链脚本打印新 sha256 留痕）。

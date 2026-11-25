@@ -103,9 +103,13 @@ def warm_cache_range(path, n_stocks, n_dates, row_bytes, lo, hi, label=""):
     t0 = time.time()
     total = 0
     with open(path, "rb", buffering=0) as f:
+        # 注意：np.load(mmap_mode="r") 返回 numpy.memmap，**没有 .close() 方法**
+        # （numpy 2.x 实测 hasattr(memmap,'close') == False）。修前写 arr.close() 会抛
+        # AttributeError，导致 2026-11-25 20:07 / 20:10 两次重跑在预热阶段直接崩掉
+        # （当时误判为整机 OOM，见 failure_log §17）。这里用 del 释放映射。
         arr = np.load(path, mmap_mode="r")
         off = int(arr.offset)
-        arr.close()
+        del arr
         for s in range(n_stocks):
             start = off + (s * n_dates + lo) * row_bytes
             length = (hi - lo + 1) * row_bytes
@@ -116,6 +120,7 @@ def warm_cache_range(path, n_stocks, n_dates, row_bytes, lo, hi, label=""):
             total += len(b)
     log(f"  页缓存区间预热 {label} 日期 [{lo}, {hi}] {total / 1048576:.0f} MB "
         f"用时 {time.time() - t0:.0f}s")
+    return total
 
 
 # ---------------------------------------------------------------- 模型
