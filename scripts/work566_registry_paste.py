@@ -57,8 +57,8 @@ def main():
             continue
         out.append(l)
     if not replaced:
-        # 插在「（模板行）」之前
-        idx = next((i for i, l in enumerate(out) if l.startswith("| （模板行）")), None)
+        # 插在「（模板行）」之前（模板行写法在 registry.md 里是 | `（模板行）` | ...）
+        idx = next((i for i, l in enumerate(out) if "（模板行）" in l), None)
         if idx is None:
             raise SystemExit("registry.md 里找不到「（模板行）」锚点")
         out.insert(idx, row)
