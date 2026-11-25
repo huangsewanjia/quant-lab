@@ -1,7 +1,7 @@
 <frozen site>:107: RuntimeWarning: Unexpected value in sys.prefix, expected /srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/.venv, got /srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/quant-lab/../.venv
 <frozen site>:107: RuntimeWarning: Unexpected value in sys.exec_prefix, expected /srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/.venv, got /srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/quant-lab/../.venv
-[13:39:34] fmb seed42: 测试样本 2,949,469，预测日 578 天
-[13:39:42] [ASSERT-TEST] 注入违规：stock=4510 day=2673 原始开盘价改写为涨停价 1.5 倍
+[02:19:55] fmb seed42: 测试样本 2,949,469，预测日 578 天
+[02:19:56] [ASSERT-TEST] 注入违规：stock=4510 day=2673 原始开盘价改写为涨停价 1.5 倍
 Traceback (most recent call last):
   File "/srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/quant-lab/scripts/work566_backtest.py", line 445, in <module>
     sys.exit(main())

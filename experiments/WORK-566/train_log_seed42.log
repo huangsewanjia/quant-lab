@@ -1,0 +1,186 @@
+<frozen site>:107: RuntimeWarning: Unexpected value in sys.prefix, expected /srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/.venv, got /srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/quant-lab/../.venv
+<frozen site>:107: RuntimeWarning: Unexpected value in sys.exec_prefix, expected /srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/.venv, got /srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/quant-lab/../.venv
+[20:25:20]   tmpfs 训练日期片已存在：/dev/shm/w566_feat_train.npy (5783, 1586, 40) 起日 602
+[20:25:20] 样本：train 3,989,422 / valid 2,126,317 / test 2,949,469
+/srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/quant-lab/scripts/work566_train.py:320: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:820.)
+  aliased = float(sd_old["weight"][0, 0]) == float(lin.weight[0, 0])
+[20:25:21] [SELF-TEST] state_dict 别名检测：旧写法 aliased=True（应为 True → 说明旧写法不是快照）；新写法 detached=True（应为 True）
+[20:25:21] [SELF-TEST] checkpoint 快照语义 PASS（旧写法=别名 / 新写法=独立副本 / m_k in-place 已确认）
+/srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/quant-lab/scripts/work566_train.py:724: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  enc = nn.TransformerEncoder(
+[SELF-TEST] FastEncoderLayer vs nn.TransformerEncoder (eval): max|diff| = 4.768e-07 → PASS
+[SELF-TEST] FastEncoderLayer vs nn.TransformerEncoder (train, seed=1234): max|diff| = 0.000e+00 → PASS
+[20:25:21] ===== 种子 42 =====
+[20:25:44]   页缓存区间预热 feat.npy 验证+测试区间 日期 [2063, 3270] 1066 MB 用时 23s
+/srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/quant-lab/scripts/work566_train.py:209: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  enc = nn.TransformerEncoder(layer, n_layers)
+[20:26:25]   seed42 epoch0 upd50 L_anc=66.6294 L_rev=53.4636 39s (1.29 upd/s)
+[20:27:04]   seed42 epoch0 upd100 L_anc=61.0430 L_rev=45.0756 77s (1.30 upd/s)
+[20:27:41]   seed42 epoch0 upd150 L_anc=54.6387 L_rev=39.7167 115s (1.31 upd/s)
+[20:28:20]   seed42 epoch0 upd200 L_anc=50.7801 L_rev=35.0353 154s (1.30 upd/s)
+[20:29:00]   seed42 epoch0 upd250 L_anc=46.7092 L_rev=35.8736 193s (1.30 upd/s)
+[20:29:38]   seed42 epoch0 upd300 L_anc=44.9643 L_rev=35.1592 232s (1.30 upd/s)
+[20:30:17]   seed42 epoch0 upd350 L_anc=44.9613 L_rev=34.6114 270s (1.29 upd/s)
+[20:30:55]   seed42 epoch0 upd400 L_anc=42.7902 L_rev=32.5295 309s (1.30 upd/s)
+[20:31:35]   seed42 epoch0 upd450 L_anc=42.3098 L_rev=33.5274 348s (1.29 upd/s)
+[20:32:13]   seed42 epoch0 upd500 L_anc=41.7905 L_rev=33.0140 386s (1.29 upd/s)
+[20:32:50]   seed42 epoch0 upd550 L_anc=40.7979 L_rev=32.1367 423s (1.30 upd/s)
+[20:33:27]   seed42 epoch0 upd600 L_anc=41.7613 L_rev=32.9839 461s (1.30 upd/s)
+[20:34:05]   seed42 epoch0 upd650 L_anc=44.0176 L_rev=35.6122 499s (1.30 upd/s)
+[20:34:44]   seed42 epoch0 upd700 L_anc=42.4259 L_rev=32.9304 537s (1.30 upd/s)
+[20:35:23]   seed42 epoch0 upd750 L_anc=38.8835 L_rev=33.0907 576s (1.30 upd/s)
+[20:36:01]   seed42 epoch0 upd800 L_anc=41.4190 L_rev=33.3129 615s (1.30 upd/s)
+[20:36:40]   seed42 epoch0 upd850 L_anc=41.9257 L_rev=32.9287 653s (1.30 upd/s)
+[20:37:18]   seed42 epoch0 upd900 L_anc=40.4977 L_rev=33.7209 691s (1.30 upd/s)
+[20:37:57]   seed42 epoch0 upd950 L_anc=39.5194 L_rev=31.0017 730s (1.30 upd/s)
+[20:41:33]   seed42 epoch0 upd1000 L_anc=40.0254 L_rev=28.5328 947s (1.06 upd/s)
+[21:00:34]   seed42 epoch0 验证损失 115.0360（2088s）
+[21:01:14]   seed42 epoch1 upd1050 L_anc=38.3727 L_rev=31.4002 2127s (0.49 upd/s)
+[21:01:52]   seed42 epoch1 upd1100 L_anc=39.0074 L_rev=27.5758 2165s (0.51 upd/s)
+[21:02:29]   seed42 epoch1 upd1150 L_anc=38.7515 L_rev=28.4402 2203s (0.52 upd/s)
+[21:03:06]   seed42 epoch1 upd1200 L_anc=40.8423 L_rev=31.5011 2240s (0.54 upd/s)
+[21:03:44]   seed42 epoch1 upd1250 L_anc=37.6673 L_rev=27.6437 2277s (0.55 upd/s)
+[21:04:21]   seed42 epoch1 upd1300 L_anc=39.5487 L_rev=29.2787 2315s (0.56 upd/s)
+[21:04:58]   seed42 epoch1 upd1350 L_anc=37.7197 L_rev=30.9949 2352s (0.57 upd/s)
+[21:05:35]   seed42 epoch1 upd1400 L_anc=36.7717 L_rev=29.5133 2388s (0.59 upd/s)
+[21:06:12]   seed42 epoch1 upd1450 L_anc=40.1504 L_rev=31.8908 2425s (0.60 upd/s)
+[21:06:48]   seed42 epoch1 upd1500 L_anc=38.1146 L_rev=29.5532 2462s (0.61 upd/s)
+[21:07:26]   seed42 epoch1 upd1550 L_anc=35.5351 L_rev=28.3095 2500s (0.62 upd/s)
+[21:08:02]   seed42 epoch1 upd1600 L_anc=35.9190 L_rev=31.3028 2536s (0.63 upd/s)
+[21:08:39]   seed42 epoch1 upd1650 L_anc=37.2657 L_rev=29.8117 2573s (0.64 upd/s)
+[21:09:19]   seed42 epoch1 upd1700 L_anc=38.3318 L_rev=29.0535 2612s (0.65 upd/s)
+[21:20:59]   seed42 epoch1 upd1750 L_anc=36.1343 L_rev=28.7223 3312s (0.53 upd/s)
+[21:21:39]   seed42 epoch1 upd1800 L_anc=37.9480 L_rev=27.0905 3353s (0.54 upd/s)
+[21:22:22]   seed42 epoch1 upd1850 L_anc=36.6343 L_rev=27.9012 3395s (0.54 upd/s)
+[21:23:00]   seed42 epoch1 upd1900 L_anc=35.8504 L_rev=27.8715 3433s (0.55 upd/s)
+[21:23:37]   seed42 epoch1 upd1950 L_anc=36.5029 L_rev=26.3069 3471s (0.56 upd/s)
+[21:24:15]   seed42 epoch1 upd2000 L_anc=33.6788 L_rev=25.3776 3508s (0.57 upd/s)
+[21:43:12]   seed42 epoch1 验证损失 137.2852（4645s）
+[21:43:56]   seed42 epoch2 upd2050 L_anc=36.8911 L_rev=28.9425 4690s (0.44 upd/s)
+[21:44:35]   seed42 epoch2 upd2100 L_anc=36.0710 L_rev=28.7789 4729s (0.44 upd/s)
+[21:45:14]   seed42 epoch2 upd2150 L_anc=34.8337 L_rev=28.0114 4767s (0.45 upd/s)
+[21:45:53]   seed42 epoch2 upd2200 L_anc=35.5014 L_rev=28.2369 4806s (0.46 upd/s)
+[21:46:32]   seed42 epoch2 upd2250 L_anc=34.8064 L_rev=25.9789 4845s (0.46 upd/s)
+[21:47:11]   seed42 epoch2 upd2300 L_anc=34.2101 L_rev=25.9695 4884s (0.47 upd/s)
+[21:47:50]   seed42 epoch2 upd2350 L_anc=35.9637 L_rev=29.8093 4923s (0.48 upd/s)
+[21:48:29]   seed42 epoch2 upd2400 L_anc=34.7388 L_rev=26.9845 4962s (0.48 upd/s)
+[21:49:09]   seed42 epoch2 upd2450 L_anc=35.7421 L_rev=29.5617 5002s (0.49 upd/s)
+[21:49:47]   seed42 epoch2 upd2500 L_anc=33.9809 L_rev=27.1674 5041s (0.50 upd/s)
+[21:50:25]   seed42 epoch2 upd2550 L_anc=34.5875 L_rev=27.8852 5078s (0.50 upd/s)
+[21:51:05]   seed42 epoch2 upd2600 L_anc=34.7965 L_rev=26.3401 5119s (0.51 upd/s)
+[21:51:44]   seed42 epoch2 upd2650 L_anc=35.2959 L_rev=28.0010 5157s (0.51 upd/s)
+[21:52:28]   seed42 epoch2 upd2700 L_anc=33.2351 L_rev=27.1015 5201s (0.52 upd/s)
+[21:53:06]   seed42 epoch2 upd2750 L_anc=33.3030 L_rev=25.8446 5240s (0.52 upd/s)
+[21:53:44]   seed42 epoch2 upd2800 L_anc=33.5656 L_rev=26.2616 5278s (0.53 upd/s)
+[21:54:22]   seed42 epoch2 upd2850 L_anc=36.2255 L_rev=26.7479 5316s (0.54 upd/s)
+[21:55:00]   seed42 epoch2 upd2900 L_anc=34.2127 L_rev=27.3983 5353s (0.54 upd/s)
+[21:55:37]   seed42 epoch2 upd2950 L_anc=32.8002 L_rev=24.7755 5390s (0.55 upd/s)
+[21:56:13]   seed42 epoch2 upd3000 L_anc=34.3794 L_rev=26.5135 5427s (0.55 upd/s)
+[22:14:52]   seed42 epoch2 验证损失 145.7438（6545s）
+[22:15:35]   seed42 epoch3 upd3050 L_anc=33.4511 L_rev=25.2994 6589s (0.46 upd/s)
+[22:16:16]   seed42 epoch3 upd3100 L_anc=33.1161 L_rev=25.4567 6629s (0.47 upd/s)
+[22:16:56]   seed42 epoch3 upd3150 L_anc=33.0294 L_rev=25.2590 6670s (0.47 upd/s)
+[22:17:37]   seed42 epoch3 upd3200 L_anc=34.1563 L_rev=27.2924 6710s (0.48 upd/s)
+[22:18:18]   seed42 epoch3 upd3250 L_anc=33.4507 L_rev=24.9834 6751s (0.48 upd/s)
+[22:18:57]   seed42 epoch3 upd3300 L_anc=32.7881 L_rev=25.7959 6790s (0.49 upd/s)
+[22:19:35]   seed42 epoch3 upd3350 L_anc=33.8130 L_rev=26.3470 6828s (0.49 upd/s)
+[22:20:13]   seed42 epoch3 upd3400 L_anc=33.1143 L_rev=25.5531 6867s (0.50 upd/s)
+[22:20:51]   seed42 epoch3 upd3450 L_anc=32.1758 L_rev=24.4806 6905s (0.50 upd/s)
+[22:21:29]   seed42 epoch3 upd3500 L_anc=32.0874 L_rev=25.6356 6943s (0.50 upd/s)
+[22:22:08]   seed42 epoch3 upd3550 L_anc=32.9899 L_rev=25.1842 6981s (0.51 upd/s)
+[22:22:45]   seed42 epoch3 upd3600 L_anc=32.8128 L_rev=25.3668 7019s (0.51 upd/s)
+[22:23:23]   seed42 epoch3 upd3650 L_anc=32.7079 L_rev=25.5167 7056s (0.52 upd/s)
+[22:24:00]   seed42 epoch3 upd3700 L_anc=32.6818 L_rev=25.0326 7093s (0.52 upd/s)
+[22:24:38]   seed42 epoch3 upd3750 L_anc=35.2426 L_rev=26.3458 7131s (0.53 upd/s)
+[22:25:17]   seed42 epoch3 upd3800 L_anc=35.3862 L_rev=27.1622 7170s (0.53 upd/s)
+[22:25:55]   seed42 epoch3 upd3850 L_anc=31.2317 L_rev=25.7045 7208s (0.53 upd/s)
+[22:26:31]   seed42 epoch3 upd3900 L_anc=33.9674 L_rev=27.8016 7245s (0.54 upd/s)
+[22:27:10]   seed42 epoch3 upd3950 L_anc=32.4412 L_rev=25.8242 7284s (0.54 upd/s)
+[22:27:49]   seed42 epoch3 upd4000 L_anc=35.2517 L_rev=26.1959 7323s (0.55 upd/s)
+[22:46:25]   seed42 epoch3 验证损失 151.0316（8439s）
+[22:46:25]   seed42 已落盘最优快照：vloss=115.0360（upd=1000，共 4000 updates，最优在第 1 epoch）
+[22:46:25]   seed42 表征训练完成：4000 updates，8439s，验证损失 115.0360
+/srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/quant-lab/scripts/work566_train.py:209: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  enc = nn.TransformerEncoder(layer, n_layers)
+[22:55:06]   seed42 train: 1,439,202 样本，u 维度 248
+[22:58:25]   seed42 valid: 531,580 样本，u 维度 248
+[23:15:54]   seed42 test: 2,949,469 样本，u 维度 248
+/srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/.venv/lib/python3.14/site-packages/torch/nn/modules/loss.py:1078: UserWarning: Using a target size (torch.Size([1000])) that is different to the input size (torch.Size([1000, 1])). This will likely lead to incorrect results due to broadcasting. Please ensure they have the same size.
+  return F.smooth_l1_loss(input, target, reduction=self.reduction, beta=self.beta)
+/srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/.venv/lib/python3.14/site-packages/torch/nn/modules/loss.py:1078: UserWarning: Using a target size (torch.Size([889])) that is different to the input size (torch.Size([889, 1])). This will likely lead to incorrect results due to broadcasting. Please ensure they have the same size.
+  return F.smooth_l1_loss(input, target, reduction=self.reduction, beta=self.beta)
+/srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/.venv/lib/python3.14/site-packages/torch/nn/modules/loss.py:1078: UserWarning: Using a target size (torch.Size([894])) that is different to the input size (torch.Size([894, 1])). This will likely lead to incorrect results due to broadcasting. Please ensure they have the same size.
+  return F.smooth_l1_loss(input, target, reduction=self.reduction, beta=self.beta)
+/srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/.venv/lib/python3.14/site-packages/torch/nn/modules/loss.py:1078: UserWarning: Using a target size (torch.Size([895])) that is different to the input size (torch.Size([895, 1])). This will likely lead to incorrect results due to broadcasting. Please ensure they have the same size.
+  return F.smooth_l1_loss(input, target, reduction=self.reduction, beta=self.beta)
+/srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/.venv/lib/python3.14/site-packages/torch/nn/modules/loss.py:1078: UserWarning: Using a target size (torch.Size([20000])) that is different to the input size (torch.Size([20000, 1])). This will likely lead to incorrect results due to broadcasting. Please ensure they have the same size.
+  return F.smooth_l1_loss(input, target, reduction=self.reduction, beta=self.beta)
+/srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/.venv/lib/python3.14/site-packages/torch/nn/modules/loss.py:1078: UserWarning: Using a target size (torch.Size([11580])) that is different to the input size (torch.Size([11580, 1])). This will likely lead to incorrect results due to broadcasting. Please ensure they have the same size.
+  return F.smooth_l1_loss(input, target, reduction=self.reduction, beta=self.beta)
+[23:16:28]   seed42 s1_only epoch0 验证 SmoothL1 0.385425
+/srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/.venv/lib/python3.14/site-packages/torch/nn/modules/loss.py:1078: UserWarning: Using a target size (torch.Size([892])) that is different to the input size (torch.Size([892, 1])). This will likely lead to incorrect results due to broadcasting. Please ensure they have the same size.
+  return F.smooth_l1_loss(input, target, reduction=self.reduction, beta=self.beta)
+[23:16:37]   seed42 s1_only epoch1 验证 SmoothL1 0.380177
+/srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/.venv/lib/python3.14/site-packages/torch/nn/modules/loss.py:1078: UserWarning: Using a target size (torch.Size([908])) that is different to the input size (torch.Size([908, 1])). This will likely lead to incorrect results due to broadcasting. Please ensure they have the same size.
+  return F.smooth_l1_loss(input, target, reduction=self.reduction, beta=self.beta)
+[23:16:46]   seed42 s1_only epoch2 验证 SmoothL1 0.378762
+[23:16:55]   seed42 s1_only epoch3 验证 SmoothL1 0.378363
+/srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/.venv/lib/python3.14/site-packages/torch/nn/modules/loss.py:1078: UserWarning: Using a target size (torch.Size([936])) that is different to the input size (torch.Size([936, 1])). This will likely lead to incorrect results due to broadcasting. Please ensure they have the same size.
+  return F.smooth_l1_loss(input, target, reduction=self.reduction, beta=self.beta)
+[23:17:04]   seed42 s1_only epoch4 验证 SmoothL1 0.378158
+[23:17:14]   seed42 s1_only epoch5 验证 SmoothL1 0.378015
+[23:17:14]   seed42 s1_only: 验证 0.378015
+[23:17:23]   seed42 s3_only epoch0 验证 SmoothL1 0.381144
+[23:17:32]   seed42 s3_only epoch1 验证 SmoothL1 0.382122
+[23:17:42]   seed42 s3_only epoch2 验证 SmoothL1 0.383215
+[23:17:51]   seed42 s3_only epoch3 验证 SmoothL1 0.383449
+[23:18:00]   seed42 s3_only epoch4 验证 SmoothL1 0.383990
+[23:18:09]   seed42 s3_only epoch5 验证 SmoothL1 0.384383
+[23:18:09]   seed42 s3_only: 验证 0.381144
+[23:18:18]   seed42 s1_s2 epoch0 验证 SmoothL1 0.392908
+[23:18:28]   seed42 s1_s2 epoch1 验证 SmoothL1 0.396578
+[23:18:37]   seed42 s1_s2 epoch2 验证 SmoothL1 0.405350
+[23:18:47]   seed42 s1_s2 epoch3 验证 SmoothL1 0.401881
+[23:18:56]   seed42 s1_s2 epoch4 验证 SmoothL1 0.409186
+[23:19:06]   seed42 s1_s2 epoch5 验证 SmoothL1 0.405637
+[23:19:06]   seed42 s1_s2: 验证 0.392908
+[23:19:13]   seed42 full epoch0 验证 SmoothL1 0.406943
+[23:19:18]   seed42 full epoch1 验证 SmoothL1 0.405172
+[23:19:23]   seed42 full epoch2 验证 SmoothL1 0.425101
+[23:19:27]   seed42 full epoch3 验证 SmoothL1 0.407444
+[23:19:32]   seed42 full epoch4 验证 SmoothL1 0.414248
+[23:19:36]   seed42 full epoch5 验证 SmoothL1 0.419004
+[23:19:36]   seed42 full: 验证 0.405172
+[23:19:42]   seed42 r0 epoch0 验证 SmoothL1 0.382700
+[23:19:45]   seed42 r0 epoch1 验证 SmoothL1 0.380033
+[23:19:47]   seed42 r0 epoch2 验证 SmoothL1 0.377487
+[23:19:50]   seed42 r0 epoch3 验证 SmoothL1 0.376073
+[23:19:52]   seed42 r0 epoch4 验证 SmoothL1 0.376628
+[23:19:55]   seed42 r0 epoch5 验证 SmoothL1 0.390468
+[23:19:55]   seed42 r0: 验证 0.376073
+[23:20:02]   seed42 r1 epoch0 验证 SmoothL1 0.391780
+[23:20:05]   seed42 r1 epoch1 验证 SmoothL1 0.389852
+[23:20:09]   seed42 r1 epoch2 验证 SmoothL1 0.386301
+[23:20:12]   seed42 r1 epoch3 验证 SmoothL1 0.373373
+[23:20:16]   seed42 r1 epoch4 验证 SmoothL1 0.389825
+[23:20:20]   seed42 r1 epoch5 验证 SmoothL1 0.393173
+[23:20:20]   seed42 r1: 验证 0.373373
+[23:20:28]   seed42 r2 epoch0 验证 SmoothL1 0.417229
+[23:20:33]   seed42 r2 epoch1 验证 SmoothL1 0.417106
+[23:20:37]   seed42 r2 epoch2 验证 SmoothL1 0.428773
+[23:20:41]   seed42 r2 epoch3 验证 SmoothL1 0.398201
+[23:20:46]   seed42 r2 epoch4 验证 SmoothL1 0.412230
+[23:20:50]   seed42 r2 epoch5 验证 SmoothL1 0.413270
+[23:20:50]   seed42 r2: 验证 0.398201
+[23:20:59]   seed42 r3 epoch0 验证 SmoothL1 0.407988
+[23:21:03]   seed42 r3 epoch1 验证 SmoothL1 0.418628
+[23:21:08]   seed42 r3 epoch2 验证 SmoothL1 0.422666
+[23:21:12]   seed42 r3 epoch3 验证 SmoothL1 0.398904
+[23:21:17]   seed42 r3 epoch4 验证 SmoothL1 0.415430
+[23:21:21]   seed42 r3 epoch5 验证 SmoothL1 0.417631
+[23:21:21]   seed42 r3: 验证 0.398904
+[23:21:33]   seed42 train: 1,439,202 样本 × 8 臂预测完成
+[23:21:37]   seed42 valid: 531,580 样本 × 8 臂预测完成
+[23:22:25]   seed42 test: 2,949,469 样本 × 8 臂预测完成
+[23:23:00] 全部完成

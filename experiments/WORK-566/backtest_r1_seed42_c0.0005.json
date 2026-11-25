@@ -1,0 +1,21 @@
+{
+  "n_days": 577,
+  "net_ar": 0.36935494975939753,
+  "net_sr": 1.2765016043038673,
+  "mdd": -0.19403346865552262,
+  "avg_turnover": 0.0457384137357272,
+  "total_return": 1.1200250087707753,
+  "n_batches": 557,
+  "n_skipped_limitup": 55,
+  "n_skipped_suspend": 0,
+  "deferred_exits": 761,
+  "delist_liquidations": 10,
+  "cost_bps_per_side": 5.0,
+  "arm": "r1",
+  "seed": 42,
+  "cost": 0.0005,
+  "rankic_mean_pct": 10.788674305067552,
+  "rankic_std_pct": 18.308347982964793,
+  "rankicir": 9.354470173007602,
+  "n_ic_days": 578
+}

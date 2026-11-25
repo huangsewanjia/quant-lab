@@ -1,0 +1,17 @@
+<frozen site>:107: RuntimeWarning: Unexpected value in sys.prefix, expected /srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/.venv, got /srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/quant-lab/../.venv
+<frozen site>:107: RuntimeWarning: Unexpected value in sys.exec_prefix, expected /srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/.venv, got /srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/quant-lab/../.venv
+=== 第 1 段：旧写法（红）——必须能复现「快照被训练推进改写」===
+  [PASS] 旧写法的权重快照被训练推进改写（= B3 的病根）
+  [PASS] 旧写法的 m_k 句柄被 in-place 更新改写
+=== 第 2 段：新写法（绿）——snapshot_state 必须给出独立副本 ===
+  [PASS] 新写法的权重快照不随训练推进改变
+  [PASS] 新写法的 m_k 不随 in-place 更新改变
+  [PASS] 新写法的 v_k 不随 in-place 更新改变
+  [PASS] 快照带 selected=best_vloss 标记（供 --resume-rep 校验）
+  [PASS] 快照记录 vloss 与 upd（可回读自检）
+=== 第 3 段：落盘 → 回读，确认存下来的是快照本身 ===
+  [PASS] 回读的权重与快照逐位相同
+  [PASS] 回读的 m_k 与快照逐位相同
+  [PASS] 回读后 selected 标记仍在
+
+B3 回归测试全部通过（旧写法确实会坏，新写法确实独立）

@@ -1,0 +1,221 @@
+{
+  "verdict": "三段式增量复现成立",
+  "H1": {
+    "per_seed": [
+      {
+        "seed": 42,
+        "rankic_full": 10.363753688178887,
+        "rankic_s1_only": 5.8554715811020035,
+        "delta_rankic_pp": 4.508282107076884
+      },
+      {
+        "seed": 2024,
+        "rankic_full": 10.913916795417931,
+        "rankic_s1_only": -0.4084645364420122,
+        "delta_rankic_pp": 11.322381331859944
+      }
+    ],
+    "n_seeds": 2,
+    "delta_median_pp": 7.915331719468414,
+    "delta_min_pp": 4.508282107076884,
+    "delta_max_pp": 11.322381331859944,
+    "paper_delta_pp": 6.07,
+    "paper_note": "论文 Table 4：S1-only 5.15% → full 11.22% = +6.07pp（已对原文核对）",
+    "verdict_rule": "预注册 §11 H1：跨种子中位数 ≥ +3.0pp",
+    "verdict": "三段式增量复现成立"
+  },
+  "H2": {
+    "n_boot": 10000,
+    "block": 20,
+    "seed": 42,
+    "pooled_mean_diff_pp": 1.2612149192021977,
+    "pooled_ci95": [
+      -1.6899685498295276,
+      4.8874583010493495
+    ],
+    "ci_contains_zero": true,
+    "conclusion": "增量统计上不可证（CI 含 0）—— 不算失败，报告原样写这句话",
+    "n_seeds": 2,
+    "delivered": true
+  },
+  "H3": {
+    "full_net_sr_mean": 1.405459239409905,
+    "full_sr_ci95_lower_min": 0.053987374558612564,
+    "sr_ci_lower_gt_0": true,
+    "paper_net_sr": 1.5,
+    "shrinkage_vs_paper": 0.93697282627327,
+    "note": "算力降级配置下「相对论文缩水 ≤60%」只披露不判定（预注册 §11）；净 SR < 0 → 直接判退 仍然生效"
+  },
+  "H4": {
+    "r2_rankic": 12.163338620490926,
+    "r3_rankic": 12.398610797004526,
+    "r2_minus_r3_rankic_pp": -0.23527217651360033,
+    "r2_net_sr": 1.174425266264008,
+    "r3_net_sr": 1.2501117531666228,
+    "r2_minus_r3_net_sr": -0.07568648690261481,
+    "paper": {
+      "r0": {
+        "RankIC": 9.72,
+        "NetSR": 1.47
+      },
+      "r1": {
+        "RankIC": 9.24,
+        "NetSR": 1.46
+      },
+      "r2": {
+        "RankIC": 11.26,
+        "NetSR": 1.87
+      },
+      "r3": {
+        "RankIC": 10.13,
+        "NetSR": 1.79
+      }
+    }
+  },
+  "benchmark_alpha": {
+    "full": [
+      {
+        "seed": 42,
+        "ew": {
+          "alpha_ann_pct": 0.3231976503646535,
+          "t_stat": 5.323496042596505,
+          "info_ratio_ann": 3.518109068748752,
+          "excess_total_pct": 107.49367006881565,
+          "n_days": 577
+        },
+        "cap": {
+          "alpha_ann_pct": 0.15707131915119069,
+          "t_stat": 1.3023857109074202,
+          "info_ratio_ann": 0.8607003638002841,
+          "excess_total_pct": 37.87870451656228,
+          "n_days": 577
+        }
+      },
+      {
+        "seed": 2024,
+        "ew": {
+          "alpha_ann_pct": 0.3807131664508355,
+          "t_stat": 4.032536268874813,
+          "info_ratio_ann": 2.664959700179876,
+          "excess_total_pct": 133.54491218793152,
+          "n_days": 577
+        },
+        "cap": {
+          "alpha_ann_pct": 0.2145868352373728,
+          "t_stat": 1.5978717405279583,
+          "info_ratio_ann": 1.0559765642855468,
+          "excess_total_pct": 55.92531800973064,
+          "n_days": 577
+        }
+      }
+    ],
+    "s1_only": [
+      {
+        "seed": 42,
+        "ew": {
+          "alpha_ann_pct": -0.0017054708663776375,
+          "t_stat": -0.01269368061858623,
+          "info_ratio_ann": -0.0083888017465806,
+          "excess_total_pct": -4.947492799605402,
+          "n_days": 577
+        },
+        "cap": {
+          "alpha_ann_pct": -0.16783180207984041,
+          "t_stat": -2.3593019531548203,
+          "info_ratio_ann": -1.5591786921404753,
+          "excess_total_pct": -32.809785122391986,
+          "n_days": 577
+        }
+      },
+      {
+        "seed": 2024,
+        "ew": {
+          "alpha_ann_pct": 0.23875930414317564,
+          "t_stat": 1.221279615331584,
+          "info_ratio_ann": 0.8071002318394497,
+          "excess_total_pct": 56.401974242825446,
+          "n_days": 577
+        },
+        "cap": {
+          "alpha_ann_pct": 0.07263297292971299,
+          "t_stat": 0.313198767457523,
+          "info_ratio_ann": 0.2069819185168049,
+          "excess_total_pct": 2.6371206866533603,
+          "n_days": 577
+        }
+      }
+    ],
+    "s1_s2": [
+      {
+        "seed": 42,
+        "ew": {
+          "alpha_ann_pct": -0.1406358956907515,
+          "t_stat": -0.9922151911340045,
+          "info_ratio_ann": -0.6557197064011037,
+          "excess_total_pct": -31.248367652551924,
+          "n_days": 577
+        },
+        "cap": {
+          "alpha_ann_pct": -0.3067622269042143,
+          "t_stat": -1.749836551297542,
+          "info_ratio_ann": -1.1564046992219255,
+          "excess_total_pct": -54.32377132393673,
+          "n_days": 577
+        }
+      },
+      {
+        "seed": 2024,
+        "ew": {
+          "alpha_ann_pct": 0.41458941380348613,
+          "t_stat": 3.2396745778387843,
+          "info_ratio_ann": 2.1409856269058727,
+          "excess_total_pct": 147.55592964015162,
+          "n_days": 577
+        },
+        "cap": {
+          "alpha_ann_pct": 0.24846308259002337,
+          "t_stat": 1.5758590078602692,
+          "info_ratio_ann": 1.0414291327092917,
+          "excess_total_pct": 65.61324693402261,
+          "n_days": 577
+        }
+      }
+    ],
+    "fmb": [
+      {
+        "seed": 42,
+        "ew": {
+          "alpha_ann_pct": 0.263178044608784,
+          "t_stat": 1.944121131993217,
+          "info_ratio_ann": 1.2848004639213435,
+          "excess_total_pct": 74.19803819413599,
+          "n_days": 577
+        },
+        "cap": {
+          "alpha_ann_pct": 0.09705171339532125,
+          "t_stat": 0.7557627146133883,
+          "info_ratio_ann": 0.499456680126824,
+          "excess_total_pct": 19.707846840332,
+          "n_days": 577
+        }
+      },
+      {
+        "seed": 2024,
+        "ew": {
+          "alpha_ann_pct": 0.263178044608784,
+          "t_stat": 1.944121131993217,
+          "info_ratio_ann": 1.2848004639213435,
+          "excess_total_pct": 74.19803819413599,
+          "n_days": 577
+        },
+        "cap": {
+          "alpha_ann_pct": 0.09705171339532125,
+          "t_stat": 0.7557627146133883,
+          "info_ratio_ann": 0.499456680126824,
+          "excess_total_pct": 19.707846840332,
+          "n_days": 577
+        }
+      }
+    ]
+  }
+}

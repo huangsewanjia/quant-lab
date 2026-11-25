@@ -1,0 +1,27 @@
+{
+  "seed": 2024,
+  "d_model": 64,
+  "layers": 2,
+  "heads": 4,
+  "ff": 128,
+  "epochs": 4,
+  "max_updates": 1000,
+  "batch": 256,
+  "readout_epochs": 6,
+  "stock_cap": 1000,
+  "val_stride": 4,
+  "fast_encoder_selftest": {
+    "max_abs_diff": 4.76837158203125e-07,
+    "threshold": 1e-05,
+    "pass": true,
+    "train_max_abs_diff": 0.0,
+    "train_threshold": 0.0001,
+    "train_pass": true,
+    "train_seed": 1234,
+    "note": "eval：注意力/FF 计算等价；train：dropout 次数、位置与随机流与官方 nn.TransformerEncoderLayer 一致（2026-11-25 独立代码审查 N2 修复后）",
+    "d_model": 64,
+    "layers": 2,
+    "heads": 4,
+    "ff": 128
+  }
+}

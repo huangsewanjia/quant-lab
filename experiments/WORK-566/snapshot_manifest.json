@@ -1,14 +1,14 @@
 {
   "experiment": "WORK-566",
   "stage": "快照 manifest",
-  "generated_at": "2026-11-25T13:15:09+0800",
+  "generated_at": "2026-11-26T02:19:54+0800",
   "data_cutoff": "2026-06-26",
   "repo": {
     "path": "/srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/quant-lab",
     "branch": "agent/agent/e0a29716dad1",
-    "commit": "79ed047935d068ec825da0068b4c80deb1d06dfe",
-    "commit_time": "2026-11-25T13:11:40+08:00",
-    "commit_subject": "fix(experiment): WORK-566 主检验/审计链路首跑前修复（合成与 FMB 数据冒烟验证）"
+    "commit": "040b283b0461bcd99edd6cd4eb9b07a957e7ed12",
+    "commit_time": "2026-11-26T02:04:27+08:00",
+    "commit_subject": "fix(stage3): WORK-566 修 Stage 3 [0/8] 次序 bug —— FMB 基线补齐必须排在内容校验之前（2026-11-25 02:02 实测 FileNotFoundError 致退出码 1）"
   },
   "endpoints": [
     {

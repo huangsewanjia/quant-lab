@@ -1,0 +1,2103 @@
+{
+  "experiment": "WORK-566",
+  "tolerance": 1e-06,
+  "generated_at": "2026-11-26T02:17:59+0800",
+  "independence": "不 import 建模阶段任何函数；日历从 parquet trade_cal 独立重取",
+  "comparisons": [
+    {
+      "item": "s1_only/seed42 RankIC(%)",
+      "measured": 5.8554715811020035,
+      "claimed": 5.8554715811020035,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed42 RankIC sd(%)",
+      "measured": 18.681857534089445,
+      "claimed": 18.681857534089445,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed42 RankICIR",
+      "measured": 4.9755614240178385,
+      "claimed": 4.9755614240178385,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed42 净AR(%)",
+      "measured": 0.0845724478504503,
+      "claimed": 0.0845724478504504,
+      "abs_diff": 9.71445146547012e-17,
+      "rel_diff": 1.1486544036951847e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed42 净SR",
+      "measured": 0.519856022601325,
+      "claimed": 0.5198560226013259,
+      "abs_diff": 8.881784197001252e-16,
+      "rel_diff": 1.7085084736649542e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed42 MDD(%)",
+      "measured": -0.1546731352627403,
+      "claimed": -0.1546731352627404,
+      "abs_diff": 1.1102230246251565e-16,
+      "rel_diff": 7.177865908900348e-16,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed42 日均换手",
+      "measured": 0.0458835241543413,
+      "claimed": 0.0458835241543413,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed42 批次数",
+      "measured": 557.0,
+      "claimed": 557.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed42 涨停剔除数",
+      "measured": 35.0,
+      "claimed": 35.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed42 停牌剔除数",
+      "measured": 0.0,
+      "claimed": 0.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed42 顺延卖出数",
+      "measured": 49.0,
+      "claimed": 49.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed42 退市清算数",
+      "measured": 0.0,
+      "claimed": 0.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed2024 RankIC(%)",
+      "measured": -0.4084645364420122,
+      "claimed": -0.4084645364420122,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed2024 RankIC sd(%)",
+      "measured": 21.33212046708727,
+      "claimed": 21.33212046708727,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed2024 RankICIR",
+      "measured": -0.30396291390222147,
+      "claimed": -0.30396291390222147,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed2024 净AR(%)",
+      "measured": 0.32503722286000397,
+      "claimed": 0.3250372228600038,
+      "abs_diff": 1.6653345369377348e-16,
+      "rel_diff": 5.123519461200319e-16,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed2024 净SR",
+      "measured": 0.7042365073629026,
+      "claimed": 0.7042365073629029,
+      "abs_diff": 3.3306690738754696e-16,
+      "rel_diff": 4.729475167863074e-16,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed2024 MDD(%)",
+      "measured": -0.34152058679503905,
+      "claimed": -0.34152058679503905,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed2024 日均换手",
+      "measured": 0.045617879933235225,
+      "claimed": 0.045617879933235225,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed2024 批次数",
+      "measured": 557.0,
+      "claimed": 557.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed2024 涨停剔除数",
+      "measured": 196.0,
+      "claimed": 196.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed2024 停牌剔除数",
+      "measured": 0.0,
+      "claimed": 0.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed2024 顺延卖出数",
+      "measured": 639.0,
+      "claimed": 639.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed2024 退市清算数",
+      "measured": 26.0,
+      "claimed": 26.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s3_only/seed42 RankIC(%)",
+      "measured": -1.4226163141935013,
+      "claimed": -1.4226163141935013,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s3_only/seed42 RankIC sd(%)",
+      "measured": 12.142541620240108,
+      "claimed": 12.142541620240108,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s3_only/seed42 RankICIR",
+      "measured": -1.8598522926100067,
+      "claimed": -1.8598522926100067,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s3_only/seed42 净AR(%)",
+      "measured": 0.4709521269839314,
+      "claimed": 0.470952126983932,
+      "abs_diff": 6.106226635438361e-16,
+      "rel_diff": 1.2965705611191972e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s3_only/seed42 净SR",
+      "measured": 1.158014826817352,
+      "claimed": 1.158014826817354,
+      "abs_diff": 1.9984014443252818e-15,
+      "rel_diff": 1.7257131757264421e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s3_only/seed42 MDD(%)",
+      "measured": -0.3105955704746267,
+      "claimed": -0.3105955704746264,
+      "abs_diff": 3.3306690738754696e-16,
+      "rel_diff": 1.0723491866885987e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s3_only/seed42 日均换手",
+      "measured": 0.04585239805442399,
+      "claimed": 0.045852398054423996,
+      "abs_diff": 6.938893903907228e-18,
+      "rel_diff": 1.513311014981416e-16,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s3_only/seed42 批次数",
+      "measured": 557.0,
+      "claimed": 557.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s3_only/seed42 涨停剔除数",
+      "measured": 27.0,
+      "claimed": 27.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s3_only/seed42 停牌剔除数",
+      "measured": 0.0,
+      "claimed": 0.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s3_only/seed42 顺延卖出数",
+      "measured": 51.0,
+      "claimed": 51.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s3_only/seed42 退市清算数",
+      "measured": 0.0,
+      "claimed": 0.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s3_only/seed2024 RankIC(%)",
+      "measured": -3.191377788093196,
+      "claimed": -3.191377788093196,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s3_only/seed2024 RankIC sd(%)",
+      "measured": 10.39136700523974,
+      "claimed": 10.39136700523974,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s3_only/seed2024 RankICIR",
+      "measured": -4.875350064736849,
+      "claimed": -4.875350064736849,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s3_only/seed2024 净AR(%)",
+      "measured": 0.22077807979840497,
+      "claimed": 0.2207780797984051,
+      "abs_diff": 1.3877787807814457e-16,
+      "rel_diff": 6.285854021597804e-16,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s3_only/seed2024 净SR",
+      "measured": 0.5512002691236616,
+      "claimed": 0.5512002691236615,
+      "abs_diff": 1.1102230246251565e-16,
+      "rel_diff": 2.0141917317824797e-16,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s3_only/seed2024 MDD(%)",
+      "measured": -0.3342555086833624,
+      "claimed": -0.33425550868336273,
+      "abs_diff": 3.3306690738754696e-16,
+      "rel_diff": 9.964440337857178e-16,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s3_only/seed2024 日均换手",
+      "measured": 0.04571018875807441,
+      "claimed": 0.045710188758074415,
+      "abs_diff": 6.938893903907228e-18,
+      "rel_diff": 1.5180190877425587e-16,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s3_only/seed2024 批次数",
+      "measured": 557.0,
+      "claimed": 557.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s3_only/seed2024 涨停剔除数",
+      "measured": 34.0,
+      "claimed": 34.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s3_only/seed2024 停牌剔除数",
+      "measured": 0.0,
+      "claimed": 0.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s3_only/seed2024 顺延卖出数",
+      "measured": 117.0,
+      "claimed": 117.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s3_only/seed2024 退市清算数",
+      "measured": 0.0,
+      "claimed": 0.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed42 RankIC(%)",
+      "measured": 1.3814065328359866,
+      "claimed": 1.3814065328359866,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed42 RankIC sd(%)",
+      "measured": 13.14622099224908,
+      "claimed": 13.14622099224908,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed42 RankICIR",
+      "measured": 1.6680952560521602,
+      "claimed": 1.6680952560521602,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed42 净AR(%)",
+      "measured": -0.054357976973922445,
+      "claimed": -0.054357976973923416,
+      "abs_diff": 9.71445146547012e-16,
+      "rel_diff": 1.7871252769635506e-14,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed42 净SR",
+      "measured": -0.14320134670523577,
+      "claimed": -0.1432013467052383,
+      "abs_diff": 2.525757381022231e-15,
+      "rel_diff": 1.7637804665490893e-14,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed42 MDD(%)",
+      "measured": -0.4156613076842447,
+      "claimed": -0.4156613076842449,
+      "abs_diff": 2.220446049250313e-16,
+      "rel_diff": 5.341959927954285e-16,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed42 日均换手",
+      "measured": 0.04566158030732092,
+      "claimed": 0.04566158030732092,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed42 批次数",
+      "measured": 557.0,
+      "claimed": 557.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed42 涨停剔除数",
+      "measured": 290.0,
+      "claimed": 290.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed42 停牌剔除数",
+      "measured": 0.0,
+      "claimed": 0.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed42 顺延卖出数",
+      "measured": 208.0,
+      "claimed": 208.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed42 退市清算数",
+      "measured": 7.0,
+      "claimed": 7.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed2024 RankIC(%)",
+      "measured": 2.6883809688978593,
+      "claimed": 2.6883809688978593,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed2024 RankIC sd(%)",
+      "measured": 12.257511581474231,
+      "claimed": 12.257511581474231,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed2024 RankICIR",
+      "measured": 3.4816793404557265,
+      "claimed": 3.4816793404557265,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed2024 净AR(%)",
+      "measured": 0.500867332520313,
+      "claimed": 0.5008673325203142,
+      "abs_diff": 1.2212453270876722e-15,
+      "rel_diff": 2.4382610879062288e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed2024 净SR",
+      "measured": 1.3531665167976696,
+      "claimed": 1.353166516797672,
+      "abs_diff": 2.4424906541753444e-15,
+      "rel_diff": 1.805018542696139e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed2024 MDD(%)",
+      "measured": -0.25280542094748937,
+      "claimed": -0.2528054209474898,
+      "abs_diff": 4.440892098500626e-16,
+      "rel_diff": 1.756644332173179e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed2024 日均换手",
+      "measured": 0.04577715060563715,
+      "claimed": 0.04577715060563715,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed2024 批次数",
+      "measured": 557.0,
+      "claimed": 557.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed2024 涨停剔除数",
+      "measured": 121.0,
+      "claimed": 121.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed2024 停牌剔除数",
+      "measured": 0.0,
+      "claimed": 0.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed2024 顺延卖出数",
+      "measured": 66.0,
+      "claimed": 66.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed2024 退市清算数",
+      "measured": 0.0,
+      "claimed": 0.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed42 RankIC(%)",
+      "measured": 10.363753688178887,
+      "claimed": 10.363753688178887,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed42 RankIC sd(%)",
+      "measured": 12.388230941733031,
+      "claimed": 12.388230941733031,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed42 RankICIR",
+      "measured": 13.280305333513864,
+      "claimed": 13.280305333513864,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed42 净AR(%)",
+      "measured": 0.409475569081482,
+      "claimed": 0.4094755690814815,
+      "abs_diff": 4.996003610813204e-16,
+      "rel_diff": 1.2200980932806396e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed42 净SR",
+      "measured": 1.329456119981547,
+      "claimed": 1.3294561199815453,
+      "abs_diff": 1.5543122344752192e-15,
+      "rel_diff": 1.1691339120668345e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed42 MDD(%)",
+      "measured": -0.22936955989119068,
+      "claimed": -0.2293695598911908,
+      "abs_diff": 1.1102230246251565e-16,
+      "rel_diff": 4.8403241700940105e-16,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed42 日均换手",
+      "measured": 0.04564418946242131,
+      "claimed": 0.04564418946242131,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed42 批次数",
+      "measured": 557.0,
+      "claimed": 557.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed42 涨停剔除数",
+      "measured": 127.0,
+      "claimed": 127.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed42 停牌剔除数",
+      "measured": 0.0,
+      "claimed": 0.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed42 顺延卖出数",
+      "measured": 1358.0,
+      "claimed": 1358.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed42 退市清算数",
+      "measured": 33.0,
+      "claimed": 33.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed2024 RankIC(%)",
+      "measured": 10.913916795417931,
+      "claimed": 10.913916795417931,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed2024 RankIC sd(%)",
+      "measured": 14.574618080626934,
+      "claimed": 14.574618080626934,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed2024 RankICIR",
+      "measured": 11.88731375762462,
+      "claimed": 11.88731375762462,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed2024 净AR(%)",
+      "measured": 0.4669910851676632,
+      "claimed": 0.46699108516766363,
+      "abs_diff": 4.440892098500626e-16,
+      "rel_diff": 9.509586455823273e-16,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed2024 净SR",
+      "measured": 1.4814623588382645,
+      "claimed": 1.4814623588382647,
+      "abs_diff": 2.220446049250313e-16,
+      "rel_diff": 1.4988204296945794e-16,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed2024 MDD(%)",
+      "measured": -0.25156301878332554,
+      "claimed": -0.2515630187833253,
+      "abs_diff": 2.220446049250313e-16,
+      "rel_diff": 8.826599632924638e-16,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed2024 日均换手",
+      "measured": 0.04565310666340612,
+      "claimed": 0.04565310666340612,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed2024 批次数",
+      "measured": 557.0,
+      "claimed": 557.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed2024 涨停剔除数",
+      "measured": 70.0,
+      "claimed": 70.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed2024 停牌剔除数",
+      "measured": 0.0,
+      "claimed": 0.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed2024 顺延卖出数",
+      "measured": 692.0,
+      "claimed": 692.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed2024 退市清算数",
+      "measured": 7.0,
+      "claimed": 7.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r0/seed42 RankIC(%)",
+      "measured": 13.741527787500809,
+      "claimed": 13.741527787500809,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r0/seed42 RankIC sd(%)",
+      "measured": 14.58712826125837,
+      "claimed": 14.58712826125837,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r0/seed42 RankICIR",
+      "measured": 14.954279351763692,
+      "claimed": 14.954279351763692,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r0/seed42 净AR(%)",
+      "measured": 0.44043522756717446,
+      "claimed": 0.4404352275671747,
+      "abs_diff": 2.220446049250313e-16,
+      "rel_diff": 5.041481494374001e-16,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r0/seed42 净SR",
+      "measured": 1.1834787710599073,
+      "claimed": 1.1834787710599073,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r0/seed42 MDD(%)",
+      "measured": -0.2713185819463262,
+      "claimed": -0.2713185819463265,
+      "abs_diff": 3.3306690738754696e-16,
+      "rel_diff": 1.227586053996979e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r0/seed42 日均换手",
+      "measured": 0.04548742197076325,
+      "claimed": 0.04548742197076325,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r0/seed42 批次数",
+      "measured": 557.0,
+      "claimed": 557.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r0/seed42 涨停剔除数",
+      "measured": 111.0,
+      "claimed": 111.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r0/seed42 停牌剔除数",
+      "measured": 0.0,
+      "claimed": 0.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r0/seed42 顺延卖出数",
+      "measured": 2428.0,
+      "claimed": 2428.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r0/seed42 退市清算数",
+      "measured": 36.0,
+      "claimed": 36.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r0/seed2024 RankIC(%)",
+      "measured": 12.268657542455278,
+      "claimed": 12.268657542455278,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r0/seed2024 RankIC sd(%)",
+      "measured": 12.045381371015457,
+      "claimed": 12.045381371015457,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r0/seed2024 RankICIR",
+      "measured": 16.168761674608774,
+      "claimed": 16.168761674608774,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r0/seed2024 净AR(%)",
+      "measured": 0.6715247643706331,
+      "claimed": 0.6715247643706341,
+      "abs_diff": 9.992007221626409e-16,
+      "rel_diff": 1.4879581143952464e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r0/seed2024 净SR",
+      "measured": 1.8831764278800855,
+      "claimed": 1.8831764278800882,
+      "abs_diff": 2.6645352591003757e-15,
+      "rel_diff": 1.4149153630283443e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r0/seed2024 MDD(%)",
+      "measured": -0.22703472578563055,
+      "claimed": -0.22703472578563055,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r0/seed2024 日均换手",
+      "measured": 0.045704348096523226,
+      "claimed": 0.045704348096523226,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r0/seed2024 批次数",
+      "measured": 557.0,
+      "claimed": 557.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r0/seed2024 涨停剔除数",
+      "measured": 53.0,
+      "claimed": 53.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r0/seed2024 停牌剔除数",
+      "measured": 0.0,
+      "claimed": 0.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r0/seed2024 顺延卖出数",
+      "measured": 637.0,
+      "claimed": 637.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r0/seed2024 退市清算数",
+      "measured": 17.0,
+      "claimed": 17.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r1/seed42 RankIC(%)",
+      "measured": 10.788674305067552,
+      "claimed": 10.788674305067552,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r1/seed42 RankIC sd(%)",
+      "measured": 18.308347982964793,
+      "claimed": 18.308347982964793,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r1/seed42 RankICIR",
+      "measured": 9.354470173007602,
+      "claimed": 9.354470173007602,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r1/seed42 净AR(%)",
+      "measured": 0.36935494975939775,
+      "claimed": 0.36935494975939753,
+      "abs_diff": 2.220446049250313e-16,
+      "rel_diff": 6.011686186138129e-16,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r1/seed42 净SR",
+      "measured": 1.2765016043038684,
+      "claimed": 1.2765016043038673,
+      "abs_diff": 1.1102230246251565e-15,
+      "rel_diff": 8.697388400311571e-16,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r1/seed42 MDD(%)",
+      "measured": -0.19403346865552262,
+      "claimed": -0.19403346865552262,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r1/seed42 日均换手",
+      "measured": 0.0457384137357272,
+      "claimed": 0.0457384137357272,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r1/seed42 批次数",
+      "measured": 557.0,
+      "claimed": 557.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r1/seed42 涨停剔除数",
+      "measured": 55.0,
+      "claimed": 55.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r1/seed42 停牌剔除数",
+      "measured": 0.0,
+      "claimed": 0.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r1/seed42 顺延卖出数",
+      "measured": 761.0,
+      "claimed": 761.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r1/seed42 退市清算数",
+      "measured": 10.0,
+      "claimed": 10.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r1/seed2024 RankIC(%)",
+      "measured": 11.508284497297272,
+      "claimed": 11.508284497297272,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r1/seed2024 RankIC sd(%)",
+      "measured": 17.148446494843807,
+      "claimed": 17.148446494843807,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r1/seed2024 RankICIR",
+      "measured": 10.65334710266041,
+      "claimed": 10.65334710266041,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r1/seed2024 净AR(%)",
+      "measured": 0.29424177811683133,
+      "claimed": 0.29424177811683155,
+      "abs_diff": 2.220446049250313e-16,
+      "rel_diff": 7.546331671393936e-16,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r1/seed2024 净SR",
+      "measured": 1.2499120607896737,
+      "claimed": 1.249912060789675,
+      "abs_diff": 1.3322676295501878e-15,
+      "rel_diff": 1.065889090396073e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r1/seed2024 MDD(%)",
+      "measured": -0.1364411340614915,
+      "claimed": -0.13644113406149216,
+      "abs_diff": 6.661338147750939e-16,
+      "rel_diff": 4.882206669983236e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r1/seed2024 日均换手",
+      "measured": 0.045610120646200576,
+      "claimed": 0.045610120646200576,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r1/seed2024 批次数",
+      "measured": 557.0,
+      "claimed": 557.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r1/seed2024 涨停剔除数",
+      "measured": 100.0,
+      "claimed": 100.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r1/seed2024 停牌剔除数",
+      "measured": 0.0,
+      "claimed": 0.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r1/seed2024 顺延卖出数",
+      "measured": 1326.0,
+      "claimed": 1326.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r1/seed2024 退市清算数",
+      "measured": 33.0,
+      "claimed": 33.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r2/seed42 RankIC(%)",
+      "measured": 13.093373163540157,
+      "claimed": 13.093373163540157,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r2/seed42 RankIC sd(%)",
+      "measured": 16.44520635271752,
+      "claimed": 16.44520635271752,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r2/seed42 RankICIR",
+      "measured": 12.638993444300505,
+      "claimed": 12.638993444300505,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r2/seed42 净AR(%)",
+      "measured": 0.3271546186701358,
+      "claimed": 0.3271546186701323,
+      "abs_diff": 3.497202527569243e-15,
+      "rel_diff": 1.0689754409658657e-14,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r2/seed42 净SR",
+      "measured": 1.0428356358209356,
+      "claimed": 1.0428356358209256,
+      "abs_diff": 9.992007221626409e-15,
+      "rel_diff": 9.58157439044615e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r2/seed42 MDD(%)",
+      "measured": -0.28597597373332306,
+      "claimed": -0.28597597373332695,
+      "abs_diff": 3.885780586188048e-15,
+      "rel_diff": 1.3587786888039568e-14,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r2/seed42 日均换手",
+      "measured": 0.04549229570286046,
+      "claimed": 0.04549229570286045,
+      "abs_diff": 6.938893903907228e-18,
+      "rel_diff": 1.525289897267358e-16,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r2/seed42 批次数",
+      "measured": 557.0,
+      "claimed": 557.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r2/seed42 涨停剔除数",
+      "measured": 95.0,
+      "claimed": 95.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r2/seed42 停牌剔除数",
+      "measured": 0.0,
+      "claimed": 0.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r2/seed42 顺延卖出数",
+      "measured": 1370.0,
+      "claimed": 1370.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r2/seed42 退市清算数",
+      "measured": 35.0,
+      "claimed": 35.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r2/seed2024 RankIC(%)",
+      "measured": 11.233304077441694,
+      "claimed": 11.233304077441694,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r2/seed2024 RankIC sd(%)",
+      "measured": 15.352425319247615,
+      "claimed": 15.352425319247615,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r2/seed2024 RankICIR",
+      "measured": 11.615309648782622,
+      "claimed": 11.615309648782622,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r2/seed2024 净AR(%)",
+      "measured": 0.4359166114091607,
+      "claimed": 0.43591661140915994,
+      "abs_diff": 7.771561172376096e-16,
+      "rel_diff": 1.782809135732053e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r2/seed2024 净SR",
+      "measured": 1.3060148967070924,
+      "claimed": 1.3060148967070901,
+      "abs_diff": 2.220446049250313e-15,
+      "rel_diff": 1.70016900637873e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r2/seed2024 MDD(%)",
+      "measured": -0.30232808094034547,
+      "claimed": -0.30232808094034513,
+      "abs_diff": 3.3306690738754696e-16,
+      "rel_diff": 1.101673739176306e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r2/seed2024 日均换手",
+      "measured": 0.04556854040278168,
+      "claimed": 0.04556854040278168,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r2/seed2024 批次数",
+      "measured": 557.0,
+      "claimed": 557.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r2/seed2024 涨停剔除数",
+      "measured": 90.0,
+      "claimed": 90.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r2/seed2024 停牌剔除数",
+      "measured": 0.0,
+      "claimed": 0.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r2/seed2024 顺延卖出数",
+      "measured": 1280.0,
+      "claimed": 1280.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r2/seed2024 退市清算数",
+      "measured": 23.0,
+      "claimed": 23.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r3/seed42 RankIC(%)",
+      "measured": 12.337996865355137,
+      "claimed": 12.337996865355137,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r3/seed42 RankIC sd(%)",
+      "measured": 16.50778087319381,
+      "claimed": 16.50778087319381,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r3/seed42 RankICIR",
+      "measured": 11.864685495831363,
+      "claimed": 11.864685495831363,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r3/seed42 净AR(%)",
+      "measured": 0.35377521804961837,
+      "claimed": 0.3537752180496205,
+      "abs_diff": 2.1094237467877974e-15,
+      "rel_diff": 5.962610265402847e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r3/seed42 净SR",
+      "measured": 1.1361885221691612,
+      "claimed": 1.136188522169167,
+      "abs_diff": 5.773159728050814e-15,
+      "rel_diff": 5.081163570486456e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r3/seed42 MDD(%)",
+      "measured": -0.2778774728680613,
+      "claimed": -0.2778774728680611,
+      "abs_diff": 2.220446049250313e-16,
+      "rel_diff": 7.990737882896331e-16,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r3/seed42 日均换手",
+      "measured": 0.045467308625928335,
+      "claimed": 0.045467308625928335,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r3/seed42 批次数",
+      "measured": 557.0,
+      "claimed": 557.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r3/seed42 涨停剔除数",
+      "measured": 120.0,
+      "claimed": 120.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r3/seed42 停牌剔除数",
+      "measured": 0.0,
+      "claimed": 0.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r3/seed42 顺延卖出数",
+      "measured": 1404.0,
+      "claimed": 1404.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r3/seed42 退市清算数",
+      "measured": 44.0,
+      "claimed": 44.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r3/seed2024 RankIC(%)",
+      "measured": 12.459224728653917,
+      "claimed": 12.459224728653917,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r3/seed2024 RankIC sd(%)",
+      "measured": 15.596286141164589,
+      "claimed": 15.596286141164589,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r3/seed2024 RankICIR",
+      "measured": 12.681484500472116,
+      "claimed": 12.681484500472116,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r3/seed2024 净AR(%)",
+      "measured": 0.4553790984461252,
+      "claimed": 0.4553790984461252,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r3/seed2024 净SR",
+      "measured": 1.3640349841640802,
+      "claimed": 1.3640349841640784,
+      "abs_diff": 1.7763568394002505e-15,
+      "rel_diff": 1.3022809972054018e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r3/seed2024 MDD(%)",
+      "measured": -0.2634802119753462,
+      "claimed": -0.26348021197534555,
+      "abs_diff": 6.661338147750939e-16,
+      "rel_diff": 2.5282119282545042e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r3/seed2024 日均换手",
+      "measured": 0.045469057646713835,
+      "claimed": 0.04546905764671384,
+      "abs_diff": 6.938893903907228e-18,
+      "rel_diff": 1.526069433376242e-16,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r3/seed2024 批次数",
+      "measured": 557.0,
+      "claimed": 557.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r3/seed2024 涨停剔除数",
+      "measured": 96.0,
+      "claimed": 96.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r3/seed2024 停牌剔除数",
+      "measured": 0.0,
+      "claimed": 0.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r3/seed2024 顺延卖出数",
+      "measured": 1972.0,
+      "claimed": 1972.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "r3/seed2024 退市清算数",
+      "measured": 35.0,
+      "claimed": 35.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed42 RankIC(%)",
+      "measured": 9.377620322596213,
+      "claimed": 9.377620322596213,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed42 RankIC sd(%)",
+      "measured": 18.316252370270995,
+      "claimed": 18.316252370270995,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed42 RankICIR",
+      "measured": 8.12748724846527,
+      "claimed": 8.12748724846527,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed42 净AR(%)",
+      "measured": 0.3494559633256118,
+      "claimed": 0.3494559633256121,
+      "abs_diff": 2.7755575615628914e-16,
+      "rel_diff": 7.94251022403276e-16,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed42 净SR",
+      "measured": 1.2785892074456418,
+      "claimed": 1.2785892074456433,
+      "abs_diff": 1.5543122344752192e-15,
+      "rel_diff": 1.2156462962646255e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed42 MDD(%)",
+      "measured": -0.2008840476814452,
+      "claimed": -0.20088404768144486,
+      "abs_diff": 3.3306690738754696e-16,
+      "rel_diff": 1.6580057562147155e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed42 日均换手",
+      "measured": 0.045609854654836725,
+      "claimed": 0.045609854654836725,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed42 批次数",
+      "measured": 557.0,
+      "claimed": 557.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed42 涨停剔除数",
+      "measured": 170.0,
+      "claimed": 170.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed42 停牌剔除数",
+      "measured": 0.0,
+      "claimed": 0.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed42 顺延卖出数",
+      "measured": 1161.0,
+      "claimed": 1161.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed42 退市清算数",
+      "measured": 31.0,
+      "claimed": 31.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed2024 RankIC(%)",
+      "measured": 9.377620322596213,
+      "claimed": 9.377620322596213,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed2024 RankIC sd(%)",
+      "measured": 18.316252370270995,
+      "claimed": 18.316252370270995,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed2024 RankICIR",
+      "measured": 8.12748724846527,
+      "claimed": 8.12748724846527,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed2024 净AR(%)",
+      "measured": 0.3494559633256118,
+      "claimed": 0.3494559633256121,
+      "abs_diff": 2.7755575615628914e-16,
+      "rel_diff": 7.94251022403276e-16,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed2024 净SR",
+      "measured": 1.2785892074456418,
+      "claimed": 1.2785892074456433,
+      "abs_diff": 1.5543122344752192e-15,
+      "rel_diff": 1.2156462962646255e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed2024 MDD(%)",
+      "measured": -0.2008840476814452,
+      "claimed": -0.20088404768144486,
+      "abs_diff": 3.3306690738754696e-16,
+      "rel_diff": 1.6580057562147155e-15,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed2024 日均换手",
+      "measured": 0.045609854654836725,
+      "claimed": 0.045609854654836725,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed2024 批次数",
+      "measured": 557.0,
+      "claimed": 557.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed2024 涨停剔除数",
+      "measured": 170.0,
+      "claimed": 170.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed2024 停牌剔除数",
+      "measured": 0.0,
+      "claimed": 0.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed2024 顺延卖出数",
+      "measured": 1161.0,
+      "claimed": 1161.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed2024 退市清算数",
+      "measured": 31.0,
+      "claimed": 31.0,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "ΔRankIC 中位数(pp)",
+      "measured": 7.915331719468414,
+      "claimed": 7.915331719468414,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed42 基准调整alpha[ew](%)",
+      "measured": 0.3231976503646535,
+      "claimed": 0.3231976503646535,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed42 基准调整IR[ew]",
+      "measured": 3.518109068748752,
+      "claimed": 3.518109068748752,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed42 基准调整alpha[cap](%)",
+      "measured": 0.15707131915119069,
+      "claimed": 0.15707131915119069,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed42 基准调整IR[cap]",
+      "measured": 0.8607003638002841,
+      "claimed": 0.8607003638002841,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed2024 基准调整alpha[ew](%)",
+      "measured": 0.3807131664508355,
+      "claimed": 0.3807131664508355,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed2024 基准调整IR[ew]",
+      "measured": 2.664959700179876,
+      "claimed": 2.664959700179876,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed2024 基准调整alpha[cap](%)",
+      "measured": 0.2145868352373728,
+      "claimed": 0.2145868352373728,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "full/seed2024 基准调整IR[cap]",
+      "measured": 1.0559765642855468,
+      "claimed": 1.0559765642855468,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed42 基准调整alpha[ew](%)",
+      "measured": -0.0017054708663776375,
+      "claimed": -0.0017054708663776375,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed42 基准调整IR[ew]",
+      "measured": -0.0083888017465806,
+      "claimed": -0.0083888017465806,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed42 基准调整alpha[cap](%)",
+      "measured": -0.16783180207984041,
+      "claimed": -0.16783180207984041,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed42 基准调整IR[cap]",
+      "measured": -1.5591786921404753,
+      "claimed": -1.5591786921404753,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed2024 基准调整alpha[ew](%)",
+      "measured": 0.23875930414317564,
+      "claimed": 0.23875930414317564,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed2024 基准调整IR[ew]",
+      "measured": 0.8071002318394497,
+      "claimed": 0.8071002318394497,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed2024 基准调整alpha[cap](%)",
+      "measured": 0.07263297292971299,
+      "claimed": 0.07263297292971299,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_only/seed2024 基准调整IR[cap]",
+      "measured": 0.2069819185168049,
+      "claimed": 0.2069819185168049,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed42 基准调整alpha[ew](%)",
+      "measured": -0.1406358956907515,
+      "claimed": -0.1406358956907515,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed42 基准调整IR[ew]",
+      "measured": -0.6557197064011037,
+      "claimed": -0.6557197064011037,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed42 基准调整alpha[cap](%)",
+      "measured": -0.3067622269042143,
+      "claimed": -0.3067622269042143,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed42 基准调整IR[cap]",
+      "measured": -1.1564046992219255,
+      "claimed": -1.1564046992219255,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed2024 基准调整alpha[ew](%)",
+      "measured": 0.41458941380348613,
+      "claimed": 0.41458941380348613,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed2024 基准调整IR[ew]",
+      "measured": 2.1409856269058727,
+      "claimed": 2.1409856269058727,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed2024 基准调整alpha[cap](%)",
+      "measured": 0.24846308259002337,
+      "claimed": 0.24846308259002337,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "s1_s2/seed2024 基准调整IR[cap]",
+      "measured": 1.0414291327092917,
+      "claimed": 1.0414291327092917,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed42 基准调整alpha[ew](%)",
+      "measured": 0.263178044608784,
+      "claimed": 0.263178044608784,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed42 基准调整IR[ew]",
+      "measured": 1.2848004639213435,
+      "claimed": 1.2848004639213435,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed42 基准调整alpha[cap](%)",
+      "measured": 0.09705171339532125,
+      "claimed": 0.09705171339532125,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed42 基准调整IR[cap]",
+      "measured": 0.499456680126824,
+      "claimed": 0.499456680126824,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed2024 基准调整alpha[ew](%)",
+      "measured": 0.263178044608784,
+      "claimed": 0.263178044608784,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed2024 基准调整IR[ew]",
+      "measured": 1.2848004639213435,
+      "claimed": 1.2848004639213435,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed2024 基准调整alpha[cap](%)",
+      "measured": 0.09705171339532125,
+      "claimed": 0.09705171339532125,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    },
+    {
+      "item": "fmb/seed2024 基准调整IR[cap]",
+      "measured": 0.499456680126824,
+      "claimed": 0.499456680126824,
+      "abs_diff": 0.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS（逐位一致）"
+    }
+  ],
+  "blocking": 0,
+  "suggestion": 0,
+  "pass": 249,
+  "recomputed_delta_rankic_pp": 7.915331719468414,
+  "calendar_crosscheck": [
+    {
+      "arm": "full",
+      "seed": 42,
+      "n_prediction_dates": 578,
+      "n_dates_found_in_independent_calendar": 578,
+      "first_date_idx": 2672,
+      "last_date_idx": 3249,
+      "first_date": 20240102,
+      "last_date": 20260527,
+      "independent_calendar_len": 3271,
+      "note": "样本 date_idx 是面板日历下标；此处用独立重取的 trade_cal 换算成日期值后核对"
+    },
+    {
+      "arm": "full",
+      "seed": 2024,
+      "n_prediction_dates": 578,
+      "n_dates_found_in_independent_calendar": 578,
+      "first_date_idx": 2672,
+      "last_date_idx": 3249,
+      "first_date": 20240102,
+      "last_date": 20260527,
+      "independent_calendar_len": 3271,
+      "note": "样本 date_idx 是面板日历下标；此处用独立重取的 trade_cal 换算成日期值后核对"
+    },
+    {
+      "arm": "s1_only",
+      "seed": 42,
+      "n_prediction_dates": 578,
+      "n_dates_found_in_independent_calendar": 578,
+      "first_date_idx": 2672,
+      "last_date_idx": 3249,
+      "first_date": 20240102,
+      "last_date": 20260527,
+      "independent_calendar_len": 3271,
+      "note": "样本 date_idx 是面板日历下标；此处用独立重取的 trade_cal 换算成日期值后核对"
+    },
+    {
+      "arm": "s1_only",
+      "seed": 2024,
+      "n_prediction_dates": 578,
+      "n_dates_found_in_independent_calendar": 578,
+      "first_date_idx": 2672,
+      "last_date_idx": 3249,
+      "first_date": 20240102,
+      "last_date": 20260527,
+      "independent_calendar_len": 3271,
+      "note": "样本 date_idx 是面板日历下标；此处用独立重取的 trade_cal 换算成日期值后核对"
+    },
+    {
+      "arm": "s1_s2",
+      "seed": 42,
+      "n_prediction_dates": 578,
+      "n_dates_found_in_independent_calendar": 578,
+      "first_date_idx": 2672,
+      "last_date_idx": 3249,
+      "first_date": 20240102,
+      "last_date": 20260527,
+      "independent_calendar_len": 3271,
+      "note": "样本 date_idx 是面板日历下标；此处用独立重取的 trade_cal 换算成日期值后核对"
+    },
+    {
+      "arm": "s1_s2",
+      "seed": 2024,
+      "n_prediction_dates": 578,
+      "n_dates_found_in_independent_calendar": 578,
+      "first_date_idx": 2672,
+      "last_date_idx": 3249,
+      "first_date": 20240102,
+      "last_date": 20260527,
+      "independent_calendar_len": 3271,
+      "note": "样本 date_idx 是面板日历下标；此处用独立重取的 trade_cal 换算成日期值后核对"
+    },
+    {
+      "arm": "fmb",
+      "seed": 42,
+      "n_prediction_dates": 578,
+      "n_dates_found_in_independent_calendar": 578,
+      "first_date_idx": 2672,
+      "last_date_idx": 3249,
+      "first_date": 20240102,
+      "last_date": 20260527,
+      "independent_calendar_len": 3271,
+      "note": "样本 date_idx 是面板日历下标；此处用独立重取的 trade_cal 换算成日期值后核对"
+    },
+    {
+      "arm": "fmb",
+      "seed": 2024,
+      "n_prediction_dates": 578,
+      "n_dates_found_in_independent_calendar": 578,
+      "first_date_idx": 2672,
+      "last_date_idx": 3249,
+      "first_date": 20240102,
+      "last_date": 20260527,
+      "independent_calendar_len": 3271,
+      "note": "样本 date_idx 是面板日历下标；此处用独立重取的 trade_cal 换算成日期值后核对"
+    }
+  ],
+  "conclusion": "PASS —— 可进入研究备忘录"
+}

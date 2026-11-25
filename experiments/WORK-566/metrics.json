@@ -1,0 +1,1487 @@
+{
+  "experiment": "WORK-566",
+  "generated_at": "2026-11-26T02:17:54+0800",
+  "paper": {
+    "table1": {
+      "Stock-JEPA": {
+        "IC": 10.7,
+        "RankIC": 11.22,
+        "NetAR": 45.66,
+        "NetSR": 1.5,
+        "MDD": -31.09
+      },
+      "MASTER": {
+        "IC": 7.34,
+        "RankIC": 9.84,
+        "NetAR": 41.81,
+        "NetSR": 1.23,
+        "MDD": -21.46
+      },
+      "FMB-style": {
+        "IC": 5.09,
+        "RankIC": 8.76,
+        "NetAR": 9.51,
+        "NetSR": 0.67,
+        "MDD": -16.36
+      },
+      "IPCA": {
+        "IC": 7.19,
+        "RankIC": 8.69,
+        "NetAR": 20.99,
+        "NetSR": 0.78,
+        "MDD": -27.02
+      }
+    },
+    "table4": {
+      "s1_only": {
+        "RankIC": 5.15,
+        "NetAR": 14.03,
+        "NetSR": 0.55
+      },
+      "s2_only": {
+        "RankIC": 6.21,
+        "NetAR": 21.43,
+        "NetSR": 0.85
+      },
+      "s3_only": {
+        "RankIC": 6.76,
+        "NetAR": 21.04,
+        "NetSR": 0.89
+      },
+      "s1_s2": {
+        "RankIC": 9.94,
+        "NetAR": 33.86,
+        "NetSR": 1.1
+      },
+      "full": {
+        "RankIC": 11.22,
+        "NetAR": 45.66,
+        "NetSR": 1.5
+      }
+    },
+    "table5": {
+      "r0": {
+        "RankIC": 9.72,
+        "NetSR": 1.47
+      },
+      "r1": {
+        "RankIC": 9.24,
+        "NetSR": 1.46
+      },
+      "r2": {
+        "RankIC": 11.26,
+        "NetSR": 1.87
+      },
+      "r3": {
+        "RankIC": 10.13,
+        "NetSR": 1.79
+      }
+    },
+    "table3": {
+      "securities": 5669,
+      "valid_samples": 8839281,
+      "train": 3883006,
+      "valid": 1990842,
+      "test": 2965433,
+      "test_dates": "2024-01-02–2026-06-26"
+    }
+  },
+  "arms": {},
+  "cost_tiers": {
+    "0.0005": {
+      "s1_only": {
+        "42": {
+          "rankic_mean_pct": 5.8554715811020035,
+          "rankic_std_pct": 18.681857534089445,
+          "rankicir": 4.9755614240178385,
+          "net_ar": 0.0845724478504504,
+          "net_sr": 0.5198560226013259,
+          "mdd": -0.1546731352627404,
+          "avg_turnover": 0.0458835241543413,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 35,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 49,
+          "delist_liquidations": 0,
+          "total_return": 0.17759952817044544,
+          "_series_file": "backtest_s1_only_seed42_c0.0005_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": -0.4084645364420122,
+          "rankic_std_pct": 21.33212046708727,
+          "rankicir": -0.30396291390222147,
+          "net_ar": 0.3250372228600038,
+          "net_sr": 0.7042365073629029,
+          "mdd": -0.34152058679503905,
+          "avg_turnover": 0.045617879933235225,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 196,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 639,
+          "delist_liquidations": 26,
+          "total_return": 0.6495262878619299,
+          "_series_file": "backtest_s1_only_seed2024_c0.0005_series.npz"
+        }
+      },
+      "s3_only": {
+        "42": {
+          "rankic_mean_pct": -1.4226163141935013,
+          "rankic_std_pct": 12.142541620240108,
+          "rankicir": -1.8598522926100067,
+          "net_ar": 0.470952126983932,
+          "net_sr": 1.158014826817354,
+          "mdd": -0.3105955704746264,
+          "avg_turnover": 0.045852398054423996,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 27,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 51,
+          "delist_liquidations": 0,
+          "total_return": 1.4371953380251856,
+          "_series_file": "backtest_s3_only_seed42_c0.0005_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": -3.191377788093196,
+          "rankic_std_pct": 10.39136700523974,
+          "rankicir": -4.875350064736849,
+          "net_ar": 0.2207780797984051,
+          "net_sr": 0.5512002691236615,
+          "mdd": -0.33425550868336273,
+          "avg_turnover": 0.045710188758074415,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 34,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 117,
+          "delist_liquidations": 0,
+          "total_return": 0.37798837861854606,
+          "_series_file": "backtest_s3_only_seed2024_c0.0005_series.npz"
+        }
+      },
+      "s1_s2": {
+        "42": {
+          "rankic_mean_pct": 1.3814065328359866,
+          "rankic_std_pct": 13.14622099224908,
+          "rankicir": 1.6680952560521602,
+          "net_ar": -0.054357976973923416,
+          "net_sr": -0.1432013467052383,
+          "mdd": -0.4156613076842449,
+          "avg_turnover": 0.04566158030732092,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 290,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 208,
+          "delist_liquidations": 7,
+          "total_return": -0.2519992108187479,
+          "_series_file": "backtest_s1_s2_seed42_c0.0005_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": 2.6883809688978593,
+          "rankic_std_pct": 12.257511581474231,
+          "rankicir": 3.4816793404557265,
+          "net_ar": 0.5008673325203142,
+          "net_sr": 1.353166516797672,
+          "mdd": -0.2528054209474898,
+          "avg_turnover": 0.04577715060563715,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 121,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 66,
+          "delist_liquidations": 0,
+          "total_return": 1.693376424962425,
+          "_series_file": "backtest_s1_s2_seed2024_c0.0005_series.npz"
+        }
+      },
+      "full": {
+        "42": {
+          "rankic_mean_pct": 10.363753688178887,
+          "rankic_std_pct": 12.388230941733031,
+          "rankicir": 13.280305333513864,
+          "net_ar": 0.4094755690814815,
+          "net_sr": 1.3294561199815453,
+          "mdd": -0.2293695598911908,
+          "avg_turnover": 0.04564418946242131,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 127,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 1358,
+          "delist_liquidations": 33,
+          "total_return": 1.288360889879304,
+          "_series_file": "backtest_full_seed42_c0.0005_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": 10.913916795417931,
+          "rankic_std_pct": 14.574618080626934,
+          "rankicir": 11.88731375762462,
+          "net_ar": 0.46699108516766363,
+          "net_sr": 1.4814623588382647,
+          "mdd": -0.2515630187833253,
+          "avg_turnover": 0.04565310666340612,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 70,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 692,
+          "delist_liquidations": 7,
+          "total_return": 1.6002885666342612,
+          "_series_file": "backtest_full_seed2024_c0.0005_series.npz"
+        }
+      },
+      "r0": {
+        "42": {
+          "rankic_mean_pct": 13.741527787500809,
+          "rankic_std_pct": 14.58712826125837,
+          "rankicir": 14.954279351763692,
+          "net_ar": 0.4404352275671747,
+          "net_sr": 1.1834787710599073,
+          "mdd": -0.2713185819463265,
+          "avg_turnover": 0.04548742197076325,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 111,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 2428,
+          "delist_liquidations": 36,
+          "total_return": 1.3431235880977836,
+          "_series_file": "backtest_r0_seed42_c0.0005_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": 12.268657542455278,
+          "rankic_std_pct": 12.045381371015457,
+          "rankicir": 16.168761674608774,
+          "net_ar": 0.6715247643706341,
+          "net_sr": 1.8831764278800882,
+          "mdd": -0.22703472578563055,
+          "avg_turnover": 0.045704348096523226,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 53,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 637,
+          "delist_liquidations": 17,
+          "total_return": 3.0308051285787494,
+          "_series_file": "backtest_r0_seed2024_c0.0005_series.npz"
+        }
+      },
+      "r1": {
+        "42": {
+          "rankic_mean_pct": 10.788674305067552,
+          "rankic_std_pct": 18.308347982964793,
+          "rankicir": 9.354470173007602,
+          "net_ar": 0.36935494975939753,
+          "net_sr": 1.2765016043038673,
+          "mdd": -0.19403346865552262,
+          "avg_turnover": 0.0457384137357272,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 55,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 761,
+          "delist_liquidations": 10,
+          "total_return": 1.1200250087707753,
+          "_series_file": "backtest_r1_seed42_c0.0005_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": 11.508284497297272,
+          "rankic_std_pct": 17.148446494843807,
+          "rankicir": 10.65334710266041,
+          "net_ar": 0.29424177811683155,
+          "net_sr": 1.249912060789675,
+          "mdd": -0.13644113406149216,
+          "avg_turnover": 0.045610120646200576,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 100,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 1326,
+          "delist_liquidations": 33,
+          "total_return": 0.8410008486084852,
+          "_series_file": "backtest_r1_seed2024_c0.0005_series.npz"
+        }
+      },
+      "r2": {
+        "42": {
+          "rankic_mean_pct": 13.093373163540157,
+          "rankic_std_pct": 16.44520635271752,
+          "rankicir": 12.638993444300505,
+          "net_ar": 0.3271546186701323,
+          "net_sr": 1.0428356358209256,
+          "mdd": -0.28597597373332695,
+          "avg_turnover": 0.04549229570286045,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 95,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 1370,
+          "delist_liquidations": 35,
+          "total_return": 0.8903111481529034,
+          "_series_file": "backtest_r2_seed42_c0.0005_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": 11.233304077441694,
+          "rankic_std_pct": 15.352425319247615,
+          "rankicir": 11.615309648782622,
+          "net_ar": 0.43591661140915994,
+          "net_sr": 1.3060148967070901,
+          "mdd": -0.30232808094034513,
+          "avg_turnover": 0.04556854040278168,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 90,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 1280,
+          "delist_liquidations": 23,
+          "total_return": 1.391161248942168,
+          "_series_file": "backtest_r2_seed2024_c0.0005_series.npz"
+        }
+      },
+      "r3": {
+        "42": {
+          "rankic_mean_pct": 12.337996865355137,
+          "rankic_std_pct": 16.50778087319381,
+          "rankicir": 11.864685495831363,
+          "net_ar": 0.3537752180496205,
+          "net_sr": 1.136188522169167,
+          "mdd": -0.2778774728680611,
+          "avg_turnover": 0.045467308625928335,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 120,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 1404,
+          "delist_liquidations": 44,
+          "total_return": 1.0134791194099622,
+          "_series_file": "backtest_r3_seed42_c0.0005_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": 12.459224728653917,
+          "rankic_std_pct": 15.596286141164589,
+          "rankicir": 12.681484500472116,
+          "net_ar": 0.4553790984461252,
+          "net_sr": 1.3640349841640784,
+          "mdd": -0.26348021197534555,
+          "avg_turnover": 0.04546905764671384,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 96,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 1972,
+          "delist_liquidations": 35,
+          "total_return": 1.5016086893516385,
+          "_series_file": "backtest_r3_seed2024_c0.0005_series.npz"
+        }
+      },
+      "fmb": {
+        "42": {
+          "rankic_mean_pct": 9.377620322596213,
+          "rankic_std_pct": 18.316252370270995,
+          "rankicir": 8.12748724846527,
+          "net_ar": 0.3494559633256121,
+          "net_sr": 1.2785892074456433,
+          "mdd": -0.20088404768144486,
+          "avg_turnover": 0.045609854654836725,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 170,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 1161,
+          "delist_liquidations": 31,
+          "total_return": 1.0468833023130721,
+          "_series_file": "backtest_fmb_seed42_c0.0005_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": 9.377620322596213,
+          "rankic_std_pct": 18.316252370270995,
+          "rankicir": 8.12748724846527,
+          "net_ar": 0.3494559633256121,
+          "net_sr": 1.2785892074456433,
+          "mdd": -0.20088404768144486,
+          "avg_turnover": 0.045609854654836725,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 170,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 1161,
+          "delist_liquidations": 31,
+          "total_return": 1.0468833023130721,
+          "_series_file": "backtest_fmb_seed2024_c0.0005_series.npz"
+        }
+      }
+    },
+    "0.0015": {
+      "s1_only": {
+        "42": {
+          "rankic_mean_pct": 5.8554715811020035,
+          "rankic_std_pct": 18.681857534089445,
+          "rankicir": 4.9755614240178385,
+          "net_ar": 0.06147474346654523,
+          "net_sr": 0.377946476022702,
+          "mdd": -0.16139475054748031,
+          "avg_turnover": 0.04587983375377891,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 35,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 49,
+          "delist_liquidations": 0,
+          "total_return": 0.11696187969537841,
+          "_series_file": "backtest_s1_only_seed42_c0.0015_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": -0.4084645364420122,
+          "rankic_std_pct": 21.33212046708727,
+          "rankicir": -0.30396291390222147,
+          "net_ar": 0.3020165428370485,
+          "net_sr": 0.6544832204244969,
+          "mdd": -0.34232043566408876,
+          "avg_turnover": 0.04561343901327585,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 196,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 639,
+          "delist_liquidations": 26,
+          "total_return": 0.5650082963222491,
+          "_series_file": "backtest_s1_only_seed2024_c0.0015_series.npz"
+        }
+      },
+      "s3_only": {
+        "42": {
+          "rankic_mean_pct": -1.4226163141935013,
+          "rankic_std_pct": 12.142541620240108,
+          "rankicir": -1.8598522926100067,
+          "net_ar": 0.44785234645777283,
+          "net_sr": 1.1014311675133084,
+          "mdd": -0.31771819571261994,
+          "avg_turnover": 0.045848066928359514,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 27,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 51,
+          "delist_liquidations": 0,
+          "total_return": 1.3119519251321323,
+          "_series_file": "backtest_s3_only_seed42_c0.0015_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": -3.191377788093196,
+          "rankic_std_pct": 10.39136700523974,
+          "rankicir": -4.875350064736849,
+          "net_ar": 0.19773454164485177,
+          "net_sr": 0.49377212083273603,
+          "mdd": -0.34189017147166456,
+          "avg_turnover": 0.04570570454725912,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 34,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 117,
+          "delist_liquidations": 0,
+          "total_return": 0.307281676047392,
+          "_series_file": "backtest_s3_only_seed2024_c0.0015_series.npz"
+        }
+      },
+      "s1_s2": {
+        "42": {
+          "rankic_mean_pct": 1.3814065328359866,
+          "rankic_std_pct": 13.14622099224908,
+          "rankicir": 1.6680952560521602,
+          "net_ar": -0.07733946469797774,
+          "net_sr": -0.20377443733641443,
+          "mdd": -0.4365945252123602,
+          "avg_turnover": 0.04565747027945217,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 290,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 208,
+          "delist_liquidations": 7,
+          "total_return": -0.29033854845055196,
+          "_series_file": "backtest_s1_s2_seed42_c0.0015_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": 2.6883809688978593,
+          "rankic_std_pct": 12.257511581474231,
+          "rankicir": 3.4816793404557265,
+          "net_ar": 0.47778241590417714,
+          "net_sr": 1.2910052585853122,
+          "mdd": -0.2578835051842112,
+          "avg_turnover": 0.045772845194065576,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 121,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 66,
+          "delist_liquidations": 0,
+          "total_return": 1.5550242710272357,
+          "_series_file": "backtest_s1_s2_seed2024_c0.0015_series.npz"
+        }
+      },
+      "full": {
+        "42": {
+          "rankic_mean_pct": 10.363753688178887,
+          "rankic_std_pct": 12.388230941733031,
+          "rankicir": 13.280305333513864,
+          "net_ar": 0.3864532724474017,
+          "net_sr": 1.2549461447404593,
+          "mdd": -0.2369764836922862,
+          "avg_turnover": 0.045640127879504624,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 127,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 1358,
+          "delist_liquidations": 33,
+          "total_return": 1.1710846001799973,
+          "_series_file": "backtest_full_seed42_c0.0015_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": 10.913916795417931,
+          "rankic_std_pct": 14.574618080626934,
+          "rankicir": 11.88731375762462,
+          "net_ar": 0.44394917579597115,
+          "net_sr": 1.4087039029564117,
+          "mdd": -0.2525677836885455,
+          "avg_turnover": 0.045648469228308695,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 70,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 692,
+          "delist_liquidations": 7,
+          "total_return": 1.4669750860334405,
+          "_series_file": "backtest_full_seed2024_c0.0015_series.npz"
+        }
+      },
+      "r0": {
+        "42": {
+          "rankic_mean_pct": 13.741527787500809,
+          "rankic_std_pct": 14.58712826125837,
+          "rankicir": 14.954279351763692,
+          "net_ar": 0.41743493901615886,
+          "net_sr": 1.1218478872935682,
+          "mdd": -0.2734608397338305,
+          "avg_turnover": 0.045483203108851546,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 111,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 2428,
+          "delist_liquidations": 36,
+          "total_return": 1.2231635804676393,
+          "_series_file": "backtest_r0_seed42_c0.0015_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": 12.268657542455278,
+          "rankic_std_pct": 12.045381371015457,
+          "rankicir": 16.168761674608774,
+          "net_ar": 0.6484289763771703,
+          "net_sr": 1.8186950095379517,
+          "mdd": -0.2272647599549037,
+          "avg_turnover": 0.045699875413741625,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 53,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 637,
+          "delist_liquidations": 17,
+          "total_return": 2.8237847687907327,
+          "_series_file": "backtest_r0_seed2024_c0.0015_series.npz"
+        }
+      },
+      "r1": {
+        "42": {
+          "rankic_mean_pct": 10.788674305067552,
+          "rankic_std_pct": 18.308347982964793,
+          "rankicir": 9.354470173007602,
+          "net_ar": 0.3462564735703789,
+          "net_sr": 1.1968943676099864,
+          "mdd": -0.19425094156639688,
+          "avg_turnover": 0.045734069106207774,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 55,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 761,
+          "delist_liquidations": 10,
+          "total_return": 1.0109996308390703,
+          "_series_file": "backtest_r1_seed42_c0.0015_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": 11.508284497297272,
+          "rankic_std_pct": 17.148446494843807,
+          "rankicir": 10.65334710266041,
+          "net_ar": 0.2712036027638831,
+          "net_sr": 1.1522481518284646,
+          "mdd": -0.1369362241823826,
+          "avg_turnover": 0.04560623775607156,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 100,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 1326,
+          "delist_liquidations": 33,
+          "total_return": 0.7465258695668224,
+          "_series_file": "backtest_r1_seed2024_c0.0015_series.npz"
+        }
+      },
+      "r2": {
+        "42": {
+          "rankic_mean_pct": 13.093373163540157,
+          "rankic_std_pct": 16.44520635271752,
+          "rankicir": 12.638993444300505,
+          "net_ar": 0.3041944625244772,
+          "net_sr": 0.9698709115161218,
+          "mdd": -0.28688139119577527,
+          "avg_turnover": 0.04548831007404824,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 95,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 1370,
+          "delist_liquidations": 35,
+          "total_return": 0.7936763567549074,
+          "_series_file": "backtest_r2_seed42_c0.0015_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": 11.233304077441694,
+          "rankic_std_pct": 15.352425319247615,
+          "rankicir": 11.615309648782622,
+          "net_ar": 0.4129085152736826,
+          "net_sr": 1.2373861881503192,
+          "mdd": -0.30322340557892713,
+          "avg_turnover": 0.04556397830167743,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 90,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 1280,
+          "delist_liquidations": 23,
+          "total_return": 1.2687433020700167,
+          "_series_file": "backtest_r2_seed2024_c0.0015_series.npz"
+        }
+      },
+      "r3": {
+        "42": {
+          "rankic_mean_pct": 12.337996865355137,
+          "rankic_std_pct": 16.50778087319381,
+          "rankicir": 11.864685495831363,
+          "net_ar": 0.33082951524324117,
+          "net_sr": 1.0627280573386455,
+          "mdd": -0.2788055800795529,
+          "avg_turnover": 0.04546342424130656,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 120,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 1404,
+          "delist_liquidations": 44,
+          "total_return": 0.9106157206076371,
+          "_series_file": "backtest_r3_seed42_c0.0015_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": 12.459224728653917,
+          "rankic_std_pct": 15.596286141164589,
+          "rankicir": 12.681484500472116,
+          "net_ar": 0.4324213441266378,
+          "net_sr": 1.2955400062518423,
+          "mdd": -0.26438877755578316,
+          "avg_turnover": 0.04546457201630824,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 96,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 1972,
+          "delist_liquidations": 35,
+          "total_return": 1.3737973105264762,
+          "_series_file": "backtest_r3_seed2024_c0.0015_series.npz"
+        }
+      },
+      "fmb": {
+        "42": {
+          "rankic_mean_pct": 9.377620322596213,
+          "rankic_std_pct": 18.316252370270995,
+          "rankicir": 8.12748724846527,
+          "net_ar": 0.3264297810816381,
+          "net_sr": 1.1945495427761073,
+          "mdd": -0.20112071330649028,
+          "avg_turnover": 0.04560603307420421,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 170,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 1161,
+          "delist_liquidations": 31,
+          "total_return": 0.9419258014856802,
+          "_series_file": "backtest_fmb_seed42_c0.0015_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": 9.377620322596213,
+          "rankic_std_pct": 18.316252370270995,
+          "rankicir": 8.12748724846527,
+          "net_ar": 0.3264297810816381,
+          "net_sr": 1.1945495427761073,
+          "mdd": -0.20112071330649028,
+          "avg_turnover": 0.04560603307420421,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 170,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 1161,
+          "delist_liquidations": 31,
+          "total_return": 0.9419258014856802,
+          "_series_file": "backtest_fmb_seed2024_c0.0015_series.npz"
+        }
+      }
+    },
+    "0.003": {
+      "s1_only": {
+        "42": {
+          "rankic_mean_pct": 5.8554715811020035,
+          "rankic_std_pct": 18.681857534089445,
+          "rankicir": 4.9755614240178385,
+          "net_ar": 0.02683998542680527,
+          "net_sr": 0.16505773797864612,
+          "mdd": -0.1713766717697296,
+          "avg_turnover": 0.04587384218176033,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 35,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 49,
+          "delist_liquidations": 0,
+          "total_return": 0.03182795510614955,
+          "_series_file": "backtest_s1_only_seed42_c0.003_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": -0.4084645364420122,
+          "rankic_std_pct": 21.33212046708727,
+          "rankicir": -0.30396291390222147,
+          "net_ar": 0.2674935024540684,
+          "net_sr": 0.5798347579187848,
+          "mdd": -0.343518415995575,
+          "avg_turnover": 0.04560686308001766,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 196,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 639,
+          "delist_liquidations": 26,
+          "total_return": 0.4462940966481481,
+          "_series_file": "backtest_s1_only_seed2024_c0.003_series.npz"
+        }
+      },
+      "s3_only": {
+        "42": {
+          "rankic_mean_pct": -1.4226163141935013,
+          "rankic_std_pct": 12.142541620240108,
+          "rankicir": -1.8598522926100067,
+          "net_ar": 0.4132142945896021,
+          "net_sr": 1.0165414814455587,
+          "mdd": -0.32825986714866806,
+          "avg_turnover": 0.045841666864650715,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 27,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 51,
+          "delist_liquidations": 0,
+          "total_return": 1.1360868990699733,
+          "_series_file": "backtest_s3_only_seed42_c0.003_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": -3.191377788093196,
+          "rankic_std_pct": 10.39136700523974,
+          "rankicir": -4.875350064736849,
+          "net_ar": 0.16317682518388796,
+          "net_sr": 0.407603587119372,
+          "mdd": -0.3531771768226063,
+          "avg_turnover": 0.045699050975620346,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 34,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 117,
+          "delist_liquidations": 0,
+          "total_return": 0.2079754239071987,
+          "_series_file": "backtest_s3_only_seed2024_c0.003_series.npz"
+        }
+      },
+      "s1_s2": {
+        "42": {
+          "rankic_mean_pct": 1.3814065328359866,
+          "rankic_std_pct": 13.14622099224908,
+          "rankicir": 1.6680952560521602,
+          "net_ar": -0.11180452763739548,
+          "net_sr": -0.2946487694303467,
+          "mdd": -0.4745933194715424,
+          "avg_turnover": 0.04565138796596568,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 290,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 208,
+          "delist_liquidations": 7,
+          "total_return": -0.34418998405312884,
+          "_series_file": "backtest_s1_s2_seed42_c0.003_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": 2.6883809688978593,
+          "rankic_std_pct": 12.257511581474231,
+          "rankicir": 3.4816793404557265,
+          "net_ar": 0.4431636223020999,
+          "net_sr": 1.197747773291966,
+          "mdd": -0.26543553553957844,
+          "avg_turnover": 0.04576647875561472,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 121,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 66,
+          "delist_liquidations": 0,
+          "total_return": 1.3607305117337196,
+          "_series_file": "backtest_s1_s2_seed2024_c0.003_series.npz"
+        }
+      },
+      "full": {
+        "42": {
+          "rankic_mean_pct": 10.363753688178887,
+          "rankic_std_pct": 12.388230941733031,
+          "rankicir": 13.280305333513864,
+          "net_ar": 0.351927546476031,
+          "net_sr": 1.1431509947307261,
+          "mdd": -0.2500182361699158,
+          "avg_turnover": 0.04563410537858992,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 127,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 1358,
+          "delist_liquidations": 33,
+          "total_return": 1.0063590036377943,
+          "_series_file": "backtest_full_seed42_c0.003_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": 10.913916795417931,
+          "rankic_std_pct": 14.574618080626934,
+          "rankicir": 11.88731375762462,
+          "net_ar": 0.4093940419510688,
+          "net_sr": 1.299524108873888,
+          "mdd": -0.2540693485494744,
+          "avg_turnover": 0.04564158778297575,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 70,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 692,
+          "delist_liquidations": 7,
+          "total_return": 1.2797292840329377,
+          "_series_file": "backtest_full_seed2024_c0.003_series.npz"
+        }
+      },
+      "r0": {
+        "42": {
+          "rankic_mean_pct": 13.741527787500809,
+          "rankic_std_pct": 14.58712826125837,
+          "rankicir": 14.954279351763692,
+          "net_ar": 0.38294256997300163,
+          "net_sr": 1.0293863374300416,
+          "mdd": -0.27873675134570963,
+          "avg_turnover": 0.04547695228719038,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 111,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 2428,
+          "delist_liquidations": 36,
+          "total_return": 1.0546586861695628,
+          "_series_file": "backtest_r0_seed42_c0.003_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": 12.268657542455278,
+          "rankic_std_pct": 12.045381371015457,
+          "rankicir": 16.168761674608774,
+          "net_ar": 0.6137920917750379,
+          "net_sr": 1.7219525969762255,
+          "mdd": -0.22760962724495304,
+          "avg_turnover": 0.0456932511825992,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 53,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 637,
+          "delist_liquidations": 17,
+          "total_return": 2.5330405981262913,
+          "_series_file": "backtest_r0_seed2024_c0.003_series.npz"
+        }
+      },
+      "r1": {
+        "42": {
+          "rankic_mean_pct": 10.788674305067552,
+          "rankic_std_pct": 18.308347982964793,
+          "rankicir": 9.354470173007602,
+          "net_ar": 0.311614703735102,
+          "net_sr": 1.0774483031649857,
+          "mdd": -0.1945769185610049,
+          "avg_turnover": 0.04572759263237316,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 55,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 761,
+          "delist_liquidations": 10,
+          "total_return": 0.8578918840290122,
+          "_series_file": "backtest_r1_seed42_c0.003_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": 11.508284497297272,
+          "rankic_std_pct": 17.148446494843807,
+          "rankicir": 10.65334710266041,
+          "net_ar": 0.23666158186649972,
+          "net_sr": 1.0057507942948942,
+          "mdd": -0.14358619370243875,
+          "avg_turnover": 0.04560048003038803,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 100,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 1326,
+          "delist_liquidations": 33,
+          "total_return": 0.6138666976812126,
+          "_series_file": "backtest_r1_seed2024_c0.003_series.npz"
+        }
+      },
+      "r2": {
+        "42": {
+          "rankic_mean_pct": 13.093373163540157,
+          "rankic_std_pct": 16.44520635271752,
+          "rankicir": 12.638993444300505,
+          "net_ar": 0.26975193241717177,
+          "net_sr": 0.8603525912531539,
+          "mdd": -0.2882354930747849,
+          "avg_turnover": 0.04548240542705728,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 95,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 1370,
+          "delist_liquidations": 35,
+          "total_return": 0.6578833826786712,
+          "_series_file": "backtest_r2_seed42_c0.003_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": 11.233304077441694,
+          "rankic_std_pct": 15.352425319247615,
+          "rankicir": 11.615309648782622,
+          "net_ar": 0.3784049967876112,
+          "net_sr": 1.1344047544909879,
+          "mdd": -0.30456138118700726,
+          "avg_turnover": 0.04555721722252614,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 90,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 1280,
+          "delist_liquidations": 23,
+          "total_return": 1.0967887418442164,
+          "_series_file": "backtest_r2_seed2024_c0.003_series.npz"
+        }
+      },
+      "r3": {
+        "42": {
+          "rankic_mean_pct": 12.337996865355137,
+          "rankic_std_pct": 16.50778087319381,
+          "rankicir": 11.864685495831363,
+          "net_ar": 0.2964223480212918,
+          "net_sr": 0.9525140864629557,
+          "mdd": -0.2801935584152636,
+          "avg_turnover": 0.04545767029745464,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 120,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 1404,
+          "delist_liquidations": 44,
+          "total_return": 0.7661197149695118,
+          "_series_file": "backtest_r3_seed42_c0.003_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": 12.459224728653917,
+          "rankic_std_pct": 15.596286141164589,
+          "rankicir": 12.681484500472116,
+          "net_ar": 0.3980111473407368,
+          "net_sr": 1.1928150496844068,
+          "mdd": -0.2657386041730273,
+          "avg_turnover": 0.045457898881330006,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 96,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 1972,
+          "delist_liquidations": 35,
+          "total_return": 1.1943287178918056,
+          "_series_file": "backtest_r3_seed2024_c0.003_series.npz"
+        }
+      },
+      "fmb": {
+        "42": {
+          "rankic_mean_pct": 9.377620322596213,
+          "rankic_std_pct": 18.316252370270995,
+          "rankicir": 8.12748724846527,
+          "net_ar": 0.29189795811969543,
+          "net_sr": 1.0684609013499922,
+          "mdd": -0.20147551448183287,
+          "avg_turnover": 0.045600390149444545,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 170,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 1161,
+          "delist_liquidations": 31,
+          "total_return": 0.7945077995183387,
+          "_series_file": "backtest_fmb_seed42_c0.003_series.npz"
+        },
+        "2024": {
+          "rankic_mean_pct": 9.377620322596213,
+          "rankic_std_pct": 18.316252370270995,
+          "rankicir": 8.12748724846527,
+          "net_ar": 0.29189795811969543,
+          "net_sr": 1.0684609013499922,
+          "mdd": -0.20147551448183287,
+          "avg_turnover": 0.045600390149444545,
+          "n_batches": 557,
+          "n_days": 577,
+          "n_skipped_limitup": 170,
+          "n_skipped_suspend": 0,
+          "deferred_exits": 1161,
+          "delist_liquidations": 31,
+          "total_return": 0.7945077995183387,
+          "_series_file": "backtest_fmb_seed2024_c0.003_series.npz"
+        }
+      }
+    }
+  },
+  "H1": {
+    "per_seed": [
+      {
+        "seed": 42,
+        "rankic_full": 10.363753688178887,
+        "rankic_s1_only": 5.8554715811020035,
+        "delta_rankic_pp": 4.508282107076884
+      },
+      {
+        "seed": 2024,
+        "rankic_full": 10.913916795417931,
+        "rankic_s1_only": -0.4084645364420122,
+        "delta_rankic_pp": 11.322381331859944
+      }
+    ],
+    "n_seeds": 2,
+    "delta_median_pp": 7.915331719468414,
+    "delta_min_pp": 4.508282107076884,
+    "delta_max_pp": 11.322381331859944,
+    "paper_delta_pp": 6.07,
+    "paper_note": "论文 Table 4：S1-only 5.15% → full 11.22% = +6.07pp（已对原文核对）",
+    "verdict_rule": "预注册 §11 H1：跨种子中位数 ≥ +3.0pp",
+    "verdict": "三段式增量复现成立"
+  },
+  "H2": {
+    "n_boot": 10000,
+    "block": 20,
+    "seed": 42,
+    "per_seed": [
+      {
+        "seed": 42,
+        "n_days": 578,
+        "mean_diff_pp": 0.9861333655826752,
+        "ci_lo": -4.591069902582032,
+        "ci_hi": 7.511202311048095
+      },
+      {
+        "seed": 2024,
+        "n_days": 578,
+        "mean_diff_pp": 1.5362964728217203,
+        "ci_lo": -0.7990884332315317,
+        "ci_hi": 4.700249877446356
+      }
+    ],
+    "pooled_mean_diff_pp": 1.2612149192021977,
+    "pooled_ci95": [
+      -1.6899685498295276,
+      4.8874583010493495
+    ],
+    "ci_contains_zero": true,
+    "conclusion": "增量统计上不可证（CI 含 0）—— 不算失败，报告原样写这句话",
+    "n_seeds": 2,
+    "delivered": true
+  },
+  "H3": {
+    "full": [
+      {
+        "seed": 42,
+        "net_sr": 1.3294561199815453,
+        "net_ar": 0.4094755690814815,
+        "mdd": -0.2293695598911908,
+        "avg_turnover": 0.04564418946242131,
+        "sr_ci95": [
+          0.053987374558612564,
+          2.731263811326829
+        ]
+      },
+      {
+        "seed": 2024,
+        "net_sr": 1.4814623588382647,
+        "net_ar": 0.46699108516766363,
+        "mdd": -0.2515630187833253,
+        "avg_turnover": 0.04565310666340612,
+        "sr_ci95": [
+          0.33206993810916174,
+          2.6848028262232635
+        ]
+      }
+    ],
+    "delivered": {
+      "full": true,
+      "s1_only": true,
+      "s1_s2": true,
+      "fmb": true
+    },
+    "s1_only": [
+      {
+        "seed": 42,
+        "net_sr": 0.5198560226013259,
+        "net_ar": 0.0845724478504504,
+        "mdd": -0.1546731352627404,
+        "avg_turnover": 0.0458835241543413,
+        "sr_ci95": [
+          -0.814402047253682,
+          1.6243926297832174
+        ]
+      },
+      {
+        "seed": 2024,
+        "net_sr": 0.7042365073629029,
+        "net_ar": 0.3250372228600038,
+        "mdd": -0.34152058679503905,
+        "avg_turnover": 0.045617879933235225,
+        "sr_ci95": [
+          -0.6456664845409122,
+          2.02772787092559
+        ]
+      }
+    ],
+    "s1_s2": [
+      {
+        "seed": 42,
+        "net_sr": -0.1432013467052383,
+        "net_ar": -0.054357976973923416,
+        "mdd": -0.4156613076842449,
+        "avg_turnover": 0.04566158030732092,
+        "sr_ci95": [
+          -1.4944610335389257,
+          1.1889087870289996
+        ]
+      },
+      {
+        "seed": 2024,
+        "net_sr": 1.353166516797672,
+        "net_ar": 0.5008673325203142,
+        "mdd": -0.2528054209474898,
+        "avg_turnover": 0.04577715060563715,
+        "sr_ci95": [
+          0.14776499982167599,
+          2.4895908104727043
+        ]
+      }
+    ],
+    "fmb": [
+      {
+        "seed": 42,
+        "net_sr": 1.2785892074456433,
+        "net_ar": 0.3494559633256121,
+        "mdd": -0.20088404768144486,
+        "avg_turnover": 0.045609854654836725,
+        "sr_ci95": [
+          -0.03608558732621556,
+          2.4395877325873885
+        ]
+      },
+      {
+        "seed": 2024,
+        "net_sr": 1.2785892074456433,
+        "net_ar": 0.3494559633256121,
+        "mdd": -0.20088404768144486,
+        "avg_turnover": 0.045609854654836725,
+        "sr_ci95": [
+          -0.03608558732621556,
+          2.4395877325873885
+        ]
+      }
+    ],
+    "summary": {
+      "full_net_sr_mean": 1.405459239409905,
+      "full_sr_ci95_lower_min": 0.053987374558612564,
+      "sr_ci_lower_gt_0": true,
+      "paper_net_sr": 1.5,
+      "shrinkage_vs_paper": 0.93697282627327,
+      "note": "算力降级配置下「相对论文缩水 ≤60%」只披露不判定（预注册 §11）；净 SR < 0 → 直接判退 仍然生效"
+    }
+  },
+  "H4": {
+    "r0": [
+      {
+        "seed": 42,
+        "rankic_mean_pct": 13.741527787500809,
+        "net_sr": 1.1834787710599073,
+        "net_ar": 0.4404352275671747
+      },
+      {
+        "seed": 2024,
+        "rankic_mean_pct": 12.268657542455278,
+        "net_sr": 1.8831764278800882,
+        "net_ar": 0.6715247643706341
+      }
+    ],
+    "r1": [
+      {
+        "seed": 42,
+        "rankic_mean_pct": 10.788674305067552,
+        "net_sr": 1.2765016043038673,
+        "net_ar": 0.36935494975939753
+      },
+      {
+        "seed": 2024,
+        "rankic_mean_pct": 11.508284497297272,
+        "net_sr": 1.249912060789675,
+        "net_ar": 0.29424177811683155
+      }
+    ],
+    "r2": [
+      {
+        "seed": 42,
+        "rankic_mean_pct": 13.093373163540157,
+        "net_sr": 1.0428356358209256,
+        "net_ar": 0.3271546186701323
+      },
+      {
+        "seed": 2024,
+        "rankic_mean_pct": 11.233304077441694,
+        "net_sr": 1.3060148967070901,
+        "net_ar": 0.43591661140915994
+      }
+    ],
+    "r3": [
+      {
+        "seed": 42,
+        "rankic_mean_pct": 12.337996865355137,
+        "net_sr": 1.136188522169167,
+        "net_ar": 0.3537752180496205
+      },
+      {
+        "seed": 2024,
+        "rankic_mean_pct": 12.459224728653917,
+        "net_sr": 1.3640349841640784,
+        "net_ar": 0.4553790984461252
+      }
+    ],
+    "n_seeds": {
+      "r0": 2,
+      "r1": 2,
+      "r2": 2,
+      "r3": 2
+    },
+    "delivered": true,
+    "summary": {
+      "r2_rankic": 12.163338620490926,
+      "r3_rankic": 12.398610797004526,
+      "r2_minus_r3_rankic_pp": -0.23527217651360033,
+      "r2_net_sr": 1.174425266264008,
+      "r3_net_sr": 1.2501117531666228,
+      "r2_minus_r3_net_sr": -0.07568648690261481,
+      "paper": {
+        "r0": {
+          "RankIC": 9.72,
+          "NetSR": 1.47
+        },
+        "r1": {
+          "RankIC": 9.24,
+          "NetSR": 1.46
+        },
+        "r2": {
+          "RankIC": 11.26,
+          "NetSR": 1.87
+        },
+        "r3": {
+          "RankIC": 10.13,
+          "NetSR": 1.79
+        }
+      }
+    }
+  },
+  "benchmark_alpha": {
+    "full": [
+      {
+        "seed": 42,
+        "ew": {
+          "alpha_ann_pct": 0.3231976503646535,
+          "t_stat": 5.323496042596505,
+          "info_ratio_ann": 3.518109068748752,
+          "excess_total_pct": 107.49367006881565,
+          "n_days": 577
+        },
+        "cap": {
+          "alpha_ann_pct": 0.15707131915119069,
+          "t_stat": 1.3023857109074202,
+          "info_ratio_ann": 0.8607003638002841,
+          "excess_total_pct": 37.87870451656228,
+          "n_days": 577
+        }
+      },
+      {
+        "seed": 2024,
+        "ew": {
+          "alpha_ann_pct": 0.3807131664508355,
+          "t_stat": 4.032536268874813,
+          "info_ratio_ann": 2.664959700179876,
+          "excess_total_pct": 133.54491218793152,
+          "n_days": 577
+        },
+        "cap": {
+          "alpha_ann_pct": 0.2145868352373728,
+          "t_stat": 1.5978717405279583,
+          "info_ratio_ann": 1.0559765642855468,
+          "excess_total_pct": 55.92531800973064,
+          "n_days": 577
+        }
+      }
+    ],
+    "s1_only": [
+      {
+        "seed": 42,
+        "ew": {
+          "alpha_ann_pct": -0.0017054708663776375,
+          "t_stat": -0.01269368061858623,
+          "info_ratio_ann": -0.0083888017465806,
+          "excess_total_pct": -4.947492799605402,
+          "n_days": 577
+        },
+        "cap": {
+          "alpha_ann_pct": -0.16783180207984041,
+          "t_stat": -2.3593019531548203,
+          "info_ratio_ann": -1.5591786921404753,
+          "excess_total_pct": -32.809785122391986,
+          "n_days": 577
+        }
+      },
+      {
+        "seed": 2024,
+        "ew": {
+          "alpha_ann_pct": 0.23875930414317564,
+          "t_stat": 1.221279615331584,
+          "info_ratio_ann": 0.8071002318394497,
+          "excess_total_pct": 56.401974242825446,
+          "n_days": 577
+        },
+        "cap": {
+          "alpha_ann_pct": 0.07263297292971299,
+          "t_stat": 0.313198767457523,
+          "info_ratio_ann": 0.2069819185168049,
+          "excess_total_pct": 2.6371206866533603,
+          "n_days": 577
+        }
+      }
+    ],
+    "s1_s2": [
+      {
+        "seed": 42,
+        "ew": {
+          "alpha_ann_pct": -0.1406358956907515,
+          "t_stat": -0.9922151911340045,
+          "info_ratio_ann": -0.6557197064011037,
+          "excess_total_pct": -31.248367652551924,
+          "n_days": 577
+        },
+        "cap": {
+          "alpha_ann_pct": -0.3067622269042143,
+          "t_stat": -1.749836551297542,
+          "info_ratio_ann": -1.1564046992219255,
+          "excess_total_pct": -54.32377132393673,
+          "n_days": 577
+        }
+      },
+      {
+        "seed": 2024,
+        "ew": {
+          "alpha_ann_pct": 0.41458941380348613,
+          "t_stat": 3.2396745778387843,
+          "info_ratio_ann": 2.1409856269058727,
+          "excess_total_pct": 147.55592964015162,
+          "n_days": 577
+        },
+        "cap": {
+          "alpha_ann_pct": 0.24846308259002337,
+          "t_stat": 1.5758590078602692,
+          "info_ratio_ann": 1.0414291327092917,
+          "excess_total_pct": 65.61324693402261,
+          "n_days": 577
+        }
+      }
+    ],
+    "fmb": [
+      {
+        "seed": 42,
+        "ew": {
+          "alpha_ann_pct": 0.263178044608784,
+          "t_stat": 1.944121131993217,
+          "info_ratio_ann": 1.2848004639213435,
+          "excess_total_pct": 74.19803819413599,
+          "n_days": 577
+        },
+        "cap": {
+          "alpha_ann_pct": 0.09705171339532125,
+          "t_stat": 0.7557627146133883,
+          "info_ratio_ann": 0.499456680126824,
+          "excess_total_pct": 19.707846840332,
+          "n_days": 577
+        }
+      },
+      {
+        "seed": 2024,
+        "ew": {
+          "alpha_ann_pct": 0.263178044608784,
+          "t_stat": 1.944121131993217,
+          "info_ratio_ann": 1.2848004639213435,
+          "excess_total_pct": 74.19803819413599,
+          "n_days": 577
+        },
+        "cap": {
+          "alpha_ann_pct": 0.09705171339532125,
+          "t_stat": 0.7557627146133883,
+          "info_ratio_ann": 0.499456680126824,
+          "excess_total_pct": 19.707846840332,
+          "n_days": 577
+        }
+      }
+    ]
+  },
+  "seed_guard": {
+    "rule": "预注册 §9：所有指标报 mean ± range（两档种子）；只报单种子结果 = 未交付",
+    "thin_arms": [],
+    "all_present_arms_have_2_seeds": true
+  },
+  "verdict": "三段式增量复现成立",
+  "verdict_rule": {
+    "进": "ΔRankIC ≥ +3.0 pp",
+    "退": "ΔRankIC ≤ +1.0 pp 或为负",
+    "部分复现": "+1.0 < ΔRankIC < +3.0 pp",
+    "H3_override": "净 SR < 0 → 直接判退",
+    "失败判据3": "两个种子 ΔRankIC 均 ≤ +1.0 pp → 判退",
+    "种子守卫": "有效种子 < 2 → 未交付（不判进/退）"
+  }
+}
