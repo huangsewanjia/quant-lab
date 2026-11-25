@@ -96,7 +96,7 @@ con.execute("select count(*) rows, count(distinct trade_date) dates, min(trade_d
   <tr><th>合计</th><th class="n">$sum_ex</th><th class="n">$dates</th><th class="n">7</th></tr>
 </table>
 <p class="note">列相加自检：$sum_ex = $sum_expr = 库内总行数 $total，一致。
-每个交易日固定 84 行（SHFE 6 品种 × 12 个挂牌月 + GFEX 12 个合约），$dates × 84 = $row_check。</p>
+$per_day_text（SHFE 6 品种 + GFEX 碳酸锂，按当日挂牌月数计）。</p>
 
 <figure><img alt="上游可得区间与本次回补窗口" src="data:image/png;base64,$fig1">
 <figcaption>图 1：上期所 <code>.dat</code> 归档实测最早 2002-01-07，广期所碳酸锂 2023-07-21 上市；蓝色为本次交付窗口。</figcaption></figure>
@@ -111,7 +111,7 @@ con.execute("select count(*) rows, count(distinct trade_date) dates, min(trade_d
   <tr><td>失败日清单（逐日 URL + 状态）</td><td><b>0 失败</b>：<code>failed.json</code> 的 <code>failed</code> 为空数组</td><td>§5 命令 ②</td></tr>
   <tr><td>幂等：同参数连跑两次装载，17 表行数不变</td><td><b>达成</b>：4 秒窗口单次装载前后，17 张数据表逐表行数不变（仅装载审计表 +1 行）；两次装载 <code>raw/staged/loaded/partitions</code> 全同（21756/21756/21756/259）</td><td>§5 命令 ③</td></tr>
   <tr><td>质量闸 7/7 PASS；pytest 全过</td><td><b>达成</b>：C1–C7 全 PASS；test_industry.py 11 passed</td><td>§5 命令 ④⑤</td></tr>
-  <tr><td>表数 / data_catalog / A 股 20 表零 diff</td><td><b>达成</b>：BASE TABLE $tabs 张、<code>data_catalog</code> $catalog 行、A 股 $zero_diff/20 零 diff（对 20:20 当日基线）</td><td>§5 命令 ⑥⑦</td></tr>
+  <tr><td>表数 / data_catalog / A 股 20 表零 diff</td><td><b>达成</b>：BASE TABLE $tabs 张、<code>data_catalog</code> $catalog 行、A 股 $astock_line</td><td>§5 命令 ⑥⑦</td></tr>
   <tr><td>manifest.params 可复跑</td><td><b>达成</b>：复跑同参数 0 请求、CSV 字节不变</td><td>§5 命令 ⑧</td></tr>
 </table>
 
@@ -123,9 +123,11 @@ con.execute("select count(*) rows, count(distinct trade_date) dates, min(trade_d
 <code>coverage_gap_shfe=0</code>，CSV 与库双向 EXCEPT 均为 0。</p>
 
 <h3>② 失败日</h3>
-<pre>jq '.params | {trading_days, trading_days_fetched, trading_days_skipped, http_calls, failed_days}' \
-  /srv/share/quantdb/raw/industry_alt/exchange_daily_quotes/manifest.json
-jq '.failed | length' /srv/share/quantdb/raw/industry_alt/exchange_daily_quotes/failed.json</pre>
+<pre>grep -c 'failed=' $backfill_log          # 回补日志逐日行
+tail -1 $backfill_log | jq -c '.params | {trading_days, trading_days_fetched, trading_days_skipped, http_calls, failed_days}'
+# failed.json 记的是「最近一次运行」；每次运行另有 failed-&lt;run_id&gt;.json 留档
+jq -c '{run_id, n:(.failed|length), pending:(.pending|length)}' \
+  /srv/share/quantdb/raw/industry_alt/exchange_daily_quotes/failed.json</pre>
 
 <h3>③ 幂等（两次装载的装载审计）</h3>
 <table>
@@ -139,7 +141,10 @@ QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$$PWD /home/moyongkai/.venvs/quantdb/
 
 <h3>⑥⑦ 表数 / 目录 / A 股零 diff</h3>
 <pre>/home/moyongkai/.venvs/quantdb/bin/python scripts/work578_verify.py shape
-/home/moyongkai/.venvs/quantdb/bin/python scripts/work578_verify.py astock</pre>
+# A 股零 diff：与 20:44 的冷备库逐表比「行数 + 全列哈希」，不是只比前两列
+/home/moyongkai/.venvs/quantdb/bin/python scripts/work578_verify.py astock \
+  --against /srv/backup/quantdb/db/quantdb.duckdb</pre>
+<p>结果：$astock_line。指纹是 <code>count(*) + sum(hash(concat_ws('\x1f', COLUMNS(*))))</code>，覆盖全部列。</p>
 
 <h3>⑧ 复跑一条命令（回补，手动、非定时）</h3>
 <pre>cd /srv/share/quantdb/raw/industry_alt/exchange_daily_quotes
@@ -167,8 +172,18 @@ PY
 
 # ② raw 层：改前的 data.csv / manifest.json 留档在 /srv/share/quantdb/raw/_backup-work578/
 cp /srv/share/quantdb/raw/_backup-work578/data.csv \
-   /srv/share/quantdb/raw/industry_alt/exchange_daily_quotes/data.csv</pre>
-<p>抓取脚本本身不回滚也不影响老数据：默认窗口 7 天，不带参数调用只是「补最近几天」，不会删行。</p>
+   /srv/share/quantdb/raw/industry_alt/exchange_daily_quotes/data.csv
+
+# ③ 重建装载审计并复跑闸（只删行会让 C5「审计与现状一致」变红）
+cd /srv/share/quantdb/code/quant-lab
+for i in 1 2; do
+  QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$$PWD \
+    flock -w 1800 /srv/share/quantdb/logs/.quantdb-db.lock \
+    /home/moyongkai/.venvs/quantdb/bin/python -m db.etl.industry load --sources exchange_daily_quotes
+done
+QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$$PWD \
+  /home/moyongkai/.venvs/quantdb/bin/python -m db.checks.industry all</pre>
+<p>抓取脚本本身不回滚也不影响老数据：默认窗口 7 天、且只覆盖窗口内日期，不会删行。</p>
 
 <h2 id="s8">8. 附录</h2>
 <h3>8.1 本次改动的文件</h3>

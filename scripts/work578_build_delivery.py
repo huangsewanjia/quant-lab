@@ -4,8 +4,10 @@
     QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \\
       /home/moyongkai/.venvs/quantdb/bin/python scripts/work578_build_delivery.py
 
-数据全部现场读主库（只读）与 meta/industry/work578-*.json，不手抄数字；
-HTML 骨架在同目录的 work578_delivery.tpl.html（string.Template，$ 占位）。
+纪律：
+  * 所有数字现场读主库（只读）与 meta/industry/work578-*.json，不手抄、**不设默认值**；
+  * 证据文件缺失时直接退出（fail-closed），不生成「看起来 PASS」的页面；
+  * HTML 骨架在同目录的 work578_delivery.tpl.html（string.Template，$ 占位）。
 """
 from __future__ import annotations
 
@@ -29,6 +31,7 @@ HERE = Path(__file__).resolve().parent
 TEMPLATE = HERE / "work578_delivery.tpl.html"
 OUT = HERE.parent / "docs" / "DELIVERY-WORK-578.html"
 TABLE = "industry_exchange_daily_quotes"
+BACKFILL_LOG = "/srv/share/quantdb/logs/work578-backfill.log"
 
 plt.rcParams.update({
     "font.family": "serif",
@@ -59,13 +62,13 @@ def _b64(fig) -> str:
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
 
-def figure_coverage() -> str:
-    """上游实测边界 vs 本次交付窗口。"""
+def figure_coverage(first, last, dates: int) -> str:
+    """上游实测边界 vs 本次交付窗口（窗口端点来自库内实值）。"""
     import datetime as dt
     rows = [
-        ("上期所 .dat 归档（实测最早 2002-01-07）", dt.date(2002, 1, 7), dt.date(2026, 11, 25), MUTED),
-        ("广期所 碳酸锂（2023-07-21 上市）", dt.date(2023, 7, 21), dt.date(2026, 11, 25), MUTED),
-        ("本次交付窗口（259 个交易日）", dt.date(2025, 11, 3), dt.date(2026, 11, 25), ACCENT),
+        ("上期所 .dat 归档（实测最早 2002-01-07）", dt.date(2002, 1, 7), last, MUTED),
+        ("广期所 碳酸锂（2023-07-21 上市）", dt.date(2023, 7, 21), last, MUTED),
+        (f"本次交付窗口（{dates} 个交易日）", first, last, ACCENT),
     ]
     fig, ax = plt.subplots(figsize=(6.3, 1.9))
     for y, (label, a, b, color) in enumerate(rows):
@@ -121,9 +124,15 @@ def figure_series(c) -> str:
     return _b64(fig)
 
 
-def jload(name: str) -> dict:
-    p = META / name
-    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+def jload(name: str, why: str) -> dict:
+    path = META / name
+    if not path.exists():
+        raise SystemExit(
+            f"[delivery] 缺证据文件 {path}（{why}）。先跑：\n"
+            f"  python scripts/work578_verify.py astock --against /srv/backup/quantdb/db/quantdb.duckdb\n"
+            f"并保留 {META/'work578-astock-baseline.json'}；不允许用默认值假装 PASS。"
+        )
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def main() -> int:
@@ -131,12 +140,15 @@ def main() -> int:
     total, dates, first, last = c.execute(
         f"SELECT count(*), count(DISTINCT trade_date), min(trade_date), max(trade_date) "
         f"FROM {TABLE}").fetchone()
+    per_day = c.execute(
+        f"SELECT min(n), max(n) FROM (SELECT trade_date, count(*) n FROM {TABLE} "
+        f"GROUP BY 1)").fetchone()
     by_ex = c.execute(
         f"SELECT exchange, count(*) n, count(DISTINCT trade_date) d, count(DISTINCT contract) cs "
         f"FROM {TABLE} GROUP BY 1 ORDER BY 1").fetchall()
     catalog = c.execute("SELECT count(*) FROM data_catalog").fetchone()[0]
     tabs = c.execute("SELECT count(*) FROM information_schema.tables "
-                     "WHERE table_type='BASE TABLE'").fetchone()[0]
+                     "WHERE table_schema='main' AND table_type='BASE TABLE'").fetchone()[0]
     audits = c.execute(
         "SELECT run_id, raw_rows, staged_rows, loaded_rows, partitions, finished_at "
         "FROM industry_load_audit WHERE table_name=? ORDER BY finished_at DESC LIMIT 2",
@@ -145,9 +157,15 @@ def main() -> int:
         f"SELECT min(close), max(close) FROM {TABLE} WHERE exchange='GFEX' AND contract='碳酸锂'"
     ).fetchone()
 
-    astock = jload("work578-astock-result.json")
-    before = jload("work578-astock-baseline.json").get("exchange_before", {})
-    fig1, fig2 = figure_coverage(), figure_series(c)
+    astock = jload("work578-astock-result.json", "A 股零 diff 证据")
+    before = jload("work578-astock-baseline.json", "回补前交易所表规模").get("exchange_before")
+    if not before:
+        raise SystemExit("[delivery] work578-astock-baseline.json 缺 exchange_before，重跑 snapshot")
+    if "zero_diff" not in astock or "tables" not in astock:
+        raise SystemExit("[delivery] work578-astock-result.json 缺 zero_diff/tables，重跑 astock")
+
+    fig1 = figure_coverage(first, last, dates)
+    fig2 = figure_series(c)
     c.close()
 
     ex_rows = "".join(
@@ -158,30 +176,38 @@ def main() -> int:
         f"<tr><td><code>{a[0]}</code></td><td class='n'>{a[1]:,}</td><td class='n'>{a[2]:,}</td>"
         f"<td class='n'>{a[3]:,}</td><td class='n'>{a[4]}</td><td>{a[5]}</td></tr>"
         for a in audits)
+    per_day_text = (f"每个交易日恒 {per_day[0]} 行（{dates} × {per_day[0]} = {total:,}）"
+                    if per_day[0] == per_day[1] else
+                    f"每交易日行数在 {per_day[0]}–{per_day[1]} 之间，合计 {total:,}")
+    astock_line = (f"与 {astock.get('against', '当日基线')} 逐表**行数 + 全列哈希**比对："
+                   f"{astock['zero_diff']}/{astock['tables']} 一致")
 
     html = Template(TEMPLATE.read_text(encoding="utf-8")).substitute(
         total=f"{total:,}",
         dates=str(dates),
         first=str(first),
         last=str(last),
-        before_dates=str(before.get("dates", 1)),
-        before_rows=str(before.get("rows", 84)),
+        before_dates=str(before.get("dates")),
+        before_rows=str(before.get("rows")),
         ex_rows=ex_rows,
         sum_ex=f"{sum_ex:,}",
         sum_expr=" + ".join(f"{r[1]:,}" for r in by_ex),
-        row_check=f"{dates * 84:,}",
+        per_day_text=per_day_text,
         tabs=str(tabs),
         catalog=str(catalog),
-        zero_diff=str(astock.get("zero_diff", 20)),
+        astock_line=astock_line,
+        zero_diff=str(astock["zero_diff"]),
+        astock_tables=str(astock["tables"]),
         audit_rows=audit_rows,
         lc_min=f"{lc_min:,.0f}",
         lc_max=f"{lc_max:,.0f}",
+        backfill_log=BACKFILL_LOG,
         fig1=fig1,
         fig2=fig2,
     )
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(html, encoding="utf-8")
-    print(f"[delivery] {OUT} ({len(html):,} 字符，两张图 base64 内嵌)")
+    print(f"[delivery] {OUT} ({len(html):,} 字符，两张图 base64 内嵌；per-day {per_day[0]}–{per_day[1]})")
     return 0
 
 

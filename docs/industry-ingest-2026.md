@@ -64,13 +64,13 @@ ls -d /srv/share/quantdb/raw/industry_alt/*/    # 7
 | 11 | comtrade_trade_values | 5 / 2024 | 30 / **2019..2024**（5 HS × 6 年） | preview 接口按年可用；HS 854143（光伏组件）在 2019–2021 返回空 |
 | 12 | cnesa_storage | 2 / 2026-01 | 未改 | 只有年度摘要页，改造属另单 |
 | 13 | benchmark_public_index | 26 / 2026-11-23 | 未改 | 页面临时快照，上游无历史序列 |
-| 14 | exchange_daily_quotes | 84 / 2026-11-23 | 21,756 / **2025-11-03**..2026-11-25（259 交易日；WORK-578 回补，见 §10.7） | 一次抓一个交易日：SHFE `kxYYYYMMDD.dat` 归档实测最早 2002-01-07，GFEX 碳酸锂 2023-07-21 上市 |
+| 14 | exchange_daily_quotes | 84 / 2026-11-23 | 21,756 / **2025-11-03**..2026-11-25（259 交易日；WORK-578 回补，**未计入本行合计 241,892**，见 §10.7） | 上游按交易日发布（SHFE `kxYYYYMMDD.dat` 归档实测最早 2002-01-07；GFEX 碳酸锂 2023-07-21 上市），脚本按交易日循环 |
 | 15 | ppi_spot_prices | 32 / 2026-11-20..2026-11-23 | 未改 | 厂商挂牌价当日快照 |
 | 16 | sne_public_battery | 8 / 2026-11-04..2026-11-11 | 未改 | 新闻稿列表，无月度数值序列 |
 | 17 | trendforce_spot_price | 44 / 2026-11-23 | 未改 | 现货页当日快照 |
 
 合计：**16,834 → 241,892 行**（17 表逐行相加，见 §10.4 的复跑命令）。
-WORK-578 单独回补第 14 行交易所表后再 **+21,672 行**（84 → 21,756，口径与复跑见 §10.7）；该增量不含在本行 241,892 内，避免与 §11 的增量装载口径混算。
+「241,892」是 **WORK-578 之前**的口径；若按本表第 14 行显示的回补后值列相加则为 **263,564 = 241,892 + 21,672**。两数都只对应 18:00 那个时点——之后 WORK-576 的日频 timer 又在装载，库内 17 表合计会继续变（实时值用 `verify.py shape` 读，不要引用本节快照数）。
 
 ## 3. 复跑命令（绝对路径）
 
@@ -439,14 +439,18 @@ done
 结论：SHFE 归档最早可下载日实测 **2002-01-07**（2002-01-04 与更早的 2001-12-28 均 404；节假日也会 404，故只以「交易日」判定）；
 GFEX 碳酸锂自 **2023-07-21** 上市起有数据。本单按验收口径只回补最近 1 年，更早历史未逐日探测，也不在本单承诺内。
 
-抓取脚本改动（`fetch.py`，改动前 78 行、sha256 见下）：
+抓取脚本改动（`fetch.py`）。**改前那一版没有留档**（20:08 首次改写前未备份，属本单疏漏；全盘只有当前版本），因此代码层面无法逐字节回滚，只能按下面的改动清单还原语义；数据层回滚不依赖它（见本节末）。当前版本 sha256 见表末。
 
 - 按交易日循环：交易日历取主库 `trade_cal`（`exchange='SSE'`，与两个期货所节假日一致），取不到时退回周一至周五并在 `manifest.params.calendar` 标 `weekday-fallback`；
 - `--from/--to`（YYYYMMDD 或 YYYY-MM-DD）、`--days N`（默认 **7**，日常增量窗口）、`--resume`（默认开）、`--no-resume`、`--sleep`（默认 1.1 秒）、`--calendar db|weekdays`、`--retries`（默认 3）；
 - `--resume` 的「已抓」判据是**该日已抓齐**而不是「CSV 里有这一天」：SHFE 必有，且 >= 碳酸锂上市日 2023-07-21 时 GFEX 也必有；只有一所的残缺日会被重抓补一所（记入 `manifest.params.incomplete_days_refetched`），避免一次瞬时失败留下永不修复的洞；
 - 失败逐条落 `failed.json`（`trade_date` + `source` + `method` + `url` + `http_status` + `error`），不写占位行、不估算补数；403/429/5xx/网络错误按 2s→5s 退避，最多 3 次尝试；
 - `manifest.json` 增 `params`（起止日、交易日数、抓取数、跳过数、残缺重抓日、请求数、重试数、失败日清单、`resume` 标志、耗时）与 `coverage`（首末日、distinct 交易日、按交易所行数）。
-- 当日/未来交易日上游尚未发布（SHFE `.dat` 404 且 GFEX 空）时记 `pending_days`，**不计入失败日**——定时任务 06:10 跑必然命中这一天；只有一所成功、另一所失败的残缺日仍记失败日，留待下一轮补齐。
+- 未来交易日不请求、记 `pending_days`；「今天」上游未发布也记 pending 并把请求详情放 `pending_requests`，均不计入失败日；
+- 写 CSV 前取 `<目录>/.fetch.lock` 排他锁（`--lock-timeout`，默认 600 秒），CSV 用 `data.csv.tmp.<pid>` 原子替换；
+- 失败清单每次运行另存 `failed-<run_id>.json`，重放不会抹掉回补那次的记录；
+- 退出码：个别历史缺日返回 0（不拖垮 timer）；「有交易日、有失败、一行未取到」返回 1，让 timer 告警；
+- `--days N` 是**含 `--to`** 的 N 个自然日（默认 7 → 7 天窗口）。
 
 回补实测（统计时点 2026-11-25 20:19 Asia/Shanghai，日志 `/srv/share/quantdb/logs/work578-backfill.log`）：
 
@@ -478,8 +482,10 @@ jq -c '{rows, csv_sha256, p: .params | {trading_days, trading_days_fetched, trad
 
 残缺日修复实测：把 `2026-11-24` 的 12 行 GFEX 从 CSV 删掉，再跑 `--from 20261124 --to 20261124` →
 `incomplete_days_refetched=["20261124"]`、`http_calls=2`、该日行数回到 84，CSV 摘要回到 `2ac82165…`（与删除前逐字节相同）。
-另有一条上游行为实测：`--to` 取到「今天」时，夜盘后可取到**次日**的 SHFE 文件（21:00 请求 `kx20261126.dat` 返回 200、72 行），
-而当日 GFEX 还没有数据 → 该日按残缺日处理；定时任务的默认窗口止于当天，不受影响。
+上游行为实测：夜盘后 SHFE 会提前给出**次日**文件（21:00 请求 `kx20261126.dat` 返回 200、72 行），而 GFEX 当天还没有数据。
+代码对**未来交易日一律不取**（`date > today` → 记 `pending_days`，0 请求），避免把「半个预发行日」写进 CSV；
+「今天」若上游还没发布则记 `pending_days` 且请求详情进 `pending_requests`，不算失败日。
+另注：`trade_cal` 由 18:30 的日频任务刷新，06:10 的定时档里「今天」通常还不在 `dates` 中，所以 pending 主要在手工作业时出现。
 
 装载与幂等（写库一律 `flock /srv/share/quantdb/logs/.quantdb-db.lock`）：
 
@@ -516,19 +522,29 @@ import duckdb
 con = duckdb.connect("/srv/share/quantdb/db/quantdb.duckdb")
 con.execute("delete from industry_exchange_daily_quotes where trade_date <> DATE '2026-11-23'")
 PY
-# 抓取脚本与 raw：改前版本留档在 /srv/share/quantdb/raw/_backup-work578/
-#   data.csv / manifest.json / industry-ingest-2026.md.before-work578
+# raw 与文档留档在 /srv/share/quantdb/raw/_backup-work578/（data.csv / manifest.json / 旧文档）
+# 抓取脚本改前版本未留档，见上文说明
+
+# 重建装载审计并复跑闸：只删行会让 C5（审计与现状一致）变红
+cd /srv/share/quantdb/code/quant-lab
+for i in 1 2; do
+  QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
+    flock -w 1800 /srv/share/quantdb/logs/.quantdb-db.lock \
+    /home/moyongkai/.venvs/quantdb/bin/python -m db.etl.industry load --sources exchange_daily_quotes
+done
+QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
+  /home/moyongkai/.venvs/quantdb/bin/python -m db.checks.industry all
 ```
 
 产物摘要（交付时锁定，`sha256sum` 复核）：
 
 | 文件 | sha256 |
 |---|---|
-| `raw/industry_alt/exchange_daily_quotes/fetch.py` | `1ae5a1745a9ce2d4314ca347231a652102cb6f19527900e9feee6e6d70f5f63e` |
+| `raw/industry_alt/exchange_daily_quotes/fetch.py` | `d7ca4aab268e9c1563c66a78497d9e47c1dff3bd7de22b87b42e734b865d03c7` |
 | `raw/industry_alt/exchange_daily_quotes/data.csv` | `2ac82165a0e3567de34ca188d25bcccaa70bee1ec119a0d452b0c19c7de9db98` |
-| `code/quant-lab/scripts/work578_verify.py` | `8105c0d1122a48a78dfc3ce038ec435bd2cdf18d7125be08d0b5905711241baf` |
-| `code/quant-lab/scripts/work578_build_delivery.py` | `a6e7d9470080003133748bef0da0132c1f83fc09a1ae618c0691575015db911d` |
-| `code/quant-lab/scripts/work578_delivery.tpl.html` | `1b1d1eeb150e7ceb757f66f512beb61f6bc86966c377521de114b347a19427ee` |
+| `code/quant-lab/scripts/work578_verify.py` | `8e1d011f238f0d451376d68960b936b2bfa3c4401b82ebf365b84dd5fe634c8b` |
+| `code/quant-lab/scripts/work578_build_delivery.py` | `6adce20a4ed1cb28ba4e91a56638131ca6cbb1744a9ca8212f0c298f5cb64475` |
+| `code/quant-lab/scripts/work578_delivery.tpl.html` | `ca8e7728caf3768b8fd187737245f85a35a2a2e68292591d9c6360140f017c8f` |
 | `code/quant-lab/docs/industry-ingest-2026.md` | 随本单 git 提交锁定（提交 sha 见 issue 交付评论；文件自身内容哈希无法自引用） |
 
 ## 11. 定时抓取改增量（WORK-576，2026-11-25）
