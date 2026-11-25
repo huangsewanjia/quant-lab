@@ -299,3 +299,37 @@ def test_extract_one_reads_gzip_body(tmp_path):
     )
     assert record["status"] == "ok"
     assert {v["fiscal_year"] for v in record["values"]} == {2024, 2025}
+
+
+REALISTIC_HTML = """<html><head><title>贵州茅台(600519)：Q1开门红</title></head><body>
+<div class="report-header"><h1>贵州茅台(600519)</h1><p>投资要点：</p></div>
+<div class="report-content">
+<p>事件：公司发布2024年一季报，实现营业总收入464.7亿元，同比+18.1%。</p>
+<p>我们微调盈利预测，预计2024-2026年EPS分别为68.50/79.10/90.20元，对应PE 25/22/19倍，维持“买入”评级。</p>
+<table class="data-table">
+<thead><tr><th>指标</th><th>2023A</th><th>2024E</th><th>2025E</th><th>2026E</th></tr></thead>
+<tbody>
+<tr><td>营业总收入(百万元)</td><td>147,694</td><td>172,000</td><td>198,000</td><td>225,000</td></tr>
+<tr><td>每股收益(元)</td><td>59.49</td><td>68.50</td><td>79.10</td><td>90.20</td></tr>
+<tr><td>市盈率(倍)</td><td>28.6</td><td>25.0</td><td>22.0</td><td>19.0</td></tr>
+</tbody></table>
+<p>风险提示：宏观需求不及预期。</p>
+</div>
+<script>window.__DATA__ = {"每股收益": 999};</script>
+</body></html>"""
+
+
+def test_realistic_page_prefers_table_and_ignores_other_rows():
+    text = html_to_text(REALISTIC_HTML)
+    values = {v.fiscal_year: v for v in extract_eps(text, {2024, 2025, 2026})}
+    assert {y: v.eps for y, v in values.items()} == {2024: 68.50, 2025: 79.10, 2026: 90.20}
+    assert all(v.extractor == "table_eps_row" for v in values.values())
+    assert "147,694" not in " ".join(v.raw_text for v in values.values())
+
+
+def test_realistic_page_without_eps_table_falls_back_to_text():
+    html = REALISTIC_HTML.replace("每股收益(元)</td><td>59.49</td><td>68.50</td><td>79.10</td><td>90.20",
+                                   "每股收益(元)</td><td>—</td><td>—</td><td>—</td><td>—")
+    values = {v.fiscal_year: v for v in extract_eps(html_to_text(html), {2024, 2025, 2026})}
+    assert {y: v.eps for y, v in values.items()} == {2024: 68.50, 2025: 79.10, 2026: 90.20}
+    assert all(v.extractor == "text_range" for v in values.values())

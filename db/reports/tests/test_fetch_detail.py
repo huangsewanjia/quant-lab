@@ -243,7 +243,8 @@ def test_attempts_today_counts_only_today(tmp_path):
     assert attempts_today(paths, today) == 2
 
 
-def test_resolve_lightpanda_requires_explicit_binary():
+def test_resolve_lightpanda_requires_explicit_binary(monkeypatch):
+    monkeypatch.delenv("LIGHTPANDA_BIN", raising=False)
     with pytest.raises(SystemExit):
         resolve_lightpanda("")
 
