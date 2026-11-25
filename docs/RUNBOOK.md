@@ -141,8 +141,28 @@ cd /srv/backup/quantdb
 sha256sum -c SHA256SUMS --quiet
 ```
 
-现有 `backup-nightly.timer` 每天 03:30 先做这一步，再跑原来的 borg。`backup-nightly.service`
-在 WORK-529 之前就处于 failed 状态；本单没有改 borg 逻辑，borg 的原始错误需单独处理。
+现有 `backup-nightly.timer` 每天 03:30 依次做四件事：冷备 rsync + `SHA256SUMS` 自校验 →
+三个 `pg_dump` → `borg create` → `borg prune` / `borg compact`。WORK-559（2026-11-25）起：
+
+- docker 调用统一走 `dk()`（`/usr/bin/sg docker -c`）：`systemd --user` 会话不继承 `docker`
+  补充组（见 `ENVIRONMENT.md`）。不用 sudo、不改 socket 权限。
+- 每个 dump 先写 `<file>.part`，校验大小、`PGDMP` 头与 `pg_restore -l` 归档目录后才改名；
+  失败即删，不留 0 字节文件。
+- 任一步失败，日志写「失败步骤 / 库 / 退出码 / stderr 首行」，例如
+  `失败步骤：borg create snap-…；退出码=1；stderr 首行=/srv/share/lost+found: dir_open: …`。
+- `borg create` 排除两个卷的 `lost+found`（root-only，borg 读到会退 1，归档其实已写成）。
+- `TimeoutStartSec=6h`：实测一次完整运行 3 小时 53 分（含冷备 27 分、borg 3 小时 23 分 /
+  566.6 GB / 719,192 文件），余量约 2 小时；脚本对 SIGTERM/SIGINT 有 trap，真超时也会写日志并建告警单。
+- 2026-11-20 ~ 11-25 六个 0 字节 dump 未删除，隔离在
+  `/srv/backup/dumps/_zero-byte-20261120-20261125/`，撤销方式见该目录 `LIST.txt`。
+
+排错入口：
+
+```bash
+tail -50 /srv/share/quantdb/logs/backup-$(date +%Y%m%d).log
+systemctl --user show backup-nightly.service -p Result -p ExecMainStatus
+BORG_REPO=/srv/backup/borg BORG_PASSCOMMAND="systemd-creds --user decrypt $HOME/.config/multica/secrets/BORG_PASSPHRASE.cred" borg list --short | tail
+```
 
 ### 9.1 定时任务
 

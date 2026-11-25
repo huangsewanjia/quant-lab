@@ -14,11 +14,26 @@
 - `pg_restore -l` 读不出归档目录即判失败（不再把「头部正常」当通过）。本机客户端落后于容器
   归档格式时会明确报 `unsupported version` 并停止，需升级客户端——宁可响，不可静默收下损坏文件。
 - 失败归属细化：进目录失败单独报「进入 <dir>」；每步的临时文件收敛到一次运行一个
-  `/tmp/backup-nightly-XXXXXX/` 目录，中断遗留的目录与 `*.dump.part*` 在下次启动时按 `find -mtime +1`（≥48 小时）清理。
+  `/tmp/backup-nightly-XXXXXX/` 目录，中断遗留的目录与 `*.dump.part*` 在下次启动时按
+  `find -mtime +1` 清理。
+- `borg create` 按 `EXCLUDES` 显式排除不可读路径（`/srv/share/lost+found`、
+  `/srv/data/lost+found`、`/srv/share/catl/pgdata`、`/srv/data/multica/node_modules`），
+  清单每次都写进日志。前两个是 fsck 的 root-only 目录，第三个是容器内 postgres 的
+  data 目录（uid 70）；borg 读到都报 `dir_open: [Errno 13]` 并以退出码 1 结束，虽然归档
+  已写完（实测 566.6 GB / 719,192 文件），unit 仍被判 failed。
+- 冷备 `SHA256SUMS` 自校验被并发写打断时整步重试一次（`cold_copy()`）：2026-11-25 当天
+  11:07、12:30、16:57、17:13 共四次，全部发生在 WORK-568 改写 `raw/industry` 期间。
+  重试只重复「rsync + 从源建 manifest + 对副本校验」，不跳过任何校验。
+- 主流程加 `trap on_signal TERM 143 / INT 130`：`TimeoutStartSec` 到期被 SIGTERM 时
+  补一行「失败步骤 + 退出码」并走 `alert_failure`，不再出现「被杀、无日志、无告警」。
+- `TimeoutStartSec=6h` 保留不动：实测一次完整运行 3 小时 53 分（冷备 27 分 + borg 3 小时
+  23 分 / 566.6 GB / 719,192 文件），距上限还有约 2 小时，本次未改 unit；SIGTERM trap 保证
+  万一超时也能留下日志与告警，而不是静默消失。
 
 文档：
 
 - `docs/ENVIRONMENT.md` 记录「systemd --user 不继承补充组」的实测与 `sg docker` 绕过方式。
+- `docs/RUNBOOK.md` §9 重写：四步顺序、失败日志格式、12h 上限、0 字节隔离目录与排错入口。
 - `db/README.md` 删除「borg 原始错误仍需单独处理」一条（已在本单修复）。
 
 ## 2026-11-23 · WORK-537 外资研报公开层渠道清单与可抓性实测

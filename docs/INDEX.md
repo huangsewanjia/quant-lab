@@ -32,6 +32,7 @@
 - [UI-INVENTORY.md](UI-INVENTORY.md)：命令行入口清单（本项目无图形界面）。
 - [DELIVERY.html](DELIVERY.html)：WORK-513 单文件交付说明。
 - [../DELIVERY.html](../DELIVERY.html)：WORK-529 单文件交付说明。
+- [DELIVERY-WORK-559.html](DELIVERY-WORK-559.html)：WORK-559 夜间备份恢复的单文件交付说明（实测证据、根因链、回滚）。
 - [../CHANGELOG.md](../CHANGELOG.md)：代码与文档变更记录。
 
 ## 当前状态
