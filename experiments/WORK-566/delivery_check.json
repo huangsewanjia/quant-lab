@@ -1,0 +1,118 @@
+{
+  "experiment": "WORK-566",
+  "checks": [
+    {
+      "id": "C1",
+      "name": "16 个臂×种子预测产物齐备且 test 长度正确",
+      "pass": false,
+      "detail": "缺失 ['seed42/s1_only', 'seed42/s3_only', 'seed42/s1_s2', 'seed42/full', 'seed42/r0', 'seed42/r1', 'seed42/r2', 'seed42/r3', 'seed2024/s1_only', 'seed2024/s3_only', 'seed2024/s1_s2', 'seed2024/full', 'seed2024/r0', 'seed2024/r1', 'seed2024/r2', 'seed2024/r3']；异常 无",
+      "measured": {
+        "n_pred_files": 0,
+        "n_test": 2949469
+      },
+      "expected": {
+        "n_pred_files": 16,
+        "n_test": 2949469
+      }
+    },
+    {
+      "id": "C2",
+      "name": "关键产物齐备",
+      "pass": true,
+      "detail": "缺失 无",
+      "measured": {
+        "n_present": 20
+      },
+      "expected": {
+        "n_present": 20
+      }
+    },
+    {
+      "id": "C3",
+      "name": "独立复算 BLOCKING = 0（可进入研究备忘录）",
+      "pass": true,
+      "detail": "audit conclusion = PASS —— 可进入研究备忘录",
+      "measured": {
+        "blocking": 0,
+        "pass": 24
+      },
+      "expected": {
+        "blocking": 0
+      }
+    },
+    {
+      "id": "C4",
+      "name": "H1 判词与预注册阈值一致",
+      "pass": true,
+      "detail": "ΔRankIC 中位数 = None pp，种子数 0 → 阈值档「未交付」，判词「未交付（有效种子 < 2）」",
+      "measured": {
+        "delta_median_pp": null,
+        "n_seeds": 0,
+        "verdict": "未交付（有效种子 < 2）"
+      },
+      "expected": {
+        "threshold": "进≥3.0 / 退≤1.0或负 / 部分复现(1,3) / 种子<2未交付"
+      }
+    },
+    {
+      "id": "C5",
+      "name": "报告 HTML 为单文件（无外链、无本地文件引用）",
+      "pass": true,
+      "detail": "外链 无；本地引用 无；大小 329 KB",
+      "measured": {
+        "n_external": 0,
+        "n_local_ref": 0,
+        "size_kb": 329
+      },
+      "expected": {
+        "n_external": 0,
+        "n_local_ref": 0
+      }
+    },
+    {
+      "id": "C6",
+      "name": "1440×900 首屏 PNG 与 A4 打印 PDF 齐备",
+      "pass": false,
+      "detail": "PNG None（0 B）；PDF 0 B",
+      "measured": {
+        "png_dim": null,
+        "png_bytes": 0,
+        "pdf_bytes": 0
+      },
+      "expected": {
+        "png_dim": [
+          1440,
+          900
+        ]
+      }
+    },
+    {
+      "id": "C7",
+      "name": "registry 登记行与最终评论正文已按最终产物重生成",
+      "pass": false,
+      "detail": "['registry_row.md: 仍含占位符', 'reply_body.md: 仍含占位符']",
+      "measured": {
+        "n_stale": 2
+      },
+      "expected": {
+        "n_stale": 0
+      }
+    },
+    {
+      "id": "C8",
+      "name": "预注册 commit 早于首个回测产物 commit（次序由 git log 可查）",
+      "pass": true,
+      "detail": "预注册 v1.0 = 16b24fb → 首个回测产物 = a3d8b88（git merge-base --is-ancestor 判定）",
+      "measured": {
+        "prereg_commit": "16b24fb",
+        "first_backtest_commit": "a3d8b88"
+      },
+      "expected": {
+        "ancestor": true
+      }
+    }
+  ],
+  "n_pass": 5,
+  "n_fail": 3,
+  "conclusion": "FAIL —— 3 项交付自检未通过"
+}
