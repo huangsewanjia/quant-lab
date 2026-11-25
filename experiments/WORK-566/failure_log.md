@@ -477,3 +477,59 @@ AssertionError: [ASSERT] 不可成交价：涨停股开盘买入被拒 stock=99 
   否则重建并重写指纹。指纹不匹配时日志明确打「陈旧（shape/指纹不匹配）→ 重建」。
 - **副作用（已观测）**：加校验后的**首次**运行会重建一次（sidecar 尚不存在），
   耗时约 265s（1.4GB @ ~5MB/s）；此后命中指纹直接复用，秒级。
+
+---
+
+## §13 整机 OOM —— 本单真正的拦路虎（2026-11-25 16:17）
+
+### 13.1 事实与取证
+- **现象**：两个种子的正式训练在 `epoch0 upd500`（16:11:49 / 16:11:45）之后**同时消失**，
+  日志无 traceback、无异常、无收尾行（Python 被 SIGKILL 的典型特征）。
+- **内核日志（`/var/log/kern.log`，可核对）**：
+
+  ```
+  2026-11-25T16:17:48.112419+08:00 Mo-server kernel: minio invoked oom-killer: gfp_mask=0x140cca(...), order=0
+  2026-11-25T16:17:48.187820+08:00 Mo-server kernel: oom-kill:constraint=CONSTRAINT_NONE,...,
+      task=python,pid=2645946,uid=1000
+  2026-11-25T16:17:48.187822+08:00 Mo-server kernel: Out of memory: Killed process 2645946 (python)
+      total-vm:7524052kB, anon-rss:1436012kB, file-rss:2920kB, shmem-rss:945184kB
+  2026-11-25T16:17:48.153... systemd[1584]: multica-daemon.service: Failed with result 'oom-kill'.
+  ```
+
+  同一条日志里还有 **10:47:35 的同型记录**（`Killed process 1534939 (python)` → 同一行
+  `multica-daemon.service: Failed with result 'oom-kill'`）。
+- **关键结论**：派单卡与平台提示里的「`daemon shut down while task was in flight`」
+  **不是平台自身故障，而是整机 OOM 的次生结果** —— OOM killer 同时杀了
+  `multica-daemon.service` 和我们的训练进程。触发方是 `minio` 的分配请求
+  （`minio invoked oom-killer`），`global_oom`（非 cgroup 限额）。
+
+### 13.2 内存账（为什么我们会被选中）
+| 项 | 数值 | 可回收性 |
+|---|---|---|
+| MemTotal | 15.6 GB | — |
+| SwapTotal / SwapFree | 8.0 GB / **0 MB** | **swap 已满 → 无法换出** |
+| Shmem（tmpfs 合计） | 3.7–4.1 GB | 其中本单 tmpfs 1.4 GB，**其余约 2.3 GB 属同机其他容器** |
+| Cached（页缓存） | 5.2–6.2 GB | 可回收（本单 warm_cache 占 3.5 GB：feat 2.9 GB + targets 0.65 GB） |
+| 本单训练进程 anon-rss | **每个 1.4 GB** | 不可回收 |
+| 本单 tmpfs 训练日期片 | 1.4 GB（两进程共享） | 需换出才能回收，而 **swap 已满** |
+
+- 硬占用（本单）：双进程并行 = 1.4×2 + 1.4 = **4.2 GB**；swap 为 0 时 tmpfs 等同不可回收内存。
+
+### 13.3 处置：两个种子改**顺序**跑（单进程 6 线程）
+- **为什么顺序**：本单训练是**计算受限**（编码器前反向），不是 I/O 受限；
+  8 vCPU 上双进程 4 线程合计吞吐 ≈ 单进程 6–8 线程，**总墙钟时间基本不变**；
+  但顺序跑把硬占用从 4.2 GB 降到 **2.8 GB**（anon 1.4 + tmpfs 1.4），
+  且**前一个种子的产物是安全的**，不会因一次 OOM 全部作废（并行时两个种子一起没）。
+- **未改任何协议口径**：batch 256 / 4 epoch × ≤1000 update / 6 epoch × ≤1000 date-group update /
+  stock-cap 1000 / val-stride 4 **全部保持预注册 §8 原值**；`--threads`、环境变量
+  `MALLOC_ARENA_MAX=2` 属纯算力/内存旋钮，不改变任何取值口径。
+- **进程脱离会话**：用 `setsid nohup ... &` 启动（`setsid` 自建 session，
+  `ps` 可见 PGID = PID），平台 daemon 重启或被杀**不会**打断训练进程。
+- **内存看门狗**：新增 `/tmp/w566_memwatch.sh`（每 10s 记 `MemAvailable/Shmem/Cached/SwapFree/trainRSS`
+  到 `/tmp/w566_mem.log`），OOM 前兆可回溯，不再出现「静默消失、无线索」。
+
+### 13.4 仍未关闭的风险
+- **swap 满 + 同机他人 tmpfs 2.3 GB**：本单无法控制。若他人 tmpfs 再涨 1 GB，仍可能再触发整机 OOM。
+- **build_reps 阶段的写放大**：每个种子要写 u 矩阵约 5 GB（train 1.6 + valid 0.53 + test 2.93），
+  脏页与页缓存同时抬升，是本单剩余阶段里**内存压力最高的时刻**。
+- 应对：顺序跑 + 看门狗 + `RUN_STATE.md` 续跑指引（任何一次中断后按指引续跑，不重新规划）。
