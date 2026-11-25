@@ -90,7 +90,8 @@ def run_backtest(panel, pred_stock, pred_val, pred_date, dates_sorted, cost, ass
     """
     n_days = len(dates_sorted)
     date_pos = {int(d): i for i, d in enumerate(dates_sorted)}
-    # 每个预测日的候选（按预测值降序，同值按 stock_idx 升序 → 论文「按预测文件的资产顺序」）
+    # 每个预测日的候选（按预测值降序；并列时保留「预测文件中的资产顺序」——论文原话
+    # "Ties are resolved by asset order in the prediction file"，用稳定排序实现）
     buckets = {}
     for k in range(len(pred_stock)):
         d = int(pred_date[k])
@@ -98,7 +99,7 @@ def run_backtest(panel, pred_stock, pred_val, pred_date, dates_sorted, cost, ass
             continue
         buckets.setdefault(d, []).append((float(pred_val[k]), int(pred_stock[k])))
     for d in buckets:
-        buckets[d].sort(key=lambda x: (-x[0], x[1]))
+        buckets[d].sort(key=lambda x: -x[0])      # 稳定排序 → 并列保持文件顺序
 
     cash = 1.0
     nav = np.full(n_days, np.nan)
@@ -161,7 +162,7 @@ def run_backtest(panel, pred_stock, pred_val, pred_date, dates_sorted, cost, ass
                     cost_amt += abs(u) * p
                     b["pos"][s] = b["pos"].get(s, 0.0) + u
                 cash -= cost_amt * cost
-                traded_notional[day] += cost_amt
+                traded_notional[i] += cost_amt
             b["entry_day"] = day
             batches.append(b)
         pending_entry = still_pending
@@ -177,7 +178,7 @@ def run_backtest(panel, pred_stock, pred_val, pred_date, dates_sorted, cost, ass
                     p = float(panel.close_hfq[s, lb])
                     u = b["pos"][s]
                     cash += u * p * 0.99        # 退市清算折价 1%
-                    traded_notional[day] += abs(u) * p
+                    traded_notional[i] += abs(u) * p
                     del b["pos"][s]
                     delist_liquidations += 1
                     continue
@@ -188,9 +189,13 @@ def run_backtest(panel, pred_stock, pred_val, pred_date, dates_sorted, cost, ass
                 p = float(panel.close_hfq[s, day])
                 u = b["pos"].pop(s)
                 cash += u * p
-                traded_notional[day] += abs(u) * p
+                traded_notional[i] += abs(u) * p
             if not b["pos"]:
-                batches.remove(b)
+                # 按身份删除（不能用 list.remove：两个批次字典可能相等）
+                for _bi in range(len(batches)):
+                    if batches[_bi] is b:
+                        batches.pop(_bi)
+                        break
                 b["exit_day"] = None
 
         # ---------------- 3. 估值
@@ -220,15 +225,16 @@ def run_backtest(panel, pred_stock, pred_val, pred_date, dates_sorted, cost, ass
                         n_skipped_suspend += 1
                     continue
                 picks.append(s)
-            if len(picks) >= K:
+            if len(picks) >= K and i + H_HOLD < n_days:
                 budget = min(v / H_HOLD, max(cash, 0.0) / (1.0 + cost))
                 if budget > 0:
                     plan = {}
                     for s in picks:
                         p = float(panel.open_hfq[s, int(dates_sorted[i + 1])])
                         plan[s] = budget * (1.0 / K) / p
+                    # 论文：批次维持固定持仓直到 t+H 收盘（H=21）→ 退出日 = 位置 i+H 的日历下标
                     b = {"plan": plan, "pos": {}, "budget": budget,
-                         "entry_day": None, "exit_day": i + 1 + H_HOLD}
+                         "entry_day": None, "exit_day": int(dates_sorted[i + H_HOLD])}
                     pending_entry.append((int(dates_sorted[i + 1]), b))
                     n_batches += 1
 

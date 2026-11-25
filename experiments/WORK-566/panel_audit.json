@@ -1,0 +1,563 @@
+{
+  "panel": {
+    "shape": [
+      5783,
+      3271,
+      40
+    ],
+    "n_dates": 3271,
+    "n_stocks": 5783,
+    "window": {
+      "start": 20130104,
+      "end": 20260626,
+      "n_dates": 3271
+    },
+    "built_at": "2026-11-25T11:59:40+0800",
+    "adjust": "后复权 hfq：logC = log(close_raw) + log(adj/adj_first)"
+  },
+  "dims": [
+    {
+      "idx": 0,
+      "name": "r_1",
+      "nan_ratio": 0.33830142,
+      "n_nonfinite": 6399375,
+      "mean": 0.000178,
+      "std": 0.032194,
+      "min": -7.438972,
+      "max": 7.335634
+    },
+    {
+      "idx": 1,
+      "name": "r_5",
+      "nan_ratio": 0.3419807,
+      "n_nonfinite": 6468973,
+      "mean": 0.000803,
+      "std": 0.072894,
+      "min": -7.509336,
+      "max": 7.438384
+    },
+    {
+      "idx": 2,
+      "name": "r_21",
+      "nan_ratio": 0.35115396,
+      "n_nonfinite": 6642496,
+      "mean": 0.002846,
+      "std": 0.14284,
+      "min": -7.649693,
+      "max": 8.219596
+    },
+    {
+      "idx": 3,
+      "name": "r_63",
+      "nan_ratio": 0.36962258,
+      "n_nonfinite": 6991852,
+      "mean": 0.008715,
+      "std": 0.229038,
+      "min": -7.549609,
+      "max": 7.562766
+    },
+    {
+      "idx": 4,
+      "name": "r_126",
+      "nan_ratio": 0.39103212,
+      "n_nonfinite": 7396839,
+      "mean": 0.019773,
+      "std": 0.300796,
+      "min": -6.701961,
+      "max": 7.055741
+    },
+    {
+      "idx": 5,
+      "name": "mom_21_5",
+      "nan_ratio": 0.35355243,
+      "n_nonfinite": 6687866,
+      "mean": 0.002351,
+      "std": 0.1252,
+      "min": -6.620073,
+      "max": 8.021256
+    },
+    {
+      "idx": 6,
+      "name": "mom_63_21",
+      "nan_ratio": 0.37432907,
+      "n_nonfinite": 7080881,
+      "mean": 0.006114,
+      "std": 0.188983,
+      "min": -7.900266,
+      "max": 8.101243
+    },
+    {
+      "idx": 7,
+      "name": "skew_21",
+      "nan_ratio": 0.36226703,
+      "n_nonfinite": 6852713,
+      "mean": 0.053901,
+      "std": 0.856747,
+      "min": -4.582572,
+      "max": 4.580313
+    },
+    {
+      "idx": 8,
+      "name": "vol_21",
+      "nan_ratio": 0.36226703,
+      "n_nonfinite": 6852713,
+      "mean": 0.027257,
+      "std": 0.013675,
+      "min": 3.6e-05,
+      "max": 2.061011
+    },
+    {
+      "idx": 9,
+      "name": "vol_63",
+      "nan_ratio": 0.40372236,
+      "n_nonfinite": 7636890,
+      "mean": 0.027862,
+      "std": 0.011321,
+      "min": 0.002736,
+      "max": 0.289845
+    },
+    {
+      "idx": 10,
+      "name": "vol_126",
+      "nan_ratio": 0.45495851,
+      "n_nonfinite": 8606083,
+      "mean": 0.0281,
+      "std": 0.00997,
+      "min": 0.004278,
+      "max": 0.159915
+    },
+    {
+      "idx": 11,
+      "name": "dvol_21",
+      "nan_ratio": 0.36226703,
+      "n_nonfinite": 6852713,
+      "mean": 0.018525,
+      "std": 0.009975,
+      "min": 0.0,
+      "max": 1.624121
+    },
+    {
+      "idx": 12,
+      "name": "pos_21",
+      "nan_ratio": 0.0,
+      "n_nonfinite": 0,
+      "mean": 0.475061,
+      "std": 0.231232,
+      "min": -4e-06,
+      "max": 1.000007
+    },
+    {
+      "idx": 13,
+      "name": "pos_63",
+      "nan_ratio": 0.0,
+      "n_nonfinite": 0,
+      "mean": 0.463894,
+      "std": 0.215243,
+      "min": -2e-06,
+      "max": 1.000002
+    },
+    {
+      "idx": 14,
+      "name": "dd_hi_63",
+      "nan_ratio": 0.40281573,
+      "n_nonfinite": 7619740,
+      "mean": -0.138934,
+      "std": 0.103682,
+      "min": -0.911378,
+      "max": 0.0
+    },
+    {
+      "idx": 15,
+      "name": "dev_ma21",
+      "nan_ratio": 0.36118526,
+      "n_nonfinite": 6832250,
+      "mean": 0.00261,
+      "std": 0.079438,
+      "min": -0.878645,
+      "max": 2.5762
+    },
+    {
+      "idx": 16,
+      "name": "pe_ttm",
+      "nan_ratio": 0.45791762,
+      "n_nonfinite": 8662058,
+      "mean": 158.762535,
+      "std": 8492.583277,
+      "min": 0.1334,
+      "max": 2653832.25
+    },
+    {
+      "idx": 17,
+      "name": "pb",
+      "nan_ratio": 0.34500806,
+      "n_nonfinite": 6526239,
+      "mean": 5.449374,
+      "std": 91.981815,
+      "min": 0.0226,
+      "max": 45723.566406
+    },
+    {
+      "idx": 18,
+      "name": "turnover_rate",
+      "nan_ratio": 0.34095048,
+      "n_nonfinite": 6449485,
+      "mean": 3.136396,
+      "std": 4.642427,
+      "min": 0.0,
+      "max": 106.483299
+    },
+    {
+      "idx": 19,
+      "name": "turnover_rate_f",
+      "nan_ratio": 0.34096982,
+      "n_nonfinite": 6449851,
+      "mean": 4.498559,
+      "std": 5.845414,
+      "min": 0.0,
+      "max": 824.816895
+    },
+    {
+      "idx": 20,
+      "name": "log_amount",
+      "nan_ratio": 0.33615252,
+      "n_nonfinite": 6358726,
+      "mean": 11.271608,
+      "std": 1.466326,
+      "min": 0.001,
+      "max": 18.315739
+    },
+    {
+      "idx": 21,
+      "name": "log_circ_mv",
+      "nan_ratio": 0.34095048,
+      "n_nonfinite": 6449485,
+      "mean": 13.087866,
+      "std": 1.194129,
+      "min": 5.753363,
+      "max": 19.604666
+    },
+    {
+      "idx": 22,
+      "name": "amihud_21",
+      "nan_ratio": 0.36226703,
+      "n_nonfinite": 6852713,
+      "mean": 7352.056605,
+      "std": 14433797.873105,
+      "min": 0.566503,
+      "max": 35445682176.0
+    },
+    {
+      "idx": 23,
+      "name": "amt_ratio_21",
+      "nan_ratio": 0.0,
+      "n_nonfinite": 0,
+      "mean": 0.645996,
+      "std": 0.587773,
+      "min": 0.0,
+      "max": 4.1897
+    },
+    {
+      "idx": 24,
+      "name": "exc_1",
+      "nan_ratio": 0.33830142,
+      "n_nonfinite": 6399375,
+      "mean": 0.0,
+      "std": 0.027482,
+      "min": -7.442203,
+      "max": 7.320733
+    },
+    {
+      "idx": 25,
+      "name": "exc_21",
+      "nan_ratio": 0.35115396,
+      "n_nonfinite": 6642496,
+      "mean": -0.00157,
+      "std": 0.117468,
+      "min": -8.031601,
+      "max": 8.058377
+    },
+    {
+      "idx": 26,
+      "name": "exc_63",
+      "nan_ratio": 0.36962258,
+      "n_nonfinite": 6991852,
+      "mean": -0.004994,
+      "std": 0.189444,
+      "min": -8.266733,
+      "max": 7.574899
+    },
+    {
+      "idx": 27,
+      "name": "exc_126",
+      "nan_ratio": 0.39103212,
+      "n_nonfinite": 7396839,
+      "mean": -0.008966,
+      "std": 0.256169,
+      "min": -7.104994,
+      "max": 7.262699
+    },
+    {
+      "idx": 28,
+      "name": "ew_r_1",
+      "nan_ratio": 0.0,
+      "n_nonfinite": 0,
+      "mean": 0.000302,
+      "std": 0.017814,
+      "min": -0.131331,
+      "max": 0.108068
+    },
+    {
+      "idx": 29,
+      "name": "ew_r_5",
+      "nan_ratio": 0.00122287,
+      "n_nonfinite": 23132,
+      "mean": 0.001544,
+      "std": 0.043256,
+      "min": -0.39221,
+      "max": 0.286088
+    },
+    {
+      "idx": 30,
+      "name": "ew_r_21",
+      "nan_ratio": 0.00611434,
+      "n_nonfinite": 115660,
+      "mean": 0.00643,
+      "std": 0.090896,
+      "min": -0.687156,
+      "max": 0.433258
+    },
+    {
+      "idx": 31,
+      "name": "ew_r_63",
+      "nan_ratio": 0.01895445,
+      "n_nonfinite": 358546,
+      "mean": 0.019855,
+      "std": 0.14782,
+      "min": -0.788505,
+      "max": 0.755136
+    },
+    {
+      "idx": 32,
+      "name": "ew_vol_21",
+      "nan_ratio": 0.00611434,
+      "n_nonfinite": 115660,
+      "mean": 0.015327,
+      "std": 0.008908,
+      "min": 0.005938,
+      "max": 0.069198
+    },
+    {
+      "idx": 33,
+      "name": "ew_vol_63",
+      "nan_ratio": 0.01895445,
+      "n_nonfinite": 358546,
+      "mean": 0.01593,
+      "std": 0.008101,
+      "min": 0.0068,
+      "max": 0.058355
+    },
+    {
+      "idx": 34,
+      "name": "disp_21",
+      "nan_ratio": 0.00642006,
+      "n_nonfinite": 121443,
+      "mean": 0.114427,
+      "std": 0.023718,
+      "min": 0.071283,
+      "max": 0.284129
+    },
+    {
+      "idx": 35,
+      "name": "disp_63",
+      "nan_ratio": 0.01926017,
+      "n_nonfinite": 364329,
+      "mean": 0.182939,
+      "std": 0.032013,
+      "min": 0.116896,
+      "max": 0.355746
+    },
+    {
+      "idx": 36,
+      "name": "breadth_up",
+      "nan_ratio": 0.0,
+      "n_nonfinite": 0,
+      "mean": 0.321211,
+      "std": 0.184094,
+      "min": 0.0,
+      "max": 0.922704
+    },
+    {
+      "idx": 37,
+      "name": "limit_up_ratio",
+      "nan_ratio": 0.0,
+      "n_nonfinite": 0,
+      "mean": 0.019179,
+      "std": 0.034194,
+      "min": 0.001254,
+      "max": 0.944241
+    },
+    {
+      "idx": 38,
+      "name": "mkt_turnover",
+      "nan_ratio": 0.0,
+      "n_nonfinite": 0,
+      "mean": 0.151238,
+      "std": 0.065253,
+      "min": 0.055524,
+      "max": 0.512373
+    },
+    {
+      "idx": 39,
+      "name": "ew_mom_21_5",
+      "nan_ratio": 0.00611434,
+      "n_nonfinite": 115660,
+      "mean": 0.004946,
+      "std": 0.079338,
+      "min": -0.736027,
+      "max": 0.330018
+    }
+  ],
+  "targets": [
+    {
+      "idx": 0,
+      "name": "y21",
+      "nan_ratio": 0.35115396,
+      "n_nonfinite": 6642496
+    },
+    {
+      "idx": 1,
+      "name": "R5",
+      "nan_ratio": 0.3419807,
+      "n_nonfinite": 6468973
+    },
+    {
+      "idx": 2,
+      "name": "V5",
+      "nan_ratio": 0.3419807,
+      "n_nonfinite": 6468973
+    },
+    {
+      "idx": 3,
+      "name": "M5",
+      "nan_ratio": 0.33624445,
+      "n_nonfinite": 6360465
+    },
+    {
+      "idx": 4,
+      "name": "E5",
+      "nan_ratio": 0.3419807,
+      "n_nonfinite": 6468973
+    },
+    {
+      "idx": 5,
+      "name": "R21",
+      "nan_ratio": 0.35115396,
+      "n_nonfinite": 6642496
+    },
+    {
+      "idx": 6,
+      "name": "V21",
+      "nan_ratio": 0.35115396,
+      "n_nonfinite": 6642496
+    },
+    {
+      "idx": 7,
+      "name": "M21",
+      "nan_ratio": 0.33624445,
+      "n_nonfinite": 6360465
+    },
+    {
+      "idx": 8,
+      "name": "E21",
+      "nan_ratio": 0.35115396,
+      "n_nonfinite": 6642496
+    }
+  ],
+  "has_bar": {
+    "total_bar_cells": 12557467,
+    "dates_with_zero_bar": 0,
+    "bars_per_date_min": 1363,
+    "bars_per_date_pct": {
+      "0": 1363,
+      "1": 2299,
+      "5": 2322,
+      "50": 3705,
+      "95": 5431,
+      "99": 5496,
+      "100": 5515
+    }
+  },
+  "test_window_bar_coverage": {
+    "window": [
+      20240102,
+      20260626
+    ],
+    "n_dates": 599,
+    "frac_dates_with_bar": 1.0,
+    "mean_bars_per_date": 5397.4,
+    "min_bars_per_date": 5301
+  },
+  "continuity": {
+    "rule": "窗口 [t-125, t+21] 共 147 个交易日每天都要有真实 bar",
+    "n_cells_total": 18916193,
+    "n_cells_valid": 10039167,
+    "valid_ratio": 0.530718,
+    "spot_check": {
+      "n": 20,
+      "n_ok": 12,
+      "all_ok": false,
+      "samples": [
+        {
+          "stock": 2583,
+          "date_idx": 1298,
+          "date": 20180510,
+          "need": 147,
+          "with_real_bar": 0,
+          "ok": false
+        },
+        {
+          "stock": 4958,
+          "date_idx": 554,
+          "date": 20150422,
+          "need": 147,
+          "with_real_bar": 0,
+          "ok": false
+        },
+        {
+          "stock": 200,
+          "date_idx": 1180,
+          "date": 20171113,
+          "need": 147,
+          "with_real_bar": 147,
+          "ok": true
+        },
+        {
+          "stock": 2188,
+          "date_idx": 224,
+          "date": 20131212,
+          "need": 147,
+          "with_real_bar": 0,
+          "ok": false
+        },
+        {
+          "stock": 5049,
+          "date_idx": 2214,
+          "date": 20220216,
+          "need": 147,
+          "with_real_bar": 0,
+          "ok": false
+        },
+        {
+          "stock": 3211,
+          "date_idx": 153,
+          "date": 20130826,
+          "need": 147,
+          "with_real_bar": 147,
+          "ok": true
+        }
+      ]
+    }
+  },
+  "feature_contract_dim": 40,
+  "contract_match": true
+}

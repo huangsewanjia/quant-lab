@@ -166,7 +166,7 @@ def main():
     def yr_glob(name, lo, hi):
         """按年份做分区裁剪：只读相关年份的 hive 分区，避免全量扫描。"""
         yrs = list(range(lo // 10000, hi // 10000 + 1))
-        parts = "+".join(f"'{RAW}/{name}/trade_date={y}*/**/*.parquet'" for y in yrs)
+        parts = ",".join(f"'{RAW}/{name}/trade_date={y}*/**/*.parquet'" for y in yrs)
         return f"read_parquet([{parts}], hive_partitioning=true, union_by_name=true)"
 
     print("\n== 分窗覆盖（daily）==", flush=True)

@@ -211,8 +211,8 @@ def main():
         h2.setdefault("per_seed", []).append(
             {"seed": seed, "n_days": len(common), "mean_diff_pp": point, "ci_lo": lo, "ci_hi": hi})
     if diffs:
-        allд = np.concatenate(diffs)
-        point, lo, hi = block_bootstrap_ci(allд)
+        all_diff = np.concatenate(diffs)
+        point, lo, hi = block_bootstrap_ci(all_diff)
         h2["pooled_mean_diff_pp"] = point
         h2["pooled_ci95"] = [lo, hi]
         h2["ci_contains_zero"] = bool(lo <= 0 <= hi)
@@ -249,8 +249,8 @@ def main():
             "note": ("算力降级配置下「相对论文缩水 ≤60%」只披露不判定（预注册 §11）；"
                      "净 SR < 0 → 直接判退 仍然生效"),
         }
-        if srs and max(srs) < 0:
-            verdict = "未复现（H3：净 SR < 0，直接判退）"
+        if srs and float(np.mean(srs)) < 0:
+            verdict = "未复现（H3：跨种子平均净 SR < 0，直接判退）"
             metrics["verdict"] = verdict
     metrics["H3"] = h3
     log(f"H3 full 净 SR = {h3.get('summary', {}).get('full_net_sr_mean')}")
@@ -291,7 +291,6 @@ def main():
                 dates = sorted(bm.keys())
                 nav = s["nav"]
                 # 用日收益对齐基准：基准按导航日序
-                idx_by_nav = np.searchsorted(dates, np.asarray(sorted(dates)))
                 row = {}
                 for kind, k in (("ew", 0), ("cap", 1)):
                     bench = np.asarray([bm[d][k] for d in dates], dtype=np.float64)

@@ -119,7 +119,21 @@ def main():
 
     m_train, m_valid, m_test = sel(TRAIN_LO, TRAIN_HI), sel(VALID_LO, VALID_HI), sel(TEST_LO, TEST_HI)
     m_fit = sel(FIT_LO, FIT_HI)
-    log(f"train {m_train.sum():,} / valid {m_valid.sum():,} / test {m_test.sum():,} / fit14_21 {m_fit.sum():,}")
+
+    # 论文 Table 3：'Samples whose target windows cross split boundaries are excluded.'
+    # → 样本 t 的 21 日结果窗必须整落在本切分内（t + 21 < 下一切分首日）。
+    def purge(m, next_lo):
+        b = int(np.searchsorted(cal, next_lo))
+        keep = (date_idx + H) < b
+        dropped = int((m & ~keep).sum())
+        log(f"  边界清洗：目标窗跨入 {next_lo} 之后切分的样本剔除 {dropped:,} 条")
+        return m & keep
+
+    n_raw = (m_train.sum(), m_valid.sum(), m_test.sum())
+    m_train = purge(m_train, VALID_LO)
+    m_valid = purge(m_valid, TEST_LO)
+    log(f"train {m_train.sum():,} / valid {m_valid.sum():,} / test {m_test.sum():,} / fit14_21 {m_fit.sum():,}"
+        f"（清洗前 {n_raw[0]:,} / {n_raw[1]:,} / {n_raw[2]:,}）")
 
     # ---------------------------------------------------------------- 全局标准化（仅训练切分）
     log("计算 40 维全局标准化统计（仅用训练切分 2014-2021）…")
@@ -128,7 +142,7 @@ def main():
     s2 = np.zeros(n_feat, dtype=np.float64)
     cnt_f = np.zeros(n_feat, dtype=np.int64)
     fit_idx = np.nonzero(m_fit)[0]
-    step = max(1, len(fit_idx) // 400)
+    step = max(1, len(fit_idx) // 20000)
     sub = fit_idx[::step]
     for k in range(0, len(sub), 20000):
         chunk = sub[k:k + 20000]
@@ -167,12 +181,15 @@ def main():
 
     blocks_out = {}
     for name, blo, bhi in BLOCKS:
-        bstart = date_index.get(blo, None)
-        if bstart is None:
-            log(f"  块 {name}: 起点 {blo} 不在日历内，跳过")
+        # 块起点用「不早于 blo 的第一个交易日」定位（1 月 1 日等非交易日须顺延）
+        bstart = int(np.searchsorted(cal, blo))
+        if bstart >= n_dates or cal[bstart] > bhi:
+            log(f"  块 {name}: 起点 {blo} 无对应交易日，跳过")
             continue
-        # 拟合池：结果窗结束于块开始之前的样本（t + 21 < 块起点索引）
-        pool = np.nonzero(date_idx + H < bstart)[0]
+        # 拟合池：结果窗完整落在块开始之前的样本（t + 21 < 块起点索引），
+        # 且样本日不早于 FIT_LO（论文的先验初装切分 = 2014-2021「prepared training split」，
+        # 避免把 2013 年的额外历史混进先验池）
+        pool = np.nonzero((date_idx + H < bstart) & (dts >= FIT_LO))[0]
         # 只保留「目标窗完整」（连续性已保证）
         if len(pool) == 0:
             blocks_out[name] = {"ok": False, "error": f"拟合池为空（块起点 {blo}）"}
@@ -183,22 +200,36 @@ def main():
             stride = int(np.ceil(len(pool) / FIT_POOL_MAX))
             pool = pool[::stride]
             thinned = True
-        # 标准化矩（块内拟合池）
-        sx = np.zeros(n_feat, dtype=np.float64)
-        sxx = np.zeros(n_feat, dtype=np.float64)
-        n_ok = np.zeros(n_feat, dtype=np.int64)
-        step = max(1, len(pool) // 300)
-        for k in range(0, len(pool), 20000):
+        # 拟合池特征/目标一次性读入内存（池 ≤3M × 40 float32 ≈ 480MB），
+        # 后续三趟（矩 / XtX / 残差）都在缓存上做，面板磁盘只读一遍。
+        n_pool = len(pool)
+        Xc = np.empty((n_pool, n_feat), dtype=np.float32)
+        Yc_all = np.empty((n_pool, 8), dtype=np.float32)
+        for k in range(0, n_pool, 20000):
             chunk = pool[k:k + 20000]
-            blk = np.asarray(feat[stock_idx[chunk], date_idx[chunk], :], dtype=np.float64)
-            ok = np.isfinite(blk)
-            sx += np.where(ok, blk, 0.0).sum(axis=0)
-            sxx += np.where(ok, blk ** 2, 0.0).sum(axis=0)
-            n_ok += ok.sum(axis=0)
+            xb, yb = gather(chunk)
+            Xc[k:k + len(chunk)] = xb
+            Yc_all[k:k + len(chunk)] = yb
+        del pool
+
+        # 标准化矩（块内拟合池）
+        blk64 = Xc.astype(np.float64)
+        ok = np.isfinite(blk64)
+        sx = np.where(ok, blk64, 0.0).sum(axis=0)
+        sxx = np.where(ok, blk64 ** 2, 0.0).sum(axis=0)
+        n_ok = ok.sum(axis=0)
+        del ok
         fmean = sx / np.maximum(n_ok, 1)
         fvar = np.maximum(sxx / np.maximum(n_ok, 1) - fmean ** 2, 0.0)
         fstd = np.sqrt(fvar)
         fstd[fstd < 1e-8] = 1.0
+        del sx, sxx
+
+        # 标准化 + 裁剪 [−8,8]（内存内，存 float32 以省内存）
+        Xs = ((blk64 - fmean) / fstd).astype(np.float32)
+        Xs[~np.isfinite(Xs)] = 0.0
+        np.clip(Xs, -8, 8, out=Xs)
+        del blk64, Xc
 
         # 累加 X'X, X'Y（标准化后）
         XtX = np.zeros((n_feat, n_feat), dtype=np.float64)
@@ -206,41 +237,45 @@ def main():
         Ysum = np.zeros(8, dtype=np.float64)
         Xsum = np.zeros(n_feat, dtype=np.float64)
         n_used = 0
-        for k in range(0, len(pool), 20000):
-            chunk = pool[k:k + 20000]
-            X, Y = gather(chunk)
-            Xs = (X - fmean) / fstd
-            Xs[~np.isfinite(Xs)] = 0.0
-            np.clip(Xs, -8, 8, out=Xs)
-            Yc = Y.astype(np.float64)
-            ok = np.isfinite(Yc).all(axis=1)
-            Xs, Yc = Xs[ok], Yc[ok]
-            XtX += Xs.T @ Xs
-            XtY += Xs.T @ Yc
-            Ysum += Yc.sum(axis=0)
-            Xsum += Xs.sum(axis=0)
-            n_used += len(Xs)
+        Yfin = np.isfinite(Yc_all).all(axis=1)
+        if not Yfin.all():
+            Xs = Xs[Yfin]
+            Yc_all = Yc_all[Yfin]
+        for k in range(0, len(Xs), 50000):
+            xb = Xs[k:k + 50000].astype(np.float64)
+            yb = Yc_all[k:k + 50000].astype(np.float64)
+            XtX += xb.T @ xb
+            XtY += xb.T @ yb
+            Ysum += yb.sum(axis=0)
+            Xsum += xb.sum(axis=0)
+            n_used += len(xb)
         if n_used == 0:
             blocks_out[name] = {"ok": False, "error": "拟合池中无有效样本"}
+            del Xs, Yc_all
             continue
+        # 联立求解「截距不惩罚」的岭回归：
+        #   (XtX + aI) W + Xsum c = XtY
+        #   Xsum^T W + n c = Ysum
+        # 特征已按块内矩标准化（列和≈0），此式给出与「先解 W 再补截距」完全一致的闭式解。
         A = XtX + ALPHA * np.eye(n_feat)
-        W = np.linalg.solve(A, XtY)                       # (40, 8)
-        c = Ysum / n_used - W.T @ (Xsum / n_used)          # 截距（不惩罚）
-        # 残差尺度（第二趟：此时 W 已定）
+        Ainv_XtY = np.linalg.solve(A, XtY)
+        Ainv_Xsum = np.linalg.solve(A, Xsum)
+        denom = n_used - float(Xsum @ Ainv_Xsum)
+        if abs(denom) < 1e-8:
+            denom = 1e-8
+        c = (Ysum - Xsum @ Ainv_XtY) / denom
+        W = Ainv_XtY - np.outer(Ainv_Xsum, c)
+        # 残差尺度（第三趟：此时 W 已定，仍在内存缓存上做）
         resid_sum = np.zeros(8, dtype=np.float64)
         resid_sq = np.zeros(8, dtype=np.float64)
-        for k in range(0, len(pool), 20000):
-            chunk = pool[k:k + 20000]
-            X, Y = gather(chunk)
-            Xs = (X - fmean) / fstd
-            Xs[~np.isfinite(Xs)] = 0.0
-            np.clip(Xs, -8, 8, out=Xs)
-            pred = c[None, :] + Xs @ W
-            Yc = Y.astype(np.float64)
-            ok = np.isfinite(Yc).all(axis=1)
-            e = Yc[ok] - pred[ok]
+        for k in range(0, len(Xs), 50000):
+            xb = Xs[k:k + 50000].astype(np.float64)
+            yb = Yc_all[k:k + 50000].astype(np.float64)
+            pred = c[None, :] + xb @ W
+            e = yb - pred
             resid_sum += e.sum(axis=0)
             resid_sq += (e ** 2).sum(axis=0)
+        del Xs, Yc_all
         ebar = resid_sum / n_used
         sres = np.sqrt(np.maximum(resid_sq / n_used - ebar ** 2, 1e-8))
         sig_res = np.log(np.maximum(sres / d_tr, 1e-4))

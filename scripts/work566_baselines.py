@@ -61,12 +61,20 @@ def main():
         y = np.asarray(tgt[stock[idx], date[idx], 0], dtype=np.float64)
         return (y - mu_y) / sd_y
 
-    # 按日期分组
+    def X_chunked(idx, chunk=200_000):
+        """分块取特征，避免一次性把百万级样本转成 float64 常驻内存。"""
+        for k in range(0, len(idx), chunk):
+            yield idx[k:k + chunk], X(idx[k:k + chunk])
+
+    # 按日期分组（向量化：按日期序排序后切分，避免百万级 Python 循环）
     def group(idx):
-        g = {}
-        for j, k in enumerate(idx):
-            g.setdefault(int(dts[k]), []).append(j)
-        return g
+        d = dts[idx]
+        order = np.argsort(d, kind="stable")
+        sidx = idx[order]
+        sd = d[order]
+        uniq, starts = np.unique(sd, return_index=True)
+        bounds = list(starts) + [len(sidx)]
+        return {int(uniq[i]): sidx[bounds[i]:bounds[i + 1]] for i in range(len(uniq))}
 
     gtr = group(tr)
     dates_tr = sorted(gtr)
@@ -74,31 +82,46 @@ def main():
         dates_tr = dates_tr[:args.max_dates]
     log(f"训练日 {len(dates_tr)} 天；验证样本 {len(va):,}；测试样本 {len(te):,}")
 
+    # ---- 第 1 趟：对每个训练日只算一次截面充分统计量（XtX, XtY, 均值）----
+    # 与「逐日解一次岭回归」完全等价，但面板只读一遍（alpha 网格只解小矩阵）。
+    log("计算逐日截面充分统计量 …")
+    per_day = []
+    for di, d in enumerate(dates_tr):
+        rows = gtr[d]
+        xb = X(rows)
+        yb = Y(rows)
+        ok = np.isfinite(yb)
+        xb, yb = xb[ok], yb[ok]
+        if len(yb) < n_feat + 5:
+            continue
+        mx = xb.mean(axis=0)
+        my = float(yb.mean())
+        xc = xb - mx
+        yc = yb - my
+        per_day.append((xc.T @ xc, xc.T @ yc, mx, my))
+        if (di + 1) % 300 == 0:
+            log(f"  {di + 1}/{len(dates_tr)} 天")
+    log(f"充分统计量完成：{len(per_day)} 个训练日可用于拟合")
+
     def fit_avg_coef(alpha):
         """逐日截面岭回归 → 平均系数（特征已标准化；截距不惩罚）。"""
         acc_w = np.zeros(n_feat)
         acc_b = 0.0
         n = 0
-        for d in dates_tr:
-            rows = gtr[d]
-            xb = X(tr[np.asarray(rows)])
-            yb = Y(tr[np.asarray(rows)])
-            ok = np.isfinite(yb)
-            xb, yb = xb[ok], yb[ok]
-            if len(yb) < n_feat + 5:
-                continue
-            xc = xb - xb.mean(axis=0)
-            yc = yb - yb.mean()
-            A = xc.T @ xc + alpha * np.eye(n_feat)
-            w = np.linalg.solve(A, xc.T @ yc)
-            b = yb.mean() - xb.mean(axis=0) @ w
+        for A_d, b_d, mx, my in per_day:
+            w = np.linalg.solve(A_d + alpha * np.eye(n_feat), b_d)
             acc_w += w
-            acc_b += b
+            acc_b += my - mx @ w
             n += 1
         return acc_w / n, acc_b / n, n
 
     def predict(idx, w, b):
-        return (X(idx) @ w + b).astype(np.float32)
+        outp = np.empty(len(idx), dtype=np.float32)
+        pos = 0
+        for _, xb in X_chunked(idx):
+            outp[pos:pos + len(xb)] = (xb @ w + b).astype(np.float32)
+            pos += len(xb)
+        return outp
 
     best = None
     for alpha in ALPHAS:

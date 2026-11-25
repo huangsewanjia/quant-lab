@@ -168,11 +168,9 @@ class Panel:
         return np.asarray(self.feat[si, di, :], dtype=np.float32)
 
     def context(self, si, di):
-        """(n, 126, 40) 标准化上下文。"""
+        """(n, 126, 40) 标准化上下文（整批向量化 gather，避免逐样本 Python 循环）。"""
         idx = di[:, None] - (CTX - 1 - np.arange(CTX)[None, :])
-        out = np.empty((len(si), CTX, N_FEAT), dtype=np.float32)
-        for k in range(len(si)):
-            out[k] = self.feat[si[k], idx[k], :]
+        out = np.asarray(self.feat[si[:, None], idx, :], dtype=np.float32)
         out = (out - self.mean) / self.std
         out[~np.isfinite(out)] = 0.0
         np.clip(out, -8, 8, out=out)
@@ -181,9 +179,7 @@ class Panel:
     def future(self, si, di):
         """(n, 21, 40) 标准化未来窗。"""
         idx = di[:, None] + (1 + np.arange(H)[None, :])
-        out = np.empty((len(si), H, N_FEAT), dtype=np.float32)
-        for k in range(len(si)):
-            out[k] = self.feat[si[k], idx[k], :]
+        out = np.asarray(self.feat[si[:, None], idx, :], dtype=np.float32)
         out = (out - self.mean) / self.std
         out[~np.isfinite(out)] = 0.0
         np.clip(out, -8, 8, out=out)
@@ -277,9 +273,10 @@ def train_representation(panel, args, seed):
         if train:
             bm = d_trn.mean(dim=0)
             bv = d_trn.var(dim=0, unbiased=False)
+            # 用 in-place 更新外层 m_k / v_k（若写成 m_k = ... 会把 m_k 变成本地变量）
             if n_upd < 100:
-                m_k = 0.9 * m_k + 0.1 * bm
-                v_k = 0.9 * v_k + 0.1 * bv
+                m_k.mul_(0.9).add_(bm, alpha=0.1)
+                v_k.mul_(0.9).add_(bv, alpha=0.1)
             else:
                 m_k.mul_(0.99).add_(bm, alpha=0.01)
                 v_k.mul_(0.99).add_(bv, alpha=0.01)
@@ -372,19 +369,18 @@ def build_reps(panel, args, seed, ckpt_path):
         if split == "valid":
             idx_all = idx_all[::args.val_stride]
         if split == "train":
-            # 读出训练用「每日期最多 stock_cap 只」的确定性抽样
-            keep = []
+            # 读出训练用「每日期最多 stock_cap 只」的确定性抽样（向量化）
             dts = panel.dts[idx_all]
             order = np.argsort(dts, kind="stable")
-            cur, cnt = None, 0
-            for j in order:
-                d = dts[j]
-                if d != cur:
-                    cur, cnt = d, 0
-                if cnt < args.stock_cap:
-                    keep.append(idx_all[j])
-                    cnt += 1
-            idx_all = np.asarray(keep, dtype=np.int64)
+            sd = dts[order]
+            uniq, starts = np.unique(sd, return_index=True)
+            bounds = list(starts) + [len(order)]
+            keep = []
+            for i in range(len(uniq)):
+                seg = order[bounds[i]:bounds[i + 1]]
+                keep.append(seg[:args.stock_cap])
+            pos = np.concatenate(keep) if keep else np.zeros(0, dtype=np.int64)
+            idx_all = idx_all[pos].astype(np.int64)
         si, di = panel.stock[idx_all], panel.date[idx_all]
         bid = panel.block_id(panel.dts[idx_all])
         u_path = os.path.join(DATA, f"u_seed{seed}_{split}.npy")
@@ -464,13 +460,13 @@ def train_readout(panel, args, seed, reps, arm):
     sd = sd if sd > 1e-9 else 1.0
 
     def feat(split):
-        u = np.load(split["u_path"], mmap_mode="r")
-        return torch.from_numpy(np.ascontiguousarray(u[:, sel_cols]))
+        """按需从 u 的 memmap 取列（不把整个 u 常驻内存）。"""
+        return np.load(split["u_path"], mmap_mode="r")
 
-    Xtr_raw, Xva_raw = feat(tr), feat(va)
+    u_tr = feat(tr)
+    u_va = feat(va)
     if kind == "mlp_std":
         # 训练集统计量标准化（附录 I）：分块累计，避免整个 u 常驻内存
-        u_tr = np.load(tr["u_path"], mmap_mode="r")
         n = u_tr.shape[0]
         s1 = torch.zeros(len(sel_cols), dtype=torch.float64)
         s2 = torch.zeros(len(sel_cols), dtype=torch.float64)
@@ -480,30 +476,40 @@ def train_readout(panel, args, seed, reps, arm):
             s2 += (blk ** 2).sum(dim=0)
         mu_u = (s1 / n).float().view(1, -1)
         sd_u = torch.sqrt((s2 / n - (s1 / n) ** 2).clamp_min(0)).float().view(1, -1).clamp_min(1e-6)
-        Xtr, Xva = Xtr_raw, (Xva_raw - mu_u) / sd_u
+        standardize = True
     else:
-        Xtr, Xva = Xtr_raw, Xva_raw
+        standardize = False
+
+    def take(u, rows):
+        """rows 可以是切片或索引数组；返回 (batch, d_in) 的 float32 tensor。"""
+        xb = torch.from_numpy(np.ascontiguousarray(u[rows][:, sel_cols]))
+        if standardize:
+            xb = (xb - mu_u) / sd_u
+        return xb
+
     ytr_t = torch.from_numpy(((tr["y"] - mu) / sd).astype(np.float32))
     yva_t = torch.from_numpy(((va["y"] - mu) / sd).astype(np.float32))
 
-    # 按日期分组
+    # 按日期分组（向量化）
     dtr = tr["dts"]
-    groups = {}
-    for i, d in enumerate(dtr):
-        groups.setdefault(int(d), []).append(i)
-    gkeys = sorted(groups)
+    order = np.argsort(dtr, kind="stable")
+    sd_ = dtr[order]
+    uniq, starts = np.unique(sd_, return_index=True)
+    bounds = list(starts) + [len(order)]
+    gkeys = [int(u_) for u_ in uniq]
+    gidx = {gkeys[i]: order[bounds[i]:bounds[i + 1]] for i in range(len(gkeys))}
     rng = np.random.default_rng(seed + 11)
     opt = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=0.05)
     lossf = nn.SmoothL1Loss(beta=1.0)
     best = (float("inf"), None)
     for epoch in range(args.readout_epochs):
-        order = rng.permutation(len(gkeys))
+        order_d = rng.permutation(len(gkeys))
         for k in range(args.readout_max_updates):
-            if k >= len(order):
+            if k >= len(order_d):
                 break
-            gi = np.asarray(groups[gkeys[order[k]]], dtype=np.int64)
-            xb = Xtr[gi] if kind != "mlp_std" else (Xtr_raw[gi] - mu_u) / sd_u
-            yb = ytr_t[gi]
+            gi = gidx[gkeys[order_d[k]]]
+            xb = take(u_tr, gi)
+            yb = ytr_t[torch.from_numpy(gi)]
             opt.zero_grad(set_to_none=True)
             pred = model(xb)
             loss = lossf(pred, yb)
@@ -513,11 +519,9 @@ def train_readout(panel, args, seed, reps, arm):
         model.eval()
         with torch.no_grad():
             tot, cnt = 0.0, 0
-            for k in range(0, len(Xva), 20000):
+            for k in range(0, u_va.shape[0], 20000):
                 chunk = slice(k, k + 20000)
-                xb = Xva[chunk]
-                if kind == "mlp_std":
-                    xb = (xb - mu_u) / sd_u
+                xb = take(u_va, chunk)
                 nb = xb.shape[0]
                 tot += float(lossf(model(xb), yva_t[chunk])) * nb
                 cnt += nb

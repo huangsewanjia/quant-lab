@@ -1,0 +1,17 @@
+{
+  "n_samples_total": 10039167,
+  "n_train": 4077578,
+  "n_valid": 2232418,
+  "n_test": 2949469,
+  "n_fit_2014_2021": 4668187,
+  "continuity_cells_total": 18916193,
+  "continuity_cells_valid": 10039167,
+  "blocks": {
+    "btest": {
+      "ok": true,
+      "n_fit": 2264835,
+      "thinned": true
+    }
+  },
+  "elapsed_s": 75.1
+}
