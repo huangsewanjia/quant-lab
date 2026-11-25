@@ -377,6 +377,32 @@ def main():
         w.writeheader()
         w.writerows(comp)
 
+    # 人读版（Markdown）
+    md = ["# WORK-566 与论文逐项对照", "",
+          "论文原文：STOCK-JEPA，arXiv:2610.07006v1（表号见表头）。",
+          "本单口径：测试期 2024-01-02 ~ 2026-06-26，主成本档 单边 5bps，",
+          "跨种子 mean ± range（种子 42 / 2024）。", "",
+          "| 本单口径 | 论文值 | 本单值 | 本单 range | 差异 | 差异原因 |",
+          "|---|---|---|---|---|---|"]
+    for r in comp:
+        pv = r["论文值(Table 4)"] if "论文值(Table 4)" in r else r.get("论文值(Table 5)")
+        mine = r["本单值"]
+        diff = r["差异"]
+        md.append("| {} | {} | {} | {} | {} | {} |".format(
+            r["本单口径"],
+            pv if pv is not None else "—",
+            f"{mine:.4f}" if isinstance(mine, (int, float)) else "—",
+            r["本单range"] or "—",
+            f"{diff:+.4f}" if isinstance(diff, (int, float)) else "—",
+            r["差异原因"]))
+    md += ["", "## 不可比性声明", "",
+           "本单的 40 维特征字段为**自定**（论文未给字段名），市场级 12 维亦为自定，",
+           "且模型为算力降级配置（d_model 64 / 2 层 / 4 头 / FFN 128 / d_z 64 / fp32）、",
+           "股票池口径不同、并叠加 A 股执行约束（涨停不可买 / 跌停顺延 / 停牌顺延 / 退市 1% 清算）。",
+           "因此**绝对水平与论文不可比**；H1 只判**相对增量**。"]
+    with open(os.path.join(OUT, "paper_comparison.md"), "w", encoding="utf-8") as f:
+        f.write("\n".join(md) + "\n")
+
     with open(os.path.join(OUT, "verdict.json"), "w", encoding="utf-8") as f:
         json.dump({"verdict": verdict, "H1": h1, "H2": {k: v for k, v in h2.items() if k != "per_seed"},
                    "H3": h3.get("summary"), "H4": h4.get("summary"),

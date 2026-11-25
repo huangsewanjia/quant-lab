@@ -15,7 +15,8 @@ echo "=== [2/6] FMB-style 线性基线（最便宜的口径校验）==="
 for s in $SEEDS; do $PY scripts/work566_baselines.py --seed "$s"; done
 
 echo "=== [3/6] S2 表征 + S3 读出 ==="
-$PY scripts/work566_train.py --seeds $SEEDS
+# --threads 4：共享 8 线程机器上实测 4 线程比 8 线程快 2×（超线程争用），非口径变更
+$PY scripts/work566_train.py --seeds $SEEDS --threads "${THREADS:-4}"
 
 echo "=== [4/6] 组合回测（各臂 × 种子 × 成本档）==="
 for arm in $ARMS; do

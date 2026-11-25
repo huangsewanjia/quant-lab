@@ -1,7 +1,7 @@
 {
   "experiment": "WORK-566",
   "stage": "0 · 端点独立复测",
-  "generated_at": "2026-11-25T12:50:39+0800",
+  "generated_at": "2026-11-25T12:57:22+0800",
   "data_cutoff": "2026-06-26",
   "local_db": {
     "path": "/srv/share/quantdb/db/quantdb.duckdb",
@@ -163,7 +163,7 @@
       ],
       "unit": "vol=手, amount=千元",
       "note": "全表",
-      "elapsed_s": 31.1
+      "elapsed_s": 33.0
     },
     {
       "endpoint": "quantdb.adj_factor",
@@ -178,7 +178,7 @@
       ],
       "unit": "",
       "note": "",
-      "elapsed_s": 76.6
+      "elapsed_s": 22.1
     },
     {
       "endpoint": "quantdb.daily_basic",
@@ -193,7 +193,7 @@
       ],
       "unit": "total_mv=万元, total_share=万股",
       "note": "",
-      "elapsed_s": 137.0
+      "elapsed_s": 64.3
     },
     {
       "endpoint": "quantdb.stk_limit",
@@ -208,7 +208,7 @@
       ],
       "unit": "元/股",
       "note": "",
-      "elapsed_s": 88.2
+      "elapsed_s": 20.8
     },
     {
       "endpoint": "quantdb.stock_basic",
@@ -217,4 +217,284 @@
         [
           5925,
           5925,
-          
+          "1990-12-01",
+          "2026-11-23"
+        ]
+      ],
+      "unit": "list_date=YYYYMMDD",
+      "note": "无 list_status 字段",
+      "elapsed_s": 0.0
+    },
+    {
+      "endpoint": "quantdb.suspend_d",
+      "sql": "select count(*), count(distinct ts_code), min(trade_date), max(trade_date) from read_parquet('/srv/share/quantdb/raw/suspend_d/**/*.parquet', hive_partitioning=true, union_by_name=true)",
+      "rows": [
+        [
+          581389,
+          4700,
+          20060104,
+          20261124
+        ]
+      ],
+      "unit": "",
+      "note": "",
+      "elapsed_s": 7.0
+    },
+    {
+      "endpoint": "quantdb.trade_cal",
+      "sql": "select count(*), count(distinct exchange), min(cal_date), max(cal_date) from read_parquet('/srv/share/quantdb/raw/trade_cal/**/*.parquet', hive_partitioning=true, union_by_name=true)",
+      "rows": [
+        [
+          15266,
+          2,
+          "2006-01-01",
+          "2026-11-24"
+        ]
+      ],
+      "unit": "",
+      "note": "",
+      "elapsed_s": 0.0
+    },
+    {
+      "endpoint": "quantdb.fina_indicator",
+      "sql": "select count(*), count(distinct ts_code), min(ann_date), max(ann_date), min(end_date), max(end_date) from read_parquet('/srv/share/quantdb/raw/fina_indicator/**/*.parquet', hive_partitioning=true, union_by_name=true)",
+      "rows": [
+        [
+          484520,
+          5900,
+          "2006-04-08",
+          "2026-11-16",
+          "2006-03-31",
+          "2026-09-30"
+        ]
+      ],
+      "unit": "ann_date=公告日(PIT 口径)",
+      "note": "end_date=报告期",
+      "elapsed_s": 38.3
+    },
+    {
+      "endpoint": "quantdb.daily_prior_fit_2014_2015",
+      "sql": "select count(*), count(distinct ts_code), count(distinct trade_date) from read_parquet(['/srv/share/quantdb/raw/daily/trade_date=2014*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2015*/**/*.parquet'], hive_partitioning=true, union_by_name=true) where trade_date between 20140101 and 20151231",
+      "rows": [
+        [
+          1146219,
+          2892,
+          489
+        ]
+      ],
+      "unit": "",
+      "note": "",
+      "elapsed_s": 2.6
+    },
+    {
+      "endpoint": "quantdb.daily_train_2016_2021",
+      "sql": "select count(*), count(distinct ts_code), count(distinct trade_date) from read_parquet(['/srv/share/quantdb/raw/daily/trade_date=2016*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2017*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2018*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2019*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2020*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2021*/**/*.parquet'], hive_partitioning=true, union_by_name=true) where trade_date between 20160101 and 20211231",
+      "rows": [
+        [
+          5175524,
+          4894,
+          1461
+        ]
+      ],
+      "unit": "",
+      "note": "",
+      "elapsed_s": 8.5
+    },
+    {
+      "endpoint": "quantdb.daily_valid_2022_2023",
+      "sql": "select count(*), count(distinct ts_code), count(distinct trade_date) from read_parquet(['/srv/share/quantdb/raw/daily/trade_date=2022*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2023*/**/*.parquet'], hive_partitioning=true, union_by_name=true) where trade_date between 20220101 and 20231231",
+      "rows": [
+        [
+          2437806,
+          5430,
+          484
+        ]
+      ],
+      "unit": "",
+      "note": "",
+      "elapsed_s": 3.6
+    },
+    {
+      "endpoint": "quantdb.daily_test_2024_2026H1",
+      "sql": "select count(*), count(distinct ts_code), count(distinct trade_date) from read_parquet(['/srv/share/quantdb/raw/daily/trade_date=2024*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2025*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2026*/**/*.parquet'], hive_partitioning=true, union_by_name=true) where trade_date between 20240102 and 20260626",
+      "rows": [
+        [
+          3233064,
+          5618,
+          599
+        ]
+      ],
+      "unit": "",
+      "note": "",
+      "elapsed_s": 4.1
+    },
+    {
+      "endpoint": "quantdb.delisted_with_daily",
+      "sql": "select count(*) from (select distinct ts_code from read_parquet('/srv/share/quantdb/raw/stock_basic/**/*.parquet', hive_partitioning=true, union_by_name=true)) s where s.ts_code in (select distinct ts_code from read_parquet(['/srv/share/quantdb/raw/daily/trade_date=2012*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2013*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2014*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2015*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2016*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2017*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2018*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2019*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2020*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2021*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2022*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2023*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2024*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2025*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2026*/**/*.parquet'], hive_partitioning=true, union_by_name=true) where trade_date between 20120101 and 20260626)",
+      "rows": [
+        [
+          5783
+        ]
+      ],
+      "unit": "",
+      "note": "",
+      "elapsed_s": 2.5
+    },
+    {
+      "endpoint": "quantdb.listed_without_daily",
+      "sql": "select count(*) from (select distinct ts_code from read_parquet('/srv/share/quantdb/raw/stock_basic/**/*.parquet', hive_partitioning=true, union_by_name=true)) s where s.ts_code not in (select distinct ts_code from read_parquet(['/srv/share/quantdb/raw/daily/trade_date=2012*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2013*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2014*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2015*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2016*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2017*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2018*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2019*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2020*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2021*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2022*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2023*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2024*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2025*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2026*/**/*.parquet'], hive_partitioning=true, union_by_name=true) where trade_date between 20120101 and 20260626)",
+      "rows": [
+        [
+          142
+        ]
+      ],
+      "unit": "",
+      "note": "",
+      "elapsed_s": 0.6
+    },
+    {
+      "endpoint": "quantdb.test_window_coverage",
+      "sql": "with cal as (select cast(strftime(cal_date, '%Y%m%d') as int) as cd from read_parquet('/srv/share/quantdb/raw/trade_cal/**/*.parquet', hive_partitioning=true, union_by_name=true) where exchange='SSE' and is_open=1 and cal_date between date '2024-01-02' and date '2026-06-26'), listed as (select distinct ts_code from read_parquet(['/srv/share/quantdb/raw/daily/trade_date=2024*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2025*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2026*/**/*.parquet'], hive_partitioning=true, union_by_name=true) where trade_date between 20240102 and 20260626), bars as (select ts_code, count(distinct trade_date) n from read_parquet(['/srv/share/quantdb/raw/daily/trade_date=2024*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2025*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2026*/**/*.parquet'], hive_partitioning=true, union_by_name=true) where trade_date between 20240102 and 20260626 group by 1) select (select count(*) from cal), (select count(*) from listed), (select sum(n) from bars), round((select sum(n) from bars)::double / ((select count(*) from cal) * (select count(*) from listed)), 6)",
+      "rows": [
+        [
+          599,
+          5618,
+          3233064,
+          0.96074
+        ]
+      ],
+      "unit": "分母=测试期交易日数 × 测试期出现过的股票数；分子=实际 bar 数",
+      "note": "停牌格记为缺失，不补 0",
+      "elapsed_s": 0.6
+    },
+    {
+      "endpoint": "quantdb.fina_pit_check",
+      "sql": "select count(*) from (select ts_code, ann_date, end_date, roe from read_parquet('/srv/share/quantdb/raw/fina_indicator/**/*.parquet', hive_partitioning=true, union_by_name=true) where ann_date is not null and end_date is not null) x",
+      "rows": [
+        [
+          484520
+        ]
+      ],
+      "unit": "ann_date 不早于 end_date 的比例见下一行",
+      "note": "",
+      "elapsed_s": 48.5
+    },
+    {
+      "endpoint": "quantdb.fina_pit_ratio",
+      "sql": "select round(avg(case when cast(strftime(ann_date,'%Y%m%d') as int) >= cast(strftime(end_date,'%Y%m%d') as int) then 1.0 else 0.0 end), 6), count(*) from read_parquet('/srv/share/quantdb/raw/fina_indicator/**/*.parquet', hive_partitioning=true, union_by_name=true) where ann_date is not null and end_date is not null",
+      "rows": [
+        [
+          0.999998,
+          484520
+        ]
+      ],
+      "unit": "ann_date >= end_date 的比例（应为 1）",
+      "note": "as-of 对齐的硬条件：公告日必须不早于报告期；比例 <1 表示有反常记录",
+      "elapsed_s": 13.7
+    }
+  ],
+  "window_coverage": {
+    "prior_fit_2014_2015": {
+      "daily": [
+        1146219,
+        2892,
+        489
+      ],
+      "adj_factor": [
+        1297971,
+        2889,
+        489
+      ],
+      "daily_basic": [
+        1140987,
+        2819,
+        489
+      ],
+      "stk_limit": [
+        1284878,
+        2818,
+        489
+      ]
+    },
+    "train_2016_2021": {
+      "daily": [
+        5175524,
+        4894,
+        1461
+      ],
+      "adj_factor": [
+        5511704,
+        4893,
+        1463
+      ],
+      "daily_basic": [
+        5097780,
+        4875,
+        1461
+      ],
+      "stk_limit": [
+        5290800,
+        4894,
+        1461
+      ]
+    },
+    "valid_2022_2023": {
+      "daily": [
+        2437806,
+        5430,
+        484
+      ],
+      "adj_factor": [
+        2480189,
+        5439,
+        484
+      ],
+      "daily_basic": [
+        2430152,
+        5423,
+        484
+      ],
+      "stk_limit": [
+        2455910,
+        5470,
+        484
+      ]
+    },
+    "test_2024_2026H1": {
+      "daily": [
+        3233064,
+        5618,
+        599
+      ],
+      "adj_factor": [
+        3251018,
+        5638,
+        599
+      ],
+      "daily_basic": [
+        3233064,
+        5618,
+        599
+      ],
+      "stk_limit": [
+        3285807,
+        5706,
+        599
+      ]
+    }
+  },
+  "delisting": {
+    "stock_basic_distinct_ts_code": 5925,
+    "daily_distinct_ts_code_all_history": 5887,
+    "in_stock_basic_and_has_daily_2012plus": 5783,
+    "in_stock_basic_without_any_daily": 142,
+    "paper_cn_all_securities": 5669
+  },
+  "test_window_bar_coverage": [
+    599,
+    5618,
+    3233064,
+    0.96074
+  ],
+  "elapsed_s": 334.7
+}
