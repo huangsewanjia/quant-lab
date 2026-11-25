@@ -226,7 +226,7 @@ def main():
         A = XtX + ALPHA * np.eye(n_feat)
         W = np.linalg.solve(A, XtY)                       # (40, 8)
         c = Ysum / n_used - W.T @ (Xsum / n_used)          # 截距（不惩罚）
-        # 残差尺度
+        # 残差尺度（第二趟：此时 W 已定）
         resid_sum = np.zeros(8, dtype=np.float64)
         resid_sq = np.zeros(8, dtype=np.float64)
         for k in range(0, len(pool), 20000):

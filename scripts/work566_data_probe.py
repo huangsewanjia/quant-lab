@@ -163,38 +163,46 @@ def main():
                            f"min(end_date), max(end_date) from {fina}",
         "ann_date=公告日(PIT 口径)", "end_date=报告期")
 
+    def yr_glob(name, lo, hi):
+        """按年份做分区裁剪：只读相关年份的 hive 分区，避免全量扫描。"""
+        yrs = list(range(lo // 10000, hi // 10000 + 1))
+        parts = "+".join(f"'{RAW}/{name}/trade_date={y}*/**/*.parquet'" for y in yrs)
+        return f"read_parquet([{parts}], hive_partitioning=true, union_by_name=true)"
+
     print("\n== 分窗覆盖（daily）==", flush=True)
     win = {}
     for label, lo, hi in WINDOWS:
         rows = add(f"daily_{label}",
                    f"select count(*), count(distinct ts_code), count(distinct trade_date) "
-                   f"from {daily} where trade_date between {lo} and {hi}")
+                   f"from {yr_glob('daily', lo, hi)} where trade_date between {lo} and {hi}")
         win[label] = {"daily": list(rows[0])}
     print("\n== 分窗覆盖（adj_factor / daily_basic / stk_limit）==", flush=True)
     for label, lo, hi in WINDOWS:
-        for nm, src in (("adj_factor", adj), ("daily_basic", dbasic), ("stk_limit", slimit)):
+        for nm in ("adj_factor", "daily_basic", "stk_limit"):
             rows = con.execute(
                 f"select count(*), count(distinct ts_code), count(distinct trade_date) "
-                f"from {src} where trade_date between {lo} and {hi}").fetchall()
+                f"from {yr_glob(nm, lo, hi)} where trade_date between {lo} and {hi}").fetchall()
             win.setdefault(label, {})[nm] = list(rows[0])
     print(json.dumps(win, ensure_ascii=False, indent=1), flush=True)
 
     print("\n== 退市覆盖 ==", flush=True)
+    d_win = yr_glob("daily", 20120101, 20260626)
     rows = add("delisted_with_daily",
                f"select count(*) from (select distinct ts_code from {sbasic}) s "
-               f"where s.ts_code in (select distinct ts_code from {daily} where trade_date between 20120101 and 20260626)")
+               f"where s.ts_code in (select distinct ts_code from {d_win} where trade_date between 20120101 and 20260626)")
     rows2 = add("listed_without_daily",
                 f"select count(*) from (select distinct ts_code from {sbasic}) s "
-                f"where s.ts_code not in (select distinct ts_code from {daily} where trade_date between 20120101 and 20260626)")
+                f"where s.ts_code not in (select distinct ts_code from {d_win} where trade_date between 20120101 and 20260626)")
     n_stock_basic = con.execute(f"select count(distinct ts_code) from {sbasic}").fetchone()[0]
     n_daily_all = con.execute(f"select count(distinct ts_code) from {daily}").fetchone()[0]
 
     print("\n== 测试期有效 bar 覆盖率 ==", flush=True)
+    d_test = yr_glob("daily", 20240102, 20260626)
     cov = add("test_window_coverage",
               f"with cal as (select cast(strftime(cal_date, '%Y%m%d') as int) as cd from {tcal} where exchange='SSE' and is_open=1 "
               f"and cal_date between date '2024-01-02' and date '2026-06-26'), "
-              f"listed as (select distinct ts_code from {daily} where trade_date between 20240102 and 20260626), "
-              f"bars as (select ts_code, count(distinct trade_date) n from {daily} "
+              f"listed as (select distinct ts_code from {d_test} where trade_date between 20240102 and 20260626), "
+              f"bars as (select ts_code, count(distinct trade_date) n from {d_test} "
               f"where trade_date between 20240102 and 20260626 group by 1) "
               f"select (select count(*) from cal), (select count(*) from listed), "
               f"(select sum(n) from bars), "

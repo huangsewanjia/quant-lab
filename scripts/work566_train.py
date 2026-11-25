@@ -90,6 +90,18 @@ class RevisionPredictor(nn.Module):
         return self.net(torch.cat([h, anchor.detach()], dim=1))
 
 
+class ReadoutMLPStd(nn.Module):
+    """论文附录 I 的匹配 MLP：训练集特征标准化 + 无 LayerNorm"""
+
+    def __init__(self, d_in, dropout=0.05):
+        super().__init__()
+        self.net = nn.Sequential(nn.Linear(d_in, 256), nn.GELU(), nn.Dropout(dropout),
+                                 nn.Linear(256, 1))
+
+    def forward(self, x):
+        return self.net(x).squeeze(-1)
+
+
 class ReadoutMLP(nn.Module):
     def __init__(self, d_in, dropout=0.05):
         super().__init__()
@@ -375,25 +387,27 @@ def build_reps(panel, args, seed, ckpt_path):
             idx_all = np.asarray(keep, dtype=np.int64)
         si, di = panel.stock[idx_all], panel.date[idx_all]
         bid = panel.block_id(panel.dts[idx_all])
-        u = np.empty((len(idx_all), 40 + PRIOR_DIM + 2 * d_model), dtype=np.float32)
-        preds = {}
+        u_path = os.path.join(DATA, f"u_seed{seed}_{split}.npy")
+        u = np.lib.format.open_memmap(u_path, mode="w+", dtype=np.float32,
+                                      shape=(len(idx_all), 40 + PRIOR_DIM + 3 * d_model))
         B = args.rep_batch
         with torch.no_grad():
             for k in range(0, len(idx_all), B):
                 sl = slice(k, k + B)
-                ctx = torch.from_numpy(panel.context(si[sl], di[sl]))
+                xc = panel.context(si[sl], di[sl])          # 标准化上下文，只取一次
+                ctx = torch.from_numpy(xc)
                 pr = torch.from_numpy(panel.prior_vec(si[sl], di[sl], bid[sl]))
                 h = enc(ctx)
                 z_anc = proj_ema(pr)
                 q = qpred(h, z_anc)
                 delta = m_k + s_k * q
-                # 历史摘要 s：标准化上下文的均值
-                xc = panel.context(si[sl], di[sl])
-                smean = xc.mean(axis=1)
-                u[sl] = np.concatenate([smean, pr.numpy(), z_anc.numpy(), delta.numpy()], axis=1)
+                smean = xc.mean(axis=1)                      # 历史摘要 s
+                u[sl] = np.concatenate([smean, pr.numpy(), z_anc.numpy(), delta.numpy(),
+                                        h.numpy()], axis=1)
+        u.flush()
         y = panel.labels(si, di)
-        out[split] = {"idx": idx_all, "u": u, "y": y,
-                      "stock": si, "date": di, "dts": panel.dts[idx_all]}
+        out[split] = {"idx": idx_all, "u_path": u_path, "u_shape": (len(idx_all), u.shape[1]),
+                      "y": y, "stock": si, "date": di, "dts": panel.dts[idx_all]}
         log(f"  seed{seed} {split}: {len(idx_all):,} 样本，u 维度 {u.shape[1]}")
     return out
 
@@ -405,20 +419,44 @@ def train_readout(panel, args, seed, reps, arm):
     torch.manual_seed(seed + 7)
     d_model = args.d_model
     d_p, d_z = PRIOR_DIM, d_model
-    if arm == "s1_only":
-        sl = slice(0, d_p)
-        model = nn.Linear(d_p, 1).to(dev)
-    elif arm == "s3_only":
-        sl = slice(0, 40)
-        model = nn.Linear(40, 1).to(dev)
-    elif arm == "s1_s2":
-        sl = slice(0, d_p + 2 * d_z)
-        model = nn.Linear(d_p + 2 * d_z, 1).to(dev)
-    elif arm == "full":
-        sl = slice(0, 40 + d_p + 2 * d_z)
-        model = ReadoutMLP(40 + d_p + 2 * d_z).to(dev)
-    else:
+    # u 列布局：[s(40) | P(16) | z_anc(d_z) | Δ̂(d_z) | h(d_z)]
+    def cols(*blocks):
+        idx = []
+        for b in blocks:
+            if b == "s":
+                idx += list(range(0, 40))
+            elif b == "P":
+                idx += list(range(40, 40 + d_p))
+            elif b == "anc":
+                idx += list(range(40 + d_p, 40 + d_p + d_z))
+            elif b == "rev":
+                idx += list(range(40 + d_p + d_z, 40 + d_p + 2 * d_z))
+            elif b == "h":
+                idx += list(range(40 + d_p + 2 * d_z, 40 + d_p + 3 * d_z))
+            else:
+                raise ValueError(b)
+        return np.asarray(idx, dtype=np.int64)
+
+    SPEC = {
+        "s1_only":  (cols("P"), "linear"),
+        "s3_only":  (cols("s"), "linear"),
+        "s1_s2":    (cols("P", "anc", "rev"), "linear"),
+        "full":     (cols("s", "P", "anc", "rev"), "mlp_ln"),
+        "r0":       (cols("s", "P"), "mlp_std"),
+        "r1":       (cols("s", "P", "anc"), "mlp_std"),
+        "r2":       (cols("s", "P", "anc", "rev"), "mlp_std"),
+        "r3":       (cols("s", "P", "anc", "h"), "mlp_std"),
+    }
+    if arm not in SPEC:
         raise ValueError(arm)
+    sel_cols, kind = SPEC[arm]
+    d_in = len(sel_cols)
+    if kind == "linear":
+        model = nn.Linear(d_in, 1).to(dev)
+    elif kind == "mlp_ln":
+        model = ReadoutMLP(d_in).to(dev)
+    else:                                   # mlp_std：训练集标准化、无 LayerNorm（论文附录 I）
+        model = ReadoutMLPStd(d_in).to(dev)
 
     tr, va = reps["train"], reps["valid"]
     ytr = tr["y"]
@@ -426,10 +464,25 @@ def train_readout(panel, args, seed, reps, arm):
     sd = sd if sd > 1e-9 else 1.0
 
     def feat(split):
-        u = split["u"][:, sl]
-        return torch.from_numpy(np.ascontiguousarray(u))
+        u = np.load(split["u_path"], mmap_mode="r")
+        return torch.from_numpy(np.ascontiguousarray(u[:, sel_cols]))
 
-    Xtr, Xva = feat(tr), feat(va)
+    Xtr_raw, Xva_raw = feat(tr), feat(va)
+    if kind == "mlp_std":
+        # 训练集统计量标准化（附录 I）：分块累计，避免整个 u 常驻内存
+        u_tr = np.load(tr["u_path"], mmap_mode="r")
+        n = u_tr.shape[0]
+        s1 = torch.zeros(len(sel_cols), dtype=torch.float64)
+        s2 = torch.zeros(len(sel_cols), dtype=torch.float64)
+        for k in range(0, n, 100000):
+            blk = torch.from_numpy(np.ascontiguousarray(u_tr[k:k + 100000][:, sel_cols])).double()
+            s1 += blk.sum(dim=0)
+            s2 += (blk ** 2).sum(dim=0)
+        mu_u = (s1 / n).float().view(1, -1)
+        sd_u = torch.sqrt((s2 / n - (s1 / n) ** 2).clamp_min(0)).float().view(1, -1).clamp_min(1e-6)
+        Xtr, Xva = Xtr_raw, (Xva_raw - mu_u) / sd_u
+    else:
+        Xtr, Xva = Xtr_raw, Xva_raw
     ytr_t = torch.from_numpy(((tr["y"] - mu) / sd).astype(np.float32))
     yva_t = torch.from_numpy(((va["y"] - mu) / sd).astype(np.float32))
 
@@ -448,9 +501,8 @@ def train_readout(panel, args, seed, reps, arm):
         for k in range(args.readout_max_updates):
             if k >= len(order):
                 break
-            gi = groups[gkeys[order[k]]]
-            gi = np.asarray(gi, dtype=np.int64)
-            xb = Xtr[gi]
+            gi = np.asarray(groups[gkeys[order[k]]], dtype=np.int64)
+            xb = Xtr[gi] if kind != "mlp_std" else (Xtr_raw[gi] - mu_u) / sd_u
             yb = ytr_t[gi]
             opt.zero_grad(set_to_none=True)
             pred = model(xb)
@@ -460,11 +512,16 @@ def train_readout(panel, args, seed, reps, arm):
             opt.step()
         model.eval()
         with torch.no_grad():
-            losses = []
+            tot, cnt = 0.0, 0
             for k in range(0, len(Xva), 20000):
                 chunk = slice(k, k + 20000)
-                losses.append(float(lossf(model(Xva[chunk]), yva_t[chunk])) * len(range(chunk.start, chunk.stop)))
-            vloss = sum(losses) / max(len(Xva), 1)
+                xb = Xva[chunk]
+                if kind == "mlp_std":
+                    xb = (xb - mu_u) / sd_u
+                nb = xb.shape[0]
+                tot += float(lossf(model(xb), yva_t[chunk])) * nb
+                cnt += nb
+            vloss = tot / max(cnt, 1)
         log(f"  seed{seed} {arm} epoch{epoch} 验证 SmoothL1 {vloss:.6f}")
         if vloss < best[0]:
             best = (vloss, {k: v.clone() for k, v in model.state_dict().items()})
@@ -473,10 +530,17 @@ def train_readout(panel, args, seed, reps, arm):
     # 预测
     preds = {}
     for split in ("train", "valid", "test"):
-        u = reps[split]["u"][:, sl]
+        u = np.load(reps[split]["u_path"], mmap_mode="r")
+        p_path = os.path.join(DATA, f"pred_seed{seed}_{arm}_{split}.npy")
+        pm = np.lib.format.open_memmap(p_path, mode="w+", dtype=np.float32, shape=(u.shape[0],))
         with torch.no_grad():
-            p = model(torch.from_numpy(np.ascontiguousarray(u))).numpy()
-        preds[split] = (mu + sd * p).astype(np.float32)
+            for k in range(0, u.shape[0], 20000):
+                xb = torch.from_numpy(np.ascontiguousarray(u[k:k + 20000][:, sel_cols]))
+                if kind == "mlp_std":
+                    xb = (xb - mu_u) / sd_u
+                pm[k:k + 20000] = (mu + sd * model(xb).numpy()).astype(np.float32)
+        pm.flush()
+        preds[split] = p_path
     return preds, best[0], model, (mu, sd)
 
 
@@ -550,19 +614,14 @@ def main():
         log(f"===== 种子 {seed} =====")
         ck = train_representation(panel, args, seed)
         reps = build_reps(panel, args, seed, ck)
-        for arm in ("s1_only", "s3_only", "s1_s2", "full"):
+        for arm in ("s1_only", "s3_only", "s1_s2", "full", "r0", "r1", "r2", "r3"):
             preds, vloss, model, (mu, sd) = train_readout(panel, args, seed, reps, arm)
             torch.save({"state": model.state_dict(), "mu": mu, "sd": sd,
                         "arm": arm, "seed": seed}, os.path.join(DATA, f"ckpt_seed{seed}_{arm}.pt"))
-            results[f"{arm}|{seed}"] = {
-                "val_loss": vloss, "mu": mu, "sd": sd,
-                **{f"pred_{s}": preds[s].tolist() if s == "valid" else None for s in ()},
-            }
-            for split in ("train", "valid", "test"):
-                results[f"{arm}|{seed}"][f"pred_{split}"] = preds[split]
-                results[f"{arm}|{seed}"][f"idx_{split}"] = reps[split]["idx"]
+            results[f"{arm}|{seed}"] = {"val_loss": vloss, "mu": mu, "sd": sd}
             np.savez_compressed(os.path.join(DATA, f"preds_seed{seed}_{arm}.npz"),
-                                **{f"pred_{s}": preds[s] for s in ("train", "valid", "test")},
+                                **{f"pred_{s}": np.asarray(np.load(preds[s], mmap_mode="r"))
+                                   for s in ("train", "valid", "test")},
                                 **{f"idx_{s}": reps[s]["idx"] for s in ("train", "valid", "test")},
                                 **{f"stock_{s}": reps[s]["stock"] for s in ("train", "valid", "test")},
                                 **{f"date_{s}": reps[s]["date"] for s in ("train", "valid", "test")},

@@ -75,27 +75,22 @@ def ff(a):
     return out
 
 
+def _df(a):
+    """(stocks, dates) → DataFrame(dates, stocks)：pandas 的 DataFrame.rolling 只沿行方向，
+    转置后滚动窗口正好沿时间轴，结果再转回 (stocks, dates)。"""
+    import pandas as pd
+    return pd.DataFrame(np.ascontiguousarray(a.T))
+
+
 def roll(a, w, fn):
-    """沿 axis=1 的滚动窗口函数（min/max/mean/std）。min_periods=w，NaN 不计入但需足够有效值。"""
-    import pandas as pd
-    df = pd.DataFrame(a)
-    r = getattr(df.rolling(w, axis=1, min_periods=w), fn)()
-    return r.to_numpy(dtype=np.float32)
-
-
-def roll_stats(a, w):
-    """同时返回 rolling mean / std(ddof=1) / min / max，沿 axis=1。"""
-    import pandas as pd
-    df = pd.DataFrame(a)
-    r = df.rolling(w, axis=1, min_periods=w)
-    return (r.mean().to_numpy(dtype=np.float32), r.std(ddof=1).to_numpy(dtype=np.float32),
-            r.min().to_numpy(dtype=np.float32), r.max().to_numpy(dtype=np.float32))
+    """滚动窗口函数（min/max/mean/std），沿时间轴。min_periods=w：窗口内有效值不足则 NaN。"""
+    r = getattr(_df(a).rolling(w, min_periods=w), fn)()
+    return np.ascontiguousarray(r.to_numpy(dtype=np.float32).T)
 
 
 def roll_skew(a, w):
-    import pandas as pd
-    df = pd.DataFrame(a)
-    return df.rolling(w, axis=1, min_periods=w).skew().to_numpy(dtype=np.float32)
+    r = _df(a).rolling(w, min_periods=w).skew()
+    return np.ascontiguousarray(r.to_numpy(dtype=np.float32).T)
 
 
 def main():
@@ -104,6 +99,8 @@ def main():
     ap.add_argument("--end", default=str(WINDOW_END))
     ap.add_argument("--chunk", type=int, default=400)
     ap.add_argument("--skip-extract", action="store_true")
+    ap.add_argument("--skip-features", action="store_true",
+                    help="feat.npy 已就绪时跳过第 4/5 段（描述符 + 市场级），只跑标签")
     args = ap.parse_args()
     lo, hi = int(args.start), int(args.end)
     base_dir = os.path.join(DATA, "base")
@@ -212,9 +209,12 @@ def main():
     logC = mk(os.path.join(base_dir, "logC.npy"))
     close_hfq = mk(os.path.join(base_dir, "close_hfq.npy"))
     open_hfq = mk(os.path.join(base_dir, "open_hfq.npy"))
-    rets = {f"r{h}": mk(os.path.join(ret_dir, f"r{h}.npy")) for h in (1, 5, 21, 63, 126)}
+    R_NAMES = ("r_1", "r_5", "r_21", "r_63", "r_126")
+    rets = {n: mk(os.path.join(ret_dir, f"{n}.npy")) for n in R_NAMES}
     b = {n: lm(os.path.join(base_dir, f"{n}.npy")) for n in
-         ("open_raw", "high_raw", "low_raw", "close_raw", "vol", "amount", "adj")}
+         ("open_raw", "high_raw", "low_raw", "close_raw", "vol", "amount", "adj",
+          "turnover_rate", "turnover_rate_f", "circ_mv", "pe_ttm", "pb",
+          "up_limit", "down_limit")}
     hb = lm(os.path.join(base_dir, "has_bar.npy"))
 
     CH = args.chunk
@@ -242,7 +242,7 @@ def main():
         logC[sl] = logc.astype(np.float32)
         close_hfq[sl] = c_hfq.astype(np.float32)
         open_hfq[sl] = o_hfq.astype(np.float32)
-        for h, name in ((1, "r_1"), (5, "r_5"), (21, "r_21"), (63, "r_63"), (126, "r_126")):
+        for h, name in ((1, "r_1"), (5, "r_5"), (21, "r_21"), (63, "r_63"), (126, "r_126")):  # noqa: E501
             r = np.full_like(logc, np.nan)
             r[:, h:] = logc[:, h:] - logc[:, :-h]
             rets[name][sl] = r.astype(np.float32)
@@ -253,13 +253,20 @@ def main():
     log("hfq / 收益完成")
 
     # ---------------------------------------------------------------- 4. 40 维描述符
-    log("计算 40 维描述符 …")
-    feat = np.lib.format.open_memmap(os.path.join(DATA, "feat.npy"), mode="w+",
-                                     dtype=np.float32, shape=(n_stocks, n_dates, N_FEAT))
-    feat[...] = np.nan
+    log("跳过描述符计算（--skip-features），直接进入标签计算" if args.skip_features
+        else "计算 40 维描述符 …")
+    feat_path = os.path.join(DATA, "feat.npy")
+    if args.skip_features:
+        feat = np.lib.format.open_memmap(feat_path, mode="r+", dtype=np.float32,
+                                         shape=(n_stocks, n_dates, N_FEAT))
+    else:
+        feat = np.lib.format.open_memmap(feat_path, mode="w+", dtype=np.float32,
+                                         shape=(n_stocks, n_dates, N_FEAT))
+        feat[...] = np.nan
     R = {k: lm(os.path.join(ret_dir, f"{k}.npy")) for k in rets}
     CH = args.chunk
-    for s0 in range(0, n_stocks, CH):
+    stock_range = range(0, 0, CH) if args.skip_features else range(0, n_stocks, CH)
+    for s0 in stock_range:
         s1 = min(s0 + CH, n_stocks)
         sl = slice(s0, s1)
         lc = np.asarray(logC[sl], dtype=np.float64)
@@ -387,14 +394,17 @@ def main():
     mkt_turnover = np.where(cmv_sum > 0, amt_sum / np.where(cmv_sum > 0, cmv_sum, 1.0), np.nan).astype(np.float32)
     ew_mom = ew_r21 - ew_r5
 
-    for t in range(n_dates):
-        col = feat[:, t, :]
-        for k, (name, val) in enumerate({
-                "ew_r_1": ew_r1[t], "ew_r_5": ew_r5[t], "ew_r_21": ew_r21[t], "ew_r_63": ew_r63[t],
-                "ew_vol_21": ew_vol21[t], "ew_vol_63": ew_vol63[t], "disp_21": disp21[t],
-                "disp_63": disp63[t], "breadth_up": breadth[t], "limit_up_ratio": limit_ratio[t],
-                "mkt_turnover": mkt_turnover[t], "ew_mom_21_5": ew_mom[t]}.items()):
-            col[:, FEAT_NAMES.index(name)] = val
+    # 一次性向量化写入（按日期逐格写会触发 memmap 的读-改-写页抖动，实测慢一个量级）
+    mvals = np.full((n_dates, N_FEAT), np.nan, dtype=np.float32)
+    for name, series in (("ew_r_1", ew_r1), ("ew_r_5", ew_r5), ("ew_r_21", ew_r21), ("ew_r_63", ew_r63),
+                         ("ew_vol_21", ew_vol21), ("ew_vol_63", ew_vol63), ("disp_21", disp21),
+                         ("disp_63", disp63), ("breadth_up", breadth), ("limit_up_ratio", limit_ratio),
+                         ("mkt_turnover", mkt_turnover), ("ew_mom_21_5", ew_mom)):
+        mvals[:, FEAT_NAMES.index(name)] = np.asarray(series, dtype=np.float32)
+    g6_idx = [FEAT_NAMES.index(nm) for nm in
+              ("ew_r_1", "ew_r_5", "ew_r_21", "ew_r_63", "ew_vol_21", "ew_vol_63", "disp_21",
+               "disp_63", "breadth_up", "limit_up_ratio", "mkt_turnover", "ew_mom_21_5")]
+    feat[:, :, g6_idx] = mvals[:, g6_idx]
     # G5 市场相对（逐股）
     for name, rmat, ewm in (("exc_1", r1_all, ew_r1), ("exc_21", r21_all, ew_r21),
                             ("exc_63", r63_all, ew_r63), ("exc_126", r126_all, ew_h(126))):
@@ -413,25 +423,37 @@ def main():
         sl = slice(s0, s1)
         lc = np.asarray(logC[sl], dtype=np.float64)
         out = np.full((s1 - s0, n_dates, len(TARGET_NAMES)), np.nan, dtype=np.float32)
+        # 日对数收益 l[t] = lc[t] - lc[t-1]，以及两条前缀和（用于窗口内平方和）
+        lret = np.full_like(lc, np.nan)
+        lret[:, 1:] = lc[:, 1:] - lc[:, :-1]
+        fin = np.isfinite(lret)
+        Cl = np.cumsum(np.where(fin, lret, 0.0), axis=1)
+        Cl2 = np.cumsum(np.where(fin, lret ** 2, 0.0), axis=1)
         for h in (5, 21):
             # R^(h) = sum_{k=1..h} l_{t+k}
             fut = np.full_like(lc, np.nan)
             fut[:, :n_dates - h] = lc[:, h:] - lc[:, :-h]
-            # V^(h) = sqrt(1/(h-1) * sum (l_{t+k} - R/h)^2)
-            fut_daily = np.full_like(lc, np.nan)
-            fut_daily[:, :n_dates - h] = lc[:, 1:n_dates - h + 1] - lc[:, :n_dates - h]
+            # V^(h) = sqrt( 1/(h-1) * sum_k (l_{t+k} - R/h)^2 )
+            #        = sqrt( 1/(h-1) * ( sum_k l^2 - R^2/h ) )   ← 用前缀和精确算
+            sq = np.full_like(lc, np.nan)
+            sq[:, :n_dates - h] = Cl2[:, h:] - Cl2[:, :-h]
+            Rm = fut[:, :n_dates - h]
+            inner = np.maximum(sq[:, :n_dates - h] - Rm ** 2 / h, 0.0)
             vv = np.full_like(lc, np.nan)
-            vv[:, :n_dates - h] = np.sqrt(np.nansum((fut_daily[:, :n_dates - h]
-                                                    - fut[:, :n_dates - h] / h) ** 2, axis=1) / (h - 1))
+            vv[:, :n_dates - h] = np.sqrt(inner / (h - 1))
             # M^(h) = min_{0<=k<=h} (logC_{t+k} - max_{0<=j<=k} logC_{t+j})  （前视窗口内的最大回撤）
-            rev = lc[:, ::-1]
-            mdd = np.full_like(lc, np.nan)
-            best = np.inf
-            for k in range(h + 1):
-                # 前缀最大值（在 rev 上做 rolling max，窗口 k+1）
-                pm = pd.DataFrame(rev).rolling(k + 1, axis=1, min_periods=k + 1).max().to_numpy()[:, ::-1]
-                cand = lc - pm
-                mdd = cand if k == 0 else np.fmin(mdd, cand)
+            # 递推：Mx(t,0)=logC(t)；Mx(t,k)=max(logC(t), Mx(t+1,k-1))
+            # 项_k(t) = logC(t+k) - Mx(t,k)；M(t)=min(0, min_k 项_k(t))
+            P = lc.copy()                       # Mx(·,0)
+            mdd = np.zeros_like(lc)             # k=0 的项恒为 0
+            mdd[~np.isfinite(lc)] = np.nan
+            for k in range(1, h + 1):
+                shifted = np.full_like(P, -np.inf)
+                shifted[:, :-1] = P[:, 1:]      # Mx(t+1, k-1)
+                P = np.maximum(lc, shifted)     # Mx(·,k)
+                term = np.full_like(lc, np.nan)
+                term[:, :-k] = lc[:, k:] - P[:, :-k]
+                mdd = np.fmin(mdd, term)
             out[:, :, TARGET_NAMES.index(f"R{h}")] = fut.astype(np.float32)
             out[:, :, TARGET_NAMES.index(f"V{h}")] = vv.astype(np.float32)
             out[:, :, TARGET_NAMES.index(f"M{h}")] = mdd.astype(np.float32)
