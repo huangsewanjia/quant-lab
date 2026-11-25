@@ -163,6 +163,36 @@ def main() -> int:
         raise SystemExit("[delivery] work578-astock-baseline.json 缺 exchange_before，重跑 snapshot")
     if "zero_diff" not in astock or "tables" not in astock:
         raise SystemExit("[delivery] work578-astock-result.json 缺 zero_diff/tables，重跑 astock")
+    if astock["zero_diff"] != astock["tables"]:
+        raise SystemExit(f"[delivery] A 股零 diff 未达成 {astock['zero_diff']}/{astock['tables']}，"
+                         "拒绝生成「达成」页；先查 diff_tables")
+    if before.get("rows") is not None and int(before["rows"]) >= int(total):
+        raise SystemExit(f"[delivery] 基线 exchange_before.rows={before['rows']} 不小于当前 {total}，"
+                         "说明基线不是改前态（可能被 snapshot 覆盖过），拒绝生成")
+
+    gates_file = META / "work578-checks.json"
+    if not gates_file.exists():
+        raise SystemExit(f"[delivery] 缺质量闸结果 {gates_file}；先跑 "
+                         "`python -m db.checks.industry all --out /srv/share/quantdb/meta/industry/work578-checks.json`")
+    gates = json.loads(gates_file.read_text(encoding="utf-8"))
+    gate_items = gates.get("gates") or {}
+    if not gate_items:
+        raise SystemExit("[delivery] work578-checks.json 缺 gates")
+    failed = [k for k, v in gate_items.items() if not v.get("pass")]
+    gate_line = (f"{len(gate_items) - len(failed)}/{len(gate_items)} PASS"
+                 if not failed else f"{len(gate_items) - len(failed)}/{len(gate_items)}（红：{', '.join(failed)}）")
+    gate_detail = "；".join(f"{k}={'PASS' if v.get('pass') else 'FAIL'}" for k, v in gate_items.items())
+    gate_detail += f"（统计时点 {gates.get('generated_at', '未知')}）"
+    if failed:
+        raise SystemExit(f"[delivery] 质量闸未全过（{', '.join(failed)}），不生成「达成」页")
+
+    against_file = META / "work578-astock-against.json"
+    if against_file.exists():
+        ag = json.loads(against_file.read_text(encoding="utf-8"))
+        astock_supp = (f"对照库 {ag.get('against')}：{ag['zero_diff']}/{ag['tables']} 一致"
+                       f"（{ag.get('checked_at')}）")
+    else:
+        astock_supp = "未做「对照库」比对（手边没有改前态的库副本）"
 
     fig1 = figure_coverage(first, last, dates)
     fig2 = figure_series(c)
@@ -179,7 +209,7 @@ def main() -> int:
     per_day_text = (f"每个交易日恒 {per_day[0]} 行（{dates} × {per_day[0]} = {total:,}）"
                     if per_day[0] == per_day[1] else
                     f"每交易日行数在 {per_day[0]}–{per_day[1]} 之间，合计 {total:,}")
-    astock_line = (f"与 {astock.get('against', '当日基线')} 逐表**行数 + 全列哈希**比对："
+    astock_line = (f"对改前基线（{astock.get('baseline_generated_at', '未知时点')}）逐表「{astock.get('method', '行数')}」比对："
                    f"{astock['zero_diff']}/{astock['tables']} 一致")
 
     html = Template(TEMPLATE.read_text(encoding="utf-8")).substitute(
@@ -196,6 +226,9 @@ def main() -> int:
         tabs=str(tabs),
         catalog=str(catalog),
         astock_line=astock_line,
+        astock_supp=astock_supp,
+        gate_line=gate_line,
+        gate_detail=gate_detail,
         zero_diff=str(astock["zero_diff"]),
         astock_tables=str(astock["tables"]),
         audit_rows=audit_rows,

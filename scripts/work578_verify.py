@@ -3,15 +3,16 @@
 
     python scripts/work578_verify.py snapshot    # 装载前拍基线（20 张 A 股表全列哈希 + 17 张 industry 表 + 交易所分布）
     python scripts/work578_verify.py astock      # 与基线比对 A 股 20 表（行数 + 全列哈希）
-    python scripts/work578_verify.py astock --against /srv/backup/quantdb/db/quantdb.duckdb
-                                                 # 直接与另一份库（如每晚冷备）逐表全列哈希比对
+    python scripts/work578_verify.py astock --against <库路径>
+                                                 # 与另一份库逐表全列哈希比对；对照库必须是「改前态」，
+                                                 # 否则拒绝（防止拿改后副本证明改后没变）
     python scripts/work578_verify.py rows        # 17 张 industry 表行数快照（幂等比对用）
     python scripts/work578_verify.py shape       # 表数 / data_catalog 行数 / industry_* 合计
     python scripts/work578_verify.py exchange    # 交易所表形态 + raw CSV 双向 EXCEPT + 装载审计
 
 设计：
   * 只读打开主库（read_only=True），本脚本不写库；
-  * A 股指纹是「行数 + 全列行哈希之和」（`hash(concat_ws(\\x1f, COLUMNS(*)))`），不是只比前两列；
+  * A 股指纹是「行数 + 全列行哈希之和」（`hash(concat_ws(\x1f, COLUMNS(*)))`），不是只比前两列；
     哈希对 NULL 与空串不区分（concat_ws 跳 NULL），用于「有没有变」的判定足够；
   * raw 比对直接 read_csv 原文件，不经过 db.etl.industry 的 transform（避免自证）。
 """
@@ -35,7 +36,7 @@ ASTOCK = ["daily", "adj_factor", "daily_basic", "stk_limit", "suspend_d", "index
           "income", "balancesheet", "cashflow", "fina_indicator", "dividend",
           "report_meta", "consensus_eps", "rating_change", "data_catalog"]
 
-PREFIX = "\\x1f"
+PREFIX = "\x1f"
 
 
 def con(read_only: bool = True):
@@ -65,6 +66,8 @@ def _industry_tables(c) -> list[str]:
 
 
 def snapshot() -> int:
+    if BASELINE.exists():
+        raise SystemExit(f"[snapshot] {BASELINE} 已存在（改前基线），拒绝覆盖；要新基线请先改名留档")
     META.mkdir(parents=True, exist_ok=True)
     c = con()
     stocks = {t: _fingerprint(c, t) for t in ASTOCK}
@@ -89,51 +92,77 @@ def snapshot() -> int:
     return 0
 
 
+def _baseline_compare(c, base: dict) -> tuple[list[str], dict, str]:
+    """与基线比：新格式比全列哈希；旧格式（只有 rows+agg）比行数与两列求和。"""
+    bad, detail = [], {}
+    old_fmt = base.get("fingerprint") is None
+    for t in ASTOCK:
+        old = base["astock"][t]
+        now = _fingerprint(c, t)
+        same = now["rows"] == old["rows"]
+        why = "" if same else "rows"
+        if old_fmt:
+            for col, val in (old.get("agg") or {}).items():
+                if val is None:
+                    continue
+                cur = c.execute(f'SELECT round(sum("{col}"), 6) FROM "{t}"').fetchone()[0]
+                if cur is None:
+                    continue
+                tol = max(1e-6, 1e-9 * max(abs(val), abs(cur)))
+                if abs(val - cur) > tol:
+                    same = False
+                    why = (why + "," if why else "") + col
+        elif now["hash"] != old["hash"]:
+            same = False
+            why = "hash"
+        if not same:
+            bad.append(t)
+            detail[t] = {"before": old, "after": now, "diff_on": why}
+    method = "rows + 两列求和（旧基线，20:20）" if old_fmt else base["fingerprint"]
+    return bad, detail, method
+
+
 def astock(against: str | None = None) -> int:
     c = con()
     if against:
         c.execute(f"ATTACH '{against}' AS bak (READ_ONLY)")
-        left, right, label = "bak", "main", against
-    else:
-        if not BASELINE.exists():
-            print("[astock] 缺基线，先跑 snapshot")
-            return 1
-        base = json.loads(BASELINE.read_text(encoding="utf-8"))
-        if base.get("fingerprint") is None:
-            print("[astock] 基线是旧指纹格式（只有两列求和），请重跑 snapshot")
-            return 1
-        bad = []
-        detail = {}
+        bak_ex = c.execute(f"SELECT count(*) FROM bak.{EXCHANGE}").fetchone()[0]
+        if BASELINE.exists():
+            before = (json.loads(BASELINE.read_text(encoding="utf-8")).get("exchange_before") or {})
+            want = before.get("rows")
+            if want is not None and int(bak_ex) != int(want):
+                raise SystemExit(
+                    f"[astock] 拒绝：对照库不是改前态（bak 交易所表 {bak_ex} 行，改前基线 {want} 行）。"
+                    "拿改后副本对比证明不了本次装载没动 A 股。")
+        bad, detail = [], {}
         for t in ASTOCK:
-            now = _fingerprint(c, t)
-            old = base["astock"][t]
-            if now["rows"] != old["rows"] or now["hash"] != old["hash"]:
+            a = _fingerprint(c, t, "bak")
+            b = _fingerprint(c, t, "main")
+            if a != b:
                 bad.append(t)
-                detail[t] = {"before": old, "after": now}
-        out = {"checked_at": _now(), "baseline_generated_at": base["generated_at"],
-               "method": base["fingerprint"], "tables": len(ASTOCK),
+                detail[t] = {"left": a, "right": b}
+        out = {"checked_at": _now(), "against": against, "tables": len(ASTOCK),
                "zero_diff": len(ASTOCK) - len(bad), "diff_tables": detail}
-        (META / "work578-astock-result.json").write_text(
+        (META / "work578-astock-against.json").write_text(
             json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
         print(f"[astock] {'PASS' if not bad else 'FAIL'}：{len(ASTOCK) - len(bad)}/{len(ASTOCK)} "
-              f"张行数+全列哈希一致（基线 {base['generated_at']}）")
+              f"张行数+全列哈希一致（对照 {against}）")
         if bad:
             print(json.dumps(detail, ensure_ascii=False, indent=1))
         return 0 if not bad else 1
 
-    bad, detail = [], {}
-    for t in ASTOCK:
-        a = _fingerprint(c, t, left)
-        b = _fingerprint(c, t, right)
-        if a != b:
-            bad.append(t)
-            detail[t] = {"left": a, "right": b}
-    out = {"checked_at": _now(), "against": label, "tables": len(ASTOCK),
+    if not BASELINE.exists():
+        print("[astock] 缺基线，无法比对（基线是改前唯一证据，不要用当前库重拍）")
+        return 1
+    base = json.loads(BASELINE.read_text(encoding="utf-8"))
+    bad, detail, method = _baseline_compare(c, base)
+    out = {"checked_at": _now(), "baseline_generated_at": base["generated_at"],
+           "method": method, "tables": len(ASTOCK),
            "zero_diff": len(ASTOCK) - len(bad), "diff_tables": detail}
     (META / "work578-astock-result.json").write_text(
         json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
-    print(f"[astock] {'PASS' if not bad else 'FAIL'}：{len(ASTOCK) - len(bad)}/{len(ASTOCK)} "
-          f"张行数+全列哈希一致（对照 {label}）")
+    print(f"[astock] {'PASS' if not bad else 'FAIL'}：{len(ASTOCK) - len(bad)}/{len(ASTOCK)} 张一致"
+          f"（基线 {base['generated_at']}；口径：{method}）")
     if bad:
         print(json.dumps(detail, ensure_ascii=False, indent=1))
     return 0 if not bad else 1

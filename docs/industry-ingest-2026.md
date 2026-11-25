@@ -508,7 +508,8 @@ done
 | 唯一变化的表 | — | `industry_load_audit` +1（本次装载自己的审计行） |
 | 17 张数据表逐表行数 | `meta/industry/work578-rows-t0.json` | 与 t0 完全一致（`work578-rows-t1.json`） |
 
-装载范围由 `--sources exchange_daily_quotes` 限定为一张表；A 股 20 表零 diff 用 `scripts/work578_verify.py astock` 对当日 20:20 基线核对（20/20）。
+装载范围由 `--sources exchange_daily_quotes` 限定为一张表。A 股核对用的是**改前基线**（`meta/industry/work578-astock-baseline.json`，20:20:13 拍的，早于 20:27 的装载）：`scripts/work578_verify.py astock` → 20/20 张「行数 + 两列数值求和」一致。
+证据边界要说清：改前基线当时只存了行数与两列求和，所以它能证明的是「行数 + 这两列未变」；全列哈希那一档只能对比「改前状态的库」，而手边唯一的库副本（20:41 冷备）已经含回补结果，脚本会**拒绝**拿它当证据（`--against` 有改前态护栏）。要更强证据得在下次装载前拍全列基线。
 对照说明：20:20→20:53 的长窗口里 benchmark / cnesa / cninfo / ppi / trendforce 行数也变过，那是 WORK-576 的日频 timer 与 WORK-577 的 CNESA 装载同时在写库，不是本单改动。
 
 回滚：
@@ -540,11 +541,11 @@ QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
 
 | 文件 | sha256 |
 |---|---|
-| `raw/industry_alt/exchange_daily_quotes/fetch.py` | `d7ca4aab268e9c1563c66a78497d9e47c1dff3bd7de22b87b42e734b865d03c7` |
+| `raw/industry_alt/exchange_daily_quotes/fetch.py` | `4127985f392a235e98b34705905f3a7fdf55ec54f9658988febb051903c8b2a2` |
 | `raw/industry_alt/exchange_daily_quotes/data.csv` | `2ac82165a0e3567de34ca188d25bcccaa70bee1ec119a0d452b0c19c7de9db98` |
-| `code/quant-lab/scripts/work578_verify.py` | `8e1d011f238f0d451376d68960b936b2bfa3c4401b82ebf365b84dd5fe634c8b` |
-| `code/quant-lab/scripts/work578_build_delivery.py` | `6adce20a4ed1cb28ba4e91a56638131ca6cbb1744a9ca8212f0c298f5cb64475` |
-| `code/quant-lab/scripts/work578_delivery.tpl.html` | `ca8e7728caf3768b8fd187737245f85a35a2a2e68292591d9c6360140f017c8f` |
+| `code/quant-lab/scripts/work578_verify.py` | `7f59685f031365460143e35f289e92fb7b89bb664b4dc4a92937c91b6dae9173` |
+| `code/quant-lab/scripts/work578_build_delivery.py` | `b7c6bfa436b33716444b00750451009a722f7e71cd660277f77157f2fb048955` |
+| `code/quant-lab/scripts/work578_delivery.tpl.html` | `3e8a0c3c565ad65cf6d06c0b106ab6782c8d86a32797933fa0d38d734c0317fc` |
 | `code/quant-lab/docs/industry-ingest-2026.md` | 随本单 git 提交锁定（提交 sha 见 issue 交付评论；文件自身内容哈希无法自引用） |
 
 ## 11. 定时抓取改增量（WORK-576，2026-11-25）

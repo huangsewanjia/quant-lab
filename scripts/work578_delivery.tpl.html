@@ -110,8 +110,8 @@ $per_day_text（SHFE 6 品种 + GFEX 碳酸锂，按当日挂牌月数计）。<
   <tr><td>库内 distinct trade_date ≥ 245</td><td><b>达成</b>：$dates</td><td>§5 命令 ①</td></tr>
   <tr><td>失败日清单（逐日 URL + 状态）</td><td><b>0 失败</b>：<code>failed.json</code> 的 <code>failed</code> 为空数组</td><td>§5 命令 ②</td></tr>
   <tr><td>幂等：同参数连跑两次装载，17 表行数不变</td><td><b>达成</b>：4 秒窗口单次装载前后，17 张数据表逐表行数不变（仅装载审计表 +1 行）；两次装载 <code>raw/staged/loaded/partitions</code> 全同（21756/21756/21756/259）</td><td>§5 命令 ③</td></tr>
-  <tr><td>质量闸 7/7 PASS；pytest 全过</td><td><b>达成</b>：C1–C7 全 PASS；test_industry.py 11 passed</td><td>§5 命令 ④⑤</td></tr>
-  <tr><td>表数 / data_catalog / A 股 20 表零 diff</td><td><b>达成</b>：BASE TABLE $tabs 张、<code>data_catalog</code> $catalog 行、A 股 $astock_line</td><td>§5 命令 ⑥⑦</td></tr>
+  <tr><td>质量闸 7/7 PASS；pytest 全过</td><td>$gate_line；test_industry.py 11 passed</td><td>§5 命令 ④⑤</td></tr>
+  <tr><td>表数 / data_catalog / A 股 20 表零 diff</td><td><b>达成</b>：BASE TABLE $tabs 张、<code>data_catalog</code> $catalog 行；A 股 $astock_line；另 $astock_supp</td><td>§5 命令 ⑥⑦</td></tr>
   <tr><td>manifest.params 可复跑</td><td><b>达成</b>：复跑同参数 0 请求、CSV 字节不变</td><td>§5 命令 ⑧</td></tr>
 </table>
 
@@ -135,16 +135,20 @@ jq -c '{run_id, n:(.failed|length), pending:(.pending|length)}' \
   $audit_rows
 </table>
 
-<h3>④⑤ 质量闸与单元测试</h3>
+<h3>④⑤ 质量闸与单元测试（生成页时点实跑）</h3>
+<p>$gate_detail</p>
 <pre>QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$$PWD /home/moyongkai/.venvs/quantdb/bin/python -m db.checks.industry all
 QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$$PWD /home/moyongkai/.venvs/quantdb/bin/python -m pytest db/tests/test_industry.py -q</pre>
 
 <h3>⑥⑦ 表数 / 目录 / A 股零 diff</h3>
 <pre>/home/moyongkai/.venvs/quantdb/bin/python scripts/work578_verify.py shape
-# A 股零 diff：与 20:44 的冷备库逐表比「行数 + 全列哈希」，不是只比前两列
-/home/moyongkai/.venvs/quantdb/bin/python scripts/work578_verify.py astock \
-  --against /srv/backup/quantdb/db/quantdb.duckdb</pre>
-<p>结果：$astock_line。指纹是 <code>count(*) + sum(hash(concat_ws('\x1f', COLUMNS(*))))</code>，覆盖全部列。</p>
+# A 股：与「改前基线」比（改前基线是唯一能证明本次装载没动 A 股的证据）
+/home/moyongkai/.venvs/quantdb/bin/python scripts/work578_verify.py astock
+# 可选：与另一份库比全列哈希；该库必须是改前态，否则脚本直接拒绝
+/home/moyongkai/.venvs/quantdb/bin/python scripts/work578_verify.py astock --against <改前库></pre>
+<p>结果：$astock_line；$astock_supp。</p>
+<p class="note">证据边界（不夸大）：改前基线（20:20）只存了行数与两列求和，所以它能证明的是「行数 + 两列求和未变」；
+全列哈希那一档只能对着「改前库」跑，而手边唯一的库副本（20:41 冷备）已经含回补结果，脚本会拒绝拿它当证据。</p>
 
 <h3>⑧ 复跑一条命令（回补，手动、非定时）</h3>
 <pre>cd /srv/share/quantdb/raw/industry_alt/exchange_daily_quotes
