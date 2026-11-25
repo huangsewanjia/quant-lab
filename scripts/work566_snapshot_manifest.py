@@ -112,7 +112,7 @@ def main():
                 "ok": True,
                 "source": "面板构建时记录",
             })
-    for rel in ("prior.json", "norm.json", "samples.npz", "sample_stats.json"):
+    for rel in ("prior.json", "norm.json", "samples.npz"):
         p = os.path.join(DATA, rel)
         if os.path.exists(p):
             sha, err = sha256_file(p)
@@ -134,7 +134,7 @@ def main():
                 "source": "本次运行复算",
             })
 
-    for rel in ("panel_audit.json", "data_probe.json"):
+    for rel in ("panel_audit.json", "data_probe.json", "sample_stats.json"):
         p = os.path.join(OUT, rel)
         if os.path.exists(p):
             sha, err = sha256_file(p)

@@ -1,0 +1,782 @@
+{
+  "experiment": "WORK-566",
+  "stage": "快照 manifest",
+  "generated_at": "2026-11-25T13:15:09+0800",
+  "data_cutoff": "2026-06-26",
+  "repo": {
+    "path": "/srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/quant-lab",
+    "branch": "agent/agent/e0a29716dad1",
+    "commit": "79ed047935d068ec825da0068b4c80deb1d06dfe",
+    "commit_time": "2026-11-25T13:11:40+08:00",
+    "commit_subject": "fix(experiment): WORK-566 主检验/审计链路首跑前修复（合成与 FMB 数据冒烟验证）"
+  },
+  "endpoints": [
+    {
+      "endpoint": "tushare.daily",
+      "source": "tushare MCP",
+      "params": {
+        "ts_code": "600000.SH",
+        "start_date": "20240101",
+        "end_date": "20240131"
+      },
+      "ok": true,
+      "error": null,
+      "rows": 22,
+      "coverage": "2024-01-02 ~ 2024-01-31（该窗口内 22 个交易日全覆盖）",
+      "unit": "vol=手(1手=100股)；amount=千元",
+      "note": "不复权价格；复权由 adj_factor 端点单独取，库里不存复权价"
+    },
+    {
+      "endpoint": "tushare.adj_factor",
+      "source": "tushare MCP",
+      "params": {
+        "ts_code": "600000.SH",
+        "start_date": "20240101",
+        "end_date": "20240131"
+      },
+      "ok": true,
+      "error": null,
+      "rows": 22,
+      "coverage": "2024-01-02 ~ 2024-01-31",
+      "unit": "无量纲乘性因子",
+      "note": "窗口内因子恒为 15.5347（区间无除权事件），可作口径自洽检查"
+    },
+    {
+      "endpoint": "tushare.daily_basic",
+      "source": "tushare MCP",
+      "params": {
+        "ts_code": "600000.SH",
+        "start_date": "20240101",
+        "end_date": "20240131"
+      },
+      "ok": true,
+      "error": null,
+      "rows": 22,
+      "coverage": "2024-01-02 ~ 2024-01-31",
+      "unit": "total_share/float_share/free_share=万股；total_mv/circ_mv=万元；turnover_rate=%",
+      "note": "口径自洽实测：total_share(万股) × close(元) = total_mv(万元)，2935217.6396 × 6.60 = 19372436.42 ✓（1 档舍入内）"
+    },
+    {
+      "endpoint": "tushare.stk_limit",
+      "source": "tushare MCP",
+      "params": {
+        "ts_code": "600000.SH",
+        "start_date": "20240101",
+        "end_date": "20240131"
+      },
+      "ok": true,
+      "error": null,
+      "rows": 22,
+      "coverage": "2024-01-02 ~ 2024-01-31",
+      "unit": "元/股（不复权口径，与 daily 的 close 同尺度）",
+      "note": "涨跌停价按个股当期规则给出（ST/主板/创业板不同），不做任何硬编码"
+    },
+    {
+      "endpoint": "tushare.suspend_d",
+      "source": "tushare MCP",
+      "params": {
+        "ts_code": "600000.SH",
+        "start_date": "20240101",
+        "end_date": "20240331"
+      },
+      "ok": true,
+      "error": null,
+      "rows": 0,
+      "coverage": "无停牌事件（该窗口浦发银行未停牌）",
+      "unit": "事件表",
+      "note": "空返回是「该股无事件」，不是接口不可用；全库事件量见本地库统计"
+    },
+    {
+      "endpoint": "tushare.stock_basic",
+      "source": "tushare MCP",
+      "params": {
+        "ts_code": "600000.SH"
+      },
+      "ok": true,
+      "error": null,
+      "rows": 1,
+      "coverage": "个股主档 1 条",
+      "unit": "—",
+      "note": "返回字段中**无 list_status**（无在市/退市标记）；退市识别改用「stock_basic 有主档 + daily 无后续 bar」"
+    },
+    {
+      "endpoint": "quantdb.daily",
+      "source": "quantdb parquet 原始层",
+      "sql": "select count(*), count(distinct ts_code), min(trade_date), max(trade_date) from read_parquet('/srv/share/quantdb/raw/daily/**/*.parquet', hive_partitioning=true, union_by_name=true)",
+      "ok": true,
+      "error": null,
+      "rows": 1,
+      "result": [
+        [
+          15977313,
+          5887,
+          20060104,
+          20261124
+        ]
+      ],
+      "unit": "vol=手, amount=千元",
+      "note": "全表",
+      "elapsed_s": 33.0
+    },
+    {
+      "endpoint": "quantdb.adj_factor",
+      "source": "quantdb parquet 原始层",
+      "sql": "select count(*), count(distinct ts_code), min(trade_date), max(trade_date) from read_parquet('/srv/share/quantdb/raw/adj_factor/**/*.parquet', hive_partitioning=true, union_by_name=true)",
+      "ok": true,
+      "error": null,
+      "rows": 1,
+      "result": [
+        [
+          16733691,
+          5891,
+          20060104,
+          20261124
+        ]
+      ],
+      "unit": "",
+      "note": "",
+      "elapsed_s": 22.1
+    },
+    {
+      "endpoint": "quantdb.daily_basic",
+      "source": "quantdb parquet 原始层",
+      "sql": "select count(*), count(distinct ts_code), min(trade_date), max(trade_date) from read_parquet('/srv/share/quantdb/raw/daily_basic/**/*.parquet', hive_partitioning=true, union_by_name=true)",
+      "ok": true,
+      "error": null,
+      "rows": 1,
+      "result": [
+        [
+          15886449,
+          5966,
+          20060104,
+          20261124
+        ]
+      ],
+      "unit": "total_mv=万元, total_share=万股",
+      "note": "",
+      "elapsed_s": 64.3
+    },
+    {
+      "endpoint": "quantdb.stk_limit",
+      "source": "quantdb parquet 原始层",
+      "sql": "select count(*), count(distinct ts_code), min(trade_date), max(trade_date) from read_parquet('/srv/share/quantdb/raw/stk_limit/**/*.parquet', hive_partitioning=true, union_by_name=true)",
+      "ok": true,
+      "error": null,
+      "rows": 1,
+      "result": [
+        [
+          16166543,
+          6026,
+          20070104,
+          20261124
+        ]
+      ],
+      "unit": "元/股",
+      "note": "",
+      "elapsed_s": 20.8
+    },
+    {
+      "endpoint": "quantdb.stock_basic",
+      "source": "quantdb parquet 原始层",
+      "sql": "select count(*), count(distinct ts_code), min(list_date), max(list_date) from read_parquet('/srv/share/quantdb/raw/stock_basic/**/*.parquet', hive_partitioning=true, union_by_name=true)",
+      "ok": true,
+      "error": null,
+      "rows": 1,
+      "result": [
+        [
+          5925,
+          5925,
+          "1990-12-01",
+          "2026-11-23"
+        ]
+      ],
+      "unit": "list_date=YYYYMMDD",
+      "note": "无 list_status 字段",
+      "elapsed_s": 0.0
+    },
+    {
+      "endpoint": "quantdb.suspend_d",
+      "source": "quantdb parquet 原始层",
+      "sql": "select count(*), count(distinct ts_code), min(trade_date), max(trade_date) from read_parquet('/srv/share/quantdb/raw/suspend_d/**/*.parquet', hive_partitioning=true, union_by_name=true)",
+      "ok": true,
+      "error": null,
+      "rows": 1,
+      "result": [
+        [
+          581389,
+          4700,
+          20060104,
+          20261124
+        ]
+      ],
+      "unit": "",
+      "note": "",
+      "elapsed_s": 7.0
+    },
+    {
+      "endpoint": "quantdb.trade_cal",
+      "source": "quantdb parquet 原始层",
+      "sql": "select count(*), count(distinct exchange), min(cal_date), max(cal_date) from read_parquet('/srv/share/quantdb/raw/trade_cal/**/*.parquet', hive_partitioning=true, union_by_name=true)",
+      "ok": true,
+      "error": null,
+      "rows": 1,
+      "result": [
+        [
+          15266,
+          2,
+          "2006-01-01",
+          "2026-11-24"
+        ]
+      ],
+      "unit": "",
+      "note": "",
+      "elapsed_s": 0.0
+    },
+    {
+      "endpoint": "quantdb.fina_indicator",
+      "source": "quantdb parquet 原始层",
+      "sql": "select count(*), count(distinct ts_code), min(ann_date), max(ann_date), min(end_date), max(end_date) from read_parquet('/srv/share/quantdb/raw/fina_indicator/**/*.parquet', hive_partitioning=true, union_by_name=true)",
+      "ok": true,
+      "error": null,
+      "rows": 1,
+      "result": [
+        [
+          484520,
+          5900,
+          "2006-04-08",
+          "2026-11-16",
+          "2006-03-31",
+          "2026-09-30"
+        ]
+      ],
+      "unit": "ann_date=公告日(PIT 口径)",
+      "note": "end_date=报告期",
+      "elapsed_s": 38.3
+    },
+    {
+      "endpoint": "quantdb.daily_prior_fit_2014_2015",
+      "source": "quantdb parquet 原始层",
+      "sql": "select count(*), count(distinct ts_code), count(distinct trade_date) from read_parquet(['/srv/share/quantdb/raw/daily/trade_date=2014*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2015*/**/*.parquet'], hive_partitioning=true, union_by_name=true) where trade_date between 20140101 and 20151231",
+      "ok": true,
+      "error": null,
+      "rows": 1,
+      "result": [
+        [
+          1146219,
+          2892,
+          489
+        ]
+      ],
+      "unit": "",
+      "note": "",
+      "elapsed_s": 2.6
+    },
+    {
+      "endpoint": "quantdb.daily_train_2016_2021",
+      "source": "quantdb parquet 原始层",
+      "sql": "select count(*), count(distinct ts_code), count(distinct trade_date) from read_parquet(['/srv/share/quantdb/raw/daily/trade_date=2016*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2017*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2018*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2019*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2020*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2021*/**/*.parquet'], hive_partitioning=true, union_by_name=true) where trade_date between 20160101 and 20211231",
+      "ok": true,
+      "error": null,
+      "rows": 1,
+      "result": [
+        [
+          5175524,
+          4894,
+          1461
+        ]
+      ],
+      "unit": "",
+      "note": "",
+      "elapsed_s": 8.5
+    },
+    {
+      "endpoint": "quantdb.daily_valid_2022_2023",
+      "source": "quantdb parquet 原始层",
+      "sql": "select count(*), count(distinct ts_code), count(distinct trade_date) from read_parquet(['/srv/share/quantdb/raw/daily/trade_date=2022*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2023*/**/*.parquet'], hive_partitioning=true, union_by_name=true) where trade_date between 20220101 and 20231231",
+      "ok": true,
+      "error": null,
+      "rows": 1,
+      "result": [
+        [
+          2437806,
+          5430,
+          484
+        ]
+      ],
+      "unit": "",
+      "note": "",
+      "elapsed_s": 3.6
+    },
+    {
+      "endpoint": "quantdb.daily_test_2024_2026H1",
+      "source": "quantdb parquet 原始层",
+      "sql": "select count(*), count(distinct ts_code), count(distinct trade_date) from read_parquet(['/srv/share/quantdb/raw/daily/trade_date=2024*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2025*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2026*/**/*.parquet'], hive_partitioning=true, union_by_name=true) where trade_date between 20240102 and 20260626",
+      "ok": true,
+      "error": null,
+      "rows": 1,
+      "result": [
+        [
+          3233064,
+          5618,
+          599
+        ]
+      ],
+      "unit": "",
+      "note": "",
+      "elapsed_s": 4.1
+    },
+    {
+      "endpoint": "quantdb.delisted_with_daily",
+      "source": "quantdb parquet 原始层",
+      "sql": "select count(*) from (select distinct ts_code from read_parquet('/srv/share/quantdb/raw/stock_basic/**/*.parquet', hive_partitioning=true, union_by_name=true)) s where s.ts_code in (select distinct ts_code from read_parquet(['/srv/share/quantdb/raw/daily/trade_date=2012*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2013*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2014*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2015*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2016*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2017*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2018*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2019*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2020*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2021*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2022*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2023*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2024*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2025*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2026*/**/*.parquet'], hive_partitioning=true, union_by_name=true) where trade_date between 20120101 and 20260626)",
+      "ok": true,
+      "error": null,
+      "rows": 1,
+      "result": [
+        [
+          5783
+        ]
+      ],
+      "unit": "",
+      "note": "",
+      "elapsed_s": 2.5
+    },
+    {
+      "endpoint": "quantdb.listed_without_daily",
+      "source": "quantdb parquet 原始层",
+      "sql": "select count(*) from (select distinct ts_code from read_parquet('/srv/share/quantdb/raw/stock_basic/**/*.parquet', hive_partitioning=true, union_by_name=true)) s where s.ts_code not in (select distinct ts_code from read_parquet(['/srv/share/quantdb/raw/daily/trade_date=2012*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2013*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2014*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2015*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2016*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2017*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2018*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2019*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2020*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2021*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2022*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2023*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2024*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2025*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2026*/**/*.parquet'], hive_partitioning=true, union_by_name=true) where trade_date between 20120101 and 20260626)",
+      "ok": true,
+      "error": null,
+      "rows": 1,
+      "result": [
+        [
+          142
+        ]
+      ],
+      "unit": "",
+      "note": "",
+      "elapsed_s": 0.6
+    },
+    {
+      "endpoint": "quantdb.test_window_coverage",
+      "source": "quantdb parquet 原始层",
+      "sql": "with cal as (select cast(strftime(cal_date, '%Y%m%d') as int) as cd from read_parquet('/srv/share/quantdb/raw/trade_cal/**/*.parquet', hive_partitioning=true, union_by_name=true) where exchange='SSE' and is_open=1 and cal_date between date '2024-01-02' and date '2026-06-26'), listed as (select distinct ts_code from read_parquet(['/srv/share/quantdb/raw/daily/trade_date=2024*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2025*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2026*/**/*.parquet'], hive_partitioning=true, union_by_name=true) where trade_date between 20240102 and 20260626), bars as (select ts_code, count(distinct trade_date) n from read_parquet(['/srv/share/quantdb/raw/daily/trade_date=2024*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2025*/**/*.parquet','/srv/share/quantdb/raw/daily/trade_date=2026*/**/*.parquet'], hive_partitioning=true, union_by_name=true) where trade_date between 20240102 and 20260626 group by 1) select (select count(*) from cal), (select count(*) from listed), (select sum(n) from bars), round((select sum(n) from bars)::double / ((select count(*) from cal) * (select count(*) from listed)), 6)",
+      "ok": true,
+      "error": null,
+      "rows": 1,
+      "result": [
+        [
+          599,
+          5618,
+          3233064,
+          0.96074
+        ]
+      ],
+      "unit": "分母=测试期交易日数 × 测试期出现过的股票数；分子=实际 bar 数",
+      "note": "停牌格记为缺失，不补 0",
+      "elapsed_s": 0.6
+    },
+    {
+      "endpoint": "quantdb.fina_pit_check",
+      "source": "quantdb parquet 原始层",
+      "sql": "select count(*) from (select ts_code, ann_date, end_date, roe from read_parquet('/srv/share/quantdb/raw/fina_indicator/**/*.parquet', hive_partitioning=true, union_by_name=true) where ann_date is not null and end_date is not null) x",
+      "ok": true,
+      "error": null,
+      "rows": 1,
+      "result": [
+        [
+          484520
+        ]
+      ],
+      "unit": "ann_date 不早于 end_date 的比例见下一行",
+      "note": "",
+      "elapsed_s": 48.5
+    },
+    {
+      "endpoint": "quantdb.fina_pit_ratio",
+      "source": "quantdb parquet 原始层",
+      "sql": "select round(avg(case when cast(strftime(ann_date,'%Y%m%d') as int) >= cast(strftime(end_date,'%Y%m%d') as int) then 1.0 else 0.0 end), 6), count(*) from read_parquet('/srv/share/quantdb/raw/fina_indicator/**/*.parquet', hive_partitioning=true, union_by_name=true) where ann_date is not null and end_date is not null",
+      "ok": true,
+      "error": null,
+      "rows": 1,
+      "result": [
+        [
+          0.999998,
+          484520
+        ]
+      ],
+      "unit": "ann_date >= end_date 的比例（应为 1）",
+      "note": "as-of 对齐的硬条件：公告日必须不早于报告期；比例 <1 表示有反常记录",
+      "elapsed_s": 13.7
+    }
+  ],
+  "snapshot_files": [
+    {
+      "path": "data/WORK-566/base/adj.npy",
+      "sha256": "8b8d94a8b25aa09504e22da62b692df85858cdfc6d617b4320322da026ce6c62",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/base/amount.npy",
+      "sha256": "b91f0553120706224032d7e6c41ca3d519ca736301da2770f13b6f61f985a858",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/base/circ_mv.npy",
+      "sha256": "4fc1e788a678c9e673132ada0a39fdc30ba8263c9572904a4ad40eef723b0d87",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/base/close_hfq.npy",
+      "sha256": "2c6caaaa63314d51a89fbd4d944c4fcd6426b4b75d67d5729e399d55ef6c5eb6",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/base/close_raw.npy",
+      "sha256": "ca3a5cf6feb1cc85c3ea11b4f9cde3c62a9913045cf5fa155d0a912da29d38b6",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/base/down_limit.npy",
+      "sha256": "283dcf8fd0ef1395d4cbf1d4979006bc0ca9852e57214c2071423cf7afdcca3b",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/base/has_bar.npy",
+      "sha256": "01762d3600562fe75f1d790fe854c290c143d08d65536d5f754c3dc1f5f09779",
+      "bytes": 18916321,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/base/high_raw.npy",
+      "sha256": "92b78e938d68a3c49efc4d133d706efe8791f4e82a4b1727858ce7b82e37523b",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/base/logC.npy",
+      "sha256": "64f8674ca9a907d592824522256a94f6ed39eb774cc4de173b1fdd64dbd3a2a6",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/base/low_raw.npy",
+      "sha256": "5cecfdddb9504f1a3bc351363e56083998be9e3e1d050fe757adf34baa35e2a9",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/base/open_hfq.npy",
+      "sha256": "8b90af3b4e4f5fb5a4bc06d7597229c8b94eebbe3d735e24c84b48c15c44de31",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/base/open_raw.npy",
+      "sha256": "d75159cfca8b2d28a32d25607655a4a9ca964e4e7d77f60eb18baf23e68d0110",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/base/pb.npy",
+      "sha256": "4ab7aaa60adb0191a888463bcbb6a67cc4700fb2d9fb320d3b2d16976e1e828e",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/base/pe_ttm.npy",
+      "sha256": "ec56ae4ecd658aae9d2d3c6fc2b0766b1aef1792a846669a3bb24453b8bfae51",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/base/turnover_rate.npy",
+      "sha256": "a6579cfba51c25e0d7d2b6c353f7d9934698ddb99c691bd9dbc9ab703d595288",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/base/turnover_rate_f.npy",
+      "sha256": "47f2c25d21ebe1b52b4afe11945536cc223985ab10e512b1584b8feb7fbaded2",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/base/up_limit.npy",
+      "sha256": "5ad2e5a2b264e1e18357d2ee0848b437df9d2e350ef364e3339d72afc0335edd",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/base/vol.npy",
+      "sha256": "05caa2d20a59cf8c626919462c24e230eb3e966827439ce285a28246567dc5c3",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/ret/r1.npy",
+      "sha256": "f084031f790361d69e6b73e8eec02f805f022343272c815ee2278ab457e26dde",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/ret/r126.npy",
+      "sha256": "f084031f790361d69e6b73e8eec02f805f022343272c815ee2278ab457e26dde",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/ret/r21.npy",
+      "sha256": "f084031f790361d69e6b73e8eec02f805f022343272c815ee2278ab457e26dde",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/ret/r5.npy",
+      "sha256": "f084031f790361d69e6b73e8eec02f805f022343272c815ee2278ab457e26dde",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/ret/r63.npy",
+      "sha256": "f084031f790361d69e6b73e8eec02f805f022343272c815ee2278ab457e26dde",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/ret/r_1.npy",
+      "sha256": "b934a7afe23241c32ee8961a782295d2c48dd849a25e609c08f1c874d1f1d92c",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/ret/r_126.npy",
+      "sha256": "25538b8c8e389fcaab9e68b64caa64ad44a3ccb5c46889b978ed370e5a3f027f",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/ret/r_21.npy",
+      "sha256": "18819c2a8f128782a67b32bbd5b304468136db2d3de9e9c2184b601d69361f6f",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/ret/r_5.npy",
+      "sha256": "49d1d30f15bc048f9062f42dbc2b58d2dcdc712c3e94b6cab448ff54105fdbd3",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/ret/r_63.npy",
+      "sha256": "26a82951eb68ebfa704c650aaa7ab46926a4ef5c0fff0601acb5e1d6f1e7559b",
+      "bytes": 75664900,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/feat.npy",
+      "sha256": "44841188276e7db0e30ce6f5ee2a4b17ea17a081723269d0f22eb8512a3da05a",
+      "bytes": 3026591008,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/targets.npy",
+      "sha256": "59f1437780f8fcc1569f88b9e6cc1abcdd9b8baa2c172825a45ab192e237e591",
+      "bytes": 680983076,
+      "ok": true,
+      "source": "面板构建时记录"
+    },
+    {
+      "path": "data/WORK-566/prior.json",
+      "sha256": "9686b01b73509519a62d95116e32d3e543a6140db972e44bc0d24fb679a007a2",
+      "bytes": 122100,
+      "ok": true,
+      "error": null,
+      "source": "本次运行复算"
+    },
+    {
+      "path": "data/WORK-566/norm.json",
+      "sha256": "57ccad5bd153ea2ceeff0abaa33092ae941438f3042e5bfe60ae4c57cc95f72b",
+      "bytes": 2121,
+      "ok": true,
+      "error": null,
+      "source": "本次运行复算"
+    },
+    {
+      "path": "data/WORK-566/samples.npz",
+      "sha256": "72451f16da13cb47237dea3074e4aca98557e9066240f3d488a37bba1056df42",
+      "bytes": 1534269,
+      "ok": true,
+      "error": null,
+      "source": "本次运行复算"
+    },
+    {
+      "path": "experiments/WORK-566/panel_audit.json",
+      "sha256": "12b80eef39b45bdea6a72be84ee3897e018b886abb6b6b195d98bddae4a3f100",
+      "bytes": 11471,
+      "ok": true,
+      "error": null,
+      "source": "本次运行复算"
+    },
+    {
+      "path": "experiments/WORK-566/data_probe.json",
+      "sha256": "f1cf1c603c9c4e234840e453a8e802ba715b138e2868340e7f86eadf910aa2b9",
+      "bytes": 18578,
+      "ok": true,
+      "error": null,
+      "source": "本次运行复算"
+    },
+    {
+      "path": "experiments/WORK-566/sample_stats.json",
+      "sha256": "62d40c5dd4fe706b551e4afadcf7150ad0561f462f0d32f56d30b54973cb10af",
+      "bytes": 936,
+      "ok": true,
+      "error": null,
+      "source": "本次运行复算"
+    }
+  ],
+  "window_coverage": {
+    "prior_fit_2014_2015": {
+      "daily": [
+        1146219,
+        2892,
+        489
+      ],
+      "adj_factor": [
+        1297971,
+        2889,
+        489
+      ],
+      "daily_basic": [
+        1140987,
+        2819,
+        489
+      ],
+      "stk_limit": [
+        1284878,
+        2818,
+        489
+      ]
+    },
+    "train_2016_2021": {
+      "daily": [
+        5175524,
+        4894,
+        1461
+      ],
+      "adj_factor": [
+        5511704,
+        4893,
+        1463
+      ],
+      "daily_basic": [
+        5097780,
+        4875,
+        1461
+      ],
+      "stk_limit": [
+        5290800,
+        4894,
+        1461
+      ]
+    },
+    "valid_2022_2023": {
+      "daily": [
+        2437806,
+        5430,
+        484
+      ],
+      "adj_factor": [
+        2480189,
+        5439,
+        484
+      ],
+      "daily_basic": [
+        2430152,
+        5423,
+        484
+      ],
+      "stk_limit": [
+        2455910,
+        5470,
+        484
+      ]
+    },
+    "test_2024_2026H1": {
+      "daily": [
+        3233064,
+        5618,
+        599
+      ],
+      "adj_factor": [
+        3251018,
+        5638,
+        599
+      ],
+      "daily_basic": [
+        3233064,
+        5618,
+        599
+      ],
+      "stk_limit": [
+        3285807,
+        5706,
+        599
+      ]
+    }
+  },
+  "delisting": {
+    "stock_basic_distinct_ts_code": 5925,
+    "daily_distinct_ts_code_all_history": 5887,
+    "in_stock_basic_and_has_daily_2012plus": 5783,
+    "in_stock_basic_without_any_daily": 142,
+    "paper_cn_all_securities": 5669
+  },
+  "test_window_bar_coverage": [
+    599,
+    5618,
+    3233064,
+    0.96074
+  ],
+  "summary": {
+    "n_endpoints": 23,
+    "n_endpoints_ok": 23,
+    "n_endpoints_failed": 0,
+    "n_snapshot_files": 36
+  }
+}
