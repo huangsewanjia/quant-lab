@@ -107,8 +107,8 @@ QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
 
 | 档位 | 默认值 | 谁用 | 深度 |
 |---|---|---|---|
-| `--mode incremental`（默认） | 不传参就是这个 | 定时任务（`industry.sh daily/monthly` 显式传） | GFEX 30 天 + `--resume`、巨潮 90 天、中汽协 3 个月、财政部 4 页、乘联 3 页、能源局每词 3 页 + 当年扩词、人民银行当年、统计局 6 页 / 每组 6 篇 |
-| `--mode backfill` | 必须显式 `--mode backfill` | 手工回填 | GFEX 1825 天、巨潮 1095 天、中汽协 78 个月 / 1600 个 id、财政部 30 页 / 150 篇、乘联 10 页 / 90 篇、能源局 80 页 / 200 条每页、人民银行 2021 年起、统计局 80 页 / 每组 70 篇 |
+| `--mode incremental`（默认） | 不传参就是这个 | 定时任务（`industry.sh daily/monthly` 显式传） | GFEX 30 天 + `--resume`、巨潮 90 天、中汽协 3 个月、财政部 4 页、乘联 3 页、能源局只固定 mode（窗口旋钮归 WORK-579）、人民银行当年、统计局 6 页 / 每组 6 篇 |
+| `--mode backfill` | 必须显式 `--mode backfill` | 手工回填 | GFEX 1825 天、巨潮 1095 天、中汽协 78 个月 / 1600 个 id、财政部 30 页 / 150 篇、乘联 10 页 / 90 篇、能源局 `--mode backfill`（窗口归 WORK-579）、人民银行 2021 年起、统计局 80 页 / 每组 70 篇 |
 
 显式传数值（如 `--days 7`）永远优先于 `--mode`；manifest 的 `params.mode` 与各旋钮实际值可事后核对。
 抓取落盘是合并写（按 key 去重），窗口收窄只影响「本次请求多少」，不会丢已有 raw 行。
@@ -446,10 +446,16 @@ ppi 13s、trendforce 3s。`real 17m48s` 里的 16m41s 是等锁，不是抓取�
 GFEX 的实际参数（`jq '{params:.params, elapsed:.elapsed_seconds}' raw/industry/gfex_lithium_carbonate/manifest.json`）：
 
 ```json
-{"mode": "incremental", "days_back": 30, "from": "2026-10-26", "to": "2026-11-25",
- "workdays_queried": 3, "workdays_skipped_resume": 20, "resume": true,
- "fetched_trade_dates": 3, "elapsed_seconds": 3.1}
+{"params": {"api": "...", "mode": "incremental", "days_back": 30,
+            "from": "2026-10-26", "to": "2026-11-25", "weekdays_only": true,
+            "variety": "碳酸锂", "listing_date": "2023-07-21", "since_listing": true,
+            "workdays_queried": 3, "workdays_skipped_resume": 20, "resume": true,
+            "fetched_trade_dates": 3, "fetched_trade_range": ["20261123", "20261125"]},
+ "elapsed": 2.5}
 ```
+
+（这是 21:46 按上表参数重跑后的 manifest，`backfill_depth_days` 已随代码删除；重跑只用了 2.5 秒、3 个工作日，
+与首次日频档的 3.1 秒 / 3 个工作日一致。）
 
 改前同一脚本的 `params` 是 `days_back=1825, resume=false`（回填时才手动加 `--resume`，
 实测 67 个工作日 / 108 秒）；按 874 个工作日线性折算约 20–25 分钟，且 07:10、08:10 两档会叠加。
@@ -460,8 +466,8 @@ GFEX 的实际参数（`jq '{params:.params, elapsed:.elapsed_seconds}' raw/indu
   国际源按各自旋钮显式传：exchange `--days 7 --resume`、comtrade `--start-year 2019 --end-year 2024`、
   owid `--min-year 0`；benchmark / ppi / trendforce 是单页快照，无参。
 - **月频档**（`industry.sh monthly`）：8 个国内源全部 `--mode incremental`，窗口见 §3 表：
-  巨潮 90 天、中汽协 3 个月、财政部 4 页 / 24 篇、乘联 3 页 / 30 篇、能源局每词 3 页 + 当年扩词、
-  人民银行当年、统计局 6 页 / 每组 6 篇；CNESA 无参数；国际三源同日常档显式参数。
+  巨潮 90 天、中汽协 3 个月、财政部 4 页 / 24 篇、乘联 3 页 / 30 篇、能源局只固定 `--mode incremental`、
+  人民银行当年、统计局 6 页 / 每组 6 篇；CNESA 无参数；comtrade/owid 同日常档显式参数，SNE 无参。
 - **回填档**：只手工跑，命令见 §3 第 5 段与 §10.2 复跑列（`--mode backfill`）。
 
 月频 11 个抓取脚本按上表参数逐个实测（2026-11-25 20:36–20:52，只抓取不装载，逐源输出在
@@ -474,11 +480,11 @@ GFEX 的实际参数（`jq '{params:.params, elapsed:.elapsed_seconds}' raw/indu
 | cninfo_ann | 41s | 14,075（+254） | 90 天窗口，2 条截断告警（见 §11.6） |
 | cpcaauto_nev | 13s | 506 | 每栏目 3 页 |
 | mof_fiscal | 4s | 836 | 4 页 / 24 篇 |
-| nea_power | 113s | 606 | 每词 3 页 + 当年扩词（3 次请求/词） |
+| nea_power | 113s | 606 | 当时参数：每词 3 页 + 当年扩词；21:34 起该脚本由 WORK-579 改写（窗口旋钮改为 `--months/--articles`），定时任务只固定 `--mode incremental` |
 | pbc_shrzgm | 24s | 770 | 只取当年 |
 | stats_gov_release | 91s | 137,342 | 6 页 + 每组 6 篇 |
-| comtrade_trade_values | 274s | 30 | 无窗口参数（按年循环 2019–2024，本单未改） |
-| ow_iea_usgs_timeseries | 20s | 1,044 | 无窗口参数（全序列 1 次 CSV/源） |
+| comtrade_trade_values | 274s | 30 | 定时显式 `--start-year 2019 --end-year 2024`（本次 smoke 未带参，取脚本默认，与定时参数相同） |
+| ow_iea_usgs_timeseries | 20s | 1,044 | 定时显式 `--min-year 0`（全序列 1 次 CSV/源） |
 | sne_public_battery | 352s | 8 | 无窗口参数（新闻稿，本单未改） |
 
 合计约 15.8 分钟，跑在每月 3 日 06:40 的月频档；日频档不包含这些源，所以不影响每日成本。
@@ -504,10 +510,17 @@ GFEX 的实际参数（`jq '{params:.params, elapsed:.elapsed_seconds}' raw/indu
 | 列相加自检 | PASS：263,698 = 上述 17 行逐行相加（`work572_verify.py shape` 内置断言，失败返回 1） |
 | `data_catalog` | 405（未变）|
 
-20:38 起并行单又装了一轮（grep 到 cninfo 14,075 行），当前读库为 **263,952**；
-两轮都在基线之上，「不减少」成立。增量只做「按源 × 期分区替换 + 合并写 raw」，
-收窄窗口只减少请求数，不会删掉已有 raw 行；本次增加主要来自同日并行回补的
-exchange（84 → 21,756 行，WORK-578 归口）与 cnesa（2 → 33 行，WORK-577 归口）。
+20:38 起并行单又装了几轮，21:46 读库为 **265,015**（并行回补继续推进）；两轮都远高于基线，
+「不减少」成立。可复跑核对：
+
+```bash
+QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
+  /home/moyongkai/.venvs/quantdb/bin/python scripts/work572_verify.py shape --baseline 241892
+# 低于基线时退出码 1（已用 --baseline 999999 反向验证：rc=1）
+```
+
+增量只做「按源 × 期分区替换 + 合并写 raw」，收窄窗口只减少请求数，不会删掉已有 raw 行；
+本次增加主要来自同日并行回补的 exchange（84 → 21,756 行，WORK-578 归口）与 cnesa（2 → 33 行，WORK-577 归口）。
 
 ### 11.5 质量闸
 

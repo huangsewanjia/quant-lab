@@ -64,6 +64,17 @@ run_fetcher() {
   fi
 }
 
+# 单个源的参数解析 + 调用；国内、国际两个循环共用，避免两处逻辑分叉。
+run_source() {
+  local name="$1" script="$2"
+  local -a src_args=()
+  if [ -n "${FETCH_ARGS[${name}]:-}" ]; then
+    read -r -a src_args <<<"${FETCH_ARGS[${name}]}"
+  fi
+  log "  args ${name}: ${FETCH_ARGS[${name}]:-(none)}"
+  run_fetcher "${name}" "${PY}" "${script}" ${src_args[@]+"${src_args[@]}"}
+}
+
 if [ "${MODE}" = "daily" ]; then
   CNN_SOURCES=(gfex_lithium chinamoney_lpr)
   ALT_SOURCES=(benchmark_public_index exchange_daily_quotes ppi_spot_prices trendforce_spot_price)
@@ -86,7 +97,7 @@ declare -A FETCH_ARGS=(
   [cninfo_ann]="--mode incremental --days 90 --max-pages 60"
   [cpcaauto_nev]="--mode incremental --articles 30 --pages 3"
   [mof_fiscal]="--mode incremental --articles 24 --pages 4"
-  [nea_power]="--mode incremental --pages 3 --articles 20 --year-pages 1"
+  [nea_power]="--mode incremental"
   [pbc_shrzgm]="--mode incremental"
   [stats_gov]="--mode incremental --pages 6 --articles 6"
   # 国际源（脚本在 raw/industry_alt/<源>/fetch.py）
@@ -103,12 +114,7 @@ for name in "${CNN_SOURCES[@]}"; do
     log "  !!   ${script} 不存在，跳过"
     continue
   fi
-  src_args=()
-  if [ -n "${FETCH_ARGS[${name}]:-}" ]; then
-    read -r -a src_args <<<"${FETCH_ARGS[${name}]}"
-  fi
-  log "  args ${name}: ${FETCH_ARGS[${name}]:-(none)}"
-  run_fetcher "${name}" "${PY}" "${script}" ${src_args[@]+"${src_args[@]}"}
+  run_source "${name}" "${script}"
 done
 
 log "抓取 ${#ALT_SOURCES[@]} 个国际源"
@@ -119,12 +125,7 @@ for name in "${ALT_SOURCES[@]}"; do
     log "  !!   ${script} 不存在，跳过"
     continue
   fi
-  src_args=()
-  if [ -n "${FETCH_ARGS[${name}]:-}" ]; then
-    read -r -a src_args <<<"${FETCH_ARGS[${name}]}"
-  fi
-  log "  args ${name}: ${FETCH_ARGS[${name}]:-(none)}"
-  run_fetcher "${name}" "${PY}" "${script}" ${src_args[@]+"${src_args[@]}"}
+  run_source "${name}" "${script}"
 done
 
 # 装载 + 质量闸：整体重试 2 次。

@@ -193,7 +193,7 @@ def idem():
     return 0 if not diff else 1
 
 
-def shape():
+def shape(baseline: int | None = None):
     c = con()
     tabs = [r[0] for r in c.execute(
         "SELECT table_name FROM information_schema.tables WHERE table_type='BASE TABLE' ORDER BY 1").fetchall()]
@@ -201,17 +201,22 @@ def shape():
     print(f"[shape] 库内 BASE TABLE 共 {len(tabs)} 张；industry_* 数据表 {len(ind)} 张")
     print(f"[shape] data_catalog 行数 {c.execute('SELECT count(*) FROM data_catalog').fetchone()[0]}")
     tot = 0
-    counts = {}
     for t in sorted(ind):
         n = c.execute(f"SELECT count(*) FROM {t}").fetchone()[0]
-        counts[t] = n
         tot += n
         print(f"  {t:40} {n:>10,}")
-    recomputed = sum(counts.values())
-    if recomputed != tot:
-        print(f"[shape] 列相加自检 FAIL：合计 {tot:,} != 逐行相加 {recomputed:,}")
+    # 交叉核对：同一条 SQL 里再求一次总和，与逐表相加比较（两条独立代码路径）。
+    union_sql = " UNION ALL ".join(f"SELECT count(*) AS n FROM {t}" for t in sorted(ind))
+    sql_total = c.execute(f"SELECT sum(n) FROM ({union_sql})").fetchone()[0] or 0
+    if sql_total != tot:
+        print(f"[shape] 合计交叉核对 FAIL：逐表相加 {tot:,} != SQL 汇总 {sql_total:,}")
         return 1
-    print(f"[shape] industry_* 合计 {tot:,} 行（列相加自检 PASS：{tot:,} = {len(counts)} 行逐行相加）")
+    print(f"[shape] industry_* 合计 {tot:,} 行（交叉核对 PASS：逐表相加 = SQL 汇总；{len(ind)} 张表）")
+    if baseline is not None:
+        if tot < baseline:
+            print(f"[shape] 行数回退 FAIL：合计 {tot:,} < 基线 {baseline:,}（增量不许丢历史）")
+            return 1
+        print(f"[shape] 行数回退检查 PASS：{tot:,} >= 基线 {baseline:,}")
     return 0 if len(ind) == 17 else 1
 
 
@@ -226,7 +231,10 @@ if __name__ == "__main__":
     if not fn:
         print(__doc__)
         sys.exit(2)
+    kwargs = {}
+    if cmd == "shape" and "--baseline" in sys.argv:
+        kwargs["baseline"] = int(sys.argv[sys.argv.index("--baseline") + 1])
     try:
-        sys.exit(fn() or 0)
+        sys.exit(fn(**kwargs) or 0)
     except BrokenPipeError:      # `| head` 提前关闭管道时不算失败
         sys.exit(0)

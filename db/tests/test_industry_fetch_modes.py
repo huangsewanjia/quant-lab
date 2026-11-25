@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import importlib
 import sys
 from pathlib import Path
@@ -89,8 +90,10 @@ INCREMENTAL_BOUNDS = {
     "fetch_caam_output": {"months": 3, "articles": 20, "scan": 400},
     "fetch_cpcaauto_nev": {"articles": 30, "pages": 3},
     "fetch_mof_fiscal": {"articles": 24, "pages": 4},
-    "fetch_nea_power": {"pages": 3, "year_pages": 1, "articles": 20},
-    "fetch_pbc_shrzgm": {"since_year": 2026},
+    # nea_power 的深度旋钮（months/articles）由 WORK-579 改写并在其单内调整；
+    # 定时任务只固定 --mode incremental，不在本单硬编码其窗口参数。
+    "fetch_nea_power": {},
+    "fetch_pbc_shrzgm": {"since_year": lambda: dt.date.today().year},
     "fetch_stats_gov": {"pages": 6, "articles": 6},
 }
 
@@ -103,7 +106,33 @@ def test_incremental_window_within_bounds(common, name):
         value = inc[key]
         if callable(value):
             value = value()
+        if callable(bound):      # 与年份相关：今天必须在「当年」，不写死年份
+            bound = bound()
         assert value <= bound, f"{name}.{key}: 日常档 {value} 超过安全上限 {bound}"
+
+
+@pytest.mark.parametrize("name", MODULES)
+def test_argparse_depth_defaults_are_none(common, monkeypatch, name):
+    """每个深度旋钮的 argparse 默认值必须是 None。
+
+    这是第 1 轮 B1 的失效机理：resolve_mode 只填 None，默认值一旦写成大窗口，
+    --mode incremental 与裸跑都会深抓，而只看 WINDOWS 的断言发现不了。
+    在 resolve_mode 处截断，既不联网也不建 session。
+    """
+    mod = importlib.import_module(name)
+    seen: dict = {}
+
+    def stop(args, windows):
+        seen.update(vars(args))
+        raise RuntimeError("resolved")
+
+    monkeypatch.setattr(mod, "resolve_mode", stop)
+    monkeypatch.setattr(sys, "argv", [f"{name}.py"])
+    with pytest.raises(RuntimeError, match="resolved"):
+        mod.main()
+    assert seen["mode"] == common.INCREMENTAL
+    for key in INCREMENTAL_BOUNDS[name]:
+        assert seen[key] is None, f"{name}.{key} 的 argparse 默认值不是 None，会绕过 --mode"
 
 
 @pytest.mark.parametrize("name", MODULES)
@@ -121,7 +150,8 @@ def test_backfill_window_at_least_incremental(common, name):
         if isinstance(b, (int, float)) and not isinstance(b, bool):
             assert a <= b, f"{name}.{key}: 回填档 {b} 小于日常档 {a}"
             checked += 1
-    assert checked or name == "fetch_pbc_shrzgm", f"{name} 没有可比较的回填档旋钮"
+    assert checked or name in {"fetch_pbc_shrzgm", "fetch_nea_power"}, \
+        f"{name} 没有可比较的回填档旋钮"
 
 
 def test_pbc_backfill_starts_2021(common):

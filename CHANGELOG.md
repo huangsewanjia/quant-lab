@@ -68,8 +68,18 @@
 - blocking：国际源也显式传参——`exchange_daily_quotes` `--days 7 --resume`、`comtrade` `--start-year 2019 --end-year 2024`、`owid` `--min-year 0`；ALT 循环与国内循环共用 `FETCH_ARGS`（原注释「国际源无深度参数」不成立，已更正）。
 - blocking：`docs/DELIVERY-WORK-572.html` §4.3 由「串期缺陷原样保留」改为「已修（期只从标题取，未命中置空）」——与同提交技术文档和代码一致；生成器 `scripts/work572_build_delivery.py` 同步改文案。
 - suggestion：`work572_verify.py shape` 的列相加改成真断言（求和与逐行相加独立比较，不等返回 1）；交付页统计时点改为生成时刻，不再硬编码 18:00；§11.4 时点改为 20:29 并注明并行装载后 263,952；§11.3 记录 smoke 墙钟与 fetcher 自报的差异。
-- suggestion：新增 `db/tests/test_industry_fetch_modes.py`（21 项），锁住「`--mode` 默认 incremental」「显式值优先于 mode」「日常档不超过文档上限」「回填档不小于日常档」；抓取脚本目录不存在时整体 skip。
+- suggestion：新增 `db/tests/test_industry_fetch_modes.py`（29 项），锁住「`--mode` 默认 incremental」「显式值优先于 mode」「深度旋钮 argparse 默认必须是 None」「日常档不超过文档上限」；抓取脚本目录不存在时整体 skip。
 - nit：GFEX manifest 删掉误导性的 `backfill_depth_days`；§11.2 的 jq 命令改为同时取 `.params` 与 `.elapsed_seconds`；smoke 脚本加 `tee index.log`。
+
+第 2 轮独立评审（blocking 2 / suggestion 3 / nit 2）处置：
+
+- blocking：测试里的年份写死（`2026`）会在跨年后必然失败 → 改为 `lambda: dt.date.today().year`；并补 parser 级用例
+  「深度旋钮 argparse 默认必须是 None」（第 1 轮 B1 的真实失效机理）。变异验证：把 `--days` 默认值改成 1825 后该用例转红。
+- suggestion：`work572_verify.py shape` 的「列相加」改成 SQL 汇总交叉核对 + `--baseline N` 行数回退判据
+  （反向验证 `--baseline 999999` → rc=1）；§11.3 国际源备注与 nea 行改为与代码一致；§11.2 的 jq 输出改为真实嵌套形状并重跑 manifest。
+- nit：`industry.sh` 国内/国际两个循环合并为 `run_source()`，消除重复；smoke 脚本自身 `exec > >(tee -a index.log)`。
+- 同期变化：`fetch_nea_power.py` 于 21:34 由 WORK-579 改写（窗口旋钮 `--pages/--year-*` → `--months/--articles`），
+  定时任务对 nea 只固定 `--mode incremental`，窗口参数归该单；测试对该源的深度比较改为跳过。
 
 ## 2026-11-23 · WORK-537 外资研报公开层渠道清单与可抓性实测
 
