@@ -174,6 +174,15 @@ else
   echo "故意违规开关没有触发断言 → 引擎守卫失效" >&2
   exit 7
 fi
+# B3 红-绿回归测试：把输出留档为证据（不改任何数值口径，只证明「快照」语义）
+if $PY scripts/work566_ckpt_snapshot_test.py > experiments/WORK-566/ckpt_snapshot_test_output.txt 2>&1; then
+  echo "  B3 回归测试通过（输出见 ckpt_snapshot_test_output.txt）"
+else
+  echo "B3 回归测试未通过 —— 快照语义回归" >&2
+  cat experiments/WORK-566/ckpt_snapshot_test_output.txt >&2
+  exit 8
+fi
+
 # 训练日志入库（可核验证据）：.w566tmp 下由全链守护写入
 for s in $SEEDS; do
   src_log="../.w566tmp/w566_s${s}.log"
