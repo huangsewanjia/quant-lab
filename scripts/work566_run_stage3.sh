@@ -22,6 +22,26 @@ for s in $SEEDS; do
 done
 echo "  训练产物齐备：$(echo $SEEDS | wc -w) 种子 × 8 臂"
 
+# FMB 基线臂的产物由 work566_baselines.py 产出（**不是**训练脚本产出）——
+# 回测对任意 --arm 都要求 preds_seed{seed}_{arm}.npz，漏掉 fmb 会让回测在
+# 跑到 fmb 时才崩（2026-11-25 第 3 轮复审 B4）。缺失就在这里补齐。
+#
+# 次序纪律（2026-11-25 02:02 实测踩坑）：**补齐必须排在下面的内容校验之前**。
+# 原写法把内容校验块放在前面，而校验块遍历 9 个臂（含 fmb），
+# 于是在 seed42 的 fmb 产物尚未生成时就 np.load 报 FileNotFoundError → Stage 3 退出码 1。
+for s in $SEEDS; do
+  p="data/WORK-566/preds_seed${s}_fmb.npz"
+  if [ ! -s "$p" ]; then
+    echo "  补齐 FMB 基线产物：$p"
+    $PY scripts/work566_baselines.py --seed "$s"
+  fi
+  if [ ! -s "$p" ]; then
+    echo "FMB 基线产物生成失败：$p —— Stage 3 不启动" >&2
+    exit 4
+  fi
+done
+echo "  FMB 基线产物齐备"
+
 # N-R8（2026-11-25 第 3 轮复审）：只验「存在且非空」会放过**冒烟产物**（pred_test 只有 3 个预测日）
 # → 这里逐个核对 pred_test 行数是否等于样本统计里的 test 样本数
 SEEDS="$SEEDS" $PY - <<'PYEOF'
@@ -35,6 +55,9 @@ seeds = os.environ.get("SEEDS", "42 2024").split()
 for s in seeds:
     for arm in ["s1_only", "s3_only", "s1_s2", "full", "r0", "r1", "r2", "r3", "fmb"]:
         p = os.path.join(DATA, f"preds_seed{s}_{arm}.npz")
+        if not os.path.exists(p):
+            bad.append(f"{os.path.basename(p)}: 不存在")
+            continue
         z = np.load(p)
         nt = len(z["pred_test"])
         if nt != n_test:
@@ -46,22 +69,6 @@ if bad:
     sys.exit(6)
 print(f"  训练产物内容校验通过：pred_test 行数 = {n_test:,}（非冒烟规模）")
 PYEOF
-
-# FMB 基线臂的产物由 work566_baselines.py 产出（**不是**训练脚本产出）——
-# 回测对任意 --arm 都要求 preds_seed{seed}_{arm}.npz，漏掉 fmb 会让回测在
-# 跑到 fmb 时才崩（2026-11-25 第 3 轮复审 B4）。缺失就在这里补齐。
-for s in $SEEDS; do
-  p="data/WORK-566/preds_seed${s}_fmb.npz"
-  if [ ! -s "$p" ]; then
-    echo "  补齐 FMB 基线产物：$p"
-    $PY scripts/work566_baselines.py --seed "$s"
-  fi
-  if [ ! -s "$p" ]; then
-    echo "FMB 基线产物生成失败：$p —— Stage 3 不启动" >&2
-    exit 4
-  fi
-done
-echo "  FMB 基线产物齐备"
 
 echo "=== [1/8] 组合回测（各臂 × 种子 × 成本档）==="
 # 54 次回测串行约 1 小时（每次 ~65s）；回测是单线程 numpy + 读小面板，
