@@ -106,7 +106,8 @@ def recompute_portfolio(panel, pred_stock, pred_val, pred_date, dates_sorted, co
     for k in range(len(pred_stock)):
         per_date.setdefault(int(pred_date[k]), []).append((float(pred_val[k]), int(pred_stock[k])))
     for d in per_date:
-        per_date[d].sort(key=lambda t: (-t[0], t[1]))
+        # 论文：并列按「预测文件中的资产顺序」定序 → 稳定排序只按预测值降序
+        per_date[d].sort(key=lambda t: -t[0])
 
     last_bar = {}
 
@@ -125,7 +126,10 @@ def recompute_portfolio(panel, pred_stock, pred_val, pred_date, dates_sorted, co
             epos, batch = item
             if epos != i:
                 continue
-            pending.remove(item)
+            for _pi in range(len(pending)):
+                if pending[_pi] is item:
+                    pending.pop(_pi)
+                    break
             bought = {}
             for s, u in batch["units_plan"].items():
                 if not panel["has_bar"][s, day]:
@@ -161,7 +165,7 @@ def recompute_portfolio(panel, pred_stock, pred_val, pred_date, dates_sorted, co
             if batch["exit_pos"] is None or i < batch["exit_pos"]:
                 continue
             for s in list(batch["units"].keys()):
-                if lb(s) >= 0 and i > lb(s):
+                if lb(s) >= 0 and day > lb(s):
                     p = float(panel["close_hfq"][s, lb(s)])
                     u = batch["units"].pop(s)
                     cash += u * p * 0.99
@@ -183,7 +187,10 @@ def recompute_portfolio(panel, pred_stock, pred_val, pred_date, dates_sorted, co
                 cash += u * p
                 traded[i] += abs(u) * p
             if not batch["units"]:
-                open_batches.remove(batch)
+                for _bi in range(len(open_batches)):
+                    if open_batches[_bi] is batch:
+                        open_batches.pop(_bi)
+                        break
                 batch["exit_pos"] = None
         # 估值
         v = cash
@@ -214,7 +221,7 @@ def recompute_portfolio(panel, pred_stock, pred_val, pred_date, dates_sorted, co
                     skipped_lu += 1
                     continue
                 picks.append(s)
-            if len(picks) >= K:
+            if len(picks) >= K and i + H_HOLD < len(dates_sorted):
                 budget = min(v / H_HOLD, max(cash, 0.0) / (1.0 + cost))
                 if budget > 0:
                     units_plan = {}
@@ -222,7 +229,7 @@ def recompute_portfolio(panel, pred_stock, pred_val, pred_date, dates_sorted, co
                         p = float(panel["open_hfq"][s, nxt])
                         units_plan[s] = budget / K / p
                     pending.append((i + 1, {"units_plan": units_plan, "units": {},
-                                            "budget": budget, "exit_pos": i + 1 + H_HOLD}))
+                                            "budget": budget, "exit_pos": i + H_HOLD}))
                     n_batch += 1
     nav = np.asarray(nav_out, float)
     ret = np.asarray(ret_out, float)
@@ -358,6 +365,79 @@ def main():
         cmp("ΔRankIC 中位数(pp)", rec_delta, claimed)
         findings["recomputed_delta_rankic_pp"] = rec_delta
         log(f"复算 ΔRankIC 中位数 = {rec_delta:.4f} pp")
+
+    # ---------------- 基准调整 alpha 复算（独立实现）
+    # 基准：等权全市场 与 市值加权全市场（同一冻结快照的 r_1 / has_bar / circ_mv）
+    r1_path = os.path.join(DATA, "ret", "r_1.npy")
+    cmv_path = os.path.join(DATA, "base", "circ_mv.npy")
+    if os.path.exists(r1_path) and os.path.exists(cmv_path):
+        r1 = np.load(r1_path, mmap_mode="r")
+        cmv = np.load(cmv_path, mmap_mode="r")
+        hb_all = np.asarray(panel["has_bar"])
+        # 用独立重取的日历核对测试期日期数与跨度
+        cal = calendar()
+        cal_set = set(int(c) for c in cal)
+
+        def bench_series(didx):
+            """didx: 测试期样本的日历下标数组 → (ew, cw) 日收益序列。"""
+            ew_l, cw_l = [], []
+            for d in np.unique(didx):
+                col = np.asarray(r1[:, d], dtype=np.float64)
+                m = hb_all[:, d] & np.isfinite(col)
+                if not m.any():
+                    ew_l.append(0.0)
+                    cw_l.append(0.0)
+                    continue
+                ew_l.append(float(col[m].mean()))
+                w = np.asarray(cmv[:, d], dtype=np.float64)[m]
+                cw_l.append(float((w * col[m]).sum() / w.sum()) if w.sum() > 0 else ew_l[-1])
+            return np.asarray(ew_l), np.asarray(cw_l)
+
+        for arm in ("full", "s1_only", "s1_s2", "fmb"):
+            for seed in args.seeds:
+                zp = os.path.join(DATA, f"preds_seed{seed}_{arm}.npz")
+                jp = os.path.join(OUT, f"backtest_{arm}_seed{seed}_c{args.cost}.json")
+                if not (os.path.exists(zp) and os.path.exists(jp)):
+                    continue
+                z = np.load(zp)
+                claimed = json.load(open(jp, encoding="utf-8"))
+                pd_ = z["date_test"]
+                ew, cw = bench_series(pd_)
+                # 日历独立核对
+                uniq_d = np.unique(pd_)
+                n_in_cal = sum(1 for d in uniq_d if int(d) in cal_set)
+                findings.setdefault("calendar_crosscheck", []).append({
+                    "arm": arm, "seed": seed,
+                    "n_prediction_dates": int(len(uniq_d)),
+                    "n_dates_found_in_independent_calendar": int(n_in_cal),
+                    "first_date_idx": int(uniq_d[0]), "last_date_idx": int(uniq_d[-1]),
+                    "independent_calendar_len": int(len(cal)),
+                })
+                # 建模侧的基准调整 alpha 记录在 metrics.json
+                mp = os.path.join(OUT, "metrics.json")
+                if not os.path.exists(mp):
+                    continue
+                mm = json.load(open(mp, encoding="utf-8"))
+                ba = mm.get("benchmark_alpha", {}).get(arm, [])
+                entry = next((e for e in ba if str(e.get("seed")) == str(seed)), None)
+                if entry is None:
+                    continue
+                jp2 = os.path.join(OUT, f"backtest_{arm}_seed{seed}_c{args.cost}_series.npz")
+                if not os.path.exists(jp2):
+                    continue
+                ser = np.load(jp2)
+                r = ser["ret"]
+                for kind, bench in (("ew", ew), ("cap", cw)):
+                    n = min(len(bench), len(r))
+                    ex = r[:n] - bench[:n]
+                    ex = ex[np.isfinite(ex)]
+                    if len(ex) < 30:
+                        continue
+                    cmp(f"{arm}/seed{seed} 基准调整alpha[{kind}](%)",
+                        float(252.0 * ex.mean()), entry.get(kind, {}).get("alpha_ann_pct"))
+                    cmp(f"{arm}/seed{seed} 基准调整IR[{kind}]",
+                        float(np.sqrt(252.0) * ex.mean() / ex.std(ddof=1)),
+                        entry.get(kind, {}).get("info_ratio_ann"))
 
     findings["conclusion"] = ("PASS —— 可进入研究备忘录" if findings["blocking"] == 0
                               else f"FAIL —— {findings['blocking']} 项 blocking，以复算值为准")

@@ -14,6 +14,7 @@
 运行：
   python scripts/work566_data_probe.py
 """
+import datetime
 import json
 import os
 import sys
@@ -138,10 +139,23 @@ def main():
 
     local = []
 
+    def jsonable(v):
+        """把 date/datetime/numpy 标量转成可 JSON 序列化的字符串。"""
+        if isinstance(v, (datetime.date, datetime.datetime)):
+            return str(v)
+        if isinstance(v, (list, tuple)):
+            return [jsonable(x) for x in v]
+        if hasattr(v, "item") and not isinstance(v, (str, bytes)):
+            try:
+                return v.item()
+            except Exception:                                    # noqa: BLE001
+                return str(v)
+        return v
+
     def add(name, sql, unit="", note=""):
         t = time.time()
         rows = con.execute(sql).fetchall()
-        rec = {"endpoint": f"quantdb.{name}", "sql": sql, "rows": [list(r) for r in rows],
+        rec = {"endpoint": f"quantdb.{name}", "sql": sql, "rows": [jsonable(list(r)) for r in rows],
                "unit": unit, "note": note, "elapsed_s": round(time.time() - t, 1)}
         local.append(rec)
         print(f"[{rec['elapsed_s']:6.1f}s] {name}: {rows}", flush=True)
@@ -216,7 +230,7 @@ def main():
         f"where ann_date is not null and end_date is not null) x",
         "ann_date 不早于 end_date 的比例见下一行")
     add("fina_pit_ratio",
-        f"select round(avg(case when cast(ann_date as int) >= cast(end_date as int) then 1.0 else 0.0 end), 6), "
+        f"select round(avg(case when cast(strftime(ann_date,'%Y%m%d') as int) >= cast(strftime(end_date,'%Y%m%d') as int) then 1.0 else 0.0 end), 6), "
         f"count(*) from {fina} where ann_date is not null and end_date is not null",
         "ann_date >= end_date 的比例（应为 1）",
         "as-of 对齐的硬条件：公告日必须不早于报告期；比例 <1 表示有反常记录")
@@ -247,7 +261,7 @@ def main():
     }
     mpath = os.path.join(OUT, "data_probe.json")
     with open(mpath, "w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False, indent=2)
+        json.dump(payload, f, ensure_ascii=False, indent=2, default=str)
     print(f"\nwritten: experiments/WORK-566/data_probe.json  ({time.time()-t_start:.1f}s)", flush=True)
     return 0
 

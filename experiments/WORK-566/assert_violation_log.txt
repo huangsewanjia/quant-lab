@@ -1,0 +1,21 @@
+# WORK-566 回测引擎「不可成交价」断言实测（--assert-violation 故意违规开关）
+# 命令: python scripts/work566_backtest.py --arm fmb --seed 42 --cost 0.0005 --assert-violation
+# 运行时间: 2026-11-25T12:21:28+08:00
+# 退出码: 非 0（AssertionError）= 断言按预期触发
+
+<frozen site>:107: RuntimeWarning: Unexpected value in sys.prefix, expected /srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/.venv, got /srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/quant-lab/../.venv
+<frozen site>:107: RuntimeWarning: Unexpected value in sys.exec_prefix, expected /srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/.venv, got /srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/quant-lab/../.venv
+[12:21:29] fmb seed42: 测试样本 2,949,469，预测日 578 天
+[12:21:30] [ASSERT-TEST] 注入违规：stock=99 day=2673 开盘价改为涨停价 9.449999809265137
+Traceback (most recent call last):
+  File "/srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/quant-lab/scripts/work566_backtest.py", line 366, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/quant-lab/scripts/work566_backtest.py", line 337, in main
+    res = run_backtest(panel, ps, pv, pd_, dates_sorted, args.cost, args.assert_violation)
+  File "/srv/data/multica/workspaces/workspace-c8faa36a018a/work-566-e0a29716dad1/workdir/quant-lab/scripts/work566_backtest.py", line 251, in run_backtest
+    raise AssertionError(
+        f"[ASSERT] 不可成交价：涨停股开盘买入被拒 stock={s} day={d} "
+        f"open={up} up_limit={up} reason=limit_up")
+AssertionError: [ASSERT] 不可成交价：涨停股开盘买入被拒 stock=99 day=2673 open=9.449999809265137 up_limit=9.449999809265137 reason=limit_up
+exit=1

@@ -1,17 +1,52 @@
 {
   "n_samples_total": 10039167,
-  "n_train": 4077578,
-  "n_valid": 2232418,
+  "n_train": 3989422,
+  "n_valid": 2126317,
   "n_test": 2949469,
   "n_fit_2014_2021": 4668187,
   "continuity_cells_total": 18916193,
   "continuity_cells_valid": 10039167,
   "blocks": {
+    "b2016": {
+      "ok": true,
+      "n_fit": 572769,
+      "thinned": false
+    },
+    "b2017": {
+      "ok": true,
+      "n_fit": 933840,
+      "thinned": false
+    },
+    "b2018": {
+      "ok": true,
+      "n_fit": 1426037,
+      "thinned": false
+    },
+    "b2019": {
+      "ok": true,
+      "n_fit": 2047001,
+      "thinned": false
+    },
+    "b2020": {
+      "ok": true,
+      "n_fit": 2826970,
+      "thinned": false
+    },
+    "b2021": {
+      "ok": true,
+      "n_fit": 1827841,
+      "thinned": true
+    },
+    "bvalid": {
+      "ok": true,
+      "n_fit": 2290016,
+      "thinned": true
+    },
     "btest": {
       "ok": true,
       "n_fit": 2264835,
       "thinned": true
     }
   },
-  "elapsed_s": 75.1
+  "elapsed_s": 318.2
 }

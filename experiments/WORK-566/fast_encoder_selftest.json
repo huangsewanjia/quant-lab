@@ -1,0 +1,9 @@
+{
+  "max_abs_diff": 4.76837158203125e-07,
+  "threshold": 1e-05,
+  "pass": true,
+  "d_model": 64,
+  "layers": 2,
+  "heads": 4,
+  "ff": 128
+}
