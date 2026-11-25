@@ -41,7 +41,8 @@ def report_dir() -> Path:
 TABLES = [s.table for s in SOURCES]
 
 # 每张带单位列的表允许的单位词表（与 schema 列注释一致）。上游悄悄改单位时
-# C4 会失败；没有单位列的表（comtrade/exchange/owid/sne/benchmark）不在此列。
+# C4 会失败。有 unit 列的表共 11 张，全部在此；没有单位列的 6 张
+# （cninfo/comtrade/exchange/owid/sne/benchmark）不在此列。
 # 值 = (单位列, 数值列, 允许单位集合)：单位为空且数值也为空的行（100ppi 的
 # 分类标题行）不算错，单位为空但有数值的行算错。
 UNIT_VOCABULARY: dict[str, tuple[str, str, set[str]]] = {
@@ -54,6 +55,7 @@ UNIT_VOCABULARY: dict[str, tuple[str, str, set[str]]] = {
     "industry_nea_power": ("unit", "value", {"亿千瓦", "亿千瓦时", "小时"}),
     "industry_pbc_shrzgm": ("unit", "value", {"亿元"}),
     "industry_ppi_spot_prices": ("price_unit", "price", {"吨", "公斤", "千克"}),
+    "industry_stats_gov_release": ("unit", "value", {"%", "亿元/%"}),
     "industry_trendforce_spot_price": ("unit", "value", {"USD"}),
 }
 

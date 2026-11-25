@@ -24,7 +24,7 @@
 | 8 | 国家能源局·电力统计 | `industry_nea_power` | period, indicator, value | 亿千瓦；亿千瓦时；小时 | 月度 | 装机、分产业用电量、利用小时；同指标混当月/累计（§4.4） | `https://www.nea.gov.cn/` |
 | 9 | 人民银行·社融 | `industry_pbc_shrzgm` | period, indicator, value | 亿元 | 月度 | 增量分项（人民币贷款/表外/债券等） | `http://www.pbc.gov.cn/diaochatongjisi/` |
 | 10 | 国家统计局·发布 | `industry_stats_gov_release` | period, group_name, indicator, row_label, col_header, value | %；亿元；万吨；亿块… | 月度 | 六组原表单元格；利润表表头错位（§4.5） | `https://www.stats.gov.cn/sj/zxfb/` |
-| 11 | Benchmark 矿物指数 | `industry_benchmark_public_index` | snapshot_date, kind, name, value, change_pct | 点位；% | 日（页面随时更新） | 15 个指数 + 简报索引；CSV 内重复 3 遍 | `https://www.benchmarkminerals.com/price-assessments` |
+| 11 | Benchmark 矿物指数 | `industry_benchmark_public_index` | snapshot_date, kind, name, value, change_pct | 点位；% | 日（页面随时更新） | 16 个指数 + 10 条简报索引；CSV 内重复 3 遍 | `https://www.benchmarkminerals.com/price-assessments` |
 | 12 | UN Comtrade | `industry_comtrade_trade_values` | hs_code, reporter, period_year, flow, value_usd, netweight_kg | 美元；千克 | 年度 | 5 个 HS、中国出口、2024 | `https://comtradeapi.un.org/public/v1/preview/C/A/HS` |
 | 13 | 交易所快照 | `industry_exchange_daily_quotes` | exchange, contract, month, trade_date, close, settle, volume, oi | 元/吨；手 | 日 | 一次抓一个交易日（GFEX/SHFE） | `http://www.gfex.com.cn/...`、`https://www.shfe.com.cn/data/tradedata/...` |
 | 14 | OWID/IEA/USGS | `industry_ow_iea_usgs_timeseries` | slug, entity, year, value | 辆；%；吨；GW | 年度 | 电动车销量/渗透率、锂钴产量、CO2、光伏累计 | `https://ourworldindata.org/grapher/<slug>.csv` |
@@ -110,13 +110,13 @@ CSV 里同一列出现 `60.70`（价格）、`▲ 1.85 %`（涨跌幅）、`盘�
 
 ### 4.7 100ppi 跨单位勾稽不成立（因此没有做比值闸）
 
-设想用「同货同供方同日 元/公斤 × 1000 ≈ 元/吨」勾稽，实测无法成立：`price_unit` 的实际取值是 `吨`(26) / `千克`(4) / `公斤`(2) / NULL(1)，而每家公司只报一种单位——碳酸锂 190 元/公斤来自「湖北七八九化工」，174000 元/吨来自「山东亿禾」，不存在同一供方同日双单位样本。硬做一个 `pairs=0` 的闸等于空转，故删除该子闸，改成 C4 的 `unit_vocabulary`：每张带单位列的表只允许 schema 注释里写明的单位，出现新单位即 FAIL（10 张表全过）。NULL 单位仅在数值也为 NULL 时放行（100ppi 的分类标题行）。
+设想用「同货同供方同日 元/公斤 × 1000 ≈ 元/吨」勾稽，实测无法成立：落库表 `price_unit` 的实际取值是 `吨`(26) / `千克`(4) / `公斤`(1) / NULL(1)（raw CSV 33 行，row_hash 去重后 32 行），而每家公司只报一种单位——碳酸锂 190 元/公斤来自「湖北七八九化工」，174000 元/吨来自「山东亿禾」，不存在同一供方同日双单位样本。硬做一个 `pairs=0` 的闸等于空转，故删除该子闸，改成 C4 的 `unit_vocabulary`：有 unit 列的 11 张表只允许 schema 注释里写明的单位，出现新单位即 FAIL（11 张全过）。NULL 单位仅在数值也为 NULL 时放行（100ppi 的分类标题行）。
 
 ### 4.8 其他小问题（不影响本次交付）
 
 - `comtrade` 1 行 HTTP 500（HS 253090 锂辉矿），以 NULL 值 + status 保留，不删行。
 - `sne` 1 行 HTTPS 连接失败（release 776），status 列保留错误文本。
-- `benchmark` CSV 把 15 个指数重复写了 3 遍，row_hash 去重后 26 行（15 指数 + 11 简报）。
+- `benchmark` CSV 把 16 个指数重复写了 3 遍，row_hash 去重后 26 行（16 指数 + 10 简报）。
 - `cnesa` 的 `caliber` 列只有第 2 行有值。
 - 100ppi 有 1 行空壳（goods_id=59 黄金，除货名外全空），作为分类标题行的抓取残留保留，`unit_vocabulary` 已放行。
 
@@ -191,7 +191,7 @@ systemctl --user daemon-reload
 
 | 编号 | 问题 | 处置 |
 |---|---|---|
-| B1 | `parse_number` 把前导负号当装饰符吞掉，`-8.43` 存成 `8.43`，benchmark 15 个指数里 10 个涨跌方向反了 | 保留前导 `-`/`▼` 为负号，`—` 仍作中性；新增 2 个回归测试；重装后库内 10 负 / 3 正与原始 CSV 一致 |
+| B1 | `parse_number` 把前导负号当装饰符吞掉，`-8.43` 存成 `8.43`，benchmark 16 个指数里 10 个涨跌方向反了 | 保留前导 `-`/`▼` 为负号，`—` 仍作中性；新增 2 个回归测试；重装后库内 10 负 / 3 正与原始 CSV 一致 |
 | B2 | C4 的 `nea` 子闸按行计数，永远 `pairs=0`，等于假 PASS | 改为「同文章同期、指标成对出现时取当月值」，实测 `pairs=1, ok=1`（2026-10-21：135+5800+1852+1210 = 8997 = 全社会用电量）；`pairs=0` 现在判 FAIL 而非 PASS |
 | S1 | C4 的 `ppi` 子闸单位字面量与库内词表不一致，且该源不可能有跨单位样本 | 删除该子闸，改为 `unit_vocabulary`（10 张带单位表，出现新单位即 FAIL） |
 | S2 | 「已覆盖 47」含 5 条文本索引，与「可查到数值」口径不符 | 文档改为「有可查记录（数值 42 + 文本 5）」，C6 报文新增 `text_only=5` |
@@ -199,3 +199,10 @@ systemctl --user daemon-reload
 | nit | docstring「六道闸」、mof 注释引用不存在的 `quality_flag`、分区替换测试注释与断言相反 | 已全部改正 |
 
 复审独立复跑：`pytest` 9 passed（当时）、`checks all` 7 PASS、`verify` RESULT PASS；并核对 `db/schema.sql`/`common.py` 零 diff、非 industry 表仍 20 张、`data_catalog` 仍 405 行。
+
+第 2 轮（新子代理，审 `9ad6093`）：**PASS，0 blocking**。
+
+- 复核 B1：对 raw 里 211 个待解析值做新旧函数对比，只有 benchmark 27 处（去重后 10 个负值）变化；库内 16 个指数符号与 CSV 一致（10 负 / 3 正 / 3 零）；新增回归测试在旧代码上实测失败，不是空测试。
+- 复核 B2：旧 SQL 实测 `(0,0)`，新 SQL `(1,1)`；空表/少分项构造用例均判 FAIL；`min()` 取当月值的前提在 8 个成对分组上全部成立。
+- 复核 S1–S3 与 3 个 nit：全部到位。
+- 本轮 1 条 suggestion（单位词表漏了 `industry_stats_gov_release`，11 张有 unit 列的表只查了 10 张）与 2 条 nit（benchmark 指数 15→16；`price_unit` 计数应取去重后口径）已在收口提交中修正并复跑验证。
