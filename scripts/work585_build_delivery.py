@@ -15,6 +15,7 @@ from __future__ import annotations
 import datetime as dt
 import html
 import json
+import re
 import os
 from pathlib import Path
 
@@ -180,6 +181,10 @@ def main() -> None:
     ).fetchone()[0])
     view_n = int(con.execute("SELECT count(*) FROM v_industry_load_changes_recent").fetchone()[0])
     con.close()
+
+    test_file = Path(__file__).resolve().parents[1] / "db/tests/test_industry_diff.py"
+    n_tests = len(re.findall(r"^def test_", test_file.read_text(encoding="utf-8"), re.M)) \
+        if test_file.exists() else 0
 
     check_file = sorted(CHECKS.glob("industry-*.json"))[-1] if CHECKS.exists() else None
     gate = json.loads(check_file.read_text()) if check_file else {"gates": {}}
@@ -381,9 +386,10 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 <p>{gate_ok}/{gate_total} PASS（报告文件 <code>{esc(check_file.name if check_file else "—")}</code>）。</p>
 
 <h3>6.6 离线测试</h3>
-<p><code>pytest db/tests/</code> 全绿，其中 <code>db/tests/test_industry_diff.py</code> 7 项为本单新增：
-值修改 + 新增行、快照源撤期（F3 回归）、幂等 0 差异、分区源只碰本期、
-空快照拒绝清表、C9 全区留痕缺失、C9 畸形行。</p>
+<p><code>pytest db/tests/</code> 全绿，其中 <code>db/tests/test_industry_diff.py</code>
+<b>{n_tests}</b> 项为本单新增：值修改 + 新增行、快照源撤期（F3 回归）、幂等 0 差异、
+分区源只碰本期、空快照拒绝清表（含 <code>--full</code>）、整数与浮点同值不误报、
+离线 HTML fixture 的 F3 全链路、C9 缺留痕、C9 畸形行。</p>
 
 <h2>7. 已知限制</h2>
 <ul>
