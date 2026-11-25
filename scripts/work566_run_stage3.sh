@@ -22,6 +22,22 @@ for s in $SEEDS; do
 done
 echo "  训练产物齐备：$(echo $SEEDS | wc -w) 种子 × 8 臂"
 
+# FMB 基线臂的产物由 work566_baselines.py 产出（**不是**训练脚本产出）——
+# 回测对任意 --arm 都要求 preds_seed{seed}_{arm}.npz，漏掉 fmb 会让回测在
+# 跑到 fmb 时才崩（2026-11-25 第 3 轮复审 B4）。缺失就在这里补齐。
+for s in $SEEDS; do
+  p="data/WORK-566/preds_seed${s}_fmb.npz"
+  if [ ! -s "$p" ]; then
+    echo "  补齐 FMB 基线产物：$p"
+    $PY scripts/work566_baselines.py --seed "$s"
+  fi
+  if [ ! -s "$p" ]; then
+    echo "FMB 基线产物生成失败：$p —— Stage 3 不启动" >&2
+    exit 4
+  fi
+done
+echo "  FMB 基线产物齐备"
+
 echo "=== [1/7] 组合回测（各臂 × 种子 × 成本档）==="
 # 54 次回测串行约 1 小时（每次 ~65s）；回测是单线程 numpy + 读小面板，
 # 用 JOBS 路并行（默认 3 路，产物按臂/种子/成本分文件，互不冲突）
@@ -29,6 +45,7 @@ JOBS=${JOBS:-3}
 # jobfile 放 data/WORK-566/（gitignored）：/tmp 配额被同机其他 agent 占满，不再依赖 /tmp
 mkdir -p data/WORK-566
 JOBFILE="data/WORK-566/bt_jobs.txt"
+: > "$JOBFILE"     # 先截断：重跑时不要把上次的 job 追加进来（否则任务翻倍）
 for arm in $ARMS; do
   for s in $SEEDS; do
     for c in $COSTS; do

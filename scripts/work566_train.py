@@ -235,6 +235,65 @@ def ema_update(online, ema, decay):
             be.copy_(bo)
 
 
+def _clone_sd(sd):
+    """把 state_dict() 的每个张量**深拷贝**一份（state_dict() 返回的是活引用）。"""
+    return {k: (v.detach().clone() if torch.is_tensor(v) else v) for k, v in sd.items()}
+
+
+def snapshot_state(enc, tenc_ema, proj, proj_ema, qpred, m_k, v_k, upd, vloss):
+    """取一份**真正的 checkpoint 快照**（不是活引用）。
+
+    B3（2026-11-25 第 3 轮独立复审，实测坐实）：`Module.state_dict()` 返回的张量
+    与活参数**共享存储**（`sd['w'].data_ptr() == m.weight.data_ptr()`），而优化器更新与
+    `ema_update`（`pe.mul_(...).add_(...)`）都是 **in-place** → 若把 `state_dict()` 直接
+    存进 `best`，训练继续推进时 `best[1]` 会跟着一起变；训练结束后再 `torch.save(best[1])`
+    落盘的其实是**最后一轮**权重，而不是预注册 §10.2 冻结的「验证子集上 L_anc+L^impl_rev 最小者」。
+
+    实测证据：修前 `ckpt_seed42_rep.pt` 里 `upd=1000`（best=epoch0）但 `m_k/v_k` 是
+    epoch3 的值 —— 自相矛盾，正是「别名 + 末尾覆盖保存」的结果。
+    """
+    return {
+        "enc": _clone_sd(enc.state_dict()),
+        "tenc_ema": _clone_sd(tenc_ema.state_dict()),
+        "proj_ema": _clone_sd(proj_ema.state_dict()),
+        "proj": _clone_sd(proj.state_dict()),
+        "qpred": _clone_sd(qpred.state_dict()),
+        "m_k": m_k.detach().clone(),
+        "v_k": v_k.detach().clone(),
+        "upd": int(upd),
+        "vloss": float(vloss),
+        "selected": "best_vloss",
+    }
+
+
+def snapshot_selftest():
+    """启动自检：证明「快照」与活参数**不共享存储**（B3 的回归防线）。
+
+    先复现旧写法会怎样（别名 → 改参数后快照跟着变），再验证新写是独立副本。
+    """
+    import torch.nn as _nn
+    lin = _nn.Linear(4, 4)
+    sd_old = lin.state_dict()                       # 旧写法：活引用
+    snap_new = _clone_sd(lin.state_dict())          # 新写法：深拷贝
+    with torch.no_grad():
+        lin.weight.add_(1.0)
+    aliased = float(sd_old["weight"][0, 0]) == float(lin.weight[0, 0])
+    detached = float(snap_new["weight"][0, 0]) != float(lin.weight[0, 0])
+    log(f"[SELF-TEST] state_dict 别名检测：旧写法 aliased={aliased}（应为 True → 说明旧写法不是快照）；"
+        f"新写法 detached={detached}（应为 True）")
+    if not aliased:
+        raise SystemExit("SELF-TEST 失败：本机 state_dict 行为与假设不符，checkpoint 快照语义需重新确认")
+    if not detached:
+        raise SystemExit("SELF-TEST 失败：深拷贝后仍与活参数共享存储")
+    mk = torch.zeros(3)
+    handle = mk
+    mk.mul_(0.9).add_(torch.ones(3), alpha=0.1)       # in-place 更新
+    if float(handle[0]) == 0.0:
+        raise SystemExit("SELF-TEST 失败：in-place 语义与假设不符")
+    log("[SELF-TEST] checkpoint 快照语义 PASS（旧写法=别名 / 新写法=独立副本 / m_k in-place 已确认）")
+    return True
+
+
 def make_mask_token(d_model):
     return nn.Parameter(torch.zeros(d_model))
 
@@ -516,12 +575,13 @@ def train_representation(panel, args, seed):
                 log(f"  seed{seed} epoch{epoch} upd{upd} L_anc={l_anc.item():.4f} "
                     f"L_rev={l_rev.item():.4f} {el:.0f}s ({upd/el:.2f} upd/s)")
             if upd % args.save_every == 0:
-                torch.save({"enc": enc.state_dict(), "tenc_ema": tenc_ema.state_dict(),
-                            "proj_ema": proj_ema.state_dict(), "proj": proj.state_dict(),
-                            "qpred": qpred.state_dict(), "m_k": m_k, "v_k": v_k,
-                            "upd": upd}, ckpt_path + ".tmp")
-                os.replace(ckpt_path + ".tmp", ckpt_path)
-
+                # 周期快照写到**独立路径**：修前它直接覆盖 ckpt_path，
+                # 会把「验证损失最小者」的 checkpoint 冲掉（B3 的第二个面）。
+                torch.save(snapshot_state(enc, tenc_ema, proj, proj_ema, qpred,
+                                          m_k, v_k, upd, float("inf")),
+                           ckpt_path + ".periodic.tmp")
+                os.replace(ckpt_path + ".periodic.tmp", ckpt_path + ".periodic")
+           
         # 验证损失 → 选 checkpoint
         va_losses = []
         with torch.no_grad():
@@ -532,12 +592,20 @@ def train_representation(panel, args, seed):
         vloss = float(np.mean(va_losses)) if va_losses else float("inf")
         log(f"  seed{seed} epoch{epoch} 验证损失 {vloss:.4f}（{elapsed_str(t0)}）")
         if vloss < best[0]:
-            best = (vloss, {"enc": enc.state_dict(), "tenc_ema": tenc_ema.state_dict(),
-                            "proj_ema": proj_ema.state_dict(), "proj": proj.state_dict(),
-                            "qpred": qpred.state_dict(), "m_k": m_k, "v_k": v_k, "upd": upd})
+            # **深拷贝快照**：state_dict() 是活引用，直接存会让 best[1] 跟着训练推进而变（B3）
+            best = (vloss, snapshot_state(enc, tenc_ema, proj, proj_ema, qpred,
+                                          m_k, v_k, upd, vloss))
             torch.save(best[1], ckpt_path)
     if best[1] is not None:
         torch.save(best[1], ckpt_path)
+        # 落盘后回读自检：确认存下来的就是「验证损失最小者」那一轮的权重
+        chk = torch.load(ckpt_path, map_location="cpu", weights_only=False)
+        assert chk.get("selected") == "best_vloss", "checkpoint 缺少 best_vloss 标记"
+        assert abs(float(chk.get("vloss", -1)) - float(best[0])) < 1e-12, \
+            f"checkpoint 记录的 vloss={chk.get('vloss')} 与 best={best[0]} 不一致"
+        assert int(chk.get("upd", -1)) == int(best[1]["upd"]), "checkpoint 的 upd 与快照不一致"
+        log(f"  seed{seed} 已落盘最优快照：vloss={best[0]:.4f}（upd={best[1]['upd']}，"
+            f"共 {upd} updates，最优在第 {best[1]['upd'] // max(args.max_updates, 1)} epoch）")
     log(f"  seed{seed} 表征训练完成：{upd} updates，{time.time()-t0:.0f}s，验证损失 {best[0]:.4f}")
     return ckpt_path
 
@@ -932,6 +1000,7 @@ def main():
 
     panel = Panel()
     log(f"样本：train {panel.m_train.sum():,} / valid {panel.m_valid.sum():,} / test {panel.m_test.sum():,}")
+    snapshot_selftest()
     st = self_test_fast_encoder(args.d_model, args.layers, args.heads, args.ff)
     with open(os.path.join(OUT, "fast_encoder_selftest.json"), "w", encoding="utf-8") as f:
         json.dump(st, f, ensure_ascii=False, indent=2)
@@ -946,10 +1015,17 @@ def main():
         warm_cache(os.path.join(DATA, "targets.npy"), "targets.npy")
         ck = os.path.join(DATA, f"ckpt_seed{seed}_rep.pt")
         if args.resume_rep and os.path.exists(ck):
-            # 续跑：复用已有表征 checkpoint（它是**按验证损失选出的最优**权重，
-            # train_representation 结束时写的就是 best[1]）→ 与完整跑一遍完全等价，
-            # 只省掉重新训练的时间。不改变任何取值口径。
-            log(f"  --resume-rep：复用已有表征 checkpoint {ck}，跳过表征训练")
+            # 复用前**必须**验证它是「验证损失最小者」的快照（B3）：
+            # 修前周期快照与最优快照共用同一个路径，且内容是活引用 → 续跑会静默
+            # 拿半成品/末轮权重当表征。带 selected 标记才允许复用。
+            chk = torch.load(ck, map_location="cpu", weights_only=False)
+            if chk.get("selected") != "best_vloss":
+                raise SystemExit(
+                    f"--resume-rep 拒绝复用 {ck}：它不是「验证损失最小者」快照"
+                    f"（selected={chk.get('selected')!r}, upd={chk.get('upd')}）——"
+                    f"该文件由修复前的路径产生，需删除后完整重训")
+            log(f"  --resume-rep：复用已有表征 checkpoint {ck}"
+                f"（vloss={chk.get('vloss')}，upd={chk.get('upd')}）")
         else:
             ck = train_representation(panel, args, seed)
         warm_cache(os.path.join(DATA, "feat.npy"), "feat.npy（表征重建前再预热一次）")

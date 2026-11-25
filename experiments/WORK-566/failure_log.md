@@ -624,3 +624,92 @@ AssertionError: [ASSERT] 不可成交价：涨停股开盘买入被拒 stock=99 
 - **口径**：以上为**合成文件**上的 I/O 基准（同一文件大小、同一列宽、同一访问模式），
   不是对真实 `u_seed42_train.npy` 的破坏性读压测；结论只用于**判断是否需要干预**，
   不作为任何结果数值进入结论。真实读出耗时以训练日志逐臂 epoch 行为准。
+
+## §14 第 3 轮独立复审判 FAIL：B3（checkpoint 选型失效）+ B4（Stage 3 漏 FMB 臂）（2026-11-25 18:40）
+
+### 14.1 复审安排与结论
+- 独立子代理（verifier，主循环不自审）：`bg_60fe415e-fac7-4eed-9f42-2bdd32319780`，
+  报告落 `experiments/WORK-566/code_review_work566_round3.md`（115 行）。
+- **结论：不通过**（2 项 BLOCKING）。第 1 轮（B1 + 11 NB）与第 2 轮（B2）的整改项经本轮复核均已修；
+  新发现 B3、B4 两项 BLOCKING。
+
+### 14.2 B3（BLOCKING）：落盘的 checkpoint 是**最后一轮**权重，不是预注册 §10.2 冻结的「验证损失最小者」
+- **根因（三重叠加）**：
+  1. `Module.state_dict()` 返回的张量与**活参数共享存储**（实测 `sd['weight'].data_ptr() == m.weight.data_ptr()` → True；
+     参数更新后 `sd['weight']` 同步变化）。原实现把 `enc/tenc_ema/proj_ema/proj/qpred` 的 `state_dict()`
+     **直接**存进 `best[1]`。
+  2. 优化器更新与 `ema_update`（`pe.mul_(decay).add_(po, alpha=1-decay)`）都是 **in-place**；
+     `m_k`/`v_k` 也是 `mul_().add_()` in-place，且 `best[1]["m_k"] = m_k` 存的是**张量对象本身**。
+  3. 训练结束后又 `torch.save(best[1], ckpt_path)`（原 `train.py:539-540`）——
+     由于 1+2，`best[1]` 此刻已随训练推进变成**最后一轮**的值，于是这次「保存最优」把最优覆盖掉了。
+- **另一面**：周期快照（`upd % save_every == 0`）原本也直接写 `ckpt_path`（`.tmp` + `os.replace`），
+  同样会把最优快照冲掉。
+- **实测证据（本机 3 条，可复现）**：
+  | 证据 | 观测 |
+  |---|---|
+  | `state_dict()` 别名 | `sd['w'].data_ptr() == m.weight.data_ptr()` → **True**；改参数后 `sd['w']` 同步变化 |
+  | `m_k` in-place | 存下的句柄在 `mul_().add_()` 后取值变化 → 不是快照 |
+  | 磁盘上的 `ckpt_seed42_rep.pt` | `upd=1000`（best=epoch0）但 `m_k/v_k` 是 **epoch3** 的值 → **自相矛盾**，正是「别名 + 末尾覆盖保存」的结果 |
+- **对结论的影响（为什么是 BLOCKING 而不是 nit）**：
+  `s1_only` 臂只用先验 `P`（岭回归，**不碰表征**）→ 不受影响；
+  `full` 臂用到 `anc`（`proj_ema(P)`）、`rev`（`Δ̂ = m_k + s_k·q`，`q` 依赖编码器 `h`）→ **直接受影响**。
+  seed42 的验证损失是**单调上升**（115.0360 → 137.2852 → 145.7438 → 151.0316），即末轮是最差的一轮，
+  用末轮权重会把 `full` 压低 → **ΔRankIC = RankIC_full − RankIC_s1_only 被系统性压低**，
+  可能把本该「进 / 部分复现」的结论推向「退」。这是会**改变判词**的方向性缺陷。
+- **epoch0 权重已不可恢复**：`stale/ckpt_seed42_rep_epoch0.pt` 与 buggy 文件 **md5 完全相同**
+  （`611d644a4a0275250a6894c230fd24ba`）—— 它是在末尾覆盖保存**之后**备份的，装的也是末轮权重。
+  故**无法补救**，必须完整重训。
+- **修复**（只改实现，**不改预注册**）：
+  | 位置 | 改动 |
+  |---|---|
+  | `scripts/work566_train.py` 新增 `_clone_sd` / `snapshot_state` | 快照一律 `detach().clone()` 深拷贝；写入 `upd`、`vloss`、`selected="best_vloss"` 标记 |
+  | `train_representation` 的 `best[1]` | 改用 `snapshot_state(...)`，不再存 `state_dict()` 活引用 |
+  | 周期快照 | 改写到独立路径 `ckpt_path + ".periodic"`，**不再覆盖**最优 checkpoint |
+  | 训练结束 | 保留 `torch.save(best[1], ckpt_path)`，并**回读自检**：`selected=="best_vloss"`、`vloss==best[0]`、`upd` 一致才放行 |
+  | `--resume-rep` | 复用前**校验** `selected=="best_vloss"`，否则报错拒绝（杜绝静默拿末轮/半成品当表征） |
+  | 启动自检 | 新增 `snapshot_selftest()`：先复现旧写法会别名，再验新写法独立；不通过直接终止 |
+  | 回归测试 | 新增 `scripts/work566_ckpt_snapshot_test.py`（红-绿：旧写法确实会坏 / 新写法确实独立），**9/9 PASS** |
+- **纪律说明**：预注册 §10.2「checkpoint 选取：验证子集上 `L_anc + L^impl_rev` 最小者」**未改动**；
+  本次修的是**实现没有做到冻结条款**，属缺陷修复，不是事后改口径。
+
+### 14.3 B4（BLOCKING）：Stage 3 前置检查漏了 `fmb` 臂，回测跑到一半才崩
+- **根因**：`preds_seed{seed}_fmb.npz` 由 `scripts/work566_baselines.py` 产出，**训练脚本不产**
+  （`train.py` 只写 8 个臂）；而 `work566_backtest.py:407` 对**任意** `--arm` 都要求
+  `preds_seed{seed}_{arm}.npz`。我新加的 `[0/7]` 前置检查只查了 8 个训练臂 → **放行、回测必崩**。
+- **实测**：检查时 `preds_seed42_fmb.npz` **缺失**（`preds_seed2024_fmb.npz` 存在）。
+  若不修，xargs 会先跑完 45 个 job 再在 fmb 上失败（`set -e` 拦得住退出码，但已跑的 job 白费）。
+- **附带**：jobfile 用 `>>` 追加写 → 上次残留会让重跑时任务翻倍、并**并发写同一输出文件**。
+- **修复**：
+  - `[0/7]` 增加 FMB 产物检查，**缺失就现场调 `work566_baselines.py --seed <s>` 补齐**，
+    补不齐则 `exit 4`，不再让回测跑到一半才炸；
+  - jobfile 写入前 `: > "$JOBFILE"` 截断；
+  - 交付自检 C1 的臂列表补上 `fmb`（16 → 18 个臂×种子产物）。
+
+### 14.4 新增交付自检 C9：表征 checkpoint 必须是「验证损失最小者」快照
+- `scripts/work566_delivery_check.py` 新增 C9：逐种子回读 `ckpt_seed{seed}_rep.pt`，
+  要求 `selected == "best_vloss"`，否则判 FAIL。这是 B3 的**常态化回归防线**。
+
+### 14.5 处置：两个种子**全部完整重训**（顺序跑）
+- 作废：seed42 的旧表征（旧 ckpt 已移到 `data/WORK-566/stale/ckpt_seed42_rep_BUGGY_epoch3.pt`，
+  旧训练日志留档 `stale/train_log_seed42_BUGGY_ckpt_run.log`）；seed42 的 8 臂 ckpt/preds/u
+  均为旧冒烟/旧表征产物，已全部删除，避免前置检查误判通过。
+- 重跑：`seed42 完整 → seed2024 完整 → Stage 3`，**顺序**执行（§13.3：计算受限，并行无墙钟收益
+  且硬占用 4.2GB→2.8GB，避免整机 OOM 再次杀掉 daemon）。
+- **未改任何协议口径**：batch 256 / 4 epoch × ≤1000 update / 6 epoch × ≤1000 date-group update /
+  stock-cap 1000 / val-stride 4 全部沿用 §8 默认值；`--threads 6`、`--rep-batch 1024`、
+  `MALLOC_ARENA_MAX=2` 是纯算力/内存旋钮。
+
+### 14.6 对 §13.7 表述的订正（复审 Q2 的限定，本轮补记）
+- §13.7 说「`idx_all` 改 (stock, date) 序后，`perm` 退化为恒等置换」——**需要限定**：
+  改序**只影响 train 切分**。原因：面板是 (stock, date, feat)，`np.nonzero(mask)` 得到的 `idx_all`
+  **本来就是 stock-major** → valid/test 的 `perm = np.lexsort((di, si))` **改前就已经是恒等置换**；
+  只有 train 因为「每日期取前 stock_cap 只」的抽样（`order = np.argsort(dts)`）被打成日期序，
+  才出现散写。修的正是这一条路径。
+- §13.7 的「取值逐位不变」结论仍成立（valid/test 行序本就没变；train 变的是行序而非取值），
+  但**补充一条限定**：`mlp_std` 臂的训练集标准化统计量 `mu_u/sd_u` 是**顺序相关归约**，
+  行序改变理论上可带来 1 ulp 级差异 —— 正式跑已统一为新行序，口径自洽。
+
+### 14.7 复审未验证/未取到的部分（原样保留）
+- 未跑训练与回测（复审时本机在训练，按指令未启动重计算）→ 「pred 逐位相同」只能给到 per-row 层面的证明；
+- 未取到逐 epoch 验证损失的独立复核（B3 正是靠这一条自相矛盾才被定位）；
+- 复审报告中关于「state_dict 在本机的具体别名行为」已由本节 14.2 的三条实测独立确认。

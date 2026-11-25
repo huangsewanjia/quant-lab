@@ -28,7 +28,7 @@ import sys
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(REPO, "experiments", "WORK-566")
 DATA = os.path.join(REPO, "data", "WORK-566")
-ARMS = ("s1_only", "s3_only", "s1_s2", "full", "r0", "r1", "r2", "r3")
+ARMS = ("s1_only", "s3_only", "s1_s2", "full", "r0", "r1", "r2", "r3", "fmb")
 SEEDS = (42, 2024)
 
 checks = []
@@ -80,12 +80,35 @@ def main():
                     bad.append(f"seed{s}/{arm}: 缺 pred_* 键")
             except Exception as e:  # noqa: BLE001
                 bad.append(f"seed{s}/{arm}: 读取失败 {e}")
-    add("C1", "16 个臂×种子预测产物齐备且 test 长度正确",
+    add("C1", "18 个臂×种子预测产物齐备且 test 长度正确（含 FMB 基线臂）",
         not miss and not bad,
         f"缺失 {miss or '无'}；异常 {bad or '无'}",
         measured={"n_pred_files": len(SEEDS) * len(ARMS) - len(miss),
                   "n_test": n_test},
         expected={"n_pred_files": len(SEEDS) * len(ARMS), "n_test": n_test})
+
+    # ---- C9 表征 checkpoint 必须是「验证损失最小者」的快照（B3 回归防线）----
+    ck_bad, ck_ok = [], []
+    for s in SEEDS:
+        p = os.path.join(DATA, f"ckpt_seed{s}_rep.pt")
+        if not os.path.exists(p):
+            ck_bad.append(f"seed{s}: checkpoint 不存在")
+            continue
+        try:
+            import torch
+            st = torch.load(p, map_location="cpu", weights_only=False)
+        except Exception as e:  # noqa: BLE001
+            ck_bad.append(f"seed{s}: 读取失败 {e}")
+            continue
+        if st.get("selected") != "best_vloss":
+            ck_bad.append(f"seed{s}: selected={st.get('selected')!r}（应为 'best_vloss'）")
+        else:
+            ck_ok.append(f"seed{s}: vloss={st.get('vloss')} upd={st.get('upd')}")
+    add("C9", "表征 checkpoint 为「验证损失最小者」快照（selected=best_vloss）",
+        not ck_bad,
+        f"异常 {ck_bad or '无'}；通过 {ck_ok or '无'}",
+        measured={"n_ok": len(ck_ok), "n_bad": len(ck_bad)},
+        expected={"n_ok": len(SEEDS), "n_bad": 0})
 
     # ---- C2 关键产物齐备 ----
     need = ["metrics.json", "verdict.json", "audit_findings.json", "snapshot_manifest.json",
