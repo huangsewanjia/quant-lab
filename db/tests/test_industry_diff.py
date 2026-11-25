@@ -386,14 +386,72 @@ def test_raw_snapshot_is_archived_once_per_content(qdb):
     _write_cnesa(data)
     with qdb.duckdb_connect() as con:
         ind.load_source(con, source, "run-1")
-        first = sorted(p.name for p in history.glob("*.parquet"))
+        first = sorted(p.name for p in history.iterdir())
         _write_cnesa(data)          # 同内容重跑：不重复归档
         ind.load_source(con, source, "run-2")
-        after_same = sorted(p.name for p in history.glob("*.parquet"))
+        after_same = sorted(p.name for p in history.iterdir())
         _write_cnesa([_row("2026-01", "新型储能累计装机规模", "150.9")])
         ind.load_source(con, source, "run-3")
-        after_change = sorted(p.name for p in history.glob("*.parquet"))
+        after_change = sorted(p.name for p in history.iterdir())
 
-    assert len(first) == 1, first
+    # 每份快照 = 数据文件 + manifest.json（manifest 决定 snapshot_date 与 reason 的抓取时间）
+    assert len(first) == 2, first
     assert after_same == first, (first, after_same)
-    assert len(after_change) == 2, after_change
+    assert len(after_change) == 4, after_change
+    assert sum(1 for n in after_change if n.endswith(".json")) == 2
+
+
+LEGACY_SCHEMA = """
+CREATE TABLE industry_load_diff (
+    "run_id"       VARCHAR NOT NULL,
+    "source"       VARCHAR NOT NULL,
+    "table_name"   VARCHAR NOT NULL,
+    "period"       DATE,
+    "indicator"    VARCHAR NOT NULL,
+    "change_type"  VARCHAR NOT NULL,
+    "column_name"  VARCHAR,
+    "old_value"    VARCHAR,
+    "new_value"    VARCHAR,
+    "changed_at"   TIMESTAMP NOT NULL
+);
+"""
+
+
+def test_legacy_table_migration_backfills_only_old_rows(qdb):
+    """生产形态迁移：旧 10 列表 -> apply_schema 补两列；只回填迁移时点之前的行。
+
+    不加时点的回填会把上线后因 bug 产生的 NULL reason 洗成「历史行」，
+    既伪造来源，又让 C9 的非空判据在两次装载之间失效。
+    """
+    _prepare_db(qdb)
+    with qdb.duckdb_connect() as con:
+        con.execute("DROP TABLE industry_load_diff")
+        con.execute(LEGACY_SCHEMA)
+        con.execute(
+            "INSERT INTO industry_load_diff VALUES (?,?,?,?,?,?,?,?,?,?)",
+            ["R0", "src", "industry_cnesa_storage", None, "(全表)", "no_change",
+             None, None, "staged=1 库内=1 差异=0", dt.datetime(2026, 11, 25, 22, 0)],
+        )
+        ind.apply_schema(con)
+
+        columns = [r[0] for r in con.execute("DESCRIBE industry_load_diff").fetchall()]
+        legacy_reason = con.execute(
+            "SELECT reason FROM industry_load_diff WHERE run_id = 'R0'"
+        ).fetchone()[0]
+
+        # 迁移时点之后写入的 NULL reason 不得被回填洗白
+        con.execute(
+            "INSERT INTO industry_load_diff (run_id, source, table_name, period, indicator, "
+            "change_type, column_name, old_value, new_value, source_doc, changed_at) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            ["R1", "src", "industry_cnesa_storage", None, "x", "no_change",
+             None, None, "staged=1 库内=1 差异=0", None, dt.datetime(2026, 11, 26, 1, 0)],
+        )
+        ind.apply_schema(con)
+        still_null = con.execute(
+            "SELECT count(*) FROM industry_load_diff WHERE run_id = 'R1' AND reason IS NULL"
+        ).fetchone()[0]
+
+    assert "reason" in columns and "source_doc" in columns and len(columns) == 12
+    assert legacy_reason.startswith("WORK-585 首版上线前写入"), legacy_reason
+    assert still_null == 1

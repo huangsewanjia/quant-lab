@@ -680,21 +680,35 @@ def row_source_doc(row: dict[str, Any]) -> str | None:
 def archive_raw_snapshot(source: Source) -> Path | None:
     """把本次装载读到的 raw 快照留一份到 <raw>/<source>/history/，只增不删。
 
-    同一内容只留一份（按 sha256 去重）：定时任务每天重抓同一份快照不会让目录膨胀。
-    替代过去「就地 .bak 覆盖」的做法——`.bak` 只在改动前手工留一份，下一次改动就被覆盖。
+    「快照」= 数据文件 + manifest.json（+ 预测源的 article.txt）：manifest 决定
+    trendforce/benchmark 的 snapshot_date 与 reason 里的抓取时间，只留数据文件的话，
+    从 history 恢复旧快照会把旧数据安到今天 —— 所以一起哈希、一起复制。
+
+    同一内容只留一份（按 sha256 去重）；写临时文件再 rename，避免拷贝中途崩溃留下
+    截断文件而前缀已匹配、以后永不重拷。
     """
     path = source.data_path
     if not path.exists():
         return None
-    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    parts = [path] + [
+        p for p in (path.parent / "manifest.json", path.parent / "article.txt")
+        if p.exists()
+    ]
+    digest = hashlib.sha256()
+    for part in sorted(parts, key=lambda p: p.name):
+        digest.update(part.read_bytes())
+    key = digest.hexdigest()[:12]
     history = path.parent / RAW_HISTORY_DIR
     history.mkdir(exist_ok=True)
-    if any(history.glob(f"{digest[:12]}-*")):
-        return None
     stamp = dt.datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y%m%dT%H%M%S")
-    target = history / f"{digest[:12]}-{stamp}{path.suffix}"
-    shutil.copy2(path, target)
-    return target
+    finals = [history / f"{key}-{stamp}{part.suffix}" for part in parts]
+    if all(final.exists() for final in finals):
+        return None
+    for part, final in zip(parts, finals):
+        tmp = history / f".tmp-{final.name}"
+        shutil.copy2(part, tmp)
+        tmp.replace(final)
+    return finals[0]
 
 
 def _diff_period(source: Source, row: dict[str, Any]) -> dt.date | None:

@@ -571,9 +571,13 @@ CREATE TABLE IF NOT EXISTS industry_load_diff (
 -- ALTER 只补列不改数据；历史行按诚实口径回填「上线前写入」标记，不留 NULL 冒充有原因。
 ALTER TABLE industry_load_diff ADD COLUMN IF NOT EXISTS "source_doc" VARCHAR;
 ALTER TABLE industry_load_diff ADD COLUMN IF NOT EXISTS "reason" VARCHAR;
+-- 只回填「12 列上线（2026-11-25 23:50）」之前写入的行：apply_schema 每次装载都跑，
+-- 不加时点会把这个时点之后因 bug 产生的 NULL reason 也洗成「历史行」，既伪造来源、
+-- 又让 C9 的 reason 非空判据在两次装载之间失效。
 UPDATE industry_load_diff
 SET reason = 'WORK-585 首版上线前写入，无原因字段（历史行）'
-WHERE reason IS NULL;
+WHERE reason IS NULL
+  AND changed_at < TIMESTAMP '2026-11-25 23:50:00';
 
 COMMENT ON TABLE industry_load_diff IS '行业层装载逐行差异（WORK-585）：每次装载替换前记录「库内现状 vs 本次快照」的四要素（原值/新值/原因/URL）；0 差异的装载写一行 no_change 汇总';
 COMMENT ON COLUMN industry_load_diff.run_id IS '与 industry_load_audit.run_id 同一次运行的 id（预测表一组带 F 后缀）';

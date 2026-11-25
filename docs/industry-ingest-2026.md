@@ -996,8 +996,13 @@ raw 摘要（2026-11-25 22:55 最终版）：`part.parquet` 12,237 B，sha256
 | 历史行（首版上线前写入） | `WORK-585 首版上线前写入，无原因字段（历史行）` |
 
 **存量表兼容**：生产库在本单首版落地时已有同表（75 行 10 列）。`apply_schema` 每次装载执行
-`ALTER TABLE … ADD COLUMN IF NOT EXISTS` 补 `source_doc` / `reason`，并把历史行回填为上面那句
-「无原因字段」——不用 NULL 冒充「有原因」。写入用**显式列名**的 INSERT，不依赖列顺序。
+`ALTER TABLE … ADD COLUMN IF NOT EXISTS` 补 `source_doc` / `reason`（追加在物理末尾），并把
+**迁移时点（2026-11-25 23:50）之前**写入的行回填为上面那句「无原因字段」——不用 NULL 冒充「有原因」；
+时点之后的行即便 `reason` 为 NULL 也不回填，交给 C9 判负，避免把 bug 洗成「历史」。写入用**显式列名**
+的 INSERT，不依赖列顺序。
+
+新建库的 `reason` 是 `NOT NULL`，生产存量表是 `ALTER` 追加的可空列（加 `SET NOT NULL` 一旦有残留
+NULL 会让每次装载直接失败，风险大于收益）；「不允许为空」由装载器与 C9 共同保证。
 
 写入时机在 `db/etl/industry.py::load_source`：
 
@@ -1057,10 +1062,17 @@ change_type / column_name / old_value / new_value / source_doc / reason / change
 → 约 27 万条 diff，`executemany` 实测约 2,450 行/秒），所以它只用于排查，不进定时任务。
 
 **raw 快照版本化（`history/`）**：每次装载读 raw 之前，`archive_raw_snapshot()` 把该源当前快照复制到
-`raw/industry/<source>/history/<sha256前12位>-<mtime>.parquet`（国际源为 `.csv`），**同一内容只留一份**
-（按内容哈希去重，定时任务每天重抓同一份快照不会膨胀）。原始数据因此只增不删：上游改版、抓取脚本
-换解析口径，都能回到任意历史版本比对。过去「就地 `.bak` 覆盖」的做法退役——`.bak` 只在改动前手工留
-一份，下一次改动就被覆盖，等于没有历史。
+`raw/<kind>/<source>/history/<sha256前12位>-<mtime><后缀>`，**同一内容只留一份**（定时任务每天重抓
+同一份快照不会膨胀）。原始数据因此只增不删：上游改版、抓取脚本换解析口径，都能回到任意历史版本比对。
+
+「快照」= **数据文件 + `manifest.json`（+ 预测源的 `article.txt`）**，三者的哈希合并算一个版本：
+`manifest.fetched_at` 决定 `reason` 里的快照时间，`transform_trendforce` / `transform_benchmark` 的
+`snapshot_date` 完全来自 `manifest.fetched_at`——只留数据文件的话，从 history 恢复旧数据会被安到今天。
+复制走「临时文件 + rename」，拷贝中途崩溃不会留下截断文件而前缀已匹配、以后永不重拷。
+
+过去「就地 `.bak` 覆盖」的做法退役——`.bak` 只在改动前手工留一份，下一次改动就被覆盖，等于没有历史。
+（注：抓取器 `code/industry_fetch/` 内部写盘失败的一次性还原仍用 `.bak` 临时命名，成功即删，
+不是留档机制，与本条不冲突；该目录不在本仓库。）
 
 F3 回归的覆盖面：`db/tests/test_industry_diff.py::test_f3_regression_from_offline_html_fixture` 从
 **离线 HTML fixture** 走抓取器正文解析（HTML → 文本 → 期与指标）再装载，覆盖「上游删句 → 少一期 →
@@ -1106,7 +1118,9 @@ print(con.execute('select * from v_industry_load_changes_recent limit 20').df().
    ——`.bak` 机制已退役，回滚一律走 git（改前版本是基线 `59e5682`）。
 2. 库：`DROP VIEW v_industry_load_changes_recent; DROP TABLE industry_load_diff;`
    —— 两对象只被留痕逻辑与 C9 使用，删掉后 C9 自然消失，C1–C8 与 17 张观测表数据零改动。
-3. raw：`history/` 里的快照是只增不删的留档，回滚代码不需要动它；要回到某个历史快照，
-   从 `history/` 复制回 `part.parquet` 再装载即可。
+3. raw：`history/` 里的快照是只增不删的留档，回滚代码不需要动它。要回到某个历史快照，
+   **数据文件与同前缀的 `manifest.json`（预测源还有 `article.txt`）一起复制回去**：
+   `cp history/<sha12>-<mtime>.parquet part.parquet && cp history/<sha12>-<mtime>.json manifest.json`
+   ——只恢复数据文件不恢复 manifest，`snapshot_date` 与 `reason` 里的快照时间会变成当前值。
 4. 数据：整源替换已经清掉的残留行不会因回滚代码而复活；需要恢复时按 raw（或 `history/` 里的旧快照）
    重新装载。

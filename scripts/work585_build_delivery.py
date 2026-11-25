@@ -182,6 +182,11 @@ def main() -> None:
     view_n = int(con.execute("SELECT count(*) FROM v_industry_load_changes_recent").fetchone()[0])
     con.close()
 
+    raw_sizes = [p.stat().st_size for p in
+                 list(HOME.glob("raw/industry/*/part.parquet"))
+                 + list(HOME.glob("raw/industry_alt/*/data.csv"))]
+    max_raw = f"{max(raw_sizes) / 1_048_576:.1f} MB" if raw_sizes else "—"
+
     test_file = Path(__file__).resolve().parents[1] / "db/tests/test_industry_diff.py"
     n_tests = len(re.findall(r"^def test_", test_file.read_text(encoding="utf-8"), re.M)) \
         if test_file.exists() else 0
@@ -324,8 +329,9 @@ DATE 与零点 TIMESTAMP 规范化到同一天——否则每次重载都会把�
 <tr><th>需求（本单原文）</th><th>交付物</th><th>状态</th></tr>
 <tr><td>新表 <code>industry_load_diff</code>（run_id / source / table / period / indicator / change_type /
 old_value / new_value / changed_at），同事务先记账后替换，0 差异写汇总行</td>
-<td><code>db/schema_industry.sql</code>（10 列，多一列 <code>column_name</code> 定位变化的列）+
-<code>db/etl/industry.py::load_source</code></td><td class="ok">完成</td></tr>
+<td><code>db/schema_industry.sql</code>（12 列：规格 9 列 + <code>column_name</code> 定位变化列 +
+<code>source_doc</code> / <code>reason</code> 补齐四要素）+ <code>db/etl/industry.py::load_source</code></td>
+<td class="ok">完成</td></tr>
 <tr><td>快照型源（本单只 cnesa_storage）整源替换，删掉的行全部落 diff → 消 F3</td>
 <td><code>Source.replace_mode</code>；<code>cnesa_storage</code> 设 <code>"source"</code></td>
 <td class="ok">完成</td></tr>
@@ -425,7 +431,8 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 是因为业务键不唯一（146 行对 98 个业务键），配对靠推断、推断错比不推断更糟。</li>
 <li><b>C9 只查留痕完整性</b>，不判断变化是否符合业务预期——那是人看视图的事。</li>
 <li><b><code>history/</code> 会随快照变化增长</b>：同内容按 sha 去重，正常每日定时任务若上游无变化
-不会新增文件；有变化时每源每天约 1 份（当前最大 437KB）。要限制总量需另做归档策略，不在本单。</li>
+不会新增文件；有变化时每源每天约 1 份（当前最大原始文件 {max_raw}）。要限制总量需另做归档策略，
+不在本单。</li>
 <li><b>diff 不清理</b>：每日/每月累积，量级是「每次装载的变更行数」，正常重跑每表 1 行；
 若将来需要保留窗口，另开单做归档，不在本单。</li>
 <li><b><code>--full</code> 的 diff 会放大</b>：清表重装会为被清掉的行各写一条 <code>row_dropped</code>
