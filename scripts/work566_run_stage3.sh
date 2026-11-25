@@ -54,13 +54,33 @@ for arm in $ARMS; do
   done
 done
 export PY
+# 注意：内层 bash -c **不能**以 `echo` 收尾 —— xargs 只看子命令的退出码，
+# 尾随 echo 会把 python 的非零退出码吃掉（本机实测 xargs 退出码 = 0，链不会中止）。
 xargs -P "$JOBS" -n 3 bash -c '
   arm=$1; s=$2; c=$3
-  "$PY" scripts/work566_backtest.py --arm "$arm" --seed "$s" --cost "$c" > /dev/null
+  if ! "$PY" scripts/work566_backtest.py --arm "$arm" --seed "$s" --cost "$c" > /dev/null; then
+    echo "  失败 arm=$arm seed=$s cost=$c" >&2
+    exit 1
+  fi
   echo "  完成 arm=$arm seed=$s cost=$c"
 ' _ < "$JOBFILE"
 rm -f "$JOBFILE"
 echo "  回测全部完成"
+
+# 齐备性复核：54 个回测产物必须都在（防止「部分失败被吞」后带着残缺数据进主检验）
+# 产物名由 backtest.py 决定：backtest_{arm}_seed{seed}_c{cost}.json（cost 是 float 的 str）
+nb=0
+for f in $("$PY" -c "
+arms = '$ARMS'.split(); seeds = '$SEEDS'.split(); costs = '$COSTS'.split()
+for a in arms:
+    for s in seeds:
+        for c in costs:
+            print('experiments/WORK-566/backtest_%s_seed%s_c%s.json' % (a, s, float(c)))
+"); do
+  [ -s "$f" ] || { echo "回测产物缺失：$f" >&2; exit 5; }
+  nb=$((nb+1))
+done
+echo "  回测产物齐备：$nb 份"
 
 echo "=== [2/7] 主检验量与判词（H1/H2/H3/H4 + 基准调整 alpha + 论文对照表）==="
 $PY scripts/work566_primary_test.py --seeds $SEEDS

@@ -585,7 +585,7 @@ u 仍写回原行号 → 读出分组与取值不变；③ tmpfs 副本加<b>陈
 （0.618 → 2.208 s/批，整机 loadavg 15.5 / 8 vCPU 已超订）→ 维持 6 线程；
 以及<b>线程数不影响数值</b>的证据：seed42 在 4 线程双进程与 6 线程单进程两种配置下
 <code>upd50/100/150/200</code> 的 <code>L_anc/L_rev</code> 逐位相同（66.6294/53.4636 → 50.7801/35.0353）。</li>
-<li><b>独立子代理代码审查（三轮，FAIL → 整改 → 复审）</b>：第 1 轮判定 1 项 BLOCKING + 11 项 NON-BLOCKING，
+<li><b>独立子代理代码审查（三轮，FAIL → 整改 → 复审 → 再整改 → 重跑）</b>：第 1 轮判定 1 项 BLOCKING + 11 项 NON-BLOCKING，
 全部已修：<b>B1</b> 组合估值原用「全局最后一个 bar」的收盘价盯市（前视泄漏，触发 188 次、100% 用未来价）
 → 改用「估值日之前最后一个可得 bar」；<b>N1</b> 卖端与最终清算补计交易成本（预注册 §7.1 本就要求）；
 <b>N2</b> S2 编码器训练期 dropout 位置/次数与官方不等价 → 按 torch 2.15 源码逐位复刻（train 逐位一致）；
@@ -594,9 +594,20 @@ u 仍写回原行号 → 读出分组与取值不变；③ tmpfs 副本加<b>陈
 <code>assert_violation_log.txt</code>）。第 2 轮复核判定上述均已修、新发现 <b>B2</b>
 （<code>build_reps</code> 写回 u 时误用全局样本下标 → 越界 IndexError）→ 改为 split 内位置
 <code>u[pos]</code>，并复核「u 第 r 行 ↔ 样本 idx_all[r]」与 y 同序、无错位，冒烟复现通过。
+第 3 轮复核判定 B2 已修、新发现 2 项 BLOCKING：<b>B3</b> 落盘的表征 checkpoint 实为<b>最后一轮</b>权重而非
+预注册 §10.2 冻结的「验证损失最小者」（<code>state_dict()</code> 返回<b>活引用</b> + 训练末尾再次
+<code>torch.save(best[1])</code> + 周期快照写同一路径，三重叠加；实测落盘文件 <code>upd=1000</code>（best=epoch0）
+却带着 epoch3 的 <code>m_k/v_k</code>，自相矛盾）→ 改为<b>深拷贝快照</b>、周期快照改独立路径、
+落盘回读自检、<code>--resume-rep</code> 校验 <code>selected=="best_vloss"</code>，并加红-绿回归测试
+（<code>scripts/work566_ckpt_snapshot_test.py</code>，9/9 PASS）；<b>B4</b> Stage 3 前置检查漏 <code>fmb</code> 臂
+（该臂由 <code>work566_baselines.py</code> 产出、训练脚本不产）→ 回测跑到一半才崩，
+已改为前置检查缺失即补齐、jobfile 写入前截断，交付自检新增 <b>C9</b> 常态校验 checkpoint 快照语义。
+<b>B3 会改变判词方向</b>：<code>s1_only</code> 不用表征（不受影响）而 <code>full</code> 用（受影响），
+末轮权重把 <code>full</code> 压低 → 系统性压低 ΔRankIC；因 epoch0 权重已不可恢复（备份经 md5 证明与末轮同源），
+<b>两个种子已全部完整重训</b>，本报告全部数字来自重训后的产物。
 审查全文与逐条整改记录：<code>code_review_work566.md</code>（第 1–2 轮）、
 <code>code_review_work566_round3.md</code>（第 3 轮）；整改前后数字变化见
-<code>failure_log.md</code> §10–§13。</li>
+<code>failure_log.md</code> §10–§14。</li>
 <li><b>停牌日价格未前向填充</b>：面板 docstring 与 <code>meta.json</code> 原写「停牌前向填充到上一收盘」，
 实测<b>未填充</b>（停牌格价格留空）。影响为 0（连续性断言已剔除停牌格，样本对中无停牌格），
 且估值口径本就按「最后可得收盘价」→ 已改文案与描述，<b>不重建面板</b>，在此披露。</li>
