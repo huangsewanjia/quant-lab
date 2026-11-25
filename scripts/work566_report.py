@@ -294,7 +294,8 @@ def main():
             for row in csv.DictReader(f):
                 comp_rows.append(row)
     comp_tr = "".join(
-        f"<tr><td>{c.get('本单口径','')}</td><td class='num'>{c.get('论文值(Table 4)', c.get('论文值(Table 5)',''))}</td>"
+        f"<tr><td>{c.get('本单口径','')}</td><td class='num'>{c.get('论文表号','')}</td>"
+        f"<td class='num'>{c.get('论文值','')}</td>"
         f"<td class='num'>{fmt(float(c['本单值']),4) if c.get('本单值') not in (None,'','None') else '—'}</td>"
         f"<td class='num'>{c.get('本单range','')}</td><td class='num'>"
         f"{fmt(float(c['差异']),4) if c.get('差异') not in (None,'','None') else '—'}</td>"

@@ -358,7 +358,7 @@ def main():
             pm, plo, phi = agg(arm, main_cost, field)
             pv = PAPER["table4"][key][pfield]
             comp.append({
-                "本单口径": f"{arm} · {field}", "论文值(Table 4)": pv, "本单值": pm,
+                "本单口径": f"{arm} · {field}", "论文表号": "Table 4", "论文值": pv, "本单值": pm,
                 "本单range": f"[{plo:.4f}, {phi:.4f}]" if pm is not None else "",
                 "差异": (pm - pv) if pm is not None else None,
                 "差异原因": ("40 维字段自定 + 算力降级（d_model 64/2 层）+ 股票池 + 成本模型"
@@ -368,7 +368,7 @@ def main():
     for arm in ("r0", "r1", "r2", "r3"):
         pm, plo, phi = agg(arm, main_cost, "rankic_mean_pct")
         pv = PAPER["table5"][arm]["RankIC"]
-        comp.append({"本单口径": f"{arm} · rankic", "论文值(Table 5)": pv, "本单值": pm,
+        comp.append({"本单口径": f"{arm} · rankic", "论文表号": "Table 5", "论文值": pv, "本单值": pm,
                      "本单range": f"[{plo:.4f}, {phi:.4f}]" if pm is not None else "",
                      "差异": (pm - pv) if pm is not None else None,
                      "差异原因": "同 Table 4 偏离项（读出特征集与论文一致：s/P/anchor/revision/context）"})
@@ -382,14 +382,14 @@ def main():
           "论文原文：STOCK-JEPA，arXiv:2610.07006v1（表号见表头）。",
           "本单口径：测试期 2024-01-02 ~ 2026-06-26，主成本档 单边 5bps，",
           "跨种子 mean ± range（种子 42 / 2024）。", "",
-          "| 本单口径 | 论文值 | 本单值 | 本单 range | 差异 | 差异原因 |",
-          "|---|---|---|---|---|---|"]
+          "| 本单口径 | 论文表号 | 论文值 | 本单值 | 本单 range | 差异 | 差异原因 |",
+          "|---|---|---|---|---|---|---|"]
     for r in comp:
-        pv = r["论文值(Table 4)"] if "论文值(Table 4)" in r else r.get("论文值(Table 5)")
+        pv = r.get("论文值")
         mine = r["本单值"]
         diff = r["差异"]
-        md.append("| {} | {} | {} | {} | {} | {} |".format(
-            r["本单口径"],
+        md.append("| {} | {} | {} | {} | {} | {} | {} |".format(
+            r["本单口径"], r.get("论文表号", "—"),
             pv if pv is not None else "—",
             f"{mine:.4f}" if isinstance(mine, (int, float)) else "—",
             r["本单range"] or "—",
