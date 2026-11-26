@@ -549,3 +549,12 @@ def test_year_binding_accepts_mixed_separator_year_chains():
     text = "2024-2025年、2026年EPS分别为1.20、1.50、1.80元。"
     values = {v.fiscal_year: v.eps for v in extract_eps(text, {2024, 2025, 2026})}
     assert values == {2024: 1.20, 2025: 1.50, 2026: 1.80}
+
+
+def test_year_binding_mixed_chain_must_match_value_count():
+    # the fallback that binds a mixed chain ("2024、2025、2026-2027年") has to
+    # insist on exactly n years: zip() would otherwise silently drop the tail
+    # year and emit 2024..2026 for three values, the same shifted-column error
+    # the enumeration rule rejects.
+    text = "2024、2025、2026-2027年EPS分别为1.20、1.50、1.80元。"
+    assert extract_eps(text, {2024, 2025, 2026, 2027}) == []

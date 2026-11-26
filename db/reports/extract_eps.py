@@ -402,8 +402,9 @@ def _bind_years(sentence: str, value_start: int, n_values: int) -> tuple[list[in
     A range block or a lone year mention never outranks an anchor.
     """
     anchors = [anchor for anchor in _year_anchors(sentence) if anchor[0] < value_start]
-    # Nearest explicit anchor whose span length equals the value count; a
-    # longer tie keeps the later one, i.e. the range closest to the numbers.
+    # Nearest explicit anchor whose span length equals the value count; every
+    # candidate has that same length, so the greatest end is the range closest
+    # to the numbers.
     anchor_best: tuple[int, list[int]] | None = None  # (end, years)
     for _start, end, years in anchors:
         if len(years) == n_values and (anchor_best is None or end >= anchor_best[0]):
