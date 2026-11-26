@@ -1,35 +1,28 @@
 """研报正文入库（WORK-623）：raw/reports_fulltext/** -> report_fulltext。
 
-    python -m db.etl.report_fulltext schema          # 只建表/视图
+    python -m db.etl.report_fulltext schema          # 只建表/视图（含旧表补列）
     python -m db.etl.report_fulltext ingest          # 扫描落盘 PDF + meta.json 入库
     python -m db.etl.report_fulltext ingest --dry-run
-    python -m db.etl.report_fulltext adopt --queue candidates.jsonl --inbox <dir>
 
 设计要点：
 
-* 唯一键 = 发现报告 detail 数字 id（``report_id``）。同 id 重抓覆盖不新增；
+* 唯一键 = 发现报告 reportId（``report_id``）。同 id 重抓覆盖不新增；
   PDF 的 sha256 变化时先写一行 ``report_fulltext_changes``，再覆盖正文行。
-* 入库前逐条核对 meta.json 与磁盘：sha256、字节数、页数（pypdf 实读）三项都对上才写库；
-  对不上写 ``failed.jsonl``，不进库，不静默跳过。
-* 页数必须 > 0：0 页说明下载到的是错误页/空壳，按失败处理。
-* 只读 ``raw/reports_fulltext``；本模块不抓网络。采集在 DESKTOP-TS1FCDR 上做
-  （``scripts/fxbaogao_fulltext.py``），本机只跑写库这一步。
-* 归一化口径只在 ``db/schema_report_fulltext.sql`` 的 SQL 宏里维护；本模块只做
-  「PDF 字节 -> 队列条目」的手工下载配对（adopt），不复刻库内匹配口径。
+* 入库前逐条核对 meta.json 与磁盘：sha256、字节数、页数（pypdf 实读）、report_id 与文件名一致，
+  四项都对上才写库；对不上写 ``failed.jsonl``，不进库，不静默跳过。
+* 每篇保留官网回查链接 ``site_url``（https://www.fxbaogao.com/view?id=<id>），meta 缺失时按 id 补齐。
+* 只读 ``raw/reports_fulltext``；本模块不抓网络（采集见 ``scripts/fxbaogao_fulltext.py``，官方 API）。
+* 归一化口径只在 ``db/schema_report_fulltext.sql`` 的 SQL 宏里维护。
 """
 
 from __future__ import annotations
 
 import argparse
-import csv
 import datetime as dt
 import hashlib
 import json
 import re
-import shutil
 import sys
-import unicodedata
-from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -37,16 +30,12 @@ from . import common
 
 SCHEMA_SQL = common.PROJECT_ROOT / "db" / "schema_report_fulltext.sql"
 SOURCE = "fxbaogao"
-DEFAULT_ROOT = common.RAW_DIR / "reports_fulltext" / SOURCE
-
+SITE_VIEW = "https://www.fxbaogao.com/view?id={report_id}"
 REQUIRED_META = (
     "report_id", "title", "org", "page_date", "source_url",
     "bytes", "pages", "sha256", "fetched_at", "fetch_mode",
 )
-
-_PUNCT = re.compile(r"""[（）()《》〈〉【】\[\]{}「」『』:：;；,，.。!！?？、\s\-—_·"“”‘’'/\\|+*]""")
-_SITE_SUFFIX = re.compile(r"(发现报告网?|fxbaogao|报告网)$")
-_CORP_SUFFIX = re.compile(r"(集团)?(股份有限公司|有限责任公司|有限公司)$")
+DATE_DIR = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def root_dir() -> Path:
@@ -72,12 +61,15 @@ def count_pages(path: Path) -> int:
     return len(PdfReader(str(path)).pages)
 
 
-def failure_record(report_id: Any, url: str, http_status: Any, reason: str, path: str) -> dict:
-    """failed.jsonl 的固定字段：report_id / url / http_status / reason，缺一条都不算失败记录。"""
+def failure_record(report_id: Any, url: str, http_status: Any, reason: str, path: str,
+                   code: Any = None, msg: str = "") -> dict:
+    """failed.jsonl 固定字段：report_id / url / http_status / code / msg / reason。"""
     return {
         "report_id": report_id,
         "url": url or "",
         "http_status": http_status if http_status is not None else 0,
+        "code": code,
+        "msg": msg or "",
         "reason": reason,
         "path": path,
         "ts": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
@@ -90,27 +82,10 @@ def append_jsonl(path: Path, record: dict) -> None:
         fh.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
-def normalize_text(value: str) -> str:
-    """标题比较用（只服务于手工下载配对，不参与库内 report_meta 关联口径）。"""
-    text = unicodedata.normalize("NFKC", value or "").lower()
-    text = _PUNCT.sub("", text)
-    return _SITE_SUFFIX.sub("", text)
-
-
-def normalize_title(title: str, org: str) -> str:
-    text = normalize_text(title)
-    for prefix in (normalize_text(org or ""), _CORP_SUFFIX.sub("", normalize_text(org or ""))):
-        if prefix and text.startswith(prefix):
-            return text[len(prefix):]
-    return text
-
-
 def iter_artifacts(root: Path) -> Iterable[tuple[Path, Path]]:
     """按 <YYYY-MM-DD>/<report_id>-<slug>.pdf 的落盘约定枚举 PDF 与同名 meta.json。"""
-    date_dir = re.compile(r"^\d{4}-\d{2}-\d{2}$")
     for pdf in sorted(root.glob("*/*.pdf")):
-        # 只认 <YYYY-MM-DD>/ 这一层；_inbox/ 等手工下载暂存目录不进入库流程
-        if not date_dir.match(pdf.parent.name):
+        if not DATE_DIR.match(pdf.parent.name):
             continue
         yield pdf, pdf.with_suffix(".meta.json")
 
@@ -174,6 +149,8 @@ def validate_artifact(pdf: Path, meta_path: Path) -> tuple[dict, list[str]]:
     elif meta.get("report_id") not in (None, "") and str(meta["report_id"]).strip() != str(report_id):
         problems.append(f"report_id 与文件名不一致: meta={meta['report_id']} 文件名={report_id}")
 
+    site_url = meta.get("site_url") or (
+        SITE_VIEW.format(report_id=report_id) if str(report_id).isdigit() else "")
     row = {
         "report_id": int(report_id) if str(report_id).isdigit() else -1,
         "source": SOURCE,
@@ -181,6 +158,8 @@ def validate_artifact(pdf: Path, meta_path: Path) -> tuple[dict, list[str]]:
         "org_name": meta.get("org") or meta.get("org_name") or "",
         "publish_date": meta.get("page_date") or None,
         "page_url": meta.get("source_url") or meta.get("url") or "",
+        "site_url": site_url,
+        "pdf_url": meta.get("pdf_url") or "",
         "pdf_path": str(pdf),
         "pdf_bytes": bytes_on_disk,
         "pdf_pages": pages,
@@ -188,7 +167,9 @@ def validate_artifact(pdf: Path, meta_path: Path) -> tuple[dict, list[str]]:
         "fetched_at": meta.get("fetched_at"),
         "fetch_mode": meta.get("fetch_mode") or "unknown",
         "meta_path": str(meta_path),
-        "http_status": meta.get("http_status", 0),
+        "http_status": meta.get("http_status", (meta.get("api") or {}).get("http_status", 0)),
+        "code": meta.get("code", (meta.get("api") or {}).get("code")),
+        "msg": meta.get("msg", (meta.get("api") or {}).get("msg", "")),
     }
     return row, problems
 
@@ -238,6 +219,7 @@ def ingest(root: Path | None = None, dry_run: bool = False, con=None) -> dict:
                     row.get("page_url", "") if row else "",
                     row.get("http_status", 0) if row else 0,
                     "; ".join(problems), str(pdf),
+                    row.get("code") if row else None, row.get("msg", "") if row else "",
                 )
                 stats["failures"].append(rec)
                 if not dry_run:
@@ -264,21 +246,22 @@ def ingest(root: Path | None = None, dry_run: bool = False, con=None) -> dict:
                 con.execute(
                     """
                     insert or replace into report_fulltext
-                    (report_id, source, title, org_name, publish_date, page_url, pdf_path,
-                     pdf_bytes, pdf_pages, sha256, fetched_at, fetch_mode, meta_path, ingested_at)
-                    values (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    (report_id, source, title, org_name, publish_date, page_url, site_url, pdf_url,
+                     pdf_path, pdf_bytes, pdf_pages, sha256, fetched_at, fetch_mode, meta_path, ingested_at)
+                    values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                     """,
                     [row["report_id"], SOURCE, row["title"], row["org_name"],
-                     row["publish_date"], row["page_url"], row["pdf_path"], row["pdf_bytes"],
-                     row["pdf_pages"], row["sha256"], _ts(row["fetched_at"]), row["fetch_mode"],
-                     row["meta_path"], now],
+                     row["publish_date"], row["page_url"], row["site_url"], row["pdf_url"],
+                     row["pdf_path"], row["pdf_bytes"], row["pdf_pages"], row["sha256"],
+                     _ts(row["fetched_at"]), row["fetch_mode"], row["meta_path"], now],
                 )
                 con.execute("COMMIT")
             except Exception as exc:  # noqa: BLE001 - 单条失败回滚整条，记录后继续下一条
                 con.execute("ROLLBACK")
                 stats["failed"] += 1
                 rec = failure_record(row["report_id"], row["page_url"], row.get("http_status", 0),
-                                     f"写库失败: {type(exc).__name__}: {exc}", str(pdf))
+                                     f"写库失败: {type(exc).__name__}: {exc}", str(pdf),
+                                     row.get("code"), row.get("msg", ""))
                 stats["failures"].append(rec)
                 append_jsonl(root / "failed.jsonl", rec)
         if own:
@@ -289,154 +272,14 @@ def ingest(root: Path | None = None, dry_run: bool = False, con=None) -> dict:
     return stats
 
 
-# ---------------------------------------------------------------- 手工下载配对
-def load_queue(path: Path) -> list[dict]:
-    """读候选清单：JSONL（candidates/fetch 的输出）或 CSV（report_id,url,title,org,page_date）。"""
-    items: list[dict] = []
-    text = path.read_text(encoding="utf-8")
-    if path.suffix.lower() == ".csv":
-        for row in csv.DictReader(text.splitlines()):
-            items.append({k: (v or "").strip() for k, v in row.items()})
-    else:
-        for line in text.splitlines():
-            line = line.strip()
-            if line:
-                items.append(json.loads(line))
-    return items
-
-
-def _pdf_first_page_text(pdf: Path, max_chars: int = 6000) -> str:
-    from pypdf import PdfReader
-
-    reader = PdfReader(str(pdf))
-    if not reader.pages:
-        return ""
-    return (reader.pages[0].extract_text() or "")[:max_chars]
-
-
-def match_score(pdf_text: str, item: dict) -> float:
-    text = normalize_text(pdf_text)
-    if not text:
-        return 0.0
-    title_norm = normalize_title(item.get("title", ""), item.get("org", ""))
-    if not title_norm:
-        return 0.0
-    forms = {title_norm, normalize_text(item.get("org", "")) + title_norm}
-    if any(len(f) >= 6 and f in text for f in forms):
-        return 1.0
-    return max(SequenceMatcher(None, f, text[: max(len(f) * 3, 600)]).ratio() for f in forms)
-
-
-def match_pdf(pdf: Path, items: list[dict], threshold: float = 0.90,
-              margin: float = 0.03) -> tuple[dict | None, list[tuple[float, dict]]]:
-    """把一份手工下载的 PDF 配到队列条目；分数接近（差距 < margin）判为歧义，不猜。"""
-    text = _pdf_first_page_text(pdf)
-    scored = sorted(((match_score(text, it), it) for it in items), key=lambda x: -x[0])
-    if not scored or scored[0][0] < threshold:
-        return None, scored[:3]
-    if len(scored) > 1 and scored[0][0] - scored[1][0] < margin:
-        return None, scored[:3]
-    return scored[0][1], scored[:3]
-
-
-def _slug(title: str, limit: int = 60) -> str:
-    """与采集器 slugify 保持同一算法（含剥离「-发现报告」后缀），否则两条路径文件名不一致。"""
-    text = re.sub(r"[-_—|]?\s*发现报告网?$", "", title or "")
-    text = re.sub(r"[^0-9A-Za-z\u4e00-\u9fff]+", "-", text).strip("-")
-    return (text[:limit].strip("-") or "report")
-
-
-def adopt(queue_path: Path, inbox: Path, root: Path | None = None,
-          dry_run: bool = False, move: bool = True) -> dict:
-    """手工下载收编：inbox 里的 PDF -> <date>/<report_id>-<slug>.pdf + meta.json。"""
-    root = Path(root) if root else root_dir()
-    items = load_queue(Path(queue_path))
-    stats = {"inbox": str(inbox), "seen": 0, "adopted": 0, "unmatched": 0, "details": []}
-    for pdf in sorted(Path(inbox).glob("*.pdf")):
-        stats["seen"] += 1
-        try:
-            item, top = match_pdf(pdf, items)
-        except Exception as exc:  # noqa: BLE001 - 坏 PDF（截断/伪装）只影响这一份
-            stats["unmatched"] += 1
-            rec = {"file": pdf.name, "reason": f"无法解析 PDF: {type(exc).__name__}: {exc}"}
-            stats["details"].append(rec)
-            if not dry_run:
-                append_jsonl(root / "unmatched.jsonl", rec)
-            continue
-        if item is None:
-            stats["unmatched"] += 1
-            rec = {
-                "file": pdf.name,
-                "reason": "未能唯一匹配队列条目（阈值 0.90，领先 <0.03 视为歧义）",
-                "top3": [{"score": round(s, 3), "title": it.get("title", "")} for s, it in top],
-            }
-            stats["details"].append(rec)
-            if not dry_run:
-                append_jsonl(root / "unmatched.jsonl", rec)
-            continue
-        report_id = str(item.get("report_id") or "").strip()
-        if not report_id.isdigit():
-            stats["unmatched"] += 1
-            stats["details"].append({"file": pdf.name, "reason": f"队列条目 report_id 非数字: {report_id!r}"})
-            continue
-        page_date = (item.get("page_date") or "").strip() or dt.date.today().isoformat()
-        dest = root / page_date / f"{report_id}-{_slug(item.get('title', ''))}.pdf"
-        try:
-            meta = {
-                "channel_id": "fxbaogao_vip",
-                "report_id": int(report_id),
-                "title": item.get("title", ""),
-                "org": item.get("org", ""),
-                "page_date": page_date,
-                "source_url": item.get("url", "") or item.get("page_url", ""),
-                "bytes": pdf.stat().st_size,
-                "pages": count_pages(pdf) if not dry_run else 0,
-                "sha256": sha256_file(pdf) if not dry_run else "",
-                "fetched_at": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
-                "fetch_mode": "manual",
-                "http_status": 200,
-            }
-            if dry_run:
-                stats["adopted"] += 1
-                stats["details"].append({"file": pdf.name, "dest": str(dest), "dry_run": True})
-                continue
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            if move:
-                shutil.move(str(pdf), dest)
-            else:
-                shutil.copy2(str(pdf), dest)
-            dest.with_suffix(".meta.json").write_text(
-                json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
-        except Exception as exc:  # noqa: BLE001 - 单个文件失败不影响其余收编
-            stats["unmatched"] += 1
-            rec = {"file": pdf.name, "reason": f"收编失败: {type(exc).__name__}: {exc}"}
-            stats["details"].append(rec)
-            append_jsonl(root / "unmatched.jsonl", rec)
-            continue
-        stats["adopted"] += 1
-        details = {"file": pdf.name, "dest": str(dest)}
-        try:
-            details["score"] = round(match_score(_pdf_first_page_text(dest), item), 3)
-        except Exception:  # noqa: BLE001 - 匹配分只是记录，读不出不影响已完成的收编
-            details["score"] = None
-        stats["details"].append(details)
-    return stats
-
-
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m db.etl.report_fulltext",
                                      description="研报正文入库（WORK-623）")
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("schema", help="建表与视图")
+    sub.add_parser("schema", help="建表与视图（含旧表补列）")
     ing = sub.add_parser("ingest", help="扫描 raw/reports_fulltext 入库")
     ing.add_argument("--root", default=None)
     ing.add_argument("--dry-run", action="store_true")
-    ad = sub.add_parser("adopt", help="把手工下载的 PDF 收编进目录并登记")
-    ad.add_argument("--queue", required=True)
-    ad.add_argument("--inbox", required=True)
-    ad.add_argument("--root", default=None)
-    ad.add_argument("--dry-run", action="store_true")
-    ad.add_argument("--copy", action="store_true", help="复制而非移动 inbox 文件")
     return parser
 
 
@@ -448,18 +291,12 @@ def main(argv: list[str] | None = None) -> int:
             con.execute("CHECKPOINT")
         print("[report_fulltext] schema 已应用")
         return 0
-    if args.command == "ingest":
-        stats = ingest(Path(args.root) if args.root else None, dry_run=args.dry_run)
-        print(json.dumps({k: v for k, v in stats.items() if k != "failures"},
-                         ensure_ascii=False, indent=1))
-        for rec in stats["failures"]:
-            print("  [fail]", rec["report_id"], rec["reason"], rec["path"], file=sys.stderr)
-        return 0 if stats["failed"] == 0 else 1
-    stats = adopt(Path(args.queue), Path(args.inbox),
-                  Path(args.root) if args.root else None,
-                  dry_run=args.dry_run, move=not args.copy)
-    print(json.dumps(stats, ensure_ascii=False, indent=1))
-    return 0 if stats["unmatched"] == 0 else 1
+    stats = ingest(Path(args.root) if args.root else None, dry_run=args.dry_run)
+    print(json.dumps({k: v for k, v in stats.items() if k != "failures"},
+                     ensure_ascii=False, indent=1))
+    for rec in stats["failures"]:
+        print("  [fail]", rec["report_id"], rec["reason"], rec["path"], file=sys.stderr)
+    return 0 if stats["failed"] == 0 else 1
 
 
 if __name__ == "__main__":

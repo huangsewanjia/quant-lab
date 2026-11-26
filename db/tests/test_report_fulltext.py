@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 
-import duckdb
 import pytest
 from pypdf import PdfWriter
 
@@ -26,19 +25,20 @@ def write_meta(pdf, **overrides):
     meta = {
         "channel_id": "fxbaogao_vip",
         "report_id": int(pdf.name.split("-", 1)[0]),
-        "title": "开源证券:《宁德时代(300750)：Q3业绩超预期》-发现报告",
+        "title": "宁德时代(300750)：Q3业绩超预期",
         "org": "开源证券",
         "page_date": pdf.parent.name,
-        "source_url": "https://www.fxbaogao.com/detail/" + pdf.name.split("-", 1)[0],
+        "source_url": "https://www.fxbaogao.com/view?id=" + pdf.name.split("-", 1)[0],
+        "site_url": "https://www.fxbaogao.com/view?id=" + pdf.name.split("-", 1)[0],
+        "pdf_url": "https://dr.fxbaogao.com/x.pdf?sign=abc",
         "bytes": pdf.stat().st_size,
         "pages": 3,
         "sha256": rf.sha256_file(pdf),
         "fetched_at": "2026-11-27T01:00:00+08:00",
-        "fetch_mode": "cdp",
+        "fetch_mode": "api",
     }
     meta.update(overrides)
-    path = pdf.with_suffix(".meta.json")
-    path.write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+    pdf.with_suffix(".meta.json").write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
     return meta
 
 
@@ -48,7 +48,6 @@ def stub_meta_table(con):
 
 
 def ensure_meta_stub():
-    """真库里有 report_meta；临时 home 的测试库先建同结构空表，让视图能建起来。"""
     con = common.duckdb_connect()
     try:
         stub_meta_table(con)
@@ -65,44 +64,66 @@ def con(qdb):
     connection.close()
 
 
-def test_schema_objects_created(con):
+def test_schema_objects_and_new_columns(con):
     tables = {r[0] for r in con.execute(
         "select table_name from information_schema.tables where table_schema='main'").fetchall()}
     assert {"report_fulltext", "report_fulltext_changes", "report_meta"} <= tables
+    cols = {r[0] for r in con.execute("describe report_fulltext").fetchall()}
+    assert {"site_url", "pdf_url", "sha256", "pdf_pages"} <= cols
     views = {r[0] for r in con.execute(
         "select table_name from information_schema.views where table_schema='main'").fetchall()}
     assert {"v_report_fulltext", "v_report_fulltext_link_candidates",
             "v_report_fulltext_linked", "v_report_fulltext_unlinked"} <= views
 
 
+def test_schema_adds_columns_to_legacy_table(con):
+    # 模拟首版建表（无 site_url/pdf_url），schema 再来一次应补列且不丢数据
+    con.execute("drop view v_report_fulltext_unlinked")
+    con.execute("drop view v_report_fulltext_linked")
+    con.execute("drop view v_report_fulltext_link_candidates")
+    con.execute("drop view v_report_fulltext")
+    con.execute("drop table report_fulltext")
+    con.execute("""create table report_fulltext(report_id BIGINT primary key, source VARCHAR,
+        title VARCHAR, org_name VARCHAR, publish_date DATE, page_url VARCHAR, pdf_path VARCHAR,
+        pdf_bytes BIGINT, pdf_pages INTEGER, sha256 VARCHAR, fetched_at TIMESTAMP,
+        fetch_mode VARCHAR, meta_path VARCHAR, ingested_at TIMESTAMP)""")
+    con.execute("insert into report_fulltext values (1,'fxbaogao','t','o',DATE '2026-11-16','u','/x.pdf',9,1,'s',NULL,'api',NULL,NULL)")
+    rf.apply_schema(con)
+    cols = {r[0] for r in con.execute("describe report_fulltext").fetchall()}
+    assert {"site_url", "pdf_url"} <= cols
+    assert con.execute("select count(*) from report_fulltext").fetchone()[0] == 1
+
+
 def test_link_view_window_org_suffix_and_ambiguity(con):
     con.execute(
-        "insert into report_fulltext values (1,'fxbaogao','开源证券:《宁德时代(300750)：Q3业绩超预期》-发现报告',"
-        "'开源证券',DATE '2026-11-16','https://www.fxbaogao.com/detail/1','/x/1-a.pdf',900,4,'sha1',"
-        "TIMESTAMP '2026-11-27 01:00:00','cdp','/x/1.meta.json',TIMESTAMP '2026-11-27 01:01:00')")
-    # 同一报告的两份 info_code（相差 1 天和 3 天），机构带「股份有限公司」后缀
+        "insert into report_fulltext (report_id,source,title,org_name,publish_date,page_url,"
+        "pdf_path,pdf_bytes,pdf_pages,sha256,fetched_at,fetch_mode,ingested_at) values "
+        "(1,'fxbaogao','开源证券:《宁德时代(300750)：Q3业绩超预期》-发现报告','开源证券',"
+        "DATE '2026-11-16','https://www.fxbaogao.com/view?id=1','/x/1-a.pdf',900,4,'sha1',"
+        "TIMESTAMP '2026-11-27 01:00:00','api',TIMESTAMP '2026-11-27 01:01:00')")
     con.execute("insert into report_meta values ('AP2','宁德时代(300750)：Q3业绩超预期','开源证券股份有限公司',DATE '2026-11-19')")
     con.execute("insert into report_meta values ('AP1','宁德时代(300750)：Q3业绩超预期','开源证券股份有限公司',DATE '2026-11-15')")
-    # 超出 ±3 天窗口
     con.execute("insert into report_meta values ('AP0','宁德时代(300750)：Q3业绩超预期','开源证券股份有限公司',DATE '2026-11-10')")
     assert con.execute("select count(*) from v_report_fulltext_link_candidates").fetchone()[0] == 2
     linked = con.execute(
         "select info_code, day_gap, candidate_count from v_report_fulltext_linked").fetchall()
-    assert linked == [("AP1", 1, 2)]  # 日差最小；并列时 info_code 最小，确定性
+    assert linked == [("AP1", 1, 2)]
     assert con.execute("select count(*) from v_report_fulltext_unlinked").fetchone()[0] == 0
 
 
 def test_org_mismatch_and_empty_title_not_linked(con):
     con.execute(
-        "insert into report_fulltext values (2,'fxbaogao','媒体报告：某行业观察-发现报告','某财经媒体',"
-        "DATE '2026-11-16','https://www.fxbaogao.com/detail/2','/x/2-b.pdf',900,2,'sha2',"
-        "TIMESTAMP '2026-11-27 01:00:00','manual','/x/2.meta.json',TIMESTAMP '2026-11-27 01:01:00')")
+        "insert into report_fulltext (report_id,source,title,org_name,publish_date,page_url,"
+        "pdf_path,pdf_bytes,pdf_pages,sha256,fetched_at,fetch_mode,ingested_at) values "
+        "(2,'fxbaogao','媒体报告：某行业观察-发现报告','某财经媒体',DATE '2026-11-16',"
+        "'https://www.fxbaogao.com/view?id=2','/x/2-b.pdf',900,2,'sha2',"
+        "TIMESTAMP '2026-11-27 01:00:00','api',TIMESTAMP '2026-11-27 01:01:00')")
     con.execute("insert into report_meta values ('AP3','某行业观察','开源证券股份有限公司',DATE '2026-11-16')")
     assert con.execute("select count(*) from v_report_fulltext_linked").fetchone()[0] == 0
     assert con.execute("select count(*) from v_report_fulltext_unlinked").fetchone()[0] == 1
 
 
-def test_ingest_idempotent_and_change_log(qdb):
+def test_ingest_idempotent_change_log_and_site_url(qdb):
     ensure_meta_stub()
     root = rf.root_dir()
     pdf = make_pdf(root / "2026-11-16" / "1001-宁德时代-Q3.pdf", pages=3)
@@ -114,10 +135,12 @@ def test_ingest_idempotent_and_change_log(qdb):
     con = common.duckdb_connect(read_only=True)
     try:
         assert con.execute("select count(*) from report_fulltext").fetchone()[0] == 1
-        assert con.execute("select pdf_pages from report_fulltext").fetchone()[0] == 3
+        row = con.execute("select pdf_pages, site_url, pdf_url from report_fulltext").fetchone()
+        assert row[0] == 3
+        assert row[1] == "https://www.fxbaogao.com/view?id=1001"
+        assert row[2].startswith("https://dr.fxbaogao.com/")
     finally:
         con.close()
-    # 内容变化（页数变 4）：sha 变，留痕一行，行数不变
     make_pdf(pdf, pages=4)
     write_meta(pdf, pages=4)
     changed = rf.ingest(root)
@@ -134,6 +157,20 @@ def test_ingest_idempotent_and_change_log(qdb):
         con.close()
 
 
+def test_ingest_fills_site_url_when_meta_lacks_it(qdb):
+    ensure_meta_stub()
+    root = rf.root_dir()
+    pdf = make_pdf(root / "2026-11-16" / "1101-无站点列.pdf", pages=1)
+    write_meta(pdf, report_id=1101, page_date="2026-11-16", pages=1, site_url="")
+    rf.ingest(root)
+    con = common.duckdb_connect(read_only=True)
+    try:
+        assert con.execute("select site_url from report_fulltext").fetchone()[0] == \
+            "https://www.fxbaogao.com/view?id=1101"
+    finally:
+        con.close()
+
+
 def test_invalid_artifact_logs_complete_failure(qdb):
     ensure_meta_stub()
     root = rf.root_dir()
@@ -141,9 +178,8 @@ def test_invalid_artifact_logs_complete_failure(qdb):
     write_meta(pdf, sha256="0" * 64)
     stats = rf.ingest(root)
     assert stats["failed"] == 1 and stats["inserted"] == 0
-    lines = (root / "failed.jsonl").read_text(encoding="utf-8").splitlines()
-    record = json.loads(lines[0])
-    assert set(record) >= {"report_id", "url", "http_status", "reason", "path", "ts"}
+    record = json.loads((root / "failed.jsonl").read_text(encoding="utf-8").splitlines()[0])
+    assert set(record) >= {"report_id", "url", "http_status", "code", "msg", "reason", "path", "ts"}
     assert record["report_id"] == 2002 and "sha256 不符" in record["reason"]
 
 
@@ -236,14 +272,16 @@ def test_checks_all_pass_on_good_run(qdb):
     assert "criteria" in stats and "query" in stats
 
 
-def test_checks_c4_flags_incomplete_failure_line(qdb):
+def test_checks_c4_flags_missing_code_and_msg(qdb):
     ensure_meta_stub()
     root = rf.root_dir()
     root.mkdir(parents=True, exist_ok=True)
     (root / "failed.jsonl").write_text(
-        json.dumps({"report_id": 1, "reason": "x"}, ensure_ascii=False) + "\n", encoding="utf-8")
+        json.dumps({"report_id": 1, "url": "u", "http_status": 200, "reason": "x"},
+                   ensure_ascii=False) + "\n", encoding="utf-8")
     payload = checks.run(["C4_failed_log_schema"], root)
     assert payload["blocking_fail"] == ["C4_failed_log_schema"]
+    assert "code" in payload["gates"][0]["detail"]["bad_lines"][0]["problem"]
 
 
 def test_checks_c1_flags_duplicate_report_id_files(qdb):
@@ -278,30 +316,3 @@ def test_checks_c1_detects_pdf_without_row(qdb):
     payload = checks.run(["C1_rows_match_files"], root)
     assert payload["blocking_fail"] == ["C1_rows_match_files"]
     assert payload["gates"][0]["detail"]["pdf_without_row"] == [6006]
-
-
-def test_adopt_isolates_unreadable_pdf(qdb):
-    ensure_meta_stub()
-    root = rf.root_dir()
-    inbox = root / "_inbox"
-    inbox.mkdir(parents=True, exist_ok=True)
-    (inbox / "bad.pdf").write_bytes(b"%PDF-1.4 truncated garbage")
-    make_pdf(inbox / "good.pdf", pages=1)
-    queue = root / "queue.jsonl"
-    queue.write_text(json.dumps({"report_id": "7007", "title": "某报告", "org": "某机构",
-                                 "page_date": "2026-11-16"}, ensure_ascii=False) + "\n",
-                     encoding="utf-8")
-    stats = rf.adopt(queue, inbox, root=root)
-    assert stats["seen"] == 2 and stats["unmatched"] == 2 and stats["adopted"] == 0
-    reasons = [d.get("reason", "") for d in stats["details"]]
-    assert any("无法解析 PDF" in r for r in reasons)
-    assert (root / "unmatched.jsonl").exists()
-
-
-def test_adopt_matching_scores_titles(qdb):
-    item = {"report_id": "7007", "title": "开源证券:《宁德时代(300750)：Q3业绩超预期》-发现报告",
-            "org": "开源证券", "url": "https://www.fxbaogao.com/detail/7007"}
-    text = "宁德时代(300750) Q3业绩超预期\n开源证券研究所 2026年11月"
-    assert rf.match_score(text, item) == 1.0
-    other = {"report_id": "7008", "title": "完全不同的报告标题：光伏行业月度跟踪", "org": "开源证券"}
-    assert rf.match_score(text, other) < 0.9

@@ -113,8 +113,14 @@ def _throttle(url: str) -> None:
     _last_global = time.monotonic()
 
 
-def http_get(url: str, ua: str = UA_BROWSER, timeout: int = 20) -> dict:
-    """单次 GET。返回状态/正文/重定向链；不重试。请求全部登记到 ledger（频控与总量可审计）。"""
+def http_request(url: str, method: str = "GET", body: bytes | None = None,
+                 headers: dict | None = None, ua: str = UA_BROWSER,
+                 timeout: int = 20, binary: bool = False) -> dict:
+    """单次 HTTP 请求（GET/POST）。返回状态/正文/重定向链；不重试。
+
+    所有请求登记到 ledger（频控与总量可审计）。WORK-623 的官方 API 渠道复用这里：
+    只多传 method/body/headers（Authorization 只在内存里，不落台账）。
+    """
     _throttle(url)
     if REQ_COUNT["n"] >= MAX_REQUESTS:
         return {"url": url, "ok": False, "status": 0, "error": "budget_exhausted",
@@ -123,13 +129,16 @@ def http_get(url: str, ua: str = UA_BROWSER, timeout: int = 20) -> dict:
     t0 = time.monotonic()
     tracker = _RedirectTracker()
     opener = urllib.request.build_opener(tracker, urllib.request.HTTPSHandler(context=ssl.create_default_context()))
-    req = urllib.request.Request(url, headers={
+    hdrs = {
         "User-Agent": ua,
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
         "Accept-Encoding": "gzip, identity",
         "Connection": "close",
-    })
+    }
+    if headers:
+        hdrs.update(headers)
+    req = urllib.request.Request(url, data=body, headers=hdrs, method=method)
     out = {"url": url, "ok": False, "status": 0, "error": "", "body": "", "final_url": url,
            "chain": [], "headers": {}, "bytes": 0, "fetched_at": datetime.now(CST).isoformat(timespec="seconds")}
     try:
@@ -150,9 +159,12 @@ def http_get(url: str, ua: str = UA_BROWSER, timeout: int = 20) -> dict:
             out["status"] = resp.status
             out["headers"] = {k.lower(): v for k, v in resp.headers.items()}
             out["final_url"] = resp.geturl()
-            out["body"] = raw.decode("utf-8", errors="replace")
             out["bytes"] = len(raw)
             out["ok"] = True
+            if binary:
+                out["raw"] = raw          # 二进制（PDF）不走 utf-8 解码，避免损坏
+            else:
+                out["body"] = raw.decode("utf-8", errors="replace")
     except urllib.error.HTTPError as e:
         out["status"] = e.code
         out["final_url"] = url
@@ -170,13 +182,18 @@ def http_get(url: str, ua: str = UA_BROWSER, timeout: int = 20) -> dict:
     out["chain"] = tracker.chain
     REQ_COUNT["n"] += 1
     _last_by_domain[urlparse(url).netloc.lower()] = time.monotonic()   # 记录**完成**时刻，供下次节流
-    LEDGER.append({"n": REQ_COUNT["n"], "url": url, "domain": urlparse(url).netloc.lower(),
+    LEDGER.append({"n": REQ_COUNT["n"], "method": method, "url": url, "domain": urlparse(url).netloc.lower(),
                    "status": out["status"], "bytes": out.get("bytes", 0),
                    "error": out.get("error", ""), "ua": ua,
                    "elapsed_s": round(time.monotonic() - t0, 2),
                    "ts": datetime.now(CST).isoformat(timespec="seconds")})
     _save_ledger()
     return out
+
+
+def http_get(url: str, ua: str = UA_BROWSER, timeout: int = 20) -> dict:
+    """单次 GET（保留原签名，内部走 http_request）。"""
+    return http_request(url, "GET", None, None, ua, timeout)
 
 
 # ---------------------------------------------------------------- robots.txt

@@ -71,6 +71,7 @@ raw/foreign_research/
 
 # ---- WORK-623：抓取凭据绝不入库 ----
 secrets/
+fxbaogao_api_key
 *.cookie.json
 fxbaogao_cookie.json
 

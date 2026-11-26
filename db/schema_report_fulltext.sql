@@ -59,6 +59,8 @@ CREATE TABLE IF NOT EXISTS report_fulltext (
     "org_name"    VARCHAR,
     "publish_date" DATE,
     "page_url"    VARCHAR,
+    "site_url"    VARCHAR,
+    "pdf_url"     VARCHAR,
     "pdf_path"    VARCHAR   NOT NULL,
     "pdf_bytes"   BIGINT    NOT NULL,
     "pdf_pages"   INTEGER   NOT NULL,
@@ -70,17 +72,23 @@ CREATE TABLE IF NOT EXISTS report_fulltext (
     PRIMARY KEY ("report_id")
 );
 
+-- 已存在的旧表（WORK-623 首版只落 pdf_path）补列；ADD COLUMN IF NOT EXISTS 幂等。
+ALTER TABLE report_fulltext ADD COLUMN IF NOT EXISTS site_url VARCHAR;
+ALTER TABLE report_fulltext ADD COLUMN IF NOT EXISTS pdf_url VARCHAR;
+
 COMMENT ON TABLE report_fulltext IS '研报正文 PDF 的元数据层；一篇报告一行，唯一键为发现报告 detail 数字 id。正文本身不进库，只在磁盘 raw/reports_fulltext 下';
 COMMENT ON COLUMN report_fulltext.report_id IS '发现报告 detail 数字 id（https://www.fxbaogao.com/detail/<id> 的 <id>）';
 COMMENT ON COLUMN report_fulltext.title IS '站点详情页标题原文（含「-发现报告」后缀，原样保存）';
 COMMENT ON COLUMN report_fulltext.org_name IS '机构/作者原文，站点写法（如「开源证券」）';
 COMMENT ON COLUMN report_fulltext.publish_date IS '站点 og:published_time 的日期（CST）';
 COMMENT ON COLUMN report_fulltext.page_url IS '详情页 URL（不用 /pdf 路径）';
+COMMENT ON COLUMN report_fulltext.site_url IS '官网回查链接 https://www.fxbaogao.com/view?id=<report_id>（官方要求每篇保留）';
+COMMENT ON COLUMN report_fulltext.pdf_url IS '官方 download 接口返回的 PDF 地址（可能带时效签名，仅作证据）';
 COMMENT ON COLUMN report_fulltext.pdf_path IS 'PDF 绝对路径：raw/reports_fulltext/fxbaogao/<page_date>/<report_id>-<slug>.pdf';
 COMMENT ON COLUMN report_fulltext.pdf_bytes IS 'PDF 文件字节数（入库时实测）';
 COMMENT ON COLUMN report_fulltext.pdf_pages IS 'PDF 页数（pypdf 读出，必须 > 0）';
 COMMENT ON COLUMN report_fulltext.sha256 IS 'PDF 文件 sha256（小写十六进制）；内容变化时另写 report_fulltext_changes';
-COMMENT ON COLUMN report_fulltext.fetch_mode IS '抓取方式：cdp=用户登录浏览器会话下载 / manual=用户手动下载后 inbox 收编';
+COMMENT ON COLUMN report_fulltext.fetch_mode IS '抓取方式：api=官方接口（本单）；旧值 cdp/manual 仅历史行';
 COMMENT ON COLUMN report_fulltext.meta_path IS '同名 meta.json 的绝对路径';
 
 -- ---------------------------------------------------------------------------
@@ -112,6 +120,8 @@ SELECT
     fx_norm_org(f.org_name)           AS org_norm,
     f.publish_date,
     f.page_url,
+    f.site_url,
+    f.pdf_url,
     f.pdf_path,
     f.pdf_bytes,
     f.pdf_pages,

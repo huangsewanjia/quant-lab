@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-11-27 · WORK-623 契约变更 01：改走官方 API（浏览器方案作废）
+
+按大管家 01:40 契约变更重做：CDP 复用桌面 Chrome、cookie 文件、sheet 手点、adopt 收编全部**删除**（首版从未取到真实数据），采集改为官方 HTTP API。
+
+新增/重写：
+
+- `scripts/fxbaogao_fulltext.py`：`check-auth`（一次搜索验 token，不扣下载额度）、`search`（`pageNum` 1–10，原始回包落 `search_raw/page*.json`）、`fetch`（`GET /mofoun/agent/download` 取地址 → 拉 PDF → `%PDF`/pypdf 页数校验 → 落盘 + `meta.json` + `download.json`）、`verify`（官网详情页标题核对）。无 Playwright、无浏览器。
+- `scripts/work537_probe.py`：HTTP 基础增加 `http_request`（GET/POST/Authorization/二进制），`http_get` 保持原签名；台账新增 `method`。
+- `db/schema_report_fulltext.sql`：`report_fulltext` 增加 `site_url`（官方回查链接）与 `pdf_url`，并对已建旧表 `ALTER TABLE … ADD COLUMN IF NOT EXISTS` 补列。
+- `db/etl/report_fulltext.py`：删除 `adopt`（手工收编作废）；入库校验增加 `site_url` 缺失按 id 补齐、失败台账带 `code/msg`。
+- `db/checks/report_fulltext.py`：C4 要求 `report_id/url/http_status/code/msg/reason` 六字段。
+- 测试：`test_work623_api.py`（18 条，FakeProbe 覆盖业务错误 300011/300012、额度无地址、非 PDF、跳过已存在、分页上限）+ `test_report_fulltext.py`（17 条）；全套 197 passed。
+
+口径要点：
+
+- 成败看 `body.code`（0/200 成功）而不是 HTTP 状态：实测业务错误是 **HTTP 200 + code=300011**。
+- token 只读 `/srv/share/quantdb/secrets/fxbaogao_api_key`，日志只写 sha256 前 8 位；无 token 时 `check-auth` 退出码 3 且**零请求**。
+- 已存在同 id PDF 默认跳过（避免重复扣下载权益），`--force` 才重下。
+- 每篇保留 `site_url=https://www.fxbaogao.com/view?id=<id>` 与 `pdf_url`；download 原始回包留 `.download.json` 作额度证据。
+
+实测与限制：token 未写入（`secrets/` 未建），真实搜索/下载/额度/分页条数**未取到**；真库 schema 已应用（0 行），合成 PDF 彩排 5 篇两次 `5→5`、C1–C7 PASS、关联 5/5。
+
+
 ## 2026-11-27 · WORK-623 发现报告 VIP 正文采集 → quantdb 入库通道
 
 新增（采集，DESKTOP-TS1FCDR 侧）：
@@ -12,7 +35,7 @@
 - `db/schema_report_fulltext.sql`：`report_fulltext`（唯一键 `report_id`）、`report_fulltext_changes`（sha256 变更留痕）、`v_report_fulltext`、`v_report_fulltext_link_candidates`、`v_report_fulltext_linked`、`v_report_fulltext_unlinked`；标题/机构归一化只在 SQL 宏里定义（`fx_norm_title` / `fx_norm_org`）。
 - `db/etl/report_fulltext.py`：`ingest`（扫描落盘 PDF，sha256/字节/页数三项对不上就写 `failed.jsonl`，幂等 `INSERT OR REPLACE`）、`adopt`（手工下载收编，首页文字匹配，歧义不猜）。
 - `db/checks/report_fulltext.py`：C1–C7 对账闸（行数=文件数、页数>0、sha 对磁盘、失败台账字段、meta 完整、关联率分子/分母/口径、变更留痕一致性）。
-- `db/tests/test_report_fulltext.py`（17 条）、`db/tests/test_work623_collector.py`（17 条）：离线测试，34 passed（全套 196 passed）。
+- `db/tests/test_report_fulltext.py`（17 条）、`db/tests/test_work623_collector.py`（17 条）：离线测试，34 passed（全套 196 passed）。**（浏览器版已作废，测试文件已删除，见上条）**
 
 实测与限制（见 `docs/WORK-623/01-feasibility.md`）：
 

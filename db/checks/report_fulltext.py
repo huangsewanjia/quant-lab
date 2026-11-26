@@ -9,7 +9,7 @@
   C1_rows_match_files     表行数 == 落盘 PDF 篇数（逐篇列差集，不只看总数）
   C2_pdf_pages_positive   每行 pdf_pages > 0（pypdf 实读时也是）
   C3_sha_matches_disk     每行 sha256 与磁盘 PDF 现算一致；文件缺失直接 FAIL
-  C4_failed_log_schema    failed.jsonl 每行都带 report_id / url / http_status / reason
+  C4_failed_log_schema    failed.jsonl 每行都带 report_id / url / http_status / code / msg / reason
   C5_meta_completeness    每篇 PDF 的同名 meta.json 字段齐、report_id 与文件名一致
   C6_link_rate            与 report_meta 的关联率（分子/分母/口径三项都打印；信息项，不判 FAIL）
   C7_change_log_integrity 内容变更留痕：old/new sha 不同，最新一条 new_sha 等于表内 sha
@@ -35,11 +35,11 @@ def report_dir() -> Path:
 
 
 def _table_rows(con) -> list[dict]:
-    cols = ["report_id", "title", "org_name", "publish_date", "pdf_path", "pdf_bytes",
-            "pdf_pages", "sha256", "fetch_mode"]
+    cols = ["report_id", "title", "org_name", "publish_date", "site_url", "pdf_path",
+            "pdf_bytes", "pdf_pages", "sha256", "fetch_mode"]
     rows = con.execute(
-        "select report_id, title, org_name, publish_date, pdf_path, pdf_bytes, pdf_pages, sha256, fetch_mode "
-        "from report_fulltext order by report_id"
+        "select report_id, title, org_name, publish_date, site_url, pdf_path, pdf_bytes, pdf_pages, "
+        "sha256, fetch_mode from report_fulltext order by report_id"
     ).fetchall()
     return [dict(zip(cols, row)) for row in rows]
 
@@ -120,7 +120,8 @@ def c4_failed_log_schema(con, root: Path, **_) -> dict:
         except json.JSONDecodeError as exc:
             bad.append({"line": lineno, "problem": f"JSON 解析失败: {exc}"})
             continue
-        miss = [k for k in ("report_id", "url", "http_status", "reason") if k not in rec]
+        miss = [k for k in ("report_id", "url", "http_status", "code", "msg", "reason")
+                if k not in rec]
         if miss:
             bad.append({"line": lineno, "problem": "缺字段: " + ",".join(miss)})
     return _result("C4_failed_log_schema", not bad,
