@@ -68,3 +68,11 @@ experiments/WORK-449/void_run_*/
 # 实际落盘在仓库外：/srv/share/quantdb/raw/foreign_research/
 raw/foreign_research/
 **/raw/foreign_research/
+
+# ---- WORK-623：抓取凭据绝不入库 ----
+secrets/
+*.cookie.json
+fxbaogao_cookie.json
+
+# ---- WORK-623：候选清单样本需入库可核验（CSV 默认被忽略） ----
+!/docs/WORK-623/*.csv

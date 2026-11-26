@@ -606,6 +606,13 @@ CHANNELS = [
          fallbacks=["https://www.fxbaogao.com/"],
          form="研报摘要", freq="日更", coverage="中国/全球中文",
          note="聚合平台"),
+    # WORK-623：同一站点的正文渠道。默认 probe 不跑（cmd_probe 跳过 *_vip，保持 WORK-537
+    # 的既有探测结果不被改写）；正文采集器见 scripts/fxbaogao_fulltext.py。
+    dict(id="fxbaogao_vip", name="发现报告（高级 VIP 正文）", org="发现报告", type="聚合平台",
+         entry="https://www.fxbaogao.com/",
+         fallbacks=["https://www.fxbaogao.com/"],
+         form="研报正文/PDF（需登录；robots 禁 /pdf）", freq="日更", coverage="中国/全球中文",
+         note="正文仅由用户登录浏览器会话或手动点击产生；HTTP 客户端不请求 /pdf"),
     dict(id="robo", name="萝卜投研", org="Datayes 萝卜投研", type="聚合平台",
          entry="https://robo.datayes.com/",
          fallbacks=["https://robo.datayes.com/vip/index", "https://www.datayes.com/"],
@@ -906,7 +913,9 @@ def write_csvs(results: list[dict]) -> None:
 
 
 def cmd_probe(args) -> None:
-    chans = CHANNELS
+    # WORK-623 的 _vip 渠道单独跑，避免把「首页可抓性」混进 WORK-537 的渠道表；
+    # 显式 --only fxbaogao_vip 仍可探测。
+    chans = [c for c in CHANNELS if not c["id"].endswith("_vip")]
     if args.only:
         want = set(args.only.split(","))
         chans = [c for c in CHANNELS if c["id"] in want]

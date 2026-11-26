@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-11-27 · WORK-623 发现报告 VIP 正文采集 → quantdb 入库通道
+
+新增（采集，DESKTOP-TS1FCDR 侧）：
+
+- `scripts/fxbaogao_fulltext.py`：正文渠道 `fxbaogao_vip` 的批量入口——`candidates`（列表页→候选 CSV）、`plan`（候选→队列，补标题/机构/日期）、`fetch`（CDP 驱动用户已登录 Chrome，逐条落 PDF + meta.json，失败写 `failed.jsonl`）、`sheet`（单文件待下载清单）、`verify`（标题/页数抽查）、`robots`（判定打印）。节流、robots、请求台账复用 `scripts/work537_probe.py`，不新造框架。
+- `scripts/work537_probe.py`：登记 `fxbaogao_vip` 渠道；默认 `probe` 跳过 `*_vip`，WORK-537 既有渠道表不受影响。
+
+新增（入库，Mo-server 侧）：
+
+- `db/schema_report_fulltext.sql`：`report_fulltext`（唯一键 `report_id`）、`report_fulltext_changes`（sha256 变更留痕）、`v_report_fulltext`、`v_report_fulltext_link_candidates`、`v_report_fulltext_linked`、`v_report_fulltext_unlinked`；标题/机构归一化只在 SQL 宏里定义（`fx_norm_title` / `fx_norm_org`）。
+- `db/etl/report_fulltext.py`：`ingest`（扫描落盘 PDF，sha256/字节/页数三项对不上就写 `failed.jsonl`，幂等 `INSERT OR REPLACE`）、`adopt`（手工下载收编，首页文字匹配，歧义不猜）。
+- `db/checks/report_fulltext.py`：C1–C7 对账闸（行数=文件数、页数>0、sha 对磁盘、失败台账字段、meta 完整、关联率分子/分母/口径、变更留痕一致性）。
+- `db/tests/test_report_fulltext.py`（11 条）、`db/tests/test_work623_collector.py`（7 条）：离线测试，18 passed。
+
+实测与限制（见 `docs/WORK-623/01-feasibility.md`）：
+
+- `robots.txt`（2026-11-27，124 B，sha256 `4ad59986…`）含 `Disallow: /pdf`：本通道 HTTP 客户端不请求 `/pdf`，PDF 只能由用户登录浏览器会话或手动点击产生。
+- 匿名详情页 HTTP 200 / 85,752 B，无站内 `/pdf` 链接（0 处）。
+- 登录态不存在（本机 CDP 9222 关闭、`secrets/` 未建、WORK-624 `todo`）：真实下载与 1–5 条验收**未执行**，不冒充已达成。
+- 真库已建表（0 行）；合成 PDF 彩排 5 篇：ingest 两次 5→5、C1–C7 全 PASS、关联 5/5。
+
+
 ## 2026-11-26 · WORK-537 补正（定向，0 新请求）
 
 按验收意见做三条定向补正，只改文字与 CSV，**未发出任何新探测请求**：

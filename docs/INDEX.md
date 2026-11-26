@@ -30,6 +30,10 @@
 - [foreign_research_channels.csv](foreign_research_channels.csv)：29 个渠道清单与实测证据（WORK-537）。
 - [WORK-537/](WORK-537/)：外资研报公开层五阶段落盘（立题 / 数据契约 / 分析 / 审计 / 备忘录）。
 - [UI-INVENTORY.md](UI-INVENTORY.md)：命令行入口清单（本项目无图形界面）。
+- [WORK-623/](WORK-623/)：发现报告 VIP 正文采集 → quantdb 入库（可行性实测 / 设计 / 跑法 / 验收 / 交付；`01-feasibility.md` 起）。
+  - 表与视图：`db/schema_report_fulltext.sql`；入库 `python -m db.etl.report_fulltext ingest`；对账 `python -m db.checks.report_fulltext all`。
+  - 正文目录 `/srv/share/quantdb/raw/reports_fulltext/fxbaogao/`（不入 git）；版权仅限内部检索。
+
 - [DELIVERY.html](DELIVERY.html)：WORK-513 单文件交付说明。
 - [../DELIVERY.html](../DELIVERY.html)：WORK-529 单文件交付说明。
 - [../CHANGELOG.md](../CHANGELOG.md)：代码与文档变更记录。
