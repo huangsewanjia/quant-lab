@@ -76,18 +76,20 @@ def fig_coverage() -> str:
     ax.legend(loc="lower right", frameon=False, fontsize=8)
     for s in ("top", "right"):
         ax.spines[s].set_visible(False)
-    ax.set_title("图 1 ｜ 有可复跑脚本的 P0 指标：2 → 27（+25 条，全部是 B 类代理）", loc="left", fontsize=10)
+    ax.set_title("图 3 ｜ 有可复跑脚本的 P0 指标：2 → 27（+25 条，全部是 B 类代理）", loc="left", fontsize=10)
     return png(fig)
 
 
 def fig_funnel(cands) -> str:
+    """台阶只认 select_top10.py 的「首个不通过判据」列，与正文同源。"""
     def after(k: int) -> int:
-        markers = ["判据 1", "判据 2", "判据 3", "判据 4"]
         return sum(1 for c in cands
-                   if not any(m in c["理由/排除原因"] for m in markers[:k]))
+                   if not (c["首个不通过判据"].startswith("判据")
+                           and int(c["首个不通过判据"][2:]) <= k))
 
     selected = sum(1 for c in cands if c["入选Top10"] == "Y")
     counts = [len(cands)] + [after(k) for k in range(1, 5)] + [selected]
+    chain = " → ".join(str(v) for v in counts)
     names = ["候选", "过判据1", "过判据2", "过判据3", "过判据4", "入选"]
     colors = [GREY, GREY, BLUE, BLUE, TEAL, TEAL]
     fig, ax = plt.subplots(figsize=(6.2, 2.2))
@@ -99,7 +101,7 @@ def fig_funnel(cands) -> str:
     ax.set_ylabel("候选数")
     for sp in ("top", "right"):
         ax.spines[sp].set_visible(False)
-    ax.set_title("图 2 ｜ 20 条候选按 5 条判据（按序）筛到 10 条", loc="left", fontsize=10)
+    ax.set_title(f"图 1 ｜ 20 条候选按序过判据 1–4：{chain}", loc="left", fontsize=10)
     return png(fig)
 
 
@@ -131,7 +133,7 @@ def fig_flow() -> str:
                                      color=BLUE, linewidth=1.0))
     ax.text(6.2, 0.45, "使用者：产业研究员 · 投研负责人 · 战略咨询（决策层 / 价值链 / 成本曲线 / 市场规模）",
             ha="center", fontsize=6.3, color="#444444")
-    ax.set_title("图 3 ｜ 数据流：源站 → 脚本 → raw（可审计）→ alt_ 表 → 使用者", loc="left", fontsize=10)
+    ax.set_title("图 4 ｜ 数据流：源站 → 脚本 → raw（可审计）→ alt_ 表 → 使用者", loc="left", fontsize=10)
     return png(fig)
 
 
@@ -149,7 +151,7 @@ def fig_rows(log) -> str:
     ax.set_xlim(1, max(rows) * 4)
     for sp in ("top", "right"):
         ax.spines[sp].set_visible(False)
-    ax.set_title("图 4 ｜ 10 个脚本实跑落盘行数（同一批次；窗口见附录 A）", loc="left", fontsize=10)
+    ax.set_title("图 2 ｜ 10 个脚本实跑落盘行数（同一批次；窗口见附录 A）", loc="left", fontsize=10)
     return png(fig)
 
 
@@ -274,8 +276,14 @@ CMS 出口 403、openFDA 单页实测 298 s。台账里 8 条医药行逐条写�
     for c in excl:
         html.append(f"<tr><td><code>{c['数据集']}</code></td><td>{c['理由/排除原因']}</td></tr>")
     html.append(f"""</tbody></table>
+<p><b>筛除过程（与图 1 同源，台阶 = 每个候选的首个不通过判据）：</b>
+20 → 19（判据 1：<code>cninfo_announcements</code> 使用者仅 1）→ 17（判据 2：<code>comtrade_trade</code> 滞后 2 周期、<code>esresearch_tender</code> 滞后 58 个月）
+→ 15（判据 3：<code>internal_db_segment_profit</code>、<code>jrc_battery_projects</code> 均 12 人日）
+→ 11（判据 4：<code>openfda_drugs</code> 单页 298 s、<code>ppi_100ppi</code> JS 挑战页、<code>usgs_mcs</code> 只给 PDF、<code>infolink_solar</code> 美元价会员锁定）
+→ 10（排序：<code>menet_retail</code> 覆盖 0.40 排第 11）。</p>
 <figure><img src="{fig_funnel(cands)}" alt="筛选漏斗">
-<figcaption>图 2 ｜ 判据按序筛除：20 → 11（过判据 1–4）→ 10（排序取前 10）。第 11 名 <code>menet_retail</code>（米内网）
+<figcaption>图 1 ｜ 判据按序筛除：20 → 19（判据 1）→ 17（判据 2）→ 15（判据 3）→ 11（判据 4）→ 10（排序取前 10）。
+台阶取自 <code>docs/selfbuild_top10_candidates.csv</code> 的「首个不通过判据」列，与正文同源。第 11 名 <code>menet_retail</code>（米内网）
 覆盖度 0.40、公开页只有摘要，排在第 11 位出局。</figcaption></figure>
 
 <h2>三、10 条交付与实跑证据</h2>
@@ -289,7 +297,7 @@ CMS 出口 403、openFDA 单页实测 298 s。台账里 8 条医药行逐条写�
         html.append(f"<tr><td><code>{slug}</code></td><td class='num'>{rows}</td><td><code>{sh}</code></td>"
                     f"<td>{dr}</td><td class='num'>{sec}</td></tr>")
     html.append(f"""</tbody></table>
-<figure><img src="{fig_rows(log)}" alt="落盘行数"><figcaption>图 4 ｜ 同一批次 10 个脚本的落盘行数（窗口见附录 A）。</figcaption></figure>
+<figure><img src="{fig_rows(log)}" alt="落盘行数"><figcaption>图 2 ｜ 同一批次 10 个脚本的落盘行数（窗口见附录 A）。</figcaption></figure>
 
 <h3>3.1 幂等与复核（验收第 4 条）</h3>
 <p>同一命令连跑两次，比对 <code>data.csv</code> 的 sha256 与行数：<b>{idem_ok}/10 通过</b>。
@@ -313,9 +321,9 @@ CMS 出口 403、openFDA 单页实测 298 s。台账里 8 条医药行逐条写�
 <p>复核命令见附录 A 第 6 条；三条都能用一条 <code>curl</code>/<code>python</code> 复现，不依赖本报告的中间件。</p>
 
 <h2>四、覆盖变化与数据流</h2>
-<figure><img src="{fig_coverage()}" alt="覆盖变化"><figcaption>图 1 ｜ 77 条 P0 的「有可跑脚本」从 2 条升到 27 条。
+<figure><img src="{fig_coverage()}" alt="覆盖变化"><figcaption>图 3 ｜ 77 条 P0 的「有可跑脚本」从 2 条升到 27 条。
 新增 25 条 = 入选 10 条的 10 个主指标 + 15 条由同一脚本附带覆盖的相邻 P0 行（去重后）。C 类 16 条全部维持「只能买」。</figcaption></figure>
-<figure><img src="{fig_flow()}" alt="数据流"><figcaption>图 3 ｜ 每条数据从源站到使用者的可审计路径；raw 层只追加，表结构由 <code>docs/alt_schema.sql</code> 建议、入库接线由软件交付另单做。</figcaption></figure>
+<figure><img src="{fig_flow()}" alt="数据流"><figcaption>图 4 ｜ 每条数据从源站到使用者的可审计路径；raw 层只追加，表结构由 <code>docs/alt_schema.sql</code> 建议、入库接线由软件交付另单做。</figcaption></figure>
 
 <h2>五、入库 schema 与增量口径（<code>docs/alt_schema.sql</code>）</h2>
 <p>只新建 10 张 <code>alt_*</code> 表 + 1 张 <code>alt_ingest_state</code> 水位表，<b>不改任何现有表</b>。

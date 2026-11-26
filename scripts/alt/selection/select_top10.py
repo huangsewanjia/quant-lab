@@ -117,16 +117,33 @@ def tier(r: dict) -> int:
     return 2 if quality(r) == 3 else (1 if quality(r) == 2 else 0)
 
 
+def checks(r: dict) -> list[tuple[int, bool, str]]:
+    """判据 1→4 逐条判定，顺序即门禁顺序；报告漏斗的台阶只认这里。"""
+    return [
+        (1, int(r["users_max"]) >= 2 or r["purchase"] == "Y",
+         "判据 1 未过：使用者仅 1 个且不属 16 条需采购缺口"),
+        (2, quality(r) >= 2,
+         f"判据 2 未过：三项只中 {quality(r)} 项（频率差 {r['freq_gap']} 档、滞后 {r['lag_cycles']} 周期、覆盖 {r['coverage']}）"),
+        (3, int(r["cost_person_days"]) <= 8,
+         f"判据 3 未过：{r['cost_person_days']} 人日 > 8"),
+        (4, bool(str(r["probe"]).startswith("200") and r["antibot"] == "no"
+                 and r["format"] in MACHINE and "298s" not in str(r["probe"])),
+         f"判据 4 未过：probe={r['probe']} format={r['format']} antibot={r['antibot']}"),
+    ]
+
+
+def first_fail(r: dict) -> str:
+    """首个不通过的判据（1/2/3/4），四条全过给「通过」。"""
+    for k, ok, _ in checks(r):
+        if not ok:
+            return f"判据{k}"
+    return "通过"
+
+
 def gate(r: dict) -> tuple[bool, str]:
-    if not (int(r["users_max"]) >= 2 or r["purchase"] == "Y"):
-        return False, "判据 1 未过：使用者仅 1 个且不属 16 条需采购缺口"
-    if quality(r) < 2:
-        return False, f"判据 2 未过：三项只中 {quality(r)} 项（频率差 {r['freq_gap']} 档、滞后 {r['lag_cycles']} 周期、覆盖 {r['coverage']}）"
-    if int(r["cost_person_days"]) > 8:
-        return False, f"判据 3 未过：{r['cost_person_days']} 人日 > 8"
-    if not (str(r["probe"]).startswith("200") and r["antibot"] == "no" and r["format"] in MACHINE
-            and "298s" not in str(r["probe"])):
-        return False, f"判据 4 未过：probe={r['probe']} format={r['format']} antibot={r['antibot']}"
+    for _, ok, msg in checks(r):
+        if not ok:
+            return False, msg
     return True, ""
 
 
@@ -155,12 +172,12 @@ def main() -> int:
         w = csv.writer(f)
         w.writerow(["候选id", "数据集", "主指标(P0行)", "研究线", "覆盖P0行", "使用者数", "需采购",
                     "频率差(档)", "滞后(周期)", "覆盖度", "自建人日", "实测(2026-11-27)",
-                    "形态", "反爬", "质量分", "通过判据1-4", "入选Top10", "排名", "理由/排除原因"])
+                    "形态", "反爬", "质量分", "通过判据1-4", "首个不通过判据", "入选Top10", "排名", "理由/排除原因"])
         for r in sorted(rows, key=lambda x: (x["pass"] != "Y", rank.get(x["id"], 99), int(x["id"]))):
             w.writerow([r["id"], r["dataset"], r["primary_row"], r["industry"], r["p0_rows"],
                         r["users_max"], r["purchase"], r["freq_gap"], r["lag_cycles"],
                         r["coverage"], r["cost_person_days"], r["probe"], r["format"],
-                        r["antibot"], quality(r), r["pass"],
+                        r["antibot"], quality(r), r["pass"], first_fail(r),
                         "Y" if r["id"] in rank else "N", rank.get(r["id"], ""),
                         r["fail_reason"] or r["note"]])
 
