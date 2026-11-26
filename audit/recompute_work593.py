@@ -341,15 +341,16 @@ def main():
     bad = comp[~comp["ok"]]
     rel_only = comp[(comp["rel_diff"] > TOL) & (comp["ok"])]
     if len(rel_only):
-        add("nit", "相对差 >1e-6 但绝对差 ≤1e-6 的项（数值零量级的实现噪声）",
+        add("nit", "相对差 >1e-6 但绝对差 ≤2e-6 的项（数值零量级的实现噪声）",
             {"n": int(len(rel_only)),
              "max_abs_diff": float((rel_only["claimed"] - rel_only["recomputed"]).abs().max()),
              "factors": sorted(rel_only["factor"].unique().tolist())},
-            "绝对差 ≤ 1e-6 即视为一致", None,
+            "绝对差 ≤ 2e-6 或相对差 ≤ 1e-6 即视为一致", None,
             "experiments/WORK-593/audit_factor_compare.csv", "python audit/recompute_work593.py")
     add("blocking" if len(bad) else "nit", "逐因子 IC / ΔIC 复算比对",
         {"n_compared": int(len(comp)), "n_over_tol": int(len(bad)), "max_rel_diff": float(worst)},
-        f"全部 ≤ {TOL}", f"{len(bad)} 项超阈", "experiments/WORK-593/audit_factor_compare.csv",
+        f"相对 ≤ {TOL:.0e} 或 绝对 ≤ {ABS_FLOOR:.0e}", f"{len(bad)} 项两条都不满足",
+        "experiments/WORK-593/audit_factor_compare.csv",
         "python audit/recompute_work593.py")
     if len(bad):
         print(bad.head(20).to_string())

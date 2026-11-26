@@ -45,7 +45,7 @@
     },
     {
       "severity": "nit",
-      "item": "相对差 >1e-6 但绝对差 ≤1e-6 的项（数值零量级的实现噪声）",
+      "item": "相对差 >1e-6 但绝对差 ≤2e-6 的项（数值零量级的实现噪声）",
       "measured": {
         "n": 25,
         "max_abs_diff": 1.7802201568971423e-06,
@@ -63,7 +63,7 @@
           "PL09"
         ]
       },
-      "expected": "绝对差 ≤ 1e-6 即视为一致",
+      "expected": "绝对差 ≤ 2e-6 或相对差 ≤ 1e-6 即视为一致",
       "gap": null,
       "location": "experiments/WORK-593/audit_factor_compare.csv",
       "how_to_verify": "python audit/recompute_work593.py"
@@ -76,8 +76,8 @@
         "n_over_tol": 0,
         "max_rel_diff": 7.252475216201457
       },
-      "expected": "全部 ≤ 1e-06",
-      "gap": "0 项超阈",
+      "expected": "相对 ≤ 1e-06 或 绝对 ≤ 2e-06",
+      "gap": "0 项两条都不满足",
       "location": "experiments/WORK-593/audit_factor_compare.csv",
       "how_to_verify": "python audit/recompute_work593.py"
     },

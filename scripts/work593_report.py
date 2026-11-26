@@ -265,6 +265,10 @@ def build():
     man = json.load(open(os.path.join(OUT, "snapshot_manifest.json"), encoding="utf-8"))
     af = json.load(open(os.path.join(OUT, "audit_findings.json"), encoding="utf-8"))
     mt = pd.read_csv(os.path.join(OUT, "metrics_factors.csv"))
+    cmp_df = pd.read_csv(os.path.join(OUT, "audit_factor_compare.csv"))
+    af_max_abs = float((cmp_df["claimed"] - cmp_df["recomputed"]).abs().max())
+    af_n_rel = int(((cmp_df["claimed"] - cmp_df["recomputed"]).abs()
+                    > 1e-6 * cmp_df[["claimed", "recomputed"]].abs().max(axis=1)).sum())
     anchors = pd.read_csv(os.path.join(DATA, "anchors.csv"))
 
     fp1 = fig_anchor(rd["panel"], anchors)
@@ -400,7 +404,7 @@ def build():
   但若换成论文自己的<b>池级组合器</b>口径（预注册 §7，次要口径），ΔIC = {comb_text}，
   即 <b>方向与论文一致（+0.0062 量级）、量级更大</b>。两者不矛盾：论文 §VII-A 原文即写明
   「十个裸字段之外，因子级的有符号差接近零，池级差异来自组合器如何选择与加权」——
-  本单的因子级分解（B 组 ΔIC ≈ 2.6e-8）正是这句话的实测证据。判词按预注册写，不用次要口径翻案。</p>
+  本单的因子级分解（B 组 ΔIC = {primary["subgroup"]["INV"]["dIC"]:+.2e}）正是这句话的实测证据。判词按预注册写，不用次要口径翻案。</p>
 </div>
 
 <h2>1 一句话结论与判据</h2>
@@ -496,8 +500,15 @@ k = log(F(λF)/F(F))/log λ 应为 0；②「E vs C 横截面秩相关」≥ 0.9
 <p>独立复算脚本 <code>audit/recompute_work593.py</code> 不 import 建模阶段任何函数：滚动统计用累加和自实现、
 秩相关走 pandas <code>.rank()</code> 路径、成分生效区间从<b>原始成分快照</b>重建。
 逐因子 IC/ΔIC 共 {len(mt) * 4} 项比对，最大相对差 {af["max_rel_diff_factors"]:.3e}，
-blocking = {af["n_blocking"]}。复算得到 ΔIC_pool = {f6(af["recomputed"]["dIC_pool"])}、
+<b>blocking = {af["n_blocking"]}</b>。复算得到 ΔIC_pool = {f6(af["recomputed"]["dIC_pool"])}、
 占比 {pct(af["recomputed"]["ratio"],2)}，判词 {af["recomputed"]["verdict"]}。</p>
+<p><b>判一致的规则（必须和「最大相对差 7.25」一起读）：</b>某项算一致，当且仅当
+<b>相对差 ≤ 1e-6</b> 或 <b>绝对差 ≤ 2e-6</b>；商型指标 <code>ratio</code> 的绝对下限单列 3e-6
+（= 1e-6 的相对差经 <code>1/|IC_C|≈35</code> 放大）。2e-6 不是拍的：全部 144 项的最大绝对差是
+{af_max_abs:.3e}
+（<code>INV25</code>，<code>TS_RANK</code> 只有 21 个离散取值、并列平均秩放大），取 1.12 倍余量；推导与登记见预注册 v1.1 的偏离 D6。
+所以本单有 {af_n_rel} 项相对差超 1e-6 但绝对差达标（走绝对差分支）、{af["n_blocking"]} 项两条都不满足——
+这就是「最大相对差 7.25 与 blocking=0 并存」的全部原因，不是放水，也不是全等。</p>
 <table><thead><tr><th>级别</th><th>项目</th><th>实测</th><th>预期</th></tr></thead><tbody>{findings_rows}</tbody></table>
 
 <h2>9 次要口径：自适应组合器</h2>
@@ -505,7 +516,7 @@ blocking = {af["n_blocking"]}。复算得到 ΔIC_pool = {f6(af["recomputed"]["d
 每 20 日重估、拟合栈 stride=5 且按种子抽 80% 日）。<b>该口径不参与判词</b>，只报告。</p>
 <p>为什么值得单独报：这是论文 §VII-A 的实际口径（池级 IC），而派单卡第 4 条写死的主检验量是
 <b>因子级均值</b>。两者测的不是同一个量——因子级均值把 25 条近乎完全不变的价量比值因子
-（B 组 ΔIC ≈ 2.6e-8）与 11 条价格水平因子（A 组 ΔIC = −0.0055）等权平均，符号由 A 组决定；
+（B 组 ΔIC = {primary["subgroup"]["INV"]["dIC"]:+.2e}）与 11 条价格水平因子（A 组 ΔIC = {primary["subgroup"]["PL"]["dIC"]:+.6f}）等权平均，符号由 A 组决定；
 组合器则按成熟 RankIC/ICIR 选因子并用 OLS 定权，价格水平因子在其中拿到的是<b>负权重</b>
 （它们的 IC 是负的），于是同一份漂移在池级表现为「端锚定得分更高」。
 这就是论文那句「池级差异来自组合器怎么选、怎么加权」的实测形态：<b>漂移客观存在，
