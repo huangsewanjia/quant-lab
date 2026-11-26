@@ -267,12 +267,12 @@ def build():
     mt = pd.read_csv(os.path.join(OUT, "metrics_factors.csv"))
     anchors = pd.read_csv(os.path.join(DATA, "anchors.csv"))
 
-    f1 = fig_anchor(rd["panel"], anchors)
-    f2 = fig_contract(fc, vc)
-    f3 = fig_dic(mt)
-    f4 = fig_boot(primary)
-    f5 = fig_invariance(inv)
-    f6 = fig_paper(primary)
+    fp1 = fig_anchor(rd["panel"], anchors)
+    fp2 = fig_contract(fc, vc)
+    fp3 = fig_dic(mt)
+    fp4 = fig_boot(primary)
+    fp5 = fig_invariance(inv)
+    fp6 = fig_paper(primary)
 
     comb_all = rd.get("combiner", {})
     comb_text = " / ".join(f"{comb_all[s]['diff_E_minus_C']:+.4f}" for s in comb_all if comb_all[s].get("diff_E_minus_C") is not None)
@@ -416,7 +416,7 @@ v<sub>t</sub> = vol<sub>t</sub>·f<sub>i</sub><sup>(A)</sup>/f<sub>t</sub></bloc
 {fc["C2"][0]["max_rel_diff"]:.1e}）。f<sub>i</sub><sup>(E)</sup> 取 2026-11-13 前最后一个因子值，
 f<sub>i</sub><sup>(C)</sup> 取 2020-12-31 前最后一个（{man["anchors"]["fallback_first_C_rows"]} 只 2021 年后上市股回退到首个值并标记），
 f<sub>i</sub><sup>(P)</sup> 取窗口内首个值。</p>
-<figure><img src="{png64(f1)}" alt="anchor ratios">
+<figure><img src="{png64(fp1)}" alt="anchor ratios">
 <figcaption>图 1 · 每股锚点比值分布。<b>a</b> 截止锚定与端锚定的因子比（对数）；<b>b</b> 既往锚定与端锚定的因子比。
 比值越分散，同一只股票的「价格水平」在两套表示里差得越远——这是价格水平型因子失稳的直接来源。
 数据：<code>data/WORK-593/anchors.csv</code>（sha256 见 manifest）。</figcaption></figure>
@@ -428,7 +428,7 @@ f<sub>i</sub><sup>(P)</sup> 取窗口内首个值。</p>
 {rd["label_max_abs_diff_across_reps"]["C"]:.1e} / {rd["label_max_abs_diff_across_reps"]["P"]:.1e}），
 因为它是同一只股票两个复权价的比，每股的 f<sub>i</sub><sup>(A)</sup> 全部约掉。</p>
 {fc_tbl}
-<figure><img src="{png64(f2)}" alt="contract">
+<figure><img src="{png64(fp2)}" alt="contract">
 <figcaption>图 2 · 字段契约。<b>a</b> C1（vwap 落在 [low, high]）在严格 1e-9 容差与按字段分辨率推导容差下的违规行数对比；
 <b>b</b> 三条契约的通过率。严格口径的 {fc["C1"][0]["violations_v1_0_strict_1e_9"]:,} 行违规全部落在
 amount≈1 元 与 vol≈1 手 的存储分辨率内（v1.1 归因，见 §8）。</figcaption></figure>
@@ -463,10 +463,10 @@ $vwap 逐值比对」<b>本机不可做</b>：Qlib 公共 bundle <code>~/.qlib/q
 <tr><td>A 组 价格水平型</td><td class="num">{f6(primary["subgroup"]["PL"]["dIC"])}</td><td class="num">{primary["subgroup"]["PL"]["IC_C"]:.5f}</td><td class="num">{pct(primary["subgroup"]["PL"]["ratio"],2)}</td><td class="num">11</td></tr>
 <tr><td>B 组 价量比值型</td><td class="num">{f6(primary["subgroup"]["INV"]["dIC"])}</td><td class="num">{primary["subgroup"]["INV"]["IC_C"]:.5f}</td><td class="num">{pct(primary["subgroup"]["INV"]["ratio"],2)}</td><td class="num">25</td></tr>
 </tbody></table>
-<figure><img src="{png64(f3)}" alt="dIC per factor">
+<figure><img src="{png64(fp3)}" alt="dIC per factor">
 <figcaption>图 3 · 36 条表达式的因子级漂移。<b>a</b> ΔIC 按组排序：价格水平型（蓝）整体为正、比值型（青）集中在 0 附近，
 与论文「十个裸字段之外均值接近零」一致（§VII-A）。数据：<code>metrics_factors.csv</code>。</figcaption></figure>
-<figure><img src="{png64(f4)}" alt="bootstrap">
+<figure><img src="{png64(fp4)}" alt="bootstrap">
 <figcaption>图 4 · 三种子 bootstrap。<b>b</b> 池级 ΔIC 的 1000 次循环块重采样分布（块长 20，对应 20 日重叠标签），
 阴影为 95% 分位区间，红色虚线为 0。</figcaption></figure>
 <p>{tbl_factors}</p>
@@ -476,14 +476,14 @@ $vwap 逐值比对」<b>本机不可做</b>：Qlib 公共 bundle <code>~/.qlib/q
 k = log(F(λF)/F(F))/log λ 应为 0；②「E vs C 横截面秩相关」≥ 0.999。两条同时满足判 invariant。
 另设全局 placebo（所有股票同乘一个常数）作为对照基线，理论上秩相关恒为 1。</p>
 {inv_tbl}
-<figure><img src="{png64(f5)}" alt="invariance">
+<figure><img src="{png64(fp5)}" alt="invariance">
 <figcaption>图 5 · 不变量判定的二维视图。<b>c</b> 横轴为尺度指数 k、纵轴为 E 与 C 的横截面秩相关；
 右上（k≈0 且秩相关≈1）为通过，其余为拒绝。价格水平型因子的 k 恰为 1（线性尺度），
 横截面秩类因子（PL11/INV24）k 不适用、由秩相关判。</figcaption></figure>
 
 <h2>7 与论文对照</h2>
 {paper_tbl}
-<figure><img src="{png64(f6)}" alt="paper comparison">
+<figure><img src="{png64(fp6)}" alt="paper comparison">
 <figcaption>图 6 · 量级对照。<b>d</b> 灰色为论文 §VII-A 报告的池级漂移，蓝色为本单池均值，
 青色为两个子组。论文数字来自 arXiv:2611.07751v2 §VII-A / Fig. 5b / Table V。</figcaption></figure>
 

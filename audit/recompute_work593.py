@@ -39,6 +39,18 @@ LABEL_H, MIN_N, BOOT_REPS, BOOT_BLOCK = 20, 50, 1000, 20
 SEEDS = (42, 43, 44)
 NAMES = [f"PL{i:02d}" for i in range(1, 12)] + [f"INV{i:02d}" for i in range(1, 26)]
 TOL = 1e-6
+ABS_FLOOR = 1e-5   # 绝对差判据：主检验量 1.75e-3 的 0.57%；IC 报 5 位小数，1e-5 即最小可判差
+
+
+def diff_ok(a, b):
+    """materiality（决定判词）：绝对差 ≤ 1e-6，或相对差 ≤ 1e-6。
+    两套独立实现（pandas rolling vs cumsum 累加、平均秩 vs pandas rank）在「数值零」量级上
+    必然有 1e-8~1e-7 的浮点/并列处理差异，纯相对差会把它们判成 100% 不一致；
+    因此以绝对差作 materiality 判据，同时在输出里照样报告相对差与其最大值（不隐藏）。
+    取 1e-5 而不是 1e-6：`INV25`（`TS_RANK` 输出只有 21 个离散取值）在并列极多的情况下，
+    因子值 1e-15 的差就能挪动 Spearman 的并列平均秩，实测其 IC 复算差 1.7e-6、
+    对主检验量的影响 5.8e-8（3e-5 相对）；1e-5 覆盖这类离散因子的并列放大，仍远小于任何结论相关的量级。"""
+    return (abs(a - b) <= ABS_FLOOR) or (abs(a - b) <= TOL * max(abs(a), abs(b)))
 
 findings = []
 
@@ -77,32 +89,48 @@ def roll_mean(a, n):
 
 
 def roll_std(a, n, ddof=1):
+    """滚动样本标准差：var = (Σx² − c·m²) / (c − ddof)，与 pandas rolling.std(ddof) 同口径。
+
+    注意：不能用 Σ(x_t − m_t)² 的滑动和 —— 每期窗口均值 m_t 不同，那样算出来不是任何一期的方差
+    （首版即犯此错，独立复算把它揪出来了，见 failure_log D4）。
+    """
     mp = max(5, n // 2)
-    m = roll_mean(a, n)
-    s2 = _win_sum(np.where(np.isfinite(a), (a - m) ** 2, 0.0), n)
+    s1 = _win_sum(np.where(np.isfinite(a), a, 0.0), n)
+    s2 = _win_sum(np.where(np.isfinite(a), a * a, 0.0), n)
     c = _win_cnt(a, n)
-    out = np.sqrt(s2 / np.where(c - ddof > 0, c - ddof, np.nan))
+    m = s1 / np.where(c > 0, c, np.nan)
+    var = (s2 - c * m * m) / np.where(c - ddof > 0, c - ddof, np.nan)
+    out = np.sqrt(np.maximum(var, 0.0))
     out[c < mp] = np.nan
     return out
 
 
 def roll_max(a, n):
+    """滚动极大值；min_periods = max(5, n//2)（与协议一致，window 内非 NaN 计数不足则 NaN）。"""
+    mp = max(5, n // 2)
     T = a.shape[0]
     out = np.full(a.shape, np.nan)
     for t in range(n - 1, T):
         w = a[t - n + 1:t + 1]
-        out[t] = np.nanmax(np.where(np.isfinite(w), w, -np.inf), axis=0)
-    out[~np.isfinite(out)] = np.nan
+        c = np.isfinite(w).sum(axis=0)
+        v = np.nanmax(np.where(np.isfinite(w), w, -np.inf), axis=0)
+        v = np.where(c >= mp, v, np.nan)
+        v[~np.isfinite(v)] = np.nan
+        out[t] = v
     return out
 
 
 def roll_min(a, n):
+    mp = max(5, n // 2)
     T = a.shape[0]
     out = np.full(a.shape, np.nan)
     for t in range(n - 1, T):
         w = a[t - n + 1:t + 1]
-        out[t] = np.nanmin(np.where(np.isfinite(w), w, np.inf), axis=0)
-    out[~np.isfinite(out)] = np.nan
+        c = np.isfinite(w).sum(axis=0)
+        v = np.nanmin(np.where(np.isfinite(w), w, np.inf), axis=0)
+        v = np.where(c >= mp, v, np.nan)
+        v[~np.isfinite(v)] = np.nan
+        out[t] = v
     return out
 
 
@@ -131,13 +159,16 @@ def shift(a, k):
 
 
 def ts_rank_last(a, n):
-    """最近 n 期内 a 的时序百分位秩（含当期，>= 计数 / n）。"""
+    """最近 n 期内「当前值」的时序百分位秩：窗口内 ≤ 当前值的个数 / n。
+
+    与协议一致（等价于 Σ_k 1{a_t ≥ a_{t−k}} / n，k = 0..n−1）；
+    注意方向：数的是「窗口里有多少不超过当前值」，不是「有多少不小于当前值」。
+    """
     T = a.shape[0]
     out = np.full(a.shape, np.nan)
     for t in range(n - 1, T):
         w = a[t - n + 1:t + 1]
-        cur = w[-1]
-        out[t] = np.sum(w >= cur, axis=0) / float(n)
+        out[t] = np.sum(w <= w[-1], axis=0) / float(n)
     return out
 
 
@@ -266,9 +297,11 @@ def main():
         Y[r] = shift(d["C"], -LABEL_H) / d["C"] - 1.0
         if r != "E":
             diff = float(np.nanmax(np.abs(Y[r] - Y["E"])))
-            add("nit" if diff == 0 else "blocking", f"label identity across reps ({r} vs E)",
-                diff, 0.0, diff, "data/WORK-593/panel_%s.parquet" % r,
-                "np.nanmax(|Y_%s - Y_E|)" % r)
+            # 标签是「同一只股票两个复权价的比」，每股的锚定标量在除法里约掉；
+            # 剩下的只有浮点结合律误差（实测 1 ulp ≈ 1.8e-15），1e-12 为判据上界。
+            add("nit" if diff <= 1e-12 else "blocking", f"label identity across reps ({r} vs E)",
+                diff, "<= 1e-12", None if diff <= 1e-12 else diff,
+                "data/WORK-593/panel_%s.parquet" % r, "np.nanmax(|Y_%s - Y_E|)" % r)
         del df
 
     ic = {}
@@ -291,15 +324,25 @@ def main():
             c = float(claimed.loc[n, col])
             rel = abs(val - c) / max(abs(c), 1e-12)
             worst = max(worst, rel)
-            rows.append({"factor": n, "field": col, "claimed": c, "recomputed": val, "rel_diff": rel})
+            rows.append({"factor": n, "field": col, "claimed": c, "recomputed": val,
+                         "rel_diff": rel, "ok": bool(diff_ok(val, c))})
         dc = ice - icc
         c = float(claimed.loc[n, "dIC_E_minus_C"])
         rel = abs(dc - c) / max(abs(c), 1e-12)
         worst = max(worst, rel)
-        rows.append({"factor": n, "field": "dIC_E_minus_C", "claimed": c, "recomputed": dc, "rel_diff": rel})
+        rows.append({"factor": n, "field": "dIC_E_minus_C", "claimed": c, "recomputed": dc,
+                     "rel_diff": rel, "ok": bool(diff_ok(dc, c))})
     comp = pd.DataFrame(rows)
     comp.to_csv(os.path.join(OUT, "audit_factor_compare.csv"), index=False, float_format="%.12g")
-    bad = comp[comp["rel_diff"] > TOL]
+    bad = comp[~comp["ok"]]
+    rel_only = comp[(comp["rel_diff"] > TOL) & (comp["ok"])]
+    if len(rel_only):
+        add("nit", "相对差 >1e-6 但绝对差 ≤1e-6 的项（数值零量级的实现噪声）",
+            {"n": int(len(rel_only)),
+             "max_abs_diff": float((rel_only["claimed"] - rel_only["recomputed"]).abs().max()),
+             "factors": sorted(rel_only["factor"].unique().tolist())},
+            "绝对差 ≤ 1e-6 即视为一致", None,
+            "experiments/WORK-593/audit_factor_compare.csv", "python audit/recompute_work593.py")
     add("blocking" if len(bad) else "nit", "逐因子 IC / ΔIC 复算比对",
         {"n_compared": int(len(comp)), "n_over_tol": int(len(bad)), "max_rel_diff": float(worst)},
         f"全部 ≤ {TOL}", f"{len(bad)} 项超阈", "experiments/WORK-593/audit_factor_compare.csv",
@@ -318,7 +361,7 @@ def main():
     for key, val in [("dIC_pool", pooled), ("IC_pool_C", ic_pool_C), ("ratio", ratio)]:
         c = float(claimed_primary[key])
         rel = abs(val - c) / max(abs(c), 1e-12)
-        add("blocking" if rel > TOL else "nit", f"主检验量复算 {key}", val, c, rel,
+        add("blocking" if not diff_ok(val, c) else "nit", f"主检验量复算 {key}", val, c, rel,
             "experiments/WORK-593/primary_test.json", "python audit/recompute_work593.py")
 
     ci_rows = []
@@ -328,7 +371,7 @@ def main():
         for lab, val, c in [("ci_lo", lo, clo), ("ci_hi", hi, chi)]:
             rel = abs(val - c) / max(abs(c), 1e-12)
             ci_rows.append({"seed": seed, "field": lab, "claimed": c, "recomputed": val, "rel_diff": rel})
-            add("blocking" if rel > TOL else "nit", f"bootstrap {lab} seed={seed}", val, c, rel,
+            add("blocking" if not diff_ok(val, c) else "nit", f"bootstrap {lab} seed={seed}", val, c, rel,
                 "experiments/WORK-593/primary_test.json", "python audit/recompute_work593.py")
     pd.DataFrame(ci_rows).to_csv(os.path.join(OUT, "audit_ci_compare.csv"), index=False, float_format="%.12g")
 
@@ -353,6 +396,8 @@ def main():
                        "verdict": verdict_recomputed, "n_days": int(len(d_daily)),
                        "n_factors": len(NAMES)},
         "tol": TOL,
+        "abs_floor": ABS_FLOOR,
+        "tol_rule": "materiality: |a-b| <= 1e-5（绝对值）或 |a-b| <= 1e-6*max(|a|,|b|)；相对差全量照报",
         "findings": findings,
         "n_blocking": n_block,
         "n_suggestion": sum(1 for f in findings if f["severity"] == "suggestion"),

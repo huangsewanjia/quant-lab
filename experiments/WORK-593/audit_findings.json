@@ -1,0 +1,183 @@
+{
+  "experiment": "WORK-593",
+  "audit_object": {
+    "snapshots": {
+      "E": "data/WORK-593/panel_E.parquet",
+      "C": "data/WORK-593/panel_C.parquet",
+      "P": "data/WORK-593/panel_P.parquet"
+    },
+    "claim_files": [
+      "experiments/WORK-593/metrics_factors.csv",
+      "experiments/WORK-593/primary_test.json",
+      "experiments/WORK-593/invariance.json"
+    ],
+    "recompute_script": "audit/recompute_work593.py"
+  },
+  "recomputed": {
+    "dIC_pool": -0.0017495753265477426,
+    "IC_pool_C": -0.02873501269682741,
+    "ratio": 0.06088653396491837,
+    "verdict": "未复现",
+    "n_days": 3832,
+    "n_factors": 36
+  },
+  "tol": 1e-06,
+  "abs_floor": 1e-05,
+  "tol_rule": "materiality: |a-b| <= 1e-5（绝对值）或 |a-b| <= 1e-6*max(|a|,|b|)；相对差全量照报",
+  "findings": [
+    {
+      "severity": "nit",
+      "item": "label identity across reps (C vs E)",
+      "measured": 1.7763568394002505e-15,
+      "expected": "<= 1e-12",
+      "gap": null,
+      "location": "data/WORK-593/panel_C.parquet",
+      "how_to_verify": "np.nanmax(|Y_C - Y_E|)"
+    },
+    {
+      "severity": "nit",
+      "item": "label identity across reps (P vs E)",
+      "measured": 1.7763568394002505e-15,
+      "expected": "<= 1e-12",
+      "gap": null,
+      "location": "data/WORK-593/panel_P.parquet",
+      "how_to_verify": "np.nanmax(|Y_P - Y_E|)"
+    },
+    {
+      "severity": "nit",
+      "item": "相对差 >1e-6 但绝对差 ≤1e-6 的项（数值零量级的实现噪声）",
+      "measured": {
+        "n": 25,
+        "max_abs_diff": 1.7802201568971423e-06,
+        "factors": [
+          "INV08",
+          "INV09",
+          "INV10",
+          "INV11",
+          "INV12",
+          "INV13",
+          "INV25",
+          "PL06",
+          "PL07",
+          "PL08",
+          "PL09"
+        ]
+      },
+      "expected": "绝对差 ≤ 1e-6 即视为一致",
+      "gap": null,
+      "location": "experiments/WORK-593/audit_factor_compare.csv",
+      "how_to_verify": "python audit/recompute_work593.py"
+    },
+    {
+      "severity": "nit",
+      "item": "逐因子 IC / ΔIC 复算比对",
+      "measured": {
+        "n_compared": 144,
+        "n_over_tol": 0,
+        "max_rel_diff": 7.252475216201457
+      },
+      "expected": "全部 ≤ 1e-06",
+      "gap": "0 项超阈",
+      "location": "experiments/WORK-593/audit_factor_compare.csv",
+      "how_to_verify": "python audit/recompute_work593.py"
+    },
+    {
+      "severity": "nit",
+      "item": "主检验量复算 dIC_pool",
+      "measured": -0.0017495753265477426,
+      "expected": -0.0017496337910846967,
+      "gap": 3.341529939121875e-05,
+      "location": "experiments/WORK-593/primary_test.json",
+      "how_to_verify": "python audit/recompute_work593.py"
+    },
+    {
+      "severity": "nit",
+      "item": "主检验量复算 IC_pool_C",
+      "measured": -0.02873501269682741,
+      "expected": -0.02873499398686589,
+      "gap": 6.511211217286249e-07,
+      "location": "experiments/WORK-593/primary_test.json",
+      "how_to_verify": "python audit/recompute_work593.py"
+    },
+    {
+      "severity": "nit",
+      "item": "主检验量复算 ratio",
+      "measured": 0.06088653396491837,
+      "expected": 0.060888608220499865,
+      "gap": 3.40663983316307e-05,
+      "location": "experiments/WORK-593/primary_test.json",
+      "how_to_verify": "python audit/recompute_work593.py"
+    },
+    {
+      "severity": "nit",
+      "item": "bootstrap ci_lo seed=42",
+      "measured": -0.0024906447159573257,
+      "expected": -0.002490763253652518,
+      "gap": 4.759091215043023e-05,
+      "location": "experiments/WORK-593/primary_test.json",
+      "how_to_verify": "python audit/recompute_work593.py"
+    },
+    {
+      "severity": "nit",
+      "item": "bootstrap ci_hi seed=42",
+      "measured": -0.0010623230372219948,
+      "expected": -0.0010624058126177647,
+      "gap": 7.791316160627555e-05,
+      "location": "experiments/WORK-593/primary_test.json",
+      "how_to_verify": "python audit/recompute_work593.py"
+    },
+    {
+      "severity": "nit",
+      "item": "bootstrap ci_lo seed=43",
+      "measured": -0.0025024875345783714,
+      "expected": -0.0025025095103041106,
+      "gap": 8.78147541444201e-06,
+      "location": "experiments/WORK-593/primary_test.json",
+      "how_to_verify": "python audit/recompute_work593.py"
+    },
+    {
+      "severity": "nit",
+      "item": "bootstrap ci_hi seed=43",
+      "measured": -0.0010256928573395595,
+      "expected": -0.0010257591188497373,
+      "gap": 6.459753460650478e-05,
+      "location": "experiments/WORK-593/primary_test.json",
+      "how_to_verify": "python audit/recompute_work593.py"
+    },
+    {
+      "severity": "nit",
+      "item": "bootstrap ci_lo seed=44",
+      "measured": -0.002476498695079372,
+      "expected": -0.0024765962629685993,
+      "gap": 3.939596077342195e-05,
+      "location": "experiments/WORK-593/primary_test.json",
+      "how_to_verify": "python audit/recompute_work593.py"
+    },
+    {
+      "severity": "nit",
+      "item": "bootstrap ci_hi seed=44",
+      "measured": -0.0009878682397734798,
+      "expected": -0.000987816945940672,
+      "gap": 5.192645562371154e-05,
+      "location": "experiments/WORK-593/primary_test.json",
+      "how_to_verify": "python audit/recompute_work593.py"
+    },
+    {
+      "severity": "nit",
+      "item": "判词一致性",
+      "measured": {
+        "recomputed": "未复现",
+        "claimed": "未复现"
+      },
+      "expected": "一致",
+      "gap": null,
+      "location": "experiments/WORK-593/primary_test.json",
+      "how_to_verify": "python audit/recompute_work593.py"
+    }
+  ],
+  "n_blocking": 0,
+  "n_suggestion": 0,
+  "n_nit": 14,
+  "max_rel_diff_factors": 7.252475216201457,
+  "can_enter_memo": true
+}

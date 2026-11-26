@@ -1,6 +1,6 @@
 {
   "experiment": "WORK-593",
-  "generated_at": "2026-11-26T14:27:04.271419+08:00",
+  "generated_at": "2026-11-26T14:53:02.499413+08:00",
   "paper": "arXiv:2611.07751v2",
   "data_source": {
     "engine": "DuckDB read_only",
@@ -27,7 +27,7 @@
       "000905.SH"
     ],
     "union_stocks": 1862,
-    "membership_rows": 1862,
+    "membership_rows": 2505,
     "paper_union": 1730,
     "gap": 132
   },
@@ -65,9 +65,11 @@
   },
   "membership": {
     "path": "data/WORK-593/membership.parquet",
-    "rows": 1862,
-    "sha256": "ccc3a512e1d89b7880aabec72bd18e8609b74ec85fbde97f79823964b557523a",
-    "granularity": "monthly index_weight snapshots, effective until next snapshot"
+    "rows": 2505,
+    "sha256": "40869ea99f3ea261d3acd3091a50aa6d7b6bbdaafb55dcdbb4c7805f5361fbaf",
+    "granularity": "monthly index_weight snapshots, effective until next snapshot",
+    "spell_rule": "per-stock spells expanded from snapshots, merged only when adjacent/overlapping",
+    "mask_stock_days": 3180685
   },
   "exdates": {
     "path": "data/WORK-593/exdates.parquet",

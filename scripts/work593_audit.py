@@ -144,8 +144,8 @@ def make_factor(D, name):
         hi = H.rolling(20, min_periods=10).max()
         return (C - lo) / (hi - lo)
     if name == "INV15": return (C - C.shift(5)) / C
-    if name == "INV16": return H.rolling(5, min_periods=3).max() / C - 1.0
-    if name == "INV17": return L.rolling(5, min_periods=3).min() / C - 1.0
+    if name == "INV16": return H.rolling(5, min_periods=5).max() / C - 1.0
+    if name == "INV17": return L.rolling(5, min_periods=5).min() / C - 1.0
     if name == "INV18": return (H - L) / (H + L)
     if name == "INV19": return _std(ret, 20)
     if name == "INV20": return _corr(C, V, 20)
@@ -421,11 +421,16 @@ def main():
             "boot_share_negative": float((means <= 0).mean()),
         }
     c1 = pooled > 0
-    c2 = all(primary["seeds"][str(s)]["ci95"][0] > 0 for s in SEEDS)
+    # 预注册 §6 第 2 条的字面：95% CI 不含 0（不论方向）；第 1 条已单独管方向
+    c2 = all(primary["seeds"][str(s)]["ci_excludes_zero"] for s in SEEDS)
     c3 = 0.10 <= ratio <= 0.18
+    _signs = {("+" if pooled > 0 else "-")} | {
+        ("+" if primary["seeds"][str(s)]["boot_mean"] > 0 else "-") for s in SEEDS}
+    c4 = len(_signs) == 1
     primary["criteria"] = {"c1_dIC_positive": c1, "c2_ci_excludes_zero_all_seeds": c2,
                            "c3_ratio_in_0.10_0.18": c3,
-                           "c4_same_sign_all_seeds": all(v > 0 for v in [pooled]) and c2}
+                           "c4_same_sign_all_seeds": c4,
+                           "c2_note": "CI 不含 0 即通过，方向由 C1 管；本单 CI 整段在负侧"}
     primary["verdict"] = "复现成立" if (c1 and c2 and c3) else "未复现"
     primary["verdict_reason"] = ("三项合取全部满足" if (c1 and c2 and c3) else
                                  "；".join([k for k, v in

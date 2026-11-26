@@ -193,27 +193,24 @@ def main():
     anchors.to_csv(pa, index=False)
     n_fallback = int(anchors["fallback_first_C"].sum())
 
-    # ---------------- 成分生效区间（时点口径） ----------------
-    spells = []
+    # ---------------- 成分生效区间（时点口径，**逐快照保序、不跨空档合并**） ----------------
+    # 每只股票在每个指数里可能有多个互不相连的成分区间（例：进出中证500 两次）。
+    # 必须按快照序列逐段展开，再只在「区间相邻或重叠」时合并；collapse 成 min..max 会虚增掩码。
+    cal_all = pd.DatetimeIndex(sorted(iw["trade_date"].unique()))
+    next_of = {pd.Timestamp(cal_all[k]): pd.Timestamp(cal_all[k + 1]) for k in range(len(cal_all) - 1)}
+    own_spells = []          # (ts_code, index_code, start, end)
     for idx, g in iw.groupby("index_code"):
         snaps = sorted(g["trade_date"].unique())
-        next_snap = {pd.Timestamp(s): pd.Timestamp(n) for s, n in zip(snaps[:-1], snaps[1:])}
-        last = pd.Timestamp(snaps[-1])
         for s in snaps:
             s = pd.Timestamp(s)
-            end = next_snap.get(s, pd.Timestamp(END) + pd.Timedelta(days=1)) - pd.Timedelta(days=1)
-            if s == last:
-                end = asof_end
-            members = g.loc[g["trade_date"] == s, "con_code"].unique()
-            for c in members:
-                spells.append((c, s, min(end, asof_end)))
-    mem = pd.DataFrame(spells, columns=["ts_code", "start_date", "end_date"])
-    mem = (mem.groupby("ts_code", as_index=False)
-              .agg(start_date=("start_date", "min"), end_date=("end_date", "max")))
-    # 逐段合并（同股票多次进出成分时合并成连续区间，防止漏日）
+            e = next_of.get(s, asof_end + pd.Timedelta(days=1)) - pd.Timedelta(days=1)
+            e = min(e, asof_end)
+            for c in g.loc[g["trade_date"] == s, "con_code"].unique():
+                own_spells.append((c, idx, s, e))
+    sp = pd.DataFrame(own_spells, columns=["ts_code", "index_code", "start_date", "end_date"])
     merged = []
-    for code, g in mem.sort_values(["ts_code", "start_date"]).groupby("ts_code"):
-        cur_s, cur_e = None, None
+    for code, g in sp.sort_values(["ts_code", "start_date", "end_date"]).groupby("ts_code"):
+        cur_s = cur_e = None
         for s, e in zip(g["start_date"], g["end_date"]):
             if cur_s is None:
                 cur_s, cur_e = s, e
@@ -223,9 +220,15 @@ def main():
                 merged.append((code, cur_s, cur_e))
                 cur_s, cur_e = s, e
         merged.append((code, cur_s, cur_e))
-    memf = pd.DataFrame(merged, columns=["ts_code", "start_date", "end_date"])
+    memf = pd.DataFrame(merged, columns=["ts_code", "start_date", "end_date"]).sort_values(["ts_code", "start_date"])
     pm = os.path.join(DATA, "membership.parquet")
     memf.to_parquet(pm, index=False)
+    mask_cells = 0
+    di = {d: i for i, d in enumerate(pd.DatetimeIndex(sorted(base["trade_date"].unique())))}
+    for _, r in memf.iterrows():
+        mask_cells += int(((base["trade_date"] >= r["start_date"])
+                           & (base["trade_date"] <= r["end_date"])
+                           & (base["ts_code"] == r["ts_code"])).sum())
 
     # ---------------- 除权日 ----------------
     if ex is not None and len(ex):
@@ -270,7 +273,9 @@ def main():
             },
         },
         "membership": {"path": rel(pm), "rows": int(len(memf)), "sha256": sha256(pm),
-                       "granularity": "monthly index_weight snapshots, effective until next snapshot"},
+                       "granularity": "monthly index_weight snapshots, effective until next snapshot",
+                       "spell_rule": "per-stock spells expanded from snapshots, merged only when adjacent/overlapping",
+                       "mask_stock_days": int(mask_cells)},
         "exdates": {"path": rel(pe), "rows": int(len(ex)) if ex is not None else 0,
                     "distinct_ex_dates": n_ex,
                     "sha256": sha256(pe) if pe else None},
