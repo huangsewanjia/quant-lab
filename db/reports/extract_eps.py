@@ -319,11 +319,15 @@ _VALUES = rf"{_NUM}{_TAIL}(?:{_SEP}{_NUM}{_TAIL}){{1,5}}"
 # Year connectors.  A range may be written with any dash variant seen in
 # sell-side prose (hyphen, full-width minus, mathematical minus, tilde,
 # wave dash, em/en dash, "至"); a bare enumeration uses punctuation/and.
-# Both matchers share the same characters so a range written with "－" cannot
-# fall through the range rule and then fail the list rule (WORK-598 B-1).
+# Ranges accept the dash set so a range written with "－" cannot fall through
+# the range rule (WORK-598 B-1); the union is only used to decide whether two
+# year tokens are contiguous, not as one shared separator alphabet.
 YEAR_DASH = r"[-－−~～〜—–至]"
 YEAR_ENUM_SEP = r"[、,，/\\／和及与]"
 _YEAR_GAP = rf"\s*年?\s*(?:{YEAR_DASH}|{YEAR_ENUM_SEP})\s*年?\s*"
+# Same gap restricted to enumeration separators: a block joined that way is a
+# year list, while one joined by a dash is a range and stays with the anchors.
+_YEAR_ENUM_GAP = rf"\s*年?\s*{YEAR_ENUM_SEP}\s*年?\s*"
 
 # "EPS分别为69.57、81.81和96.47元" — the year anchor is looked up separately
 # in the same sentence, because sell-side prose often puts it several clauses
@@ -362,39 +366,49 @@ def _sentences(text: str) -> list[tuple[int, str]]:
     return out
 
 
-def _year_anchors(sentence: str) -> list[tuple[int, list[int]]]:
-    """Every explicit year anchor in the sentence: ("2024-2026", "23-25年", "23/24/25年")."""
-    anchors: list[tuple[int, list[int]]] = []
+def _year_anchors(sentence: str) -> list[tuple[int, int, list[int]]]:
+    """Every explicit year anchor in the sentence as (start, end, years).
+
+    Covers "2024-2026", "23-25年" and "23/24/25年".
+    """
+    anchors: list[tuple[int, int, list[int]]] = []
     for match in YEAR_RANGE_RE.finditer(sentence):
         y0, y1 = int(match.group(1)), int(match.group(2))
         if y1 >= y0 and y1 - y0 <= 5:
-            anchors.append((match.start(), list(range(y0, y1 + 1))))
+            anchors.append((match.start(), match.end(), list(range(y0, y1 + 1))))
     for match in SHORT_YEAR_RANGE_RE.finditer(sentence):
         y0, y1 = 2000 + int(match.group(1)), 2000 + int(match.group(2))
         if 2000 <= y0 <= 2099 and 0 <= y1 - y0 <= 5:
-            anchors.append((match.start(), list(range(y0, y1 + 1))))
+            anchors.append((match.start(), match.end(), list(range(y0, y1 + 1))))
     for match in FULL_YEAR_LIST_RE.finditer(sentence):
         years = [int(match.group(i)) for i in (1, 2, 3)]
         if years == list(range(years[0], years[0] + 3)):
-            anchors.append((match.start(), years))
+            anchors.append((match.start(), match.end(), years))
     for match in SHORT_YEAR_LIST_RE.finditer(sentence):
         years = [2000 + int(match.group(i)) for i in (1, 2, 3)]
         if years == list(range(years[0], years[0] + 3)):
-            anchors.append((match.start(), years))
+            anchors.append((match.start(), match.end(), years))
     return sorted(anchors)
 
 
 def _bind_years(sentence: str, value_start: int, n_values: int) -> tuple[list[int], str] | None:
     """Resolve the fiscal years a value list belongs to, or None if ambiguous.
 
-    The nearest explicit anchor before the numbers wins; only anchors whose
-    span length equals the number of values are accepted, so "2024-2025年"
-    followed by three values is treated as ambiguous instead of guessed.
+    A bare enumeration ("2024、2025、2026年") standing closer to the values than
+    an earlier range ("2022－2024年") is adopted first; an explicit range only
+    applies when no enumeration is closer (WORK-603).  When the closer
+    enumeration's length differs from the value count, nothing is emitted:
+    falling back to an earlier range would bind the column to the wrong years.
+    A range block or a lone year mention never outranks an anchor.
     """
-    before = [anchor for anchor in _year_anchors(sentence) if anchor[0] < value_start]
-    for _pos, years in reversed(before):
-        if len(years) == n_values:
-            return years, "text_range"
+    anchors = [anchor for anchor in _year_anchors(sentence) if anchor[0] < value_start]
+    # Nearest explicit anchor whose span length equals the value count.  When
+    # an enumeration covers exactly the same block (their ends coincide) the
+    # anchor wins and the value keeps its text_range label.
+    anchor_best: tuple[int, list[int]] | None = None  # (end, years)
+    for _start, end, years in anchors:
+        if len(years) == n_values and (anchor_best is None or end >= anchor_best[0]):
+            anchor_best = (end, years)
     # Bare year tokens ("2024、2025和2026年") only count when they form one
     # enumeration: consecutive values, nothing but a year connector between
     # them, and exactly as many years as values.  A history year from an
@@ -407,16 +421,25 @@ def _bind_years(sentence: str, value_start: int, n_values: int) -> tuple[list[in
     ]
     run_years: list[int] = []
     run_start = value_start
+    run_end = 0
+    enumeration = True
     for start, end, year in reversed(tokens):
-        if run_years and (
-            year + 1 != run_years[0]
-            or not re.fullmatch(_YEAR_GAP, sentence[end:run_start])
-        ):
-            break
+        if run_years:
+            gap = sentence[end:run_start]
+            if year + 1 != run_years[0] or not re.fullmatch(_YEAR_GAP, gap):
+                break
+            # A block joined by a dash is a range; it must keep going through
+            # the anchors so "2024-2025年" keeps its text_range label.
+            enumeration = enumeration and re.fullmatch(_YEAR_ENUM_GAP, gap) is not None
         run_years.insert(0, year)
         run_start = start
-    if len(run_years) == n_values:
-        return run_years, "text_list"
+        run_end = end
+    # Only a genuine enumeration (>= 2 years joined by list separators) may
+    # outrank an explicit range; a lone year token or a range block does not.
+    if enumeration and len(run_years) >= 2 and (anchor_best is None or run_end > anchor_best[0]):
+        return (run_years, "text_list") if len(run_years) == n_values else None
+    if anchor_best is not None:
+        return anchor_best[1], "text_range"
     return None
 
 

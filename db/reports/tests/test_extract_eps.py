@@ -521,3 +521,22 @@ def test_year_binding_never_tail_binds_a_longer_enumeration():
     assert extract_eps("预计2024、2025、2026年EPS分别为1.20、1.50元。", {2024, 2025, 2026}) == []
     # the opposite direction: a history year must not supply the missing year
     assert extract_eps("2021、2022、2023年公司营收持续增长。预计2024年EPS分别为1.20、1.50元。", {2024, 2025, 2026}) == []
+
+
+def test_year_binding_prefers_adjacent_enumeration_over_earlier_range():
+    # WORK-603: a history range earlier in the sentence must not steal the
+    # binding from the enumeration sitting right before the values.  Range
+    # first used to emit 2024=1.80 alone (2022/2023 dropped by the window).
+    for dash in ("－", "-"):
+        text = f"2022{dash}2024年营收增长；2024、2025、2026年EPS分别为1.20、1.50、1.80元。"
+        values = extract_eps(text, {2024, 2025, 2026})
+        assert {v.fiscal_year: v.eps for v in values} == {2024: 1.20, 2025: 1.50, 2026: 1.80}, dash
+        assert {v.extractor for v in values} == {"text_list"}, dash
+
+
+def test_year_binding_does_not_fall_back_to_an_earlier_range():
+    # WORK-603: when the enumeration next to the values has the wrong length
+    # the sentence is ambiguous; borrowing the earlier two-year range would
+    # silently emit 2021=1.20 / 2022=1.50 instead of nothing.
+    text = "2021-2022年营收增长。2024、2025、2026年EPS分别为1.20、1.50元。"
+    assert extract_eps(text, {2021, 2022, 2024, 2025, 2026}) == []
