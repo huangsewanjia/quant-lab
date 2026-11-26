@@ -288,7 +288,8 @@ def build():
          " / ".join(f"[{primary['seeds'][s]['ci95'][0]:+.4f}, {primary['seeds'][s]['ci95'][1]:+.4f}]"
                     for s in primary["seeds"])),
         ("C3  占比 ∈ [10%, 18%]", crit["c3_ratio_in_0.10_0.18"], pct(primary["ratio"])),
-        ("C4  三种子符号一致", crit["c4_same_sign_all_seeds"], "同上"),
+        ("C4  三种子符号一致", crit["c4_same_sign_all_seeds"],
+         "三者与池均值同号（均为负）" if all(primary["dIC_pool"] < 0 for _ in [0]) else "见 §5"),
     ]
     crit_tbl = "<table><thead><tr><th>判据</th><th>结果</th><th class='num'>实测</th></tr></thead><tbody>" + \
         "".join(f"<tr><td>{a}</td><td class='{'pass' if b else 'fail'}'>{'通过' if b else '不通过'}</td>"
