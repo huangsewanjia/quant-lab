@@ -1,0 +1,56 @@
+{
+ "experiment": "WORK-505",
+ "purpose": "本机环境自检原文 + 环境复测期间的 GPU 争用观测。本文件是 failure_log.md §3.1 与报告 §1.1 / §1.3 的机器可读版；registry 行与报告里这一类数字一律从这里读，不再手抄。",
+ "recorded_at": "2026-11-22T14:28:00+08:00",
+ "host": "DESKTOP-TS1FCDR",
+ "self_check": {
+  "commands": [
+   "nvidia-smi",
+   "python -c \"import torch;print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0))\"",
+   "$env:NUMBER_OF_PROCESSORS",
+   "Get-PSDrive"
+  ],
+  "stdout_verbatim": "NVIDIA-SMI 610.88   KMD Version: 610.88   CUDA UMD Version: 13.3\nGPU 0  NVIDIA GeForce RTX 3060   12288 MiB   driver 610.88\ntorch 2.11.0+cu128   torch.cuda.is_available() = True\ndevice name: NVIDIA GeForce RTX 3060   logical CPUs: 12\ndisk: C: 19.8 GB free | F: 187.4 GB free | Z: 1999.4 GB free (\\\\192.168.9.104\\share)",
+  "fields": {
+   "nvidia_driver": "610.88",
+   "kmd_version": "610.88",
+   "cuda_umd_version": "13.3",
+   "gpu_name": "NVIDIA GeForce RTX 3060",
+   "gpu_vram_mib": 12288,
+   "torch_version": "2.11.0+cu128",
+   "torch_cuda_available": true,
+   "logical_cpus": 12,
+   "disk_free_gb": {
+    "C:": 19.8,
+    "F:": 187.4,
+    "Z:": 1999.4
+   }
+  },
+  "note": "磁盘余量是 2026-11-22 14:28 的自检瞬时值，随时间变化；报告与 registry 引用的都是这一时刻的实测值，不是估计值。"
+ },
+ "gpu_contention_observations": [
+  {
+   "run": "C_mlp_gpu_t1_s43_c3",
+   "phase": "confirm",
+   "smi_before": [1972, 2130, 42, 43.35, 0, 2959],
+   "smi_after": [1972, 2130, 44, 44.29, 19, 2959]
+  },
+  {
+   "run": "C_mlp_gpu_t1_s43_c4",
+   "phase": "confirm",
+   "smi_before": [1972, 2130, 42, 53.19, 15, 2959],
+   "smi_after": [1972, 2130, 46, 52.04, 68, 2959]
+  }
+ ],
+ "gpu_contention_observations_note": {
+  "utilization_pct_index": 4,
+  "interpretation": "数组第 5 个元素（index 4）是 nvidia-smi 的 utilization.gpu（%）：c3 before 0% / after 19%，c4 before 15% / after 68%。",
+  "gap": "当时的 nvidia-smi 查询字段顺序没有随运行留档（只有这一行数组原文），因此除 utilization.gpu 外其余下标不作字段级断言。"
+ },
+ "affected_runs_first_round": [
+  {"run": "C_mlp_gpu_t1_s43_r2", "steady_median_s": 0.1830, "verdict": "超区间"},
+  {"run": "C_mlp_gpu_t1_s43_r3", "steady_median_s": 0.1858, "verdict": "超区间"}
+ ],
+ "interpreter": "F:\\quant_work505\\venv\\Scripts\\python.exe",
+ "interpreter_note": "本机 ds 环境（conda numpy 链 MKL + pip torch 自带另一份 OpenMP）直接跑 WORK-449 全部脚本会 OMP: Error #15 崩；本单改用 --system-site-packages venv + pip(OpenBLAS) numpy，未改动用户已有环境。"
+}

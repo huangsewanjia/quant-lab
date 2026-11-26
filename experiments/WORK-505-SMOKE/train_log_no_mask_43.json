@@ -1,0 +1,62 @@
+{
+ "arm": "no_mask",
+ "seed": 43,
+ "tag": "_43",
+ "epochs": 3,
+ "batch_days": 12,
+ "lr": 0.0005,
+ "weight_decay": 1e-05,
+ "grad_clip": 1.0,
+ "gamma": 0.1,
+ "hidden": 128,
+ "nhead": 4,
+ "n_layers": 2,
+ "ffn": 512,
+ "dropout": 0.1,
+ "optimizer": "AdamW",
+ "model": "CrossSectionTransformer",
+ "device": "cuda",
+ "torch_version": "2.11.0+cu128",
+ "torch_threads": 2,
+ "n_params": 398593,
+ "n_train_days": 1566,
+ "n_val_days": 261,
+ "n_test_days": 128,
+ "n_stocks": 40,
+ "n_features": 12,
+ "n_train_days_skipped": 0,
+ "n_val_days_skipped": 0,
+ "n_test_days_skipped": 0,
+ "n_pred_days": 2215,
+ "n_label_nan_cells": 0,
+ "history": [
+  {
+   "epoch": 0,
+   "train_loss": 0.00930549415230097,
+   "val_rankic": -0.008461466577530498,
+   "sec_train": 1.32,
+   "sec_val": 0.07
+  },
+  {
+   "epoch": 1,
+   "train_loss": 0.001194173999340451,
+   "val_rankic": 0.011143458914695247,
+   "sec_train": 1.05,
+   "sec_val": 0.052
+  },
+  {
+   "epoch": 2,
+   "train_loss": 0.0009099799403849676,
+   "val_rankic": 0.004062884130167561,
+   "sec_train": 1.049,
+   "sec_val": 0.055
+  }
+ ],
+ "pred_grid_matches_sample_ok": true,
+ "n_label_nan_cells_scope": "distinct (day, stock) cells in the TRAINING window whose label is not finite; counted once per cell (not once per epoch)",
+ "best_epoch": 1,
+ "val_rankic": 0.011143458914695247,
+ "finished_at": "2026-11-22T15:43:54.192684+08:00",
+ "peak_vram_mb": 34.38134765625,
+ "peak_vram_reserved_mb": 40.0
+}

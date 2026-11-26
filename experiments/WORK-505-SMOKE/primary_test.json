@@ -1,0 +1,248 @@
+{
+ "generated_at": "2026-11-22T16:03:57.759788+08:00",
+ "exp": "WORK-505-SMOKE",
+ "seeds": [
+  42,
+  43
+ ],
+ "primary_cost_bps": 8.0,
+ "per_seed": {
+  "42": {
+   "main": {
+    "cost_bps": 8.0,
+    "delta_sharpe": -0.44584558603624824,
+    "delta_sharpe_ci95": [
+     -1.234733744643569,
+     0.24712842714865615
+    ],
+    "ci_excludes_zero": false,
+    "delta_ic": -0.011766234909242803,
+    "sharpe_no_mask": -3.7141840660379284,
+    "sharpe_halt_only": -3.390022241947788,
+    "sharpe_full_mask": -3.26833848000168,
+    "delta_sharpe_vs_reported_sharpes": -0.44584558603624824,
+    "delta_sharpe_consistency_abs_err": 0.0,
+    "annualisation": {
+     "calendar_days": 178,
+     "trading_days": 129,
+     "return_annualiser": "365.25 / calendar_days",
+     "vol_annualiser": "sqrt(252) trading days"
+    },
+    "apparent_ic_no_mask": -0.01005172120223442,
+    "apparent_ic_halt_only": -0.007248662611981109,
+    "apparent_ic_full_mask": 0.0017145137070083824,
+    "verdict": "\u672a\u590d\u73b0",
+    "bootstrap": {
+     "n": 1000,
+     "block": 20,
+     "seed": 42,
+     "paired": true
+    }
+   },
+   "sensitivity_5bps": {
+    "cost_bps": 5.0,
+    "delta_sharpe": -0.4689510607988425,
+    "delta_sharpe_ci95": [
+     -1.238640030682359,
+     0.12490950047400681
+    ],
+    "ci_excludes_zero": false,
+    "delta_ic": -0.011766234909242803,
+    "sharpe_no_mask": -3.324247290226509,
+    "sharpe_halt_only": -2.9831032335796257,
+    "sharpe_full_mask": -2.8552962294276667,
+    "delta_sharpe_vs_reported_sharpes": -0.4689510607988425,
+    "delta_sharpe_consistency_abs_err": 0.0,
+    "annualisation": {
+     "calendar_days": 178,
+     "trading_days": 129,
+     "return_annualiser": "365.25 / calendar_days",
+     "vol_annualiser": "sqrt(252) trading days"
+    },
+    "apparent_ic_no_mask": -0.01005172120223442,
+    "apparent_ic_halt_only": -0.007248662611981109,
+    "apparent_ic_full_mask": 0.0017145137070083824,
+    "verdict": "\u672a\u590d\u73b0",
+    "bootstrap": {
+     "n": 1000,
+     "block": 20,
+     "seed": 42,
+     "paired": true
+    }
+   }
+  },
+  "43": {
+   "main": {
+    "cost_bps": 8.0,
+    "delta_sharpe": -0.027988283499404965,
+    "delta_sharpe_ci95": [
+     -1.2207919443992925,
+     0.683168730572405
+    ],
+    "ci_excludes_zero": false,
+    "delta_ic": 0.0034933804832693173,
+    "sharpe_no_mask": -3.088754442207996,
+    "sharpe_halt_only": -3.0960478567481386,
+    "sharpe_full_mask": -3.0607661587085913,
+    "delta_sharpe_vs_reported_sharpes": -0.027988283499404965,
+    "delta_sharpe_consistency_abs_err": 0.0,
+    "annualisation": {
+     "calendar_days": 178,
+     "trading_days": 129,
+     "return_annualiser": "365.25 / calendar_days",
+     "vol_annualiser": "sqrt(252) trading days"
+    },
+    "apparent_ic_no_mask": 0.003284871152092209,
+    "apparent_ic_halt_only": 0.002163687372347893,
+    "apparent_ic_full_mask": -0.00020850933117710826,
+    "verdict": "\u672a\u590d\u73b0",
+    "bootstrap": {
+     "n": 1000,
+     "block": 20,
+     "seed": 42,
+     "paired": true
+    }
+   },
+   "sensitivity_5bps": {
+    "cost_bps": 5.0,
+    "delta_sharpe": -0.03637770985773381,
+    "delta_sharpe_ci95": [
+     -1.3325888414403497,
+     0.7046296085707634
+    ],
+    "ci_excludes_zero": false,
+    "delta_ic": 0.0034933804832693173,
+    "sharpe_no_mask": -2.6872827783075084,
+    "sharpe_halt_only": -2.682234225149797,
+    "sharpe_full_mask": -2.6509050684497746,
+    "delta_sharpe_vs_reported_sharpes": -0.03637770985773381,
+    "delta_sharpe_consistency_abs_err": 0.0,
+    "annualisation": {
+     "calendar_days": 178,
+     "trading_days": 129,
+     "return_annualiser": "365.25 / calendar_days",
+     "vol_annualiser": "sqrt(252) trading days"
+    },
+    "apparent_ic_no_mask": 0.003284871152092209,
+    "apparent_ic_halt_only": 0.002163687372347893,
+    "apparent_ic_full_mask": -0.00020850933117710826,
+    "verdict": "\u672a\u590d\u73b0",
+    "bootstrap": {
+     "n": 1000,
+     "block": 20,
+     "seed": 42,
+     "paired": true
+    }
+   }
+  }
+ },
+ "rng_note": "\u540c\u4e00\u4e2a seed \u5185\uff0c\u4e3b\u6210\u672c\u6863\uff088 bps\uff09\u4e0e +5 bps \u654f\u611f\u6027\u6863\u5171\u7528\u540c\u4e00\u4e2a numpy \u968f\u673a\u6d41\uff08seed 42\uff09\uff0c\u56e0\u6b64\u4e24\u6863\u62bd\u5230\u7684 block \u8d77\u70b9\u5e8f\u5217\u4e0d\u540c\u3002\u8fd9\u4e0e WORK-449 \u7684 work449_primary_test.py \u662f\u540c\u6b3e\u5199\u6cd5\uff0c\u4e0d\u5bf9\u4efb\u4e00\u6863\u4ea7\u751f\u504f\u5411\uff08\u6bcf\u6863\u4ecd\u662f 1000 \u6b21\u3001block \u957f\u5ea6 20 \u7684\u914d\u5bf9\u91cd\u91c7\u6837\u7ed9\u51fa\u7684 95% \u767e\u5206\u4f4d\u533a\u95f4\uff09\uff0c\u4f46\u4e24\u6863\u7684\u91cd\u91c7\u6837\u96c6\u5408\u5e76\u4e0d\u76f8\u540c\u3002",
+ "merged": {
+  "main": {
+   "seeds": [
+    42,
+    43
+   ],
+   "cost_bps": 8.0,
+   "delta_sharpe_per_seed": {
+    "42": -0.44584558603624824,
+    "43": -0.027988283499404965
+   },
+   "delta_sharpe_merged": -0.2369169347678266,
+   "delta_sharpe_merged_ci95": [
+    -1.1692036229199942,
+    0.4529990732006189
+   ],
+   "ci_excludes_zero": false,
+   "seeds_opposite_sign": false,
+   "delta_ic_per_seed": {
+    "42": -0.011766234909242803,
+    "43": 0.0034933804832693173
+   },
+   "delta_ic_merged": -0.004136427212986743,
+   "delta_sharpe_vs_reported_sharpes": -0.2369169347678266,
+   "delta_sharpe_consistency_abs_err": 0.0,
+   "annualisation": {
+    "calendar_days": 178,
+    "trading_days": 129,
+    "return_annualiser": "365.25 / calendar_days",
+    "vol_annualiser": "sqrt(252) trading days"
+   },
+   "verdict": "\u672a\u590d\u73b0",
+   "bootstrap": {
+    "n": 1000,
+    "block": 20,
+    "seed": 42,
+    "paired": true,
+    "synchronised_across_seeds": true
+   }
+  },
+  "sensitivity_5bps": {
+   "seeds": [
+    42,
+    43
+   ],
+   "cost_bps": 5.0,
+   "delta_sharpe_per_seed": {
+    "42": -0.4689510607988425,
+    "43": -0.03637770985773381
+   },
+   "delta_sharpe_merged": -0.25266438532828817,
+   "delta_sharpe_merged_ci95": [
+    -1.1892276691675574,
+    0.4607910020487067
+   ],
+   "ci_excludes_zero": false,
+   "seeds_opposite_sign": false,
+   "delta_ic_per_seed": {
+    "42": -0.011766234909242803,
+    "43": 0.0034933804832693173
+   },
+   "delta_ic_merged": -0.004136427212986743,
+   "delta_sharpe_vs_reported_sharpes": -0.25266438532828817,
+   "delta_sharpe_consistency_abs_err": 0.0,
+   "annualisation": {
+    "calendar_days": 178,
+    "trading_days": 129,
+    "return_annualiser": "365.25 / calendar_days",
+    "vol_annualiser": "sqrt(252) trading days"
+   },
+   "verdict": "\u672a\u590d\u73b0",
+   "bootstrap": {
+    "n": 1000,
+    "block": 20,
+    "seed": 42,
+    "paired": true,
+    "synchronised_across_seeds": true
+   }
+  }
+ },
+ "verdict": "\u672a\u590d\u73b0",
+ "divergence_complete": false,
+ "comparison_work449_mlp": {
+  "work449_per_seed": {
+   "42": {
+    "delta_sharpe": 0.5516438983949656,
+    "delta_sharpe_ci95": [
+     0.07800495784988858,
+     1.034169963810069
+    ],
+    "verdict": "\u672a\u590d\u73b0"
+   },
+   "43": {
+    "delta_sharpe": -0.5514567004752211,
+    "delta_sharpe_ci95": [
+     -1.0867388302083425,
+     -0.1380993575271607
+    ],
+    "verdict": "\u590d\u73b0\u6210\u7acb"
+   }
+  },
+  "work449_seeds_opposite_sign": true,
+  "work505_seeds_opposite_sign": false,
+  "merged_verdict_vs_work449_seed_verdicts": true,
+  "reading": "WORK-449 \u4e24 seed \u5f02\u53f7\u3001\u672c\u5355\u4e24 seed \u540c\u53f7 \u21d2 \u6362\u6a21\u578b\u540e\u7b26\u53f7\u7a33\u5b9a\u6027**\u6539\u5584**\u4e86\u3002",
+  "scope_note": "\u53ea\u6709\u5728\u672c\u5355\u771f\u5b9e\u5feb\u7167\u4e0a\u8dd1\u51fa\u7684\u6570\u5b57\u624d\u6784\u6210\u7814\u7a76\u7ed3\u8bba\uff1b\u5728\u5408\u6210\u9762\u677f\u4e0a\uff0c\u672c\u8282\u4ec5\u7528\u4e8e\u9a8c\u8bc1\u811a\u672c\u94fe\u8def\uff0c\u4e0d\u53ef\u7528\u4f5c\u4efb\u4f55\u5224\u8bcd\u3002",
+  "verdict_flip_note": "\u672c\u5355\u662f\u4e24 seed \u5408\u5e76\u5224\u8bcd\uff0cWORK-449 \u662f\u5355 seed \u5224\u8bcd\uff1b\u53e3\u5f84\u4e0d\u540c\uff0c\u6b64\u5e03\u5c14\u503c\u4ec5\u4f9b\u5b9a\u4f4d\uff0c\u4e25\u8c28\u7ed3\u8bba\u770b reading\u3002"
+ }
+}
