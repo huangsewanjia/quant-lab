@@ -85,6 +85,25 @@ python db/reports/extract_eps.py stats
 python db/reports/fetch_detail.py stats
 ```
 
+### 4.1 全量跑批（2023–2024，42,008 篇）
+
+```bash
+export LIGHTPANDA_BIN=/srv/share/quantdb/staging/tools/lightpanda-1.0.5/lightpanda-x86_64-linux
+
+# 全量工作清单：--stocks all 取全市场，--limit 0 表示不抽样（读库，不联网）
+python db/reports/fetch_detail.py plan --stocks all --limit 0   --start 2023-01-01 --end 2024-12-31   --worklist /srv/share/quantdb/meta/reports/detail/worklist-full-2023-2024.jsonl
+
+# 每个夜间窗口跑一批（断点续跑；窗口/日限/单 run 限由代码强制）
+python db/reports/fetch_detail.py fetch   --worklist /srv/share/quantdb/meta/reports/detail/worklist-full-2023-2024.jsonl --resume --verbose
+
+# 收工后抽取 + 落表（不联网，可白天跑）
+python db/reports/extract_eps.py extract --worklist /srv/share/quantdb/meta/reports/detail/worklist-full-2023-2024.jsonl
+python db/reports/extract_eps.py build
+python db/reports/extract_eps.py stats
+```
+
+`plan --stocks all` 的排序是 `publish_date, info_code`，因此每夜的进度按发布日推进；`fetch --resume` 用 `meta.json` + `body.html.gz` 的 sha256 判重，已完成的不再请求。`extract` 幂等，可对整份 worklist 重跑。
+
 ---
 
 ## 5. 表结构 `report_eps_extracted`

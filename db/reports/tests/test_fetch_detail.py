@@ -615,3 +615,92 @@ def test_fetch_survives_an_engine_crash_and_classifies_it(tmp_path, monkeypatch)
     payload = fd.cmd_fetch(_fetch_args(_make_worklist(tmp_path, 3)), _paths(tmp_path))
     assert payload["failures"]["engine-error"] == 3
     assert "consecutive engine-error" in (payload["aborted"] or "")
+
+
+# ---------------------------------------------------------------------------
+# plan: full-universe worklist (no network)
+# ---------------------------------------------------------------------------
+
+
+def _plan_args(tmp_path: Path, **over) -> argparse.Namespace:
+    base = dict(
+        stocks="all",
+        start="2023-01-01",
+        end="2024-12-31",
+        limit=0,
+        url_template="info",
+        worklist=str(tmp_path / "worklist.jsonl"),
+    )
+    base.update(over)
+    return argparse.Namespace(**base)
+
+
+def _seed_report_meta(paths: DetailPaths, rows: list[tuple]) -> None:
+    import duckdb
+
+    paths.db_path.parent.mkdir(parents=True, exist_ok=True)
+    con = duckdb.connect(str(paths.db_path))
+    try:
+        con.execute(
+            """
+            CREATE TABLE report_meta (
+                info_code VARCHAR, stock_code VARCHAR, ts_code VARCHAR, stock_name VARCHAR,
+                org_name VARCHAR, publish_date DATE, fiscal_year_this INTEGER,
+                fiscal_year_next INTEGER, fiscal_year_two INTEGER, encode_url VARCHAR
+            )
+            """
+        )
+        con.executemany("INSERT INTO report_meta VALUES (?,?,?,?,?,?,?,?,?,?)", rows)
+    finally:
+        con.close()
+
+
+def test_plan_all_stocks_selects_every_row_ordered_by_date(tmp_path):
+    paths = _paths(tmp_path)
+    _seed_report_meta(
+        paths,
+        [
+            ("AP3", "000001", "000001.SZ", "平安银行", "券商A", dt.date(2024, 5, 1), 2024, 2025, 2026, "e3"),
+            ("AP1", "600519", "600519.SH", "贵州茅台", "券商B", dt.date(2023, 1, 2), 2023, 2024, 2025, "e1"),
+            ("AP2", "300750", "300750.SZ", "宁德时代", "券商C", dt.date(2023, 1, 2), 2023, 2024, 2025, "e2"),
+            ("AP9", "600519", "600519.SH", "贵州茅台", "券商B", dt.date(2025, 1, 2), 2025, 2026, 2027, "e9"),
+        ],
+    )
+    payload = fd.cmd_plan(_plan_args(tmp_path), paths)
+    assert payload["scope"] == "all-stocks"
+    assert payload["rows_selected"] == 3  # 2025 row is outside the window
+    assert payload["rows_available"] == 3
+    assert payload["stocks_covered"] == 3
+    assert payload["by_year"] == {"2023": 2, "2024": 1}
+    codes = [json.loads(line)["info_code"] for line in Path(payload["worklist"]).read_text(encoding="utf-8").splitlines()]
+    assert codes == ["AP1", "AP2", "AP3"]  # date, then info_code
+    first = json.loads(Path(payload["worklist"]).read_text(encoding="utf-8").splitlines()[0])
+    assert first["url"] == "https://data.eastmoney.com/report/info/AP1.html"
+    assert first["publish_date"] == "2023-01-02"
+
+
+def test_plan_all_stocks_honours_a_positive_limit(tmp_path):
+    paths = _paths(tmp_path)
+    rows = [
+        (f"AP{i}", "600519", "600519.SH", "贵州茅台", "券商", dt.date(2023, 1, 1) + dt.timedelta(days=i), 2023, 2024, 2025, f"e{i}")
+        for i in range(10)
+    ]
+    _seed_report_meta(paths, rows)
+    payload = fd.cmd_plan(_plan_args(tmp_path, limit=4), paths)
+    assert payload["rows_selected"] == 4
+    assert payload["rows_available"] == 10
+
+
+def test_plan_named_stocks_keeps_the_per_stock_quota(tmp_path):
+    paths = _paths(tmp_path)
+    rows = []
+    for stock in ("600519", "300750"):
+        for i in range(5):
+            rows.append((f"{stock}-{i}", stock, f"{stock}.SZ", "x", "券商", dt.date(2023, 1, 1) + dt.timedelta(days=i), 2023, 2024, 2025, "e"))
+    _seed_report_meta(paths, rows)
+    payload = fd.cmd_plan(_plan_args(tmp_path, stocks="600519,300750", limit=6), paths)
+    assert payload["scope"] == "named-stocks"
+    assert payload["quota_by_stock"] == {"600519": 3, "300750": 3}
+    assert payload["by_stock"] == {"600519": 5, "300750": 5}  # available, not chosen
+    chosen = [json.loads(line)["stock_code"] for line in Path(payload["worklist"]).read_text(encoding="utf-8").splitlines()]
+    assert chosen.count("600519") == 3 and chosen.count("300750") == 3

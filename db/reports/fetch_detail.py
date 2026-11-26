@@ -31,6 +31,8 @@ Progress log (append-only, one line per attempt)::
 Commands::
 
     python db/reports/fetch_detail.py plan  --stocks 600519,002594,300750 --limit 200
+    python db/reports/fetch_detail.py plan  --stocks all --limit 0 \
+        --worklist <QUANTDB_HOME>/meta/reports/detail/worklist-full-2023-2024.jsonl
     python db/reports/fetch_detail.py probe --info-code AP202301011581615358
     python db/reports/fetch_detail.py fetch --worklist <path> --resume
     python db/reports/fetch_detail.py stats
@@ -576,33 +578,57 @@ def systematic_sample(rows: list[tuple], limit: int) -> list[tuple]:
 
 
 def cmd_plan(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
-    stocks = [s.strip() for s in args.stocks.split(",") if s.strip()]
-    if not stocks:
-        raise SystemExit("--stocks must list at least one stock code")
+    """Select reports into a worklist. ``--stocks all`` covers the whole universe.
+
+    ``--limit 0`` means "every selected row"; a positive limit is a systematic
+    sample.  The full batch (2023-2024, 42,008 reports) uses ``all`` + ``0`` so
+    the list is a pure function of ``report_meta`` and the date window.
+    """
+    all_stocks = args.stocks.strip().lower() in {"all", "*"}
+    stocks = [] if all_stocks else [s.strip() for s in args.stocks.split(",") if s.strip()]
+    if not all_stocks and not stocks:
+        raise SystemExit("--stocks must list at least one stock code, or be 'all'")
+    limit = max(0, args.limit)
     con = connect_ro(paths.db_path)
     try:
-        rows = con.execute(
-            """
-            SELECT info_code, stock_code, ts_code, stock_name, org_name, publish_date,
-                   fiscal_year_this, fiscal_year_next, fiscal_year_two, encode_url
-            FROM report_meta
-            WHERE stock_code IN (SELECT unnest(?))
-              AND publish_date BETWEEN ? AND ?
-            ORDER BY stock_code, publish_date, info_code
-            """,
-            [stocks, args.start, args.end],
-        ).fetchall()
+        if all_stocks:
+            rows = con.execute(
+                """
+                SELECT info_code, stock_code, ts_code, stock_name, org_name, publish_date,
+                       fiscal_year_this, fiscal_year_next, fiscal_year_two, encode_url
+                FROM report_meta
+                WHERE publish_date BETWEEN ? AND ?
+                ORDER BY publish_date, info_code
+                """,
+                [args.start, args.end],
+            ).fetchall()
+        else:
+            rows = con.execute(
+                """
+                SELECT info_code, stock_code, ts_code, stock_name, org_name, publish_date,
+                       fiscal_year_this, fiscal_year_next, fiscal_year_two, encode_url
+                FROM report_meta
+                WHERE stock_code IN (SELECT unnest(?))
+                  AND publish_date BETWEEN ? AND ?
+                ORDER BY stock_code, publish_date, info_code
+                """,
+                [stocks, args.start, args.end],
+            ).fetchall()
     finally:
         con.close()
     by_stock: dict[str, list[tuple]] = {}
     for row in rows:
         by_stock.setdefault(row[1], []).append(row)
-    base = max(1, args.limit // len(stocks))
-    remainder = max(0, args.limit - base * len(stocks))
-    quotas = {stock: base + (1 if idx < remainder else 0) for idx, stock in enumerate(stocks)}
-    chosen: list[tuple] = []
-    for stock in stocks:
-        chosen.extend(systematic_sample(by_stock.get(stock, []), quotas[stock]))
+    quotas: dict[str, int] = {}
+    if all_stocks:
+        chosen = systematic_sample(rows, limit) if limit else list(rows)
+    else:
+        base = max(1, limit // len(stocks))
+        remainder = max(0, limit - base * len(stocks))
+        quotas = {stock: base + (1 if idx < remainder else 0) for idx, stock in enumerate(stocks)}
+        chosen = []
+        for stock in stocks:
+            chosen.extend(systematic_sample(by_stock.get(stock, []), quotas[stock]))
     out = Path(args.worklist) if args.worklist else paths.meta_dir / f"worklist-{args.start}-{args.end}.jsonl"
     out.parent.mkdir(parents=True, exist_ok=True)
     with out.open("w", encoding="utf-8") as fh:
@@ -622,14 +648,25 @@ def cmd_plan(args: argparse.Namespace, paths: DetailPaths) -> dict[str, Any]:
                 "url": build_url(row[0], row[9], args.url_template),
             }
             fh.write(json.dumps(item, ensure_ascii=False) + "\n")
-    return {
+    by_year: dict[str, int] = {}
+    for row in chosen:
+        key = str(row[5])[:4]
+        by_year[key] = by_year.get(key, 0) + 1
+    payload: dict[str, Any] = {
         "worklist": str(out),
         "rows_selected": len(chosen),
         "rows_available": len(rows),
-        "by_stock": {k: len(v) for k, v in by_stock.items()},
-        "quota_by_stock": quotas,
+        "by_year": dict(sorted(by_year.items())),
         "url_template": args.url_template,
     }
+    if all_stocks:
+        payload["scope"] = "all-stocks"
+        payload["stocks_covered"] = len(by_stock)
+    else:
+        payload["scope"] = "named-stocks"
+        payload["by_stock"] = {k: len(v) for k, v in by_stock.items()}
+        payload["quota_by_stock"] = quotas
+    return payload
 
 
 def load_worklist(path: Path) -> list[dict[str, Any]]:
@@ -1008,10 +1045,10 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="command", required=True)
 
     plan = sub.add_parser("plan", help="build a worklist from report_meta (no network)")
-    plan.add_argument("--stocks", default="600519,002594,300750")
+    plan.add_argument("--stocks", default="600519,002594,300750", help="comma list, or 'all' for the whole universe")
     plan.add_argument("--start", default="2023-01-01")
     plan.add_argument("--end", default="2024-12-31")
-    plan.add_argument("--limit", type=int, default=200)
+    plan.add_argument("--limit", type=int, default=200, help="max rows; 0 = every selected row")
     plan.add_argument("--url-template", default="info", choices=sorted(URL_TEMPLATES))
     plan.add_argument("--worklist")
 
