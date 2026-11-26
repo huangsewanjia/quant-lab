@@ -71,8 +71,8 @@ footer{margin-top:56px;padding-top:18px;border-top:2px solid var(--ink);
   <p class="lede">按契约变更 01 改走官方接口：搜索候选、取 PDF 地址、校验落盘、元数据入 DuckDB、一条可复跑批量入口。浏览器/CDP 方案已删除。</p>
   <div class="meta">
     <span>交付日期 2026-11-27</span>
-    <span>代码 SHA {{SHA}}</span>
-    <span>独立审查 {{REVIEW}}</span>
+    <span>代码 SHA e5181ee</span>
+    <span>独立审查 2 轮（f7ba957 → c9a181e）；e5181ee 为二轮 blocking 修复，未做第三轮</span>
     <span>状态 <span class="pill p-warn">管线已交付 · 真实抓取待 API token</span></span>
   </div>
 </header>
@@ -102,7 +102,7 @@ footer{margin-top:56px;padding-top:18px;border-top:2px solid var(--ink);
       <li>采集器 4 个子命令：<code>check-auth / search / fetch / verify</code></li>
       <li>业务错误按 <code>body.code</code> 判定（300011 不会当成功）</li>
       <li>幂等入库 + sha 变更留痕 + C1–C7 闸门</li>
-      <li>离线测试 35 条（FakeProbe 覆盖错误码/额度无地址/非 PDF/跳过已存在）；全套 196 passed</li>
+      <li>离线测试 44 条（FakeProbe 覆盖错误码/额度无地址/非 PDF/跳过已存在）；全套 206 passed</li>
       <li>合成 PDF 彩排 5 篇：两次 ingest 5→5，C1–C7 PASS，关联 5/5</li>
     </ul>
   </div>
@@ -232,7 +232,7 @@ footer{margin-top:56px;padding-top:18px;border-top:2px solid var(--ink);
 
 $ … pytest db/tests/test_report_fulltext.py db/tests/test_work623_api.py -q
 35 passed</code></pre>
-<p class="small">35 = 本单（入库/视图/闸门 17 + 采集器 18）；其余 162 条为既有回归。</p>
+<p class="small">44 = 本单（入库/视图/闸门 18 + 采集器 26）；其余 162 条为既有回归。</p>
 
 <h3>7.2 真库与彩排</h3>
 <pre><code>真库：report_fulltext 0 行；v_report_fulltext_linked 0；report_meta 68,874
@@ -255,6 +255,16 @@ C1 5=5 · C2/C3/C4/C5 PASS · C6 5/5 rate=1.0 · C7 PASS</code></pre>
   </tbody>
 </table>
 <p class="small">证据目录 <code>/srv/share/quantdb/raw/reports_fulltext/_evidence/2026-11-27-api/</code>：<code>api-doc.html</code>（sha256 <code>2011c52d…</code>）、<code>fxbaogao_mcp-1.0.3.tar.gz</code>（<code>d7215097…</code>）、<code>check_auth_no_token.json</code>、<code>manifest.json</code>。</p>
+
+<h3>7.4 独立审查</h3>
+<table>
+  <thead><tr><th style="width:12%">轮次</th><th style="width:16%">审查对象</th><th style="width:15%">结论</th><th>处置</th></tr></thead>
+  <tbody>
+    <tr><td>round 1</td><td><code>f7ba957</code></td><td><span class="pill p-fail">NEEDS WORK · 1</span></td><td>PDF 端点失败时台账写 <code>code=200</code>、额度错误原文丢失 → 改为 download 成功即落 <code>.download.json</code>、PDF 失败解析 <code>code/msg</code>；<code>--pages</code> 越界报错；<code>code</code> 字符串归一化 → <code>c9a181e</code></td></tr>
+    <tr><td>round 2</td><td><code>c9a181e</code></td><td><span class="pill p-fail">NEEDS WORK · 1</span></td><td>非 2xx 的 PDF 回包正文在 <code>body</code> 而非 <code>raw</code>，仍读不到 → <code>raw or body.encode()</code>；<code>no_pdf_url</code> 也落 <code>.download.json</code>；token 权限按符号链接目标判定；bool <code>code</code> 判失败 → <code>e5181ee</code></td></tr>
+  </tbody>
+</table>
+<p class="small">第三轮按守则「最多 2 轮，第 3 轮前停下问用户」未执行；<code>e5181ee</code> 的修复由新增单测（HTTP 403 额度错、no-url 回包、目录权限、符号链接、bool code）覆盖。</p>
 
 <h2 id="s8"><span class="num">8</span>数据口径与幂等</h2>
 <dl class="kv">
@@ -309,9 +319,9 @@ rm -rf /srv/share/quantdb/raw/reports_fulltext/fxbaogao</code></pre>
 
 <h2>交付四段</h2>
 <h3>做了什么</h3>
-<p>按契约变更 01 重写采集层为官方 API（check-auth/search/fetch/verify），删除浏览器/CDP/sheet/adopt；入库层与对账闸沿用并补 <code>site_url/pdf_url</code> 列；35 条离线测试、跑法与交付页。</p>
+<p>按契约变更 01 重写采集层为官方 API（check-auth/search/fetch/verify），删除浏览器/CDP/sheet/adopt；入库层与对账闸沿用并补 <code>site_url/pdf_url</code> 列；44 条离线测试、跑法与交付页。</p>
 <h3>怎么验证</h3>
-<p><code>pytest db/tests</code> 196 passed；真库 C1–C7 PASS（0 行）；彩排 5 篇两次 5→5、关联 5/5。真实抓取未验证：token 不存在，<code>check-auth</code> 退出码 3 且零请求。</p>
+<p><code>pytest db/tests</code> 206 passed；真库 C1–C7 PASS（0 行）；彩排 5 篇两次 5→5、关联 5/5。真实抓取未验证：token 不存在，<code>check-auth</code> 退出码 3 且零请求。</p>
 <h3>怎么回滚</h3>
 <p>执行第 10 节 SQL；删 <code>raw/reports_fulltext/fxbaogao</code>；代码在独立分支未合并。</p>
 <h3>遗留与需要确认</h3>
