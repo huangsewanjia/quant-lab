@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/srv/data/multica/workspaces/workspace-c8faa36a018a/work-503-69b2057aa375/workdir/quant-lab/scripts/work503_backtest.py", line 572, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/srv/data/multica/workspaces/workspace-c8faa36a018a/work-503-69b2057aa375/workdir/quant-lab/scripts/work503_backtest.py", line 542, in main
+    r = backtest(pred, market, buy_bps=args.buy_bps,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/srv/data/multica/workspaces/workspace-c8faa36a018a/work-503-69b2057aa375/workdir/quant-lab/scripts/work503_backtest.py", line 263, in backtest
+    assert_not_limit_up(cand, t, market, "buy")
+  File "/srv/data/multica/workspaces/workspace-c8faa36a018a/work-503-69b2057aa375/workdir/quant-lab/scripts/work503_backtest.py", line 70, in assert_not_limit_up
+    raise MaskAssertionError(
+MaskAssertionError: assert_not_limit_up: buy sh600085 on 2022-01-04 while limit_up is True

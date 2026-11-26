@@ -1,0 +1,12 @@
+{
+ "kind": "gru",
+ "seed": 42,
+ "epochs": 6,
+ "valid_loss": 1.0032944666995924,
+ "metrics": {
+  "rankic": 0.058751124214908634,
+  "rankicir": 0.37281049439266445
+ },
+ "preds": "/srv/data/multica/workspaces/workspace-c8faa36a018a/work-503-69b2057aa375/workdir/quant-lab/experiments/WORK-503/preds/gru_s42.parquet",
+ "seconds": 443.7
+}

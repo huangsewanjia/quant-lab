@@ -4,6 +4,9 @@
 *.csv
 !data_contracts/*.csv
 !experiments/*/metrics_table.csv
+# WORK-503 的交付物清单里点名引用的两张人读表（按档聚合表 + 成本敏感性表）
+!experiments/*/metrics_by_arm.csv
+!experiments/*/cost_sensitivity.csv
 
 # ---- 图件产物（大图 + 对齐/碰撞审计 JSON），只保留生成脚本 ----
 /figures/*
@@ -26,6 +29,17 @@ report.html
 !experiments/WORK-449/paper_comparison.csv
 !/figures/WORK-449/
 !/figures/WORK-449/*.png
+
+# ---- WORK-503 例外：报告成品与论文对照表入库 ----
+!experiments/WORK-503/report.html
+!experiments/WORK-503/preview_first_screen.png
+!experiments/WORK-503/report_print.pdf
+!experiments/WORK-503/paper_comparison.csv
+!/figures/WORK-503/
+!/figures/WORK-503/*.png
+
+# ---- 中间产物（预测 parquet / 逐日面板）：可由训练与回测脚本重建，不入库 ----
+*.parquet
 
 # ---- 复跑产物（probe 脚本默认输出目录）：不入库，避免覆盖已入库的实测证据 ----
 experiments/*/rerun/
@@ -50,3 +64,6 @@ Thumbs.db
 
 # ---- WORK-449 作废轮次产物（协方差缺陷修复前的运行结果，不作证据） ----
 experiments/WORK-449/void_run_*/
+
+# ---- 上游模型 checkpoint（体积大，可由训练脚本重建） ----
+vendor/PRISM-VQ/checkpoints/
