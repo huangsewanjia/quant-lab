@@ -130,7 +130,8 @@ def save(out: str, store: dict[tuple, dict], params: dict) -> None:
            "csv_bytes": len(raw), "sources": list(EDITIONS.values()),
            "fetched_at": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
            "params": params,
-           "notes": "数值来自新闻稿正文，非表格；每行 evidence 保留原句，便于复核"}
+           "notes": "数值来自新闻稿正文，非表格；每行 evidence 保留原句，便于复核",
+           "date_range": [rows[0]["edition_date"], rows[-1]["edition_date"]] if rows else []}
     with open(os.path.join(out, "manifest.json"), "w", encoding="utf-8") as f:
         json.dump(man, f, ensure_ascii=False, indent=1)
     print(json.dumps({k: man[k] for k in ("dataset", "rows", "csv_sha256")}, ensure_ascii=False))
