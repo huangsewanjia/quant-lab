@@ -1,0 +1,140 @@
+{
+  "experiment": "WORK-593",
+  "generated_at": "2026-11-26T14:27:04.271419+08:00",
+  "paper": "arXiv:2611.07751v2",
+  "data_source": {
+    "engine": "DuckDB read_only",
+    "db": "/srv/share/quantdb/db/quantdb.duckdb",
+    "tables": [
+      "daily",
+      "adj_factor",
+      "index_weight",
+      "dividend",
+      "trade_cal",
+      "stock_basic"
+    ],
+    "why_local_first": "工作区数据底座优先；本单不新接外部数据源（派单卡「不许为这事新接数据源」）"
+  },
+  "window": {
+    "start": "2010-01-04",
+    "end": "2026-11-13",
+    "cutoff_anchor": "2020-12-31"
+  },
+  "paths_are": "repo-relative (relative to repository root)",
+  "universe": {
+    "indices": [
+      "000300.SH",
+      "000905.SH"
+    ],
+    "union_stocks": 1862,
+    "membership_rows": 1862,
+    "paper_union": 1730,
+    "gap": 132
+  },
+  "base_panel": {
+    "path": "data/WORK-593/panel_base.parquet",
+    "rows": 6156584,
+    "sha256": "a343e873a069c96ce3a4210838ed4bc541799a4983494b78aa1b604d09296629",
+    "columns": [
+      "ts_code",
+      "trade_date",
+      "open",
+      "high",
+      "low",
+      "close",
+      "pre_close",
+      "pct_chg",
+      "vol",
+      "amount",
+      "adj_factor",
+      "vwap_raw"
+    ],
+    "missing_adj_factor_rows": 0,
+    "vwap_formula": "amount * 10 / vol   (amount 千元, vol 手 -> 元/股)"
+  },
+  "anchors": {
+    "path": "data/WORK-593/anchors.csv",
+    "rows": 1862,
+    "sha256": "6c3eeed61057faef961ae04de25fb3a4a4948d3f0718175ea30dc6ec76e87686",
+    "fallback_first_C_rows": 124,
+    "definition": {
+      "E": "last adj_factor on or before 2026-11-13",
+      "C": "last adj_factor on or before 2020-12-31; fallback = first available",
+      "P": "first adj_factor on or after 2010-01-04"
+    }
+  },
+  "membership": {
+    "path": "data/WORK-593/membership.parquet",
+    "rows": 1862,
+    "sha256": "ccc3a512e1d89b7880aabec72bd18e8609b74ec85fbde97f79823964b557523a",
+    "granularity": "monthly index_weight snapshots, effective until next snapshot"
+  },
+  "exdates": {
+    "path": "data/WORK-593/exdates.parquet",
+    "rows": 22264,
+    "distinct_ex_dates": 2562,
+    "sha256": "65bcc3779c35c0cf5ac5ce67c30c80cdf885505b64ee0300ceb5aedc1985b3be"
+  },
+  "items": [
+    {
+      "endpoint": "index_weight",
+      "start": "2010-01-04",
+      "end": "2026-11-13",
+      "ok": true,
+      "rows": 161600,
+      "path": "data/WORK-593/raw/index_weight.parquet",
+      "sha256": "debf483e467aede516579be21a79cde1302a48cecce72f2bf948f5fd5245e8c1",
+      "date_min": "2010-01-29",
+      "date_max": "2026-10-30"
+    },
+    {
+      "endpoint": "daily",
+      "start": "2010-01-04",
+      "end": "2026-11-13",
+      "ok": true,
+      "rows": 6156584,
+      "path": "data/WORK-593/raw/daily.parquet",
+      "sha256": "8933ed494f48697bfcd6ba6e76fa6d02ecc85592f6327f2de00d8432b07d718d",
+      "date_min": "2010-01-04",
+      "date_max": "2026-11-13"
+    },
+    {
+      "endpoint": "adj_factor",
+      "start": "2010-01-04",
+      "end": "2026-11-13",
+      "ok": true,
+      "rows": 6359545,
+      "path": "data/WORK-593/raw/adj_factor.parquet",
+      "sha256": "5ff24fdfc8647c08c1d44499b1c108061e5701fca30c1cab89b986e3370259b0",
+      "date_min": "2010-01-04",
+      "date_max": "2026-11-13"
+    },
+    {
+      "endpoint": "dividend",
+      "start": "2010-01-04",
+      "end": "2026-11-13",
+      "ok": true,
+      "rows": 22264,
+      "path": "data/WORK-593/raw/dividend.parquet",
+      "sha256": "65bcc3779c35c0cf5ac5ce67c30c80cdf885505b64ee0300ceb5aedc1985b3be"
+    },
+    {
+      "endpoint": "trade_cal",
+      "start": "2010-01-04",
+      "end": "2026-11-13",
+      "ok": true,
+      "rows": 6158,
+      "path": "data/WORK-593/raw/trade_cal.parquet",
+      "sha256": "ac4c5d637a4dbd8675bd39f88d7dd48cb962d37bb4d52b6b98263c2aaad276e3"
+    },
+    {
+      "endpoint": "stock_basic",
+      "start": "2010-01-04",
+      "end": "2026-11-13",
+      "ok": true,
+      "rows": 1862,
+      "path": "data/WORK-593/raw/stock_basic.parquet",
+      "sha256": "43d51b9b422074e17e27c1950f3272b2cca9c88208602c98f562036bcb959680"
+    }
+  ]
+}

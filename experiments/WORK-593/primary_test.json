@@ -1,0 +1,82 @@
+{
+  "metric": "dIC_pool = mean_f[IC_f(E) - IC_f(C)] ; ratio = dIC_pool / mean_f IC_f(C)",
+  "dIC_pool": -0.0016851702574719786,
+  "IC_pool_C": -0.028788864917509458,
+  "ratio": 0.058535488019434,
+  "n_factors": 36,
+  "n_days": 3832,
+  "eval_window": [
+    "2011-01-04",
+    "2026-11-13"
+  ],
+  "label": "20-day close-to-close forward return",
+  "bootstrap": {
+    "reps": 1000,
+    "block": 20,
+    "method": "circular block bootstrap of the daily pool dIC series",
+    "seeds": [
+      42,
+      43,
+      44
+    ]
+  },
+  "seeds": {
+    "42": {
+      "ci95": [
+        -0.002420094760397753,
+        -0.0009985978292640532
+      ],
+      "ci_excludes_zero": true,
+      "boot_mean": -0.0017092494966644775,
+      "boot_sd": 0.00036528016109101786,
+      "boot_share_negative": 1.0
+    },
+    "43": {
+      "ci95": [
+        -0.0024347244710585,
+        -0.0009694081962018654
+      ],
+      "ci_excludes_zero": true,
+      "boot_mean": -0.0017007046983616534,
+      "boot_sd": 0.00036262233554485205,
+      "boot_share_negative": 1.0
+    },
+    "44": {
+      "ci95": [
+        -0.0024201142888342006,
+        -0.0009401026711598004
+      ],
+      "ci_excludes_zero": true,
+      "boot_mean": -0.0016733449585900162,
+      "boot_sd": 0.0003806838108978293,
+      "boot_share_negative": 1.0
+    }
+  },
+  "criteria": {
+    "c1_dIC_positive": false,
+    "c2_ci_excludes_zero_all_seeds": false,
+    "c3_ratio_in_0.10_0.18": false,
+    "c4_same_sign_all_seeds": false
+  },
+  "verdict": "未复现",
+  "verdict_reason": "dIC<=0；CI含0或负；占比出界",
+  "subgroup": {
+    "PL": {
+      "n_factors": 11,
+      "dIC": -0.005515161110817697,
+      "IC_C": -0.03979541849045878,
+      "ratio": 0.13858784051083656
+    },
+    "INV": {
+      "n_factors": 25,
+      "dIC": 2.571800013737173e-08,
+      "IC_C": -0.02394598134541177,
+      "ratio": -1.0740006753700863e-06
+    }
+  },
+  "drift_share_abs_gt_0.005": {
+    "all": 0.2777777777777778,
+    "PL": 0.9090909090909091,
+    "INV": 0.0
+  }
+}

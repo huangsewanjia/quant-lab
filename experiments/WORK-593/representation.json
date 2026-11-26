@@ -1,0 +1,66 @@
+{
+  "experiment": "WORK-593",
+  "base": {
+    "path": "data/WORK-593/panel_base.parquet",
+    "sha256": "a343e873a069c96ce3a4210838ed4bc541799a4983494b78aa1b604d09296629"
+  },
+  "representations": {
+    "E": {
+      "path": "data/WORK-593/panel_E.parquet",
+      "rows": 6156584,
+      "sha256": "eae55d390d6e63a5e3bcc38815bd031ba49f03945b5b0e912b3f0a07db697794",
+      "anchor": "2026-11-13",
+      "cols": [
+        "ts_code",
+        "trade_date",
+        "adj_scale",
+        "open",
+        "high",
+        "low",
+        "close",
+        "vwap",
+        "vol",
+        "amount",
+        "pct_chg"
+      ]
+    },
+    "C": {
+      "path": "data/WORK-593/panel_C.parquet",
+      "rows": 6156584,
+      "sha256": "36f49d427507b65f63afa6c1f2f7e82de0afd2cb8d5c5941346e125e47747c93",
+      "anchor": "2020-12-31",
+      "cols": [
+        "ts_code",
+        "trade_date",
+        "adj_scale",
+        "open",
+        "high",
+        "low",
+        "close",
+        "vwap",
+        "vol",
+        "amount",
+        "pct_chg"
+      ]
+    },
+    "P": {
+      "path": "data/WORK-593/panel_P.parquet",
+      "rows": 6156584,
+      "sha256": "9faefa80af7ef54bcc1af0cd2f04812782fdee9974f29e77a6bcde23a978e826",
+      "anchor": "first available",
+      "cols": [
+        "ts_code",
+        "trade_date",
+        "adj_scale",
+        "open",
+        "high",
+        "low",
+        "close",
+        "vwap",
+        "vol",
+        "amount",
+        "pct_chg"
+      ]
+    }
+  }
+}

@@ -1,0 +1,155 @@
+{
+  "experiment": "WORK-593",
+  "prereg": "experiments/WORK-593/preregistration.md",
+  "C1": [
+    {
+      "representation": "E",
+      "rows_checked": 6156584,
+      "violations_v1_1": 0,
+      "violation_rate_v1_1": 0.0,
+      "violations_v1_0_strict_1e_9": 7094,
+      "violation_rate_v1_0_strict_1e_9": 0.0011522623584767136,
+      "tolerance": "v1.1: 1e-6 + 0.5/(amount*1000) + 0.5/(vol*100); v1.0: 1e-9*|bound|"
+    },
+    {
+      "representation": "C",
+      "rows_checked": 6156584,
+      "violations_v1_1": 0,
+      "violation_rate_v1_1": 0.0,
+      "violations_v1_0_strict_1e_9": 7094,
+      "violation_rate_v1_0_strict_1e_9": 0.0011522623584767136,
+      "tolerance": "v1.1: 1e-6 + 0.5/(amount*1000) + 0.5/(vol*100); v1.0: 1e-9*|bound|"
+    },
+    {
+      "representation": "P",
+      "rows_checked": 6156584,
+      "violations_v1_1": 0,
+      "violation_rate_v1_1": 0.0,
+      "violations_v1_0_strict_1e_9": 7094,
+      "violation_rate_v1_0_strict_1e_9": 0.0011522623584767136,
+      "tolerance": "v1.1: 1e-6 + 0.5/(amount*1000) + 0.5/(vol*100); v1.0: 1e-9*|bound|"
+    }
+  ],
+  "C2": [
+    {
+      "representation": "E",
+      "rows_checked": 6156584,
+      "violations_1e_12": 0,
+      "max_rel_diff": 4.0824953846760595e-16
+    },
+    {
+      "representation": "C",
+      "rows_checked": 6156584,
+      "violations_1e_12": 0,
+      "max_rel_diff": 4.0516835884510106e-16
+    },
+    {
+      "representation": "P",
+      "rows_checked": 6156584,
+      "violations_1e_12": 0,
+      "max_rel_diff": 3.9718931320244827e-16
+    }
+  ],
+  "C3": {
+    "check": "index self-membership",
+    "rows_scanned": 161600,
+    "hits": 0,
+    "hit_rows": [],
+    "verdict": "pass (0 hits)"
+  },
+  "C4": [
+    {
+      "representation": "E",
+      "ex_events_matched": 21109,
+      "pass_1e_3": 21106,
+      "pass_rate": 0.9998578805248945,
+      "median_abs_diff": 3.9571897220719125e-05,
+      "p99_abs_diff": 0.0005988538175147034,
+      "worst": [
+        {
+          "ts_code": "000587.SZ",
+          "trade_date": "2011-08-18",
+          "ret": 1.2905660377358492,
+          "pct_chg": -23.65,
+          "diff": 1.5270660377358491
+        },
+        {
+          "ts_code": "600728.SH",
+          "trade_date": "2010-06-09",
+          "ret": -0.11025639475603821,
+          "pct_chg": -26.92,
+          "diff": 0.15894360524396178
+        },
+        {
+          "ts_code": "601098.SH",
+          "trade_date": "2013-06-14",
+          "ret": 0.09917968848292746,
+          "pct_chg": 10.02,
+          "diff": 0.0010203115170725335
+        }
+      ]
+    },
+    {
+      "representation": "C",
+      "ex_events_matched": 21109,
+      "pass_1e_3": 21106,
+      "pass_rate": 0.9998578805248945,
+      "median_abs_diff": 3.9571897220719125e-05,
+      "p99_abs_diff": 0.0005988538175147788,
+      "worst": [
+        {
+          "ts_code": "000587.SZ",
+          "trade_date": "2011-08-18",
+          "ret": 1.2905660377358492,
+          "pct_chg": -23.65,
+          "diff": 1.5270660377358491
+        },
+        {
+          "ts_code": "600728.SH",
+          "trade_date": "2010-06-09",
+          "ret": -0.11025639475603821,
+          "pct_chg": -26.92,
+          "diff": 0.15894360524396178
+        },
+        {
+          "ts_code": "601098.SH",
+          "trade_date": "2013-06-14",
+          "ret": 0.09917968848292702,
+          "pct_chg": 10.02,
+          "diff": 0.0010203115170729776
+        }
+      ]
+    },
+    {
+      "representation": "P",
+      "ex_events_matched": 21109,
+      "pass_1e_3": 21106,
+      "pass_rate": 0.9998578805248945,
+      "median_abs_diff": 3.95718972206081e-05,
+      "p99_abs_diff": 0.0005988538175146856,
+      "worst": [
+        {
+          "ts_code": "000587.SZ",
+          "trade_date": "2011-08-18",
+          "ret": 1.2905660377358492,
+          "pct_chg": -23.65,
+          "diff": 1.5270660377358491
+        },
+        {
+          "ts_code": "600728.SH",
+          "trade_date": "2010-06-09",
+          "ret": -0.11025639475603832,
+          "pct_chg": -26.92,
+          "diff": 0.15894360524396167
+        },
+        {
+          "ts_code": "601098.SH",
+          "trade_date": "2013-06-14",
+          "ret": 0.09917968848292702,
+          "pct_chg": 10.02,
+          "diff": 0.0010203115170729776
+        }
+      ]
+    }
+  ]
+}

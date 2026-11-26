@@ -1,0 +1,68 @@
+{
+  "qlib_vwap_available": false,
+  "qlib_evidence": {
+    "bundle": "/home/moyongkai/.qlib/qlib_data",
+    "probe_dir": "/home/moyongkai/.qlib/qlib_data/features/sh600000",
+    "files": [
+      "change.day.bin",
+      "close.day.bin",
+      "factor.day.bin",
+      "high.day.bin",
+      "low.day.bin",
+      "open.day.bin",
+      "volume.day.bin"
+    ],
+    "has_vwap_day_bin": false,
+    "calendar_last": "2020-09-25",
+    "feature_count": 3875
+  },
+  "V1": [
+    {
+      "code": "sh600000",
+      "ok": true,
+      "overlap_days": 2561,
+      "overlap_start": "2010-01-04",
+      "overlap_end": "2020-09-25",
+      "close_return_max_abs_diff": 0.032745446194019534,
+      "close_return_share_le_1e_4": 0.993359375,
+      "volume_ratio_median": 1.0148461261395947,
+      "volume_ratio_cv": 0.04823299317894587,
+      "note": "qlib close = 调整价（锚定在 qlib 最后一日），故比收益不比水平；qlib volume = 原始股数，故比水平"
+    },
+    {
+      "code": "sh600519",
+      "ok": true,
+      "overlap_days": 2555,
+      "overlap_start": "2010-01-04",
+      "overlap_end": "2020-09-25",
+      "close_return_max_abs_diff": 0.00708145409482408,
+      "close_return_share_le_1e_4": 0.9921691464369616,
+      "volume_ratio_median": 4.019881356433301,
+      "volume_ratio_cv": 0.00651117474242346,
+      "note": "qlib close = 调整价（锚定在 qlib 最后一日），故比收益不比水平；qlib volume = 原始股数，故比水平"
+    },
+    {
+      "code": "sz000001",
+      "ok": true,
+      "overlap_days": 2491,
+      "overlap_start": "2010-01-04",
+      "overlap_end": "2020-09-25",
+      "close_return_max_abs_diff": 0.017313785441775753,
+      "close_return_share_le_1e_4": 0.951004016064257,
+      "volume_ratio_median": 3.689230501227037,
+      "volume_ratio_cv": 0.011815463154682616,
+      "note": "qlib close = 调整价（锚定在 qlib 最后一日），故比收益不比水平；qlib volume = 原始股数，故比水平"
+    }
+  ],
+  "V2": {
+    "rows": 6156584,
+    "inside_v1_1": 6156584,
+    "rate_v1_1": 1.0,
+    "inside_v1_0_strict_1e_9": 6149490,
+    "rate_v1_0_strict_1e_9": 0.9988477376415232
+  },
+  "V3": {
+    "rows": 6156584,
+    "max_abs_diff": 4.547473508864641e-13
+  }
+}

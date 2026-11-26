@@ -111,3 +111,30 @@ turnover_proxy(元) ÷ 真实成交额(元) = 3.3 ~ 3.6   ← 系统性偏高，
 | 异常值 | 点位跳变 > 30%/日 需人工确认是真实事件还是取数错误 |
 | 单位 | `volume` 为股、S-C `vol` 为手，跨源比较前必须换算（§1） |
 | 快照漂移 | 重算 sha256 与 manifest 逐个比对（`audit/audit_recompute.py` 第 3 节） |
+
+---
+
+## 8. 个股复权锚定与自建 vwap（WORK-593 新增，2026-11-26）
+
+> 只**新增**定义，不改 §1–§7 既有规则。落点：`experiments/WORK-593/preregistration.md` §1、
+> `scripts/work593_fetch.py`、`scripts/work593_represent.py`。
+
+| 字段 | 含义 | 单位 | 频率 | 缺失规则 | 复权 / 生效时间 |
+|---|---|---|---|---|---|
+| `vwap_raw` | **本仓库计算列**，非源字段：`amount × 10 / vol` | 元/股 | 日 | `vol = 0`（停牌）时置 NaN，**不前向填充** | 用当日原始 `amount`（千元）与 `vol`（手），不含任何复权因子 |
+| `adj_scale`（又称 `f_i^(A)`） | 该股在表示 A 下的锚定复权因子 | 无量纲 | 每表示每股一个标量 | 该股在锚点日无因子时按预注册 §1.2 回退并在锚点表标 `fallback_first_C` | A ∈ {`E` 端锚定 / `C` 截止锚定 / `P` 既往锚定} |
+| `panel_{E,C,P}` 的 `open/high/low/close/vwap` | 调整后价 | 元/股 | 日 | 与基础面板同缺失面 | `x × f_t / f_i^(A)`（乘） |
+| `panel_{E,C,P}` 的 `vol` | 调整后成交量 | 手 | 日 | 同上 | `vol × f_i^(A) / f_t`（**除**，与价格方向相反） |
+
+**不变式（可执行校验，见 `experiments/WORK-593/field_contract.json`）**
+
+1. `vwap × vol` 在任意表示下等于 `vwap_raw × vol`（成交额不随锚定改变），
+   逐行相对差须 ≤ 1e-12（实测 max 4.1e-16，违规 0）。
+2. 调整后 `vwap ∈ [low, high]`，容差按**字段分辨率**推导：
+   `1e-6 + 0.5/(amount×1000) + 0.5/(vol×100)`。1e-9 这类硬容差不可用——`amount` 存千元、
+   `vol` 存手，除法结果本身的相对误差下界就高于 1e-9（WORK-593 §背离 D1）。
+3. 除权日的调整后收益必须与 `daily.pct_chg` 一致（|差| ≤ 1e-3），用它绕过我们自己的复权代码
+   做一次事件级对照。
+
+**已知限制**：Qlib 公共 bundle 没有 `$vwap` 字段（只有 change/close/factor/high/low/open/volume），
+「与 Qlib 同日 vwap 逐值比对」在本机不可做；本仓库 vwap 只能做纪律 1–3 的自洽校验。
