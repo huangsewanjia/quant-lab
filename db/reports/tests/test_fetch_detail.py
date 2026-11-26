@@ -563,8 +563,9 @@ def test_probe_cap_cannot_exceed_hard_limit(tmp_path, monkeypatch):
     clock = _FakeClock()
     codes = ["AP1"]
     _install_probe_env(monkeypatch, tmp_path, clock, _ok_responder, codes)
-    payload = fd.cmd_probe(_probe_args(codes, run_cap=999999), _paths(tmp_path))
+    payload = fd.cmd_probe(_probe_args(codes, run_cap=999999, daily_cap=999999), _paths(tmp_path))
     assert payload["protocol"]["run_cap"] == fd.RUN_CAP
+    assert payload["protocol"]["daily_cap"] == fd.DAILY_CAP
 
 
 def test_probe_rechecks_window_inside_the_loop(tmp_path, monkeypatch):

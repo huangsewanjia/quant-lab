@@ -503,3 +503,21 @@ def test_text_list_accepts_a_real_two_year_enumeration():
     text = "预计2024、2025年EPS分别为1.20、1.50元。"
     values = {v.fiscal_year: v.eps for v in extract_eps(text, {2024, 2025, 2026})}
     assert values == {2024: 1.20, 2025: 1.50}
+
+
+def test_year_range_accepts_full_width_and_mathematical_dashes():
+    # review round 3 B-1: the range rule and the list rule must accept the
+    # same dash variants, otherwise "2024－2025年" silently extracts nothing.
+    for dash in ("－", "−", "〜"):
+        text = f"预计2024{dash}2025年EPS分别为1.20、1.50元。"
+        values = {v.fiscal_year: v.eps for v in extract_eps(text, {2024, 2025, 2026})}
+        assert values == {2024: 1.20, 2025: 1.50}, dash
+
+
+def test_year_binding_never_tail_binds_a_longer_enumeration():
+    # review round 3 suggestion (S-1): three years followed by two values used
+    # to emit 2025=1.20 / 2026=1.50 (whole column shifted).  It is ambiguous,
+    # so nothing may be emitted.
+    assert extract_eps("预计2024、2025、2026年EPS分别为1.20、1.50元。", {2024, 2025, 2026}) == []
+    # the opposite direction: a history year must not supply the missing year
+    assert extract_eps("2021、2022、2023年公司营收持续增长。预计2024年EPS分别为1.20、1.50元。", {2024, 2025, 2026}) == []

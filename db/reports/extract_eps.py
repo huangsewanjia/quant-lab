@@ -311,8 +311,19 @@ def extract_from_table(text: str, years: set[int]) -> list[EpsValue]:
 
 _NUM = r"-?\d+(?:\.\d+)?"
 _TAIL = r"(?:\s*[（(][^）)]{0,20}[）)])?"  # "11.2(-4.2)" / "11.2（-4.2）" — revision note
+# Values are enumerated by punctuation/and only: a dash between two numbers
+# means a range ("1.20-1.50元"), not two forecasts.
 _SEP = r"(?:\s*元)?\s*[、,，/\\／和及与]\s*"
 _VALUES = rf"{_NUM}{_TAIL}(?:{_SEP}{_NUM}{_TAIL}){{1,5}}"
+
+# Year connectors.  A range may be written with any dash variant seen in
+# sell-side prose (hyphen, full-width minus, mathematical minus, tilde,
+# wave dash, em/en dash, "至"); a bare enumeration uses punctuation/and.
+# Both matchers share the same characters so a range written with "－" cannot
+# fall through the range rule and then fail the list rule (WORK-598 B-1).
+YEAR_DASH = r"[-－−~～〜—–至]"
+YEAR_ENUM_SEP = r"[、,，/\\／和及与]"
+_YEAR_GAP = rf"\s*年?\s*(?:{YEAR_DASH}|{YEAR_ENUM_SEP})\s*年?\s*"
 
 # "EPS分别为69.57、81.81和96.47元" — the year anchor is looked up separately
 # in the same sentence, because sell-side prose often puts it several clauses
@@ -322,8 +333,8 @@ EPS_VALUES_RE = re.compile(
     r"\s*(?:元(?:/股)?|(?=[。，,；;]))",
     re.IGNORECASE,
 )
-YEAR_RANGE_RE = re.compile(r"(20\d{2})\s*年?\s*[-~～至—–]\s*(20\d{2})")
-SHORT_YEAR_RANGE_RE = re.compile(r"(?<!\d)(\d{2})\s*[-~～至—–]\s*(\d{2})\s*年?")
+YEAR_RANGE_RE = re.compile(rf"(20\d{{2}})\s*年?\s*{YEAR_DASH}\s*(20\d{{2}})")
+SHORT_YEAR_RANGE_RE = re.compile(rf"(?<!\d)(\d{{2}})\s*{YEAR_DASH}\s*(\d{{2}})\s*年?")
 FULL_YEAR_LIST_RE = re.compile(r"(20\d{2})\s*/\s*(20\d{2})\s*/\s*(20\d{2})\s*年")
 SHORT_YEAR_LIST_RE = re.compile(r"(?<!\d)(\d{2})\s*/\s*(\d{2})\s*/\s*(\d{2})\s*年")
 SINGLE_RE = re.compile(
@@ -385,22 +396,27 @@ def _bind_years(sentence: str, value_start: int, n_values: int) -> tuple[list[in
         if len(years) == n_values:
             return years, "text_range"
     # Bare year tokens ("2024、2025和2026年") only count when they form one
-    # enumeration: consecutive values AND nothing but a year connector between
-    # them.  A history year from an earlier clause must never shift the column.
+    # enumeration: consecutive values, nothing but a year connector between
+    # them, and exactly as many years as values.  A history year from an
+    # earlier clause must never shift the column, and a longer enumeration
+    # ("2024、2025、2026年" before two values) must not be tail-bound either:
+    # that silently moves every value one year forward.
     tokens = [
         (match.start(), match.end(), int(match.group(0)))
         for match in YEAR_TOKEN_RE.finditer(sentence[:value_start])
     ]
-    tail = tokens[-n_values:]
-    if len(tail) == n_values:
-        years = [token[2] for token in tail]
-        if years == list(range(years[0], years[0] + n_values)):
-            gaps_ok = all(
-                re.fullmatch(r"\s*年?\s*[、,，/\\／和及与]\s*年?\s*", sentence[a[1] : b[0]])
-                for a, b in zip(tail, tail[1:])
-            )
-            if gaps_ok:
-                return years, "text_list"
+    run_years: list[int] = []
+    run_start = value_start
+    for start, end, year in reversed(tokens):
+        if run_years and (
+            year + 1 != run_years[0]
+            or not re.fullmatch(_YEAR_GAP, sentence[end:run_start])
+        ):
+            break
+        run_years.insert(0, year)
+        run_start = start
+    if len(run_years) == n_values:
+        return run_years, "text_list"
     return None
 
 
