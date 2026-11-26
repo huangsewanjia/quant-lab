@@ -57,3 +57,7 @@ experiments/WORK-449/void_run_*/
 !experiments/WORK-593/report_print.pdf
 !/figures/WORK-593/
 !/figures/WORK-593/*.png
+!experiments/WORK-593/metrics_factors.csv
+!experiments/WORK-593/audit_factor_compare.csv
+!experiments/WORK-593/audit_ci_compare.csv
+!experiments/WORK-593/paper_comparison.csv

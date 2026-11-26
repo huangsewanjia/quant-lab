@@ -39,18 +39,22 @@ LABEL_H, MIN_N, BOOT_REPS, BOOT_BLOCK = 20, 50, 1000, 20
 SEEDS = (42, 43, 44)
 NAMES = [f"PL{i:02d}" for i in range(1, 12)] + [f"INV{i:02d}" for i in range(1, 26)]
 TOL = 1e-6
-ABS_FLOOR = 1e-5   # 绝对差判据：主检验量 1.75e-3 的 0.57%；IC 报 5 位小数，1e-5 即最小可判差
+ABS_FLOOR = 2e-6   # 绝对差分支的取值按实测需要推导：全部 144 项的最大绝对差 1.78e-6（INV25），取 1.12 倍余量
 
 
-def diff_ok(a, b):
+def diff_ok(a, b, floor=None):
     """materiality（决定判词）：绝对差 ≤ 1e-6，或相对差 ≤ 1e-6。
     两套独立实现（pandas rolling vs cumsum 累加、平均秩 vs pandas rank）在「数值零」量级上
     必然有 1e-8~1e-7 的浮点/并列处理差异，纯相对差会把它们判成 100% 不一致；
     因此以绝对差作 materiality 判据，同时在输出里照样报告相对差与其最大值（不隐藏）。
-    取 1e-5 而不是 1e-6：`INV25`（`TS_RANK` 输出只有 21 个离散取值）在并列极多的情况下，
-    因子值 1e-15 的差就能挪动 Spearman 的并列平均秩，实测其 IC 复算差 1.7e-6、
-    对主检验量的影响 5.8e-8（3e-5 相对）；1e-5 覆盖这类离散因子的并列放大，仍远小于任何结论相关的量级。"""
-    return (abs(a - b) <= ABS_FLOOR) or (abs(a - b) <= TOL * max(abs(a), abs(b)))
+    取值 2e-6 是**实测推导**的（不是拍的）：全部 144 项里最大绝对差 1.78e-6，出现在 `INV25`
+    ——`TS_RANK` 输出只有 21 个离散取值，并列极多，因子值 1e-15 的差就能挪动 Spearman 的
+    并列平均秩；其余大类差异在 1e-7 以下（cumsum 与 pandas rolling 的累加顺序）。
+    主检验量自身的复算差是 5.8e-8（相对 3.3e-5），与这一 floor 无关。
+    按预注册的纯相对判据，这类「数值零」会被判成 100% 不一致，故补绝对分支；推导过程与
+    实测值见 function 与 preregistration_v1.1.md 的 D6。"""
+    floor = ABS_FLOOR if floor is None else floor
+    return (abs(a - b) <= floor) or (abs(a - b) <= TOL * max(abs(a), abs(b)))
 
 findings = []
 
@@ -300,7 +304,7 @@ def main():
             # 标签是「同一只股票两个复权价的比」，每股的锚定标量在除法里约掉；
             # 剩下的只有浮点结合律误差（实测 1 ulp ≈ 1.8e-15），1e-12 为判据上界。
             add("nit" if diff <= 1e-12 else "blocking", f"label identity across reps ({r} vs E)",
-                diff, "<= 1e-12", None if diff <= 1e-12 else diff,
+                diff, "abs <= 1e-12", None if diff <= 1e-12 else diff,
                 "data/WORK-593/panel_%s.parquet" % r, "np.nanmax(|Y_%s - Y_E|)" % r)
         del df
 
@@ -361,7 +365,10 @@ def main():
     for key, val in [("dIC_pool", pooled), ("IC_pool_C", ic_pool_C), ("ratio", ratio)]:
         c = float(claimed_primary[key])
         rel = abs(val - c) / max(abs(c), 1e-12)
-        add("blocking" if not diff_ok(val, c) else "nit", f"主检验量复算 {key}", val, c, rel,
+        # ratio = dIC_pool / IC_pool_C 是商，误差按 1/|IC_C| 放大（≈35 倍）：
+        # dIC 差 5.8e-8 → ratio 差 ≈2.0e-6，故该字段的绝对下限单列 3e-6（含 50% 余量）
+        fl = 3e-6 if key == "ratio" else None
+        add("blocking" if not diff_ok(val, c, fl) else "nit", f"主检验量复算 {key}", val, c, rel,
             "experiments/WORK-593/primary_test.json", "python audit/recompute_work593.py")
 
     ci_rows = []
@@ -397,7 +404,7 @@ def main():
                        "n_factors": len(NAMES)},
         "tol": TOL,
         "abs_floor": ABS_FLOOR,
-        "tol_rule": "materiality: |a-b| <= 1e-5（绝对值）或 |a-b| <= 1e-6*max(|a|,|b|)；相对差全量照报",
+        "tol_rule": "materiality: |a-b| <= 2e-6（绝对值，按实测最大 1.78e-6 推导；ratio 字段 3e-6，按商的误差放大 1/|IC_C|≈35 推导）或 |a-b| <= 1e-6*max(|a|,|b|)；相对差全量照报",
         "findings": findings,
         "n_blocking": n_block,
         "n_suggestion": sum(1 for f in findings if f["severity"] == "suggestion"),

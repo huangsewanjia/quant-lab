@@ -22,14 +22,14 @@
     "n_factors": 36
   },
   "tol": 1e-06,
-  "abs_floor": 1e-05,
-  "tol_rule": "materiality: |a-b| <= 1e-5（绝对值）或 |a-b| <= 1e-6*max(|a|,|b|)；相对差全量照报",
+  "abs_floor": 2e-06,
+  "tol_rule": "materiality: |a-b| <= 2e-6（绝对值，按实测最大 1.78e-6 推导；ratio 字段 3e-6，按商的误差放大 1/|IC_C|≈35 推导）或 |a-b| <= 1e-6*max(|a|,|b|)；相对差全量照报",
   "findings": [
     {
       "severity": "nit",
       "item": "label identity across reps (C vs E)",
       "measured": 1.7763568394002505e-15,
-      "expected": "<= 1e-12",
+      "expected": "abs <= 1e-12",
       "gap": null,
       "location": "data/WORK-593/panel_C.parquet",
       "how_to_verify": "np.nanmax(|Y_C - Y_E|)"
@@ -38,7 +38,7 @@
       "severity": "nit",
       "item": "label identity across reps (P vs E)",
       "measured": 1.7763568394002505e-15,
-      "expected": "<= 1e-12",
+      "expected": "abs <= 1e-12",
       "gap": null,
       "location": "data/WORK-593/panel_P.parquet",
       "how_to_verify": "np.nanmax(|Y_P - Y_E|)"

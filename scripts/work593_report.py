@@ -351,6 +351,8 @@ def build():
     ]
     paper_tbl = "<table><thead><tr><th>项目</th><th>论文</th><th>本单</th><th>口径差异</th></tr></thead><tbody>" + \
         "".join("<tr>" + "".join(f"<td>{c}</td>" for c in r) + "</tr>" for r in paper_rows) + "</tbody></table>"
+    pd.DataFrame(paper_rows, columns=["item", "paper", "work593", "caliber_difference"]).to_csv(
+        os.path.join(OUT, "paper_comparison.csv"), index=False)
 
     # vwap 表
     v1_rows = "".join(
@@ -465,8 +467,10 @@ $vwap 逐值比对」<b>本机不可做</b>：Qlib 公共 bundle <code>~/.qlib/q
 <tr><td>B 组 价量比值型</td><td class="num">{f6(primary["subgroup"]["INV"]["dIC"])}</td><td class="num">{primary["subgroup"]["INV"]["IC_C"]:.5f}</td><td class="num">{pct(primary["subgroup"]["INV"]["ratio"],2)}</td><td class="num">25</td></tr>
 </tbody></table>
 <figure><img src="{png64(fp3)}" alt="dIC per factor">
-<figcaption>图 3 · 36 条表达式的因子级漂移。<b>a</b> ΔIC 按组排序：价格水平型（蓝）整体为正、比值型（青）集中在 0 附近，
-与论文「十个裸字段之外均值接近零」一致（§VII-A）。数据：<code>metrics_factors.csv</code>。</figcaption></figure>
+<figcaption>图 3 · 36 条表达式的因子级漂移。<b>a</b> ΔIC 按组排序：价格水平型（蓝）<b>整体为负</b>——11 条全为负、
+A 组均值 {primary["subgroup"]["PL"]["dIC"]:+.4f}；比值型（青）集中在 0 附近（B 组均值 {primary["subgroup"]["INV"]["dIC"]:+.1e}）。
+同一份锚定漂移在两组上符号不同：A 组显著为负，B 组数值上不变——后者与论文「十个裸字段之外均值接近零」（§VII-A）
+一致，前者则是本单与论文方向相反的来源。数据：<code>metrics_factors.csv</code>。</figcaption></figure>
 <figure><img src="{png64(fp4)}" alt="bootstrap">
 <figcaption>图 4 · 三种子 bootstrap。<b>b</b> 池级 ΔIC 的 1000 次循环块重采样分布（块长 20，对应 20 日重叠标签），
 阴影为 95% 分位区间，红色虚线为 0。</figcaption></figure>
@@ -518,7 +522,11 @@ Qlib 成分文件不在本机 → 1,730 vs {man["universe"]["union_stocks"]:,} �
 <li><b>口径差异</b>：本单以<b>因子级均值</b>为主检验量（派单卡第 4 条），论文的 0.0062 是<b>组合器池级</b>数字；
 两者不可直接相减，故同时报告组合器口径（§9）。</li>
 <li><b>不做</b>：checker 复刻、认证池、AlphaGen/AlphaSAGE/GP 重跑、Table S2 单元用例、任何评级/目标价/交易建议。</li>
-<li><b>数据层限制</b>：成分表为逐月快照（非逐日生效），停牌日按前向填充保留行（字段字典 §5）；退市股保留至最后交易日，不回溯剔除。</li>
+<li><b>数据层限制（含一项未落实的协议要求）</b>：成分表为逐月快照（非逐日生效）；退市股保留至最后交易日，不回溯剔除。
+<b>停牌/缺行<u>没有</u>做前向填充</b>——预注册 §4 与 <code>field_dictionary.md</code> §5 要求「保留行 + 价格前向填充 + 成交量置 0」，
+流水线实际是「缺行即缺行，因子计算按 NaN 剔除、滚动窗口的 min_periods 自动缩短」。实测成员股票-日
+3,260,000 格中有 <b>79,315（2.43%）</b>无行，涉及 1,316 只股票、中位缺口中 26 个成员日；`vol == 0` 的行为 0 行。
+这是**已登记的协议偏离（D7）**，不是「已前向填充」。</li>
 </ul>
 
 <h2>11 复现命令</h2>
