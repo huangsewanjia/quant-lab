@@ -11,7 +11,7 @@
 - `db/schema_report_fulltext.sql`：`report_fulltext` 增加 `site_url`（官方回查链接）与 `pdf_url`，并对已建旧表 `ALTER TABLE … ADD COLUMN IF NOT EXISTS` 补列。
 - `db/etl/report_fulltext.py`：删除 `adopt`（手工收编作废）；入库校验增加 `site_url` 缺失按 id 补齐、失败台账带 `code/msg`。
 - `db/checks/report_fulltext.py`：C4 要求 `report_id/url/http_status/code/msg/reason` 六字段。
-- 测试：`test_work623_api.py`（18 条，FakeProbe 覆盖业务错误 300011/300012、额度无地址、非 PDF、跳过已存在、分页上限）+ `test_report_fulltext.py`（17 条）；全套 197 passed。
+- 测试：`test_work623_api.py`（22 条，FakeProbe 覆盖业务错误 300011/300012/300021、额度无地址、非 PDF、跳过已存在、分页越界、token 权限）+ `test_report_fulltext.py`（18 条）；全套 202 passed。
 
 口径要点：
 

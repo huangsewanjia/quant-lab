@@ -117,7 +117,12 @@ def load_token(path: Path = TOKEN_PATH) -> tuple[str, str]:
         raise AuthError(f"token 文件应为单行且不含空白: {path}")
     mode = path.stat().st_mode & 0o777
     if mode & 0o077:
-        print(f"[warn] token 文件权限 {oct(mode)}，应为 600: {path}", file=sys.stderr)
+        raise AuthError(f"token 文件权限 {oct(mode)}，必须为 600（组/其他不可读）: {path}")
+    parent = path.parent
+    if parent.exists():
+        dir_mode = parent.stat().st_mode & 0o777
+        if dir_mode & 0o077:
+            raise AuthError(f"token 目录权限 {oct(dir_mode)}，必须为 700: {parent}")
     return token, hashlib.sha256(token.encode("utf-8")).hexdigest()[:8]
 
 
@@ -137,6 +142,8 @@ def api_call(probe, token: str, method: str, path: str, body: dict | None = None
         except json.JSONDecodeError as exc:
             parse_error = f"{type(exc).__name__}: {exc}"
     code = parsed.get("code") if isinstance(parsed, dict) else None
+    if isinstance(code, str) and code.strip().lstrip("-").isdigit():
+        code = int(code.strip())
     msg = (parsed.get("msg") or parsed.get("message")) if isinstance(parsed, dict) else None
     # 契约口径：成败只看 code。缺 code 视为未知报文 → 判失败（宁可报错也不把失败当成功）。
     ok = resp["status"] == 200 and not parse_error and code in SUCCESS_CODES
@@ -144,6 +151,18 @@ def api_call(probe, token: str, method: str, path: str, body: dict | None = None
             "data": parsed.get("data") if isinstance(parsed, dict) else None,
             "raw": parsed, "body": resp.get("body", ""), "error": resp.get("error", ""),
             "parse_error": parse_error, "bytes": resp.get("bytes", 0), "url": url}
+
+
+def parse_error_body(raw: bytes) -> tuple:
+    """从 PDF 端点的错误回包里取 (code, msg)；非 JSON 时 msg=body 前 200 字。"""
+    text = raw.decode("utf-8", errors="replace")
+    try:
+        body = json.loads(text)
+    except json.JSONDecodeError:
+        return None, text[:200]
+    if isinstance(body, dict):
+        return body.get("code"), (body.get("msg") or body.get("message") or text[:200])
+    return None, text[:200]
 
 
 def api_error_text(result: dict) -> str:
@@ -327,6 +346,9 @@ def cmd_search(args) -> int:
     except AuthError as exc:
         print(f"[search] {exc}", file=sys.stderr)
         return 3
+    if not 1 <= args.pages <= MAX_PAGES:
+        print(f"[search] --pages 必须在 1–{MAX_PAGES}（收到 {args.pages}）", file=sys.stderr)
+        return 2
     orgs = [x.strip() for x in (args.org or "").split(",") if x.strip()]
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -334,7 +356,7 @@ def cmd_search(args) -> int:
     raw_dir.mkdir(parents=True, exist_ok=True)
     rows: dict[str, dict] = {}
     failures = 0
-    for page in range(1, min(args.pages, MAX_PAGES) + 1):
+    for page in range(1, args.pages + 1):
         result = search_page(probe, token, args.keywords, orgs, args.time or "", args.end_time or "", page)
         (raw_dir / f"page{page}.json").write_text(
             json.dumps({"checked_at": now_iso(), "http_status": result["http_status"],
@@ -356,7 +378,7 @@ def cmd_search(args) -> int:
         for row in rows.values():
             fh.write(json.dumps(row, ensure_ascii=False) + "\n")
     meta = {"checked_at": now_iso(), "keywords": args.keywords, "orgs": orgs,
-            "time": args.time, "pages_requested": min(args.pages, MAX_PAGES),
+            "time": args.time, "pages_requested": args.pages,
             "token_sha256_8": fingerprint, "rows": len(rows), "failures": failures,
             "out": str(out), "raw_dir": str(raw_dir)}
     (out.parent / "search_meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1),
@@ -435,20 +457,39 @@ def cmd_fetch(args) -> int:
             time.sleep(args.gap)
             continue
         pdf_url = urls[0]["url"]
-        resp = fetch_pdf_bytes(probe, token, pdf_url)
-        raw = resp.get("raw") or b""
-        if resp["status"] != 200 or not raw.startswith(b"%PDF-"):
-            stats["failed"] += 1
-            failure(root, rid, url, resp["status"],
-                    f"PDF 拉取失败（字段 {urls[0]['field']}，{len(raw)} 字节，文件头 {raw[:5]!r}）",
-                    resolved["code"], resolved["msg"], pdf_url)
-            print(f"[fetch] {rid} PDF 拉取失败 http={resp['status']} bytes={len(raw)}", file=sys.stderr)
-            time.sleep(args.gap)
-            continue
         title = (item.get("title") or "").strip() or f"report-{rid}"
         page_date = norm_date(item.get("page_date")) or dt.date.today().isoformat()
         dest = dest_path(root, page_date, rid, title)
         dest.parent.mkdir(parents=True, exist_ok=True)
+        # 额度证据：download 一成功就落原始回包（额度耗尽的失败场景也必须留下它）
+        download_note = dest.with_suffix(".download.json")
+        note_payload = {
+            "report_id": rid, "site_url": url, "pdf_url": pdf_url,
+            "http_status": resolved["http_status"], "code": resolved["code"],
+            "msg": resolved["msg"], "urls": urls, "raw": resolved["raw"],
+            "fetched_at": now_iso(),
+        }
+        download_note.write_text(json.dumps(note_payload, ensure_ascii=False, indent=1),
+                                 encoding="utf-8")
+        resp = fetch_pdf_bytes(probe, token, pdf_url)
+        raw = resp.get("raw") or b""
+        if resp["status"] != 200 or not raw.startswith(b"%PDF-"):
+            pdf_code, pdf_msg = parse_error_body(raw)
+            if pdf_code is None:
+                pdf_code = resolved["code"]
+            note_payload["pdf_error"] = {"http_status": resp["status"], "code": pdf_code,
+                                         "msg": pdf_msg, "bytes": len(raw),
+                                         "head": raw[:60].decode("utf-8", errors="replace")}
+            download_note.write_text(json.dumps(note_payload, ensure_ascii=False, indent=1),
+                                     encoding="utf-8")
+            stats["failed"] += 1
+            failure(root, rid, url, resp["status"],
+                    f"PDF 拉取失败（字段 {urls[0]['field']}，{len(raw)} 字节）: {str(pdf_msg)[:200]}",
+                    pdf_code, str(pdf_msg), pdf_url)
+            print(f"[fetch] {rid} PDF 拉取失败 http={resp['status']} code={pdf_code} "
+                  f"msg={str(pdf_msg)[:80]!r}", file=sys.stderr)
+            time.sleep(args.gap)
+            continue
         tmp = dest.with_suffix(".pdf.part")
         tmp.write_bytes(raw)
         try:
@@ -468,12 +509,6 @@ def cmd_fetch(args) -> int:
                 old.unlink(missing_ok=True)
                 old.with_suffix(".meta.json").unlink(missing_ok=True)
                 old.with_suffix(".download.json").unlink(missing_ok=True)
-        download_note = dest.with_suffix(".download.json")
-        download_note.write_text(json.dumps(
-            {"report_id": rid, "site_url": url, "pdf_url": pdf_url,
-             "http_status": resolved["http_status"], "code": resolved["code"],
-             "msg": resolved["msg"], "urls": urls, "raw": resolved["raw"],
-             "fetched_at": now_iso()}, ensure_ascii=False, indent=1), encoding="utf-8")
         meta = {
             "channel_id": "fxbaogao_vip",
             "report_id": int(rid),

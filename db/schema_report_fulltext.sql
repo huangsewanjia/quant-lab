@@ -2,7 +2,7 @@
 --
 -- 来源：/srv/share/quantdb/raw/reports_fulltext/fxbaogao/<YYYY-MM-DD>/<report_id>-<slug>.pdf
 --       + 同名 meta.json（由 scripts/fxbaogao_fulltext.py 采集/登记）
--- 采集在 DESKTOP-TS1FCDR（登录态所在机器），入库在本机 Mo-server 的 ETL 进程；
+-- 采集与入库都在 Mo-server：采集走官方 API（scripts/fxbaogao_fulltext.py），入库走 ETL 进程；
 -- 本文件只建正文层对象，不触碰既有 20 张 A 股表、report_meta 与行业层。
 --
 -- 约定（与 db/schema.sql / db/schema_industry.sql 一致）：

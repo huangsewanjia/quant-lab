@@ -31,8 +31,10 @@ from . import common
 SCHEMA_SQL = common.PROJECT_ROOT / "db" / "schema_report_fulltext.sql"
 SOURCE = "fxbaogao"
 SITE_VIEW = "https://www.fxbaogao.com/view?id={report_id}"
+# org 允许缺失：站点独家/媒体报告可能没有机构，缺了就写空串（关联视图会跳过空机构），
+# 不能让「PDF 已下载（额度已花）但入库被判缺字段」形成死循环。
 REQUIRED_META = (
-    "report_id", "title", "org", "page_date", "source_url",
+    "report_id", "title", "page_date", "source_url",
     "bytes", "pages", "sha256", "fetched_at", "fetch_mode",
 )
 DATE_DIR = re.compile(r"^\d{4}-\d{2}-\d{2}$")

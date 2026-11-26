@@ -138,6 +138,24 @@ def test_extract_pdf_urls_relative_and_dedupe():
     assert len(urls) == 3
 
 
+def test_api_call_accepts_string_code(tmp_path, token_file, monkeypatch):
+    ok = {"status": 200, "body": json.dumps({"code": "200", "msg": "ok", "data": {}}),
+          "bytes": 40, "headers": {}, "error": "", "raw": b""}
+    probe = FakeProbe([("/mofoun/agent/search", ok)])
+    monkeypatch.setattr(fx, "prepare_probe", lambda root, max_requests: probe)
+    assert fx.main(["check-auth", "--root", str(tmp_path / "r"), "--token-file", str(token_file)]) == 0
+
+
+def test_search_pages_out_of_range_rejected(tmp_path, token_file, monkeypatch):
+    probe = FakeProbe([("/mofoun/agent/search", SEARCH_OK)])
+    monkeypatch.setattr(fx, "prepare_probe", lambda root, max_requests: probe)
+    for pages in ("0", "11"):
+        assert fx.main(["search", "--root", str(tmp_path / "r"), "--token-file", str(token_file),
+                        "--keywords", "储能", "--pages", pages,
+                        "--out", str(tmp_path / f"c{pages}.jsonl"), "--gap", "0"]) == 2
+    assert probe.calls == []
+
+
 def test_api_call_requires_code_field(tmp_path, token_file, monkeypatch):
     no_code = {"status": 200, "body": json.dumps({"msg": "ok", "data": {"dataList": []}}),
                "bytes": 40, "headers": {}, "error": "", "raw": b""}
@@ -162,6 +180,19 @@ def test_load_token_errors(tmp_path):
     multi.write_text("sk-a\nsk-b", encoding="utf-8")
     with pytest.raises(fx.AuthError):
         fx.load_token(multi)
+
+
+def test_token_file_permissions_must_be_600(tmp_path, monkeypatch):
+    probe = FakeProbe([])
+    monkeypatch.setattr(fx, "prepare_probe", lambda root, max_requests: probe)
+    token = tmp_path / "loose_key"
+    token.write_text("sk-test\n", encoding="utf-8")
+    token.chmod(0o644)
+    code = fx.main(["check-auth", "--root", str(tmp_path / "r"),
+                    "--token-file", str(token)])
+    assert code == 3 and probe.calls == []
+    record = json.loads((tmp_path / "r" / "check_auth.json").read_text(encoding="utf-8"))
+    assert "权限" in record["error"]
 
 
 def test_check_auth_missing_token_exits_3(tmp_path, monkeypatch):
@@ -303,7 +334,7 @@ def test_fetch_no_pdf_url_is_flagged_as_quota_suspect(tmp_path, token_file, monk
     assert "没有 PDF 地址" in rec["reason"]
 
 
-def test_fetch_non_pdf_response_rejected(tmp_path, token_file, monkeypatch):
+def test_fetch_non_pdf_response_keeps_body_head(tmp_path, token_file, monkeypatch):
     routes = [("/mofoun/agent/download", download_ok()),
               ("dr.fxbaogao.com", {"status": 200, "body": "", "bytes": 20, "headers": {},
                                    "error": "", "raw": b"<html>login</html>"})]
@@ -315,7 +346,31 @@ def test_fetch_non_pdf_response_rejected(tmp_path, token_file, monkeypatch):
                     "--input", str(cand), "--limit", "1", "--gap", "0"])
     assert code == 1
     rec = json.loads((tmp_path / "root" / "failed.jsonl").read_text(encoding="utf-8"))
-    assert "PDF 拉取失败" in rec["reason"] and "b'<html'" not in rec["reason"].replace("b'<html'", "")
+    assert "PDF 拉取失败" in rec["reason"] and "<html>login" in rec["reason"]
+
+
+def test_fetch_pdf_error_keeps_server_code_and_download_note(tmp_path, token_file, monkeypatch):
+    err = {"status": 200,
+           "body": json.dumps({"code": 300021, "msg": "下载额度不足，请充值后重试"}),
+           "bytes": 60, "headers": {}, "error": "", "raw": b""}
+    pdf_err = json.dumps({"code": 300021, "msg": "下载额度不足，请充值后重试"}).encode()
+    routes = [("/mofoun/agent/download", download_ok()),
+              ("dr.fxbaogao.com", {"status": 200, "body": "", "bytes": len(pdf_err),
+                                   "headers": {}, "error": "", "raw": pdf_err})]
+    probe = FakeProbe(routes)
+    monkeypatch.setattr(fx, "prepare_probe", lambda root, max_requests: probe)
+    cand = tmp_path / "cand.jsonl"
+    write_candidates(cand, [{"report_id": "5884540", "title": "t", "page_date": "2026-11-16"}])
+    code = fx.main(["fetch", "--root", str(tmp_path / "root"), "--token-file", str(token_file),
+                    "--input", str(cand), "--limit", "1", "--gap", "0"])
+    assert code == 1
+    rec = json.loads((tmp_path / "root" / "failed.jsonl").read_text(encoding="utf-8"))
+    assert rec["code"] == 300021 and "下载额度不足" in rec["msg"]
+    assert "下载额度不足" in rec["reason"]
+    notes = list((tmp_path / "root").glob("*/5884540-*.download.json"))
+    assert len(notes) == 1
+    note = json.loads(notes[0].read_text(encoding="utf-8"))
+    assert note["pdf_error"]["code"] == 300021 and "下载额度不足" in note["pdf_error"]["msg"]
 
 
 def test_fetch_rejects_non_numeric_report_id(tmp_path, token_file, monkeypatch):

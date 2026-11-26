@@ -157,6 +157,22 @@ def test_ingest_idempotent_change_log_and_site_url(qdb):
         con.close()
 
 
+def test_ingest_allows_missing_org(qdb):
+    ensure_meta_stub()
+    root = rf.root_dir()
+    pdf = make_pdf(root / "2026-11-16" / "1201-无机构.pdf", pages=1)
+    meta = write_meta(pdf, report_id=1201, page_date="2026-11-16", pages=1)
+    meta.pop("org")
+    pdf.with_suffix(".meta.json").write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+    stats = rf.ingest(root)
+    assert stats["inserted"] == 1 and stats["failed"] == 0
+    con = common.duckdb_connect(read_only=True)
+    try:
+        assert con.execute("select org_name from report_fulltext").fetchone()[0] == ""
+    finally:
+        con.close()
+
+
 def test_ingest_fills_site_url_when_meta_lacks_it(qdb):
     ensure_meta_stub()
     root = rf.root_dir()
