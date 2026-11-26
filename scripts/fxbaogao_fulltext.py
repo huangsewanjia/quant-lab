@@ -115,10 +115,12 @@ def load_token(path: Path = TOKEN_PATH) -> tuple[str, str]:
         raise AuthError(f"token 文件为空: {path}")
     if any(ch.isspace() for ch in token):
         raise AuthError(f"token 文件应为单行且不含空白: {path}")
-    mode = path.stat().st_mode & 0o777
+    # 权限按符号链接的真实目标判定（链接所在目录不受本文件控制，避免正常布局被误拒）
+    target = path.resolve()
+    mode = target.stat().st_mode & 0o777
     if mode & 0o077:
         raise AuthError(f"token 文件权限 {oct(mode)}，必须为 600（组/其他不可读）: {path}")
-    parent = path.parent
+    parent = target.parent
     if parent.exists():
         dir_mode = parent.stat().st_mode & 0o777
         if dir_mode & 0o077:
@@ -127,6 +129,17 @@ def load_token(path: Path = TOKEN_PATH) -> tuple[str, str]:
 
 
 # ---------------------------------------------------------------- API 调用
+def norm_code(value):
+    """把 code 归一成 int；bool 不当作 0/1（显式排除），无法识别返回 None。"""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.strip().lstrip("-").isdigit():
+        return int(value.strip())
+    return None
+
+
 def api_call(probe, token: str, method: str, path: str, body: dict | None = None,
              accept: str = "application/json", timeout: int = 60) -> dict:
     """发一次 API 请求并解析 envelope：{http_status, code, msg, data, raw, url}。"""
@@ -141,9 +154,7 @@ def api_call(probe, token: str, method: str, path: str, body: dict | None = None
             parsed = json.loads(resp["body"])
         except json.JSONDecodeError as exc:
             parse_error = f"{type(exc).__name__}: {exc}"
-    code = parsed.get("code") if isinstance(parsed, dict) else None
-    if isinstance(code, str) and code.strip().lstrip("-").isdigit():
-        code = int(code.strip())
+    code = norm_code(parsed.get("code")) if isinstance(parsed, dict) else None
     msg = (parsed.get("msg") or parsed.get("message")) if isinstance(parsed, dict) else None
     # 契约口径：成败只看 code。缺 code 视为未知报文 → 判失败（宁可报错也不把失败当成功）。
     ok = resp["status"] == 200 and not parse_error and code in SUCCESS_CODES
@@ -161,7 +172,7 @@ def parse_error_body(raw: bytes) -> tuple:
     except json.JSONDecodeError:
         return None, text[:200]
     if isinstance(body, dict):
-        return body.get("code"), (body.get("msg") or body.get("message") or text[:200])
+        return norm_code(body.get("code")), (body.get("msg") or body.get("message") or text[:200])
     return None, text[:200]
 
 
@@ -445,10 +456,26 @@ def cmd_fetch(args) -> int:
             print(f"[fetch] {rid} 取地址失败：{api_error_text(resolved)}", file=sys.stderr)
             time.sleep(args.gap)
             continue
+        title = (item.get("title") or "").strip() or f"report-{rid}"
+        page_date = norm_date(item.get("page_date")) or dt.date.today().isoformat()
+        dest = dest_path(root, page_date, rid, title)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        # 额度证据：download 一成功就落原始回包；--force 重试不覆盖已有正常 PDF 的证据
+        stem = dest.stem if not dest.exists() else f"{dest.stem}-attempt-{dt.datetime.now():%Y%m%dT%H%M%S}"
+        download_note = dest.with_name(stem + ".download.json")
         urls = extract_pdf_urls(resolved["raw"])
+        pdf_url = urls[0]["url"] if urls else ""
+        note_payload = {
+            "report_id": rid, "site_url": url, "pdf_url": pdf_url or None, "urls": urls,
+            "http_status": resolved["http_status"], "code": resolved["code"],
+            "msg": resolved["msg"], "raw": resolved["raw"], "fetched_at": now_iso(),
+        }
         if not urls:
             stats["failed"] += 1
             stats["quota_suspect"] += 1
+            note_payload["reason"] = "no_pdf_url"
+            download_note.write_text(json.dumps(note_payload, ensure_ascii=False, indent=1),
+                                     encoding="utf-8")
             failure(root, rid, url, resolved["http_status"],
                     "download 返回里没有 PDF 地址（可能是额度不足或字段变更）",
                     resolved["code"], resolved["msg"])
@@ -456,29 +483,16 @@ def cmd_fetch(args) -> int:
                   file=sys.stderr)
             time.sleep(args.gap)
             continue
-        pdf_url = urls[0]["url"]
-        title = (item.get("title") or "").strip() or f"report-{rid}"
-        page_date = norm_date(item.get("page_date")) or dt.date.today().isoformat()
-        dest = dest_path(root, page_date, rid, title)
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        # 额度证据：download 一成功就落原始回包（额度耗尽的失败场景也必须留下它）
-        download_note = dest.with_suffix(".download.json")
-        note_payload = {
-            "report_id": rid, "site_url": url, "pdf_url": pdf_url,
-            "http_status": resolved["http_status"], "code": resolved["code"],
-            "msg": resolved["msg"], "urls": urls, "raw": resolved["raw"],
-            "fetched_at": now_iso(),
-        }
         download_note.write_text(json.dumps(note_payload, ensure_ascii=False, indent=1),
                                  encoding="utf-8")
         resp = fetch_pdf_bytes(probe, token, pdf_url)
-        raw = resp.get("raw") or b""
+        # 非 2xx 时 probe 把正文放在 body（str），2xx 时才放 raw（bytes）；两条都要能取证
+        raw = resp.get("raw") or (resp.get("body") or "").encode("utf-8")
         if resp["status"] != 200 or not raw.startswith(b"%PDF-"):
             pdf_code, pdf_msg = parse_error_body(raw)
-            if pdf_code is None:
-                pdf_code = resolved["code"]
             note_payload["pdf_error"] = {"http_status": resp["status"], "code": pdf_code,
                                          "msg": pdf_msg, "bytes": len(raw),
+                                         "error": resp.get("error", ""),
                                          "head": raw[:60].decode("utf-8", errors="replace")}
             download_note.write_text(json.dumps(note_payload, ensure_ascii=False, indent=1),
                                      encoding="utf-8")
@@ -601,7 +615,7 @@ def cmd_verify(args) -> int:
 def build_parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--root", default=str(CANON_ROOT), help="落盘根目录（或 FXBAOGAO_ROOT）")
-    common.add_argument("--token-file", default=str(TOKEN_PATH), help="API Key 文件（单行、600）")
+    common.add_argument("--token-file", default=str(TOKEN_PATH), help="API Key 文件（单行、600；所在目录 700）")
     common.add_argument("--max-requests", type=int, default=200, help="单轮 HTTP 请求上限")
     common.add_argument("--gap", type=float, default=DEFAULT_GAP, help="同域名请求间隔秒（≥1.05）")
 

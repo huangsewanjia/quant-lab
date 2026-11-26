@@ -69,6 +69,6 @@ flowchart LR
 | `db/schema_report_fulltext.sql` | 表、留痕表、4 视图、归一化宏、旧表补列 |
 | `db/etl/report_fulltext.py` | ingest（幂等入库） |
 | `db/checks/report_fulltext.py` | C1–C7 对账闸 |
-| `db/tests/test_work623_api.py` | 采集器离线测试（22 条，FakeProbe） |
+| `db/tests/test_work623_api.py` | 采集器离线测试（26 条，FakeProbe） |
 | `db/tests/test_report_fulltext.py` | 入库/视图/闸门离线测试（18 条） |
 | `docs/WORK-623/` | 可行性、设计、跑法、验收、交付页 |

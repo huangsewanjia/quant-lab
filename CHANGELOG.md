@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-27 · WORK-623 API 版审查修复（round 1 → round 2）
+
+- round 1（`f7ba957`，NEEDS WORK）：PDF 端点失败时台账写 download 的 `code=200`，服务端额度错误丢失 → 改为 download 一成功即落 `.download.json`、PDF 失败解析其 `code/msg` 并写 `pdf_error`；`--pages` 越界报错；`code` 字符串归一化；token 权限硬校验；org 可选。
+- round 2（`c9a181e`，NEEDS WORK）：非 2xx 的 PDF 回包正文在 `body` 而非 `raw`，仍读不到 → 改为 `raw or body.encode()`；`no_pdf_url` 分支也落 `.download.json`（`reason=no_pdf_url`）；token 权限按符号链接真实目标判定；bool `code` 判失败；C6 口径补「机构为空不参与关联」。测试 44 条（26 + 18），全套 206 passed。
+- 第三轮评审按守则「最多 2 轮，第 3 轮前停下问用户」未执行；上述修复由新增单测覆盖。
+
 ## 2026-11-27 · WORK-623 契约变更 01：改走官方 API（浏览器方案作废）
 
 按大管家 01:40 契约变更重做：CDP 复用桌面 Chrome、cookie 文件、sheet 手点、adopt 收编全部**删除**（首版从未取到真实数据），采集改为官方 HTTP API。
@@ -11,7 +17,7 @@
 - `db/schema_report_fulltext.sql`：`report_fulltext` 增加 `site_url`（官方回查链接）与 `pdf_url`，并对已建旧表 `ALTER TABLE … ADD COLUMN IF NOT EXISTS` 补列。
 - `db/etl/report_fulltext.py`：删除 `adopt`（手工收编作废）；入库校验增加 `site_url` 缺失按 id 补齐、失败台账带 `code/msg`。
 - `db/checks/report_fulltext.py`：C4 要求 `report_id/url/http_status/code/msg/reason` 六字段。
-- 测试：`test_work623_api.py`（22 条，FakeProbe 覆盖业务错误 300011/300012/300021、额度无地址、非 PDF、跳过已存在、分页越界、token 权限）+ `test_report_fulltext.py`（18 条）；全套 202 passed。
+- 测试：`test_work623_api.py`（26 条，FakeProbe 覆盖业务错误 300011/300012/300021、HTTP 403 额度错、额度无地址、非 PDF、跳过已存在、分页越界、token 权限/目录/符号链接）+ `test_report_fulltext.py`（18 条）；全套 206 passed。
 
 口径要点：
 

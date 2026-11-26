@@ -21,7 +21,7 @@
 | # | 标准 | 状态 | 证据 |
 |---|---|---|---|
 | N1 | 分页上限 10 页的实测记录 | 参数与拒绝已实现；**真实返回条数未取到** | `search_page` 对 page=0/11 抛 `ValueError`（单测 `test_search_page_rejects_page_out_of_range`）；`--pages` 上限 10；真实每页条数需 token 后写入 `search_raw/pageN.json` |
-| N2 | 下载额度消耗实测（连续取 N 篇，记录额度字段或报错原文） | **未取到（无 token）** | `download` 一成功就落 `<id>-<slug>.download.json`（含 code/msg/urls/raw）；PDF 端点返回额度错误时把该回包的 `code/msg` 写进 `failed.jsonl` 并追加 `pdf_error` 到 `.download.json`（单测 300021「下载额度不足」）；真实扣减数需 token 后实测 |
+| N2 | 下载额度消耗实测（连续取 N 篇，记录额度字段或报错原文） | **未取到（无 token）** | `download` 一成功就落 `<id>-<slug>.download.json`（含 code/msg/urls/raw；无地址时 `reason=no_pdf_url`）；PDF 端点失败（HTTP 200 业务错、403/429 等）都把该回包 `code/msg` 写进 `failed.jsonl` 并追加 `pdf_error`（单测覆盖 300021 / 403）；真实扣减数需 token 后实测 |
 | N3 | 失败时 `code` 与 `msg` 原文逐条入 `failed.jsonl` | 通过（单测） | 300011（token/search）、300012（download 业务错）、300021（PDF 端点额度不足，含 `pdf_error` 落 `.download.json`） |
 
 ## 3. 彩排（合成 PDF，证明入库/视图/闸门在新 schema 下可跑）
@@ -49,9 +49,9 @@ checks C1–C7 全 PASS（空表），C6 INFO 0/0
 
 ```
 $ /home/moyongkai/.venvs/quantdb/bin/python -m pytest db/tests -q
-202 passed
+206 passed
 $ … pytest db/tests/test_report_fulltext.py db/tests/test_work623_api.py -q
-40 passed
+44 passed
 ```
 
 ## 6. 未验证项

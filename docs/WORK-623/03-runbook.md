@@ -20,7 +20,7 @@ $PY scripts/fxbaogao_fulltext.py check-auth
 
 - 退出码 0：`check_auth.json` 里 `ok=true`、`code=200`、`token_sha256_8=…`。
 - 退出码 4：token 无效（`code`/`msg` 原文在 `check_auth.json`，如 `300011 请传入正确Authorization`）。
-- 退出码 3：token 文件不存在/为空/含空白——此时**一个请求都不会发**。
+- 退出码 3：token 文件不存在/为空/含空白，或权限不合规（文件必须 600、所在目录 700）——此时**一个请求都不会发**。
 
 ## 1. 搜索候选
 
@@ -81,7 +81,7 @@ $PY scripts/fxbaogao_fulltext.py verify --meta "/srv/share/quantdb/raw/reports_f
 
 | 现象 | 先查 | 处置 |
 |---|---|---|
-| 退出码 3 | token 文件 | 让用户按 WORK-624 写入；不要用假 key 试接口 |
+| 退出码 3 | token 文件 | 不存在/为空/含空白/权限不是 600（目录 700）；让用户按 WORK-624 写入；不要用假 key 试接口 |
 | 退出码 4 / `code=300011` | `check_auth.json` 的 `msg` | 换 key 或确认高级 VIP 的 API 权限；不要把失败当成功 |
 | `没有 PDF 地址（可能是额度不足…）` | `.download.json` 原始回包 | 对照回包里的额度字段/报错原文；不要猜数值 |
 | PDF 拉取失败 | `failed.jsonl` 的 `http_status`/`path` | 地址可能带时效；重跑 `fetch`（已存在会跳过） |

@@ -156,6 +156,16 @@ def test_search_pages_out_of_range_rejected(tmp_path, token_file, monkeypatch):
     assert probe.calls == []
 
 
+def test_api_call_rejects_bool_code(tmp_path, token_file, monkeypatch):
+    for value in (False, True):
+        resp = {"status": 200, "body": json.dumps({"code": value, "data": {}}),
+                "bytes": 20, "headers": {}, "error": "", "raw": b""}
+        probe = FakeProbe([("/mofoun/agent/search", resp)])
+        monkeypatch.setattr(fx, "prepare_probe", lambda root, max_requests: probe)
+        assert fx.main(["check-auth", "--root", str(tmp_path / f"r{value}"),
+                        "--token-file", str(token_file)]) == 4
+
+
 def test_api_call_requires_code_field(tmp_path, token_file, monkeypatch):
     no_code = {"status": 200, "body": json.dumps({"msg": "ok", "data": {"dataList": []}}),
                "bytes": 40, "headers": {}, "error": "", "raw": b""}
@@ -180,6 +190,36 @@ def test_load_token_errors(tmp_path):
     multi.write_text("sk-a\nsk-b", encoding="utf-8")
     with pytest.raises(fx.AuthError):
         fx.load_token(multi)
+
+
+def test_token_directory_permissions_must_be_700(tmp_path, monkeypatch):
+    probe = FakeProbe([])
+    monkeypatch.setattr(fx, "prepare_probe", lambda root, max_requests: probe)
+    loose_dir = tmp_path / "loose_dir"
+    loose_dir.mkdir()
+    token = loose_dir / "key"
+    token.write_text("sk-test\n", encoding="utf-8")
+    token.chmod(0o600)
+    loose_dir.chmod(0o755)
+    assert fx.main(["check-auth", "--root", str(tmp_path / "r"),
+                    "--token-file", str(token)]) == 3
+    assert probe.calls == []
+
+
+def test_token_symlink_uses_target_permissions(tmp_path, monkeypatch):
+    probe = FakeProbe([("/mofoun/agent/search", SEARCH_OK)])
+    monkeypatch.setattr(fx, "prepare_probe", lambda root, max_requests: probe)
+    target_dir = tmp_path / "secure"
+    target_dir.mkdir()
+    target = target_dir / "key"
+    target.write_text("sk-test\n", encoding="utf-8")
+    target.chmod(0o600)
+    target_dir.chmod(0o700)
+    link_dir = tmp_path / "linkdir"
+    link_dir.mkdir()
+    link = link_dir / "key"
+    link.symlink_to(target)
+    assert fx.main(["check-auth", "--root", str(tmp_path / "r"), "--token-file", str(link)]) == 0
 
 
 def test_token_file_permissions_must_be_600(tmp_path, monkeypatch):
@@ -332,6 +372,33 @@ def test_fetch_no_pdf_url_is_flagged_as_quota_suspect(tmp_path, token_file, monk
     assert code == 1
     rec = json.loads((tmp_path / "root" / "failed.jsonl").read_text(encoding="utf-8"))
     assert "没有 PDF 地址" in rec["reason"]
+    notes = list((tmp_path / "root").glob("*/5884540-*.download.json"))
+    assert len(notes) == 1
+    note = json.loads(notes[0].read_text(encoding="utf-8"))
+    assert note["reason"] == "no_pdf_url" and note["raw"]["code"] == 200
+
+
+def test_fetch_http_error_body_used_for_code_and_msg(tmp_path, token_file, monkeypatch):
+    # 非 2xx：真实 probe 只把正文放 body（str），raw 为空 —— 必须仍能取出服务端 code/msg
+    body = json.dumps({"code": 300021, "msg": "额度不足"})
+    routes = [("/mofoun/agent/download", download_ok()),
+              ("dr.fxbaogao.com", {"status": 403, "body": body, "bytes": len(body),
+                                   "headers": {}, "error": "HTTPError 403 Forbidden"})]
+    probe = FakeProbe(routes)
+    monkeypatch.setattr(fx, "prepare_probe", lambda root, max_requests: probe)
+    cand = tmp_path / "cand.jsonl"
+    write_candidates(cand, [{"report_id": "5884540", "title": "t", "page_date": "2026-11-16"}])
+    code = fx.main(["fetch", "--root", str(tmp_path / "root"), "--token-file", str(token_file),
+                    "--input", str(cand), "--limit", "1", "--gap", "0"])
+    assert code == 1
+    rec = json.loads((tmp_path / "root" / "failed.jsonl").read_text(encoding="utf-8"))
+    assert rec["http_status"] == 403
+    assert rec["code"] == 300021 and rec["msg"] == "额度不足"
+    note = json.loads(list((tmp_path / "root").glob("*/5884540-*.download.json"))[0]
+                      .read_text(encoding="utf-8"))
+    assert note["pdf_error"]["bytes"] == len(body)
+    assert note["pdf_error"]["code"] == 300021
+    assert "HTTPError 403" in note["pdf_error"]["error"]
 
 
 def test_fetch_non_pdf_response_keeps_body_head(tmp_path, token_file, monkeypatch):

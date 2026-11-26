@@ -150,7 +150,8 @@ def link_rate(con) -> dict:
         "rate": round(linked / total, 4) if total else None,
         "ambiguous_multi_candidate": multi,
         "criteria": ("标题归一相等（去站点后缀、去标点、去开头机构名）+ 机构归一相等（去公司后缀）"
-                     "+ 发布日相差 ≤3 天；一篇正文多条候选时取日差最小、info_code 最小"),
+                     "+ 发布日相差 ≤3 天；一篇正文多条候选时取日差最小、info_code 最小；"
+                     "机构为空的正文不参与关联（站点独家/媒体报告，见 v_report_fulltext_unlinked）"),
         "query": "select count(*) from v_report_fulltext_linked  /  select count(*) from report_fulltext",
     }
 
