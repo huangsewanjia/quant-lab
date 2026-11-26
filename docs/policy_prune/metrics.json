@@ -1,0 +1,31 @@
+{
+ "total_before": 5560,
+ "moved": 1036,
+ "residual": 4524,
+ "narrow_before": {
+  "hit": 2080,
+  "n": 5560,
+  "rate": 37.4
+ },
+ "narrow_after": {
+  "hit": 1789,
+  "n": 4524,
+  "rate": 39.5
+ },
+ "narrow_first500_before": {
+  "hit": 144,
+  "rate": 28.8,
+  "n": 500
+ },
+ "broad_before": {
+  "hit": 3770,
+  "rate": 67.8,
+  "n": 5560
+ },
+ "broad_after": {
+  "hit": 3329,
+  "rate": 73.6,
+  "n": 4524
+ },
+ "moved_hitting_narrow": 291
+}

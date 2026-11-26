@@ -1,0 +1,952 @@
+{
+ "checked_at": "2026-11-27T01:02:14+0800",
+ "checks": [
+  {
+   "id": "1_counts",
+   "rows": [
+    {
+     "library": "政策·宏观",
+     "before": 5560,
+     "after": 4524,
+     "delta": -1036
+    },
+    {
+     "library": "政策·储能与电力设备",
+     "before": 328,
+     "after": 328,
+     "delta": 0
+    },
+    {
+     "library": "政策·新能源车",
+     "before": 195,
+     "after": 195,
+     "delta": 0
+    },
+    {
+     "library": "政策·半导体",
+     "before": 32,
+     "after": 32,
+     "delta": 0
+    },
+    {
+     "library": "政策·医药",
+     "before": 1358,
+     "after": 1358,
+     "delta": 0
+    },
+    {
+     "library": "政策·有色与锂",
+     "before": 143,
+     "after": 143,
+     "delta": 0
+    },
+    {
+     "library": "政策原文库(存档)",
+     "before": 7905,
+     "after": 7905,
+     "delta": 0
+    }
+   ]
+  },
+  {
+   "id": "2_arithmetic",
+   "before": 5560,
+   "moved": 1036,
+   "kept": 4524,
+   "kept_plus_moved": 5560,
+   "by_category": {
+    "admin_proc": 133,
+    "civil_welfare": 103,
+    "conservation": 19,
+    "culture_tourism": 168,
+    "education": 263,
+    "hr_org": 137,
+    "misc_admin": 207,
+    "printing": 1,
+    "qual_exam": 5
+   },
+   "by_category_sum": 1036,
+   "count_delta": 1036
+  },
+  {
+   "id": "3_mirror",
+   "deleted": 1036,
+   "mirror_found": 1036,
+   "mirror_missing": 0,
+   "missing_sample": [],
+   "archive_doc_id_unique": 7904,
+   "archive_docs": 7905
+  },
+  {
+   "id": "4_deleted_gone",
+   "live_macro_ids": 4524,
+   "deleted_still_listed": 0,
+   "sample": []
+  },
+  {
+   "id": "5_metadata",
+   "sample_size": 20,
+   "all_nine_ok": 20,
+   "all_tagged": 20,
+   "samples": [
+    {
+     "id": "0532c6f6-9845-40b6-8e6e-7bc9fae23b9b",
+     "title": "[宏观] 《关于进一步扩大和升级信息消费持续释放内需潜力的指导意见》（2017-08-24）",
+     "keys_present": [
+      "doc_id",
+      "effective_date",
+      "expire_date",
+      "industry",
+      "level",
+      "publish_date",
+      "source_url",
+      "theme",
+      "发文机关",
+      "文号"
+     ],
+     "key_count": 10,
+     "custom_metadata": {
+      "level": "国家级",
+      "theme": "规划与试点;监管处罚",
+      "doc_id": "0066159a033a342d",
+      "文号": "国发〔2017〕40号",
+      "industry": "宏观",
+      "source_url": "https://www.gov.cn/zhengce/zhengceku/2017-08/24/content_5220091.htm",
+      "expire_date": "unknown",
+      "publish_date": "2017-08-24",
+      "发文机关": "国务院",
+      "effective_date": "unknown"
+     },
+     "tags": [
+      "宏观",
+      "规划与试点",
+      "监管处罚",
+      "国家级"
+     ],
+     "all_nine": true,
+     "parse_status": "completed"
+    },
+    {
+     "id": "a181d040-ae3d-47f1-bddb-53a6732306bb",
+     "title": "[宏观] 《关于开展污水处理绿色低碳标杆厂遴选工作的通知(发改办环资〔2024〕531号)》（2024-07-03）",
+     "keys_present": [
+      "doc_id",
+      "effective_date",
+      "expire_date",
+      "industry",
+      "level",
+      "publish_date",
+      "source_url",
+      "theme",
+      "发文机关",
+      "文号"
+     ],
+     "key_count": 10,
+     "custom_metadata": {
+      "level": "部委级",
+      "theme": "环保与能耗",
+      "doc_id": "3f5aa9cd3b8f8e88",
+      "文号": "发改办环资〔2024〕531号",
+      "industry": "宏观",
+      "source_url": "https://www.ndrc.gov.cn/xxgk/zcfb/tz/202407/t20240703_1391450.html",
+      "expire_date": "unknown",
+      "publish_date": "2024-07-03",
+      "发文机关": "国家发展改革委",
+      "effective_date": "unknown"
+     },
+     "tags": [
+      "宏观",
+      "环保与能耗",
+      "部委级"
+     ],
+     "all_nine": true,
+     "parse_status": "completed"
+    },
+    {
+     "id": "0fb7d4ad-b832-417d-b1ee-66aeb693a152",
+     "title": "[宏观] 《关于加快场景培育和开放推动新场景大规模应用的实施意见》（2025-11-07）",
+     "keys_present": [
+      "doc_id",
+      "effective_date",
+      "expire_date",
+      "industry",
+      "level",
+      "publish_date",
+      "source_url",
+      "theme",
+      "发文机关",
+      "文号"
+     ],
+     "key_count": 10,
+     "custom_metadata": {
+      "level": "国家级",
+      "theme": "安全;准入与资质;环保与能耗",
+      "doc_id": "1d139ca96a5a4161",
+      "文号": "国办发〔2025〕37号",
+      "industry": "宏观",
+      "source_url": "https://www.gov.cn/zhengce/zhengceku/202511/content_7047420.htm",
+      "expire_date": "unknown",
+      "publish_date": "2025-11-07",
+      "发文机关": "国务院办公厅",
+      "effective_date": "unknown"
+     },
+     "tags": [
+      "宏观",
+      "准入与资质",
+      "环保与能耗",
+      "安全",
+      "国家级"
+     ],
+     "all_nine": true,
+     "parse_status": "completed"
+    },
+    {
+     "id": "92c8a553-2f30-4bd3-b01b-412cebcfb5e3",
+     "title": "[宏观] 《浙江省嘉善县推进高质量发展第二批经验清单的通知(发改办区域〔2025〕755号)》（2025-09-02）",
+     "keys_present": [
+      "doc_id",
+      "effective_date",
+      "expire_date",
+      "industry",
+      "level",
+      "publish_date",
+      "source_url",
+      "theme",
+      "发文机关",
+      "文号"
+     ],
+     "key_count": 10,
+     "custom_metadata": {
+      "level": "部委级",
+      "theme": "准入与资质;环保与能耗",
+      "doc_id": "ee59a51dc7019f54",
+      "文号": "发改办区域〔2025〕755号",
+      "industry": "宏观",
+      "source_url": "https://www.ndrc.gov.cn/xxgk/zcfb/tz/202509/t20250902_1400221.html",
+      "expire_date": "unknown",
+      "publish_date": "2025-09-02",
+      "发文机关": "国家发展改革委",
+      "effective_date": "unknown"
+     },
+     "tags": [
+      "宏观",
+      "准入与资质",
+      "环保与能耗",
+      "部委级"
+     ],
+     "all_nine": true,
+     "parse_status": "completed"
+    },
+    {
+     "id": "b186cf38-b877-4fc8-af48-218c0880ef45",
+     "title": "[宏观] 《常见类型移动互联网应用程序必要个人信息范围规定》（2021-03-23）",
+     "keys_present": [
+      "doc_id",
+      "effective_date",
+      "expire_date",
+      "industry",
+      "level",
+      "publish_date",
+      "source_url",
+      "theme",
+      "发文机关",
+      "文号"
+     ],
+     "key_count": 10,
+     "custom_metadata": {
+      "level": "部委级",
+      "theme": "监管处罚;安全",
+      "doc_id": "c7e27828c5ab2f44",
+      "文号": "国信办秘字〔2021〕14号",
+      "industry": "宏观",
+      "source_url": "https://www.gov.cn/zhengce/zhengceku/2021-03/23/content_5595088.htm",
+      "expire_date": "unknown",
+      "publish_date": "2021-03-23",
+      "发文机关": "网信办秘书局 工业和信息化部办公厅 公安部办公厅 市场监管总局办公厅",
+      "effective_date": "2021-05-01"
+     },
+     "tags": [
+      "宏观",
+      "安全",
+      "监管处罚",
+      "部委级"
+     ],
+     "all_nine": true,
+     "parse_status": "completed"
+    },
+    {
+     "id": "4a4b3cc4-415c-458e-964b-9be3f6fa53a3",
+     "title": "[宏观] 《“十四五”期间进口科学研究、科技开发和教学用品免税清单（第一批）》（2021-11-06）",
+     "keys_present": [
+      "doc_id",
+      "effective_date",
+      "expire_date",
+      "industry",
+      "level",
+      "publish_date",
+      "source_url",
+      "theme",
+      "发文机关",
+      "文号"
+     ],
+     "key_count": 10,
+     "custom_metadata": {
+      "level": "部委级",
+      "theme": "财税",
+      "doc_id": "cf0f7f7aa97c0055",
+      "文号": "财关税〔2021〕44号",
+      "industry": "宏观",
+      "source_url": "https://www.gov.cn/zhengce/zhengceku/2021-11/06/content_5649372.htm",
+      "expire_date": "unknown",
+      "publish_date": "2021-11-06",
+      "发文机关": "财政部 海关总署 税务总局",
+      "effective_date": "2021-01-01"
+     },
+     "tags": [
+      "宏观",
+      "财税",
+      "部委级"
+     ],
+     "all_nine": true,
+     "parse_status": "completed"
+    },
+    {
+     "id": "d4573654-7e87-4381-970f-473ac5c32ea7",
+     "title": "[宏观] 《银行业保险业绿色金融高质量发展实施方案》（2025-02-27）",
+     "keys_present": [
+      "doc_id",
+      "effective_date",
+      "expire_date",
+      "industry",
+      "level",
+      "publish_date",
+      "source_url",
+      "theme",
+      "发文机关",
+      "文号"
+     ],
+     "key_count": 10,
+     "custom_metadata": {
+      "level": "部委级",
+      "theme": "环保与能耗",
+      "doc_id": "9df29750c01e2054",
+      "文号": "金办发〔2025〕15号",
+      "industry": "宏观",
+      "source_url": "https://www.gov.cn/zhengce/zhengceku/202502/content_7007629.htm",
+      "expire_date": "unknown",
+      "publish_date": "2025-02-27",
+      "发文机关": "金融监管总局办公厅 中国人民银行办公厅",
+      "effective_date": "unknown"
+     },
+     "tags": [
+      "宏观",
+      "环保与能耗",
+      "部委级"
+     ],
+     "all_nine": true,
+     "parse_status": "completed"
+    },
+    {
+     "id": "e1dba932-2754-41b6-a143-16c260a4fec0",
+     "title": "[宏观] 《中华人民共和国财政部公告》（2018-12-31）",
+     "keys_present": [
+      "doc_id",
+      "effective_date",
+      "expire_date",
+      "industry",
+      "level",
+      "publish_date",
+      "source_url",
+      "theme",
+      "发文机关",
+      "文号"
+     ],
+     "key_count": 10,
+     "custom_metadata": {
+      "level": "部委级",
+      "theme": "财税",
+      "doc_id": "88a8f880d879b3c0",
+      "文号": "财政部公告2018年第129号",
+      "industry": "宏观",
+      "source_url": "https://www.gov.cn/zhengce/zhengceku/2018-12/31/content_5441188.htm",
+      "expire_date": "unknown",
+      "publish_date": "2018-12-31",
+      "发文机关": "财政部",
+      "effective_date": "unknown"
+     },
+     "tags": [
+      "宏观",
+      "财税",
+      "部委级"
+     ],
+     "all_nine": true,
+     "parse_status": "completed"
+    },
+    {
+     "id": "7a697ad4-8e62-42e1-b4e0-d688cd13c69d",
+     "title": "[宏观] 《28部门关于开展2023年全国食品安全宣传周活动》（2023-11-26）",
+     "keys_present": [
+      "doc_id",
+      "effective_date",
+      "expire_date",
+      "industry",
+      "level",
+      "publish_date",
+      "source_url",
+      "theme",
+      "发文机关",
+      "文号"
+     ],
+     "key_count": 10,
+     "custom_metadata": {
+      "level": "国家级",
+      "theme": "标准与技术;安全;规划与试点",
+      "doc_id": "f78bbc384531e904",
+      "文号": "食安办发〔2023〕15号",
+      "industry": "宏观",
+      "source_url": "https://www.gov.cn/zhengce/zhengceku/202311/content_6917182.htm",
+      "expire_date": "unknown",
+      "publish_date": "2023-11-26",
+      "发文机关": "国务院食安办等",
+      "effective_date": "unknown"
+     },
+     "tags": [
+      "宏观",
+      "安全",
+      "标准与技术",
+      "规划与试点",
+      "国家级"
+     ],
+     "all_nine": true,
+     "parse_status": "completed"
+    },
+    {
+     "id": "594e54e9-22ab-4ef0-86c5-736f62b2a6e5",
+     "title": "[宏观] 《工业重点行业领域设备更新和技术改造指南》（2024-09-20）",
+     "keys_present": [
+      "doc_id",
+      "effective_date",
+      "expire_date",
+      "industry",
+      "level",
+      "publish_date",
+      "source_url",
+      "theme",
+      "发文机关",
+      "文号"
+     ],
+     "key_count": 10,
+     "custom_metadata": {
+      "level": "部委级",
+      "theme": "标准与技术;环保与能耗;规划与试点",
+      "doc_id": "a4caabf92478cc5a",
+      "文号": "工信厅规〔2024〕33号",
+      "industry": "宏观",
+      "source_url": "https://www.gov.cn/zhengce/zhengceku/202409/content_6975557.htm",
+      "expire_date": "unknown",
+      "publish_date": "2024-09-20",
+      "发文机关": "工业和信息化部办公厅",
+      "effective_date": "unknown"
+     },
+     "tags": [
+      "宏观",
+      "环保与能耗",
+      "标准与技术",
+      "规划与试点",
+      "部委级"
+     ],
+     "all_nine": true,
+     "parse_status": "completed"
+    },
+    {
+     "id": "02df6ab5-4a74-41e9-8d6e-d4ee92643451",
+     "title": "[宏观] 《建立扩大生物燃料乙醇生产和推广使用车用乙醇汽油工作信息月报制度》（2019-09-29）",
+     "keys_present": [
+      "doc_id",
+      "effective_date",
+      "expire_date",
+      "industry",
+      "level",
+      "publish_date",
+      "source_url",
+      "theme",
+      "发文机关",
+      "文号"
+     ],
+     "key_count": 10,
+     "custom_metadata": {
+      "level": "部委级",
+      "theme": "规划与试点",
+      "doc_id": "4b0723742ca14359",
+      "文号": "国能综通科技〔2019〕20号",
+      "industry": "宏观",
+      "source_url": "https://www.gov.cn/zhengce/zhengceku/2019-09/29/content_5434965.htm",
+      "expire_date": "unknown",
+      "publish_date": "2019-09-29",
+      "发文机关": "国家能源局综合司",
+      "effective_date": "unknown"
+     },
+     "tags": [
+      "宏观",
+      "规划与试点",
+      "部委级"
+     ],
+     "all_nine": true,
+     "parse_status": "completed"
+    },
+    {
+     "id": "644f2632-54b1-4f45-9791-38880a3cf1b5",
+     "title": "[宏观] 《进一步规范财务审计秩序促进注册会计师行业健康发展》（2021-08-23）",
+     "keys_present": [
+      "doc_id",
+      "effective_date",
+      "expire_date",
+      "industry",
+      "level",
+      "publish_date",
+      "source_url",
+      "theme",
+      "发文机关",
+      "文号"
+     ],
+     "key_count": 10,
+     "custom_metadata": {
+      "level": "国家级",
+      "theme": "监管处罚",
+      "doc_id": "7c54a54ef40dced9",
+      "文号": "国办发〔2021〕30号",
+      "industry": "宏观",
+      "source_url": "https://www.gov.cn/zhengce/zhengceku/2021-08/23/content_5632714.htm",
+      "expire_date": "unknown",
+      "publish_date": "2021-08-23",
+      "发文机关": "国务院办公厅",
+      "effective_date": "unknown"
+     },
+     "tags": [
+      "宏观",
+      "监管处罚",
+      "国家级"
+     ],
+     "all_nine": true,
+     "parse_status": "completed"
+    },
+    {
+     "id": "b86ddb74-02db-4d9f-8ddf-83cf145085eb",
+     "title": "[宏观] 《权益性投资经营所得个人所得税征收管理》（2021-12-31）",
+     "keys_present": [
+      "doc_id",
+      "effective_date",
+      "expire_date",
+      "industry",
+      "level",
+      "publish_date",
+      "source_url",
+      "theme",
+      "发文机关",
+      "文号"
+     ],
+     "key_count": 10,
+     "custom_metadata": {
+      "level": "部委级",
+      "theme": "财税",
+      "doc_id": "4061ee6c73ddbf50",
+      "文号": "财政部 税务总局公告2021年第41号",
+      "industry": "宏观",
+      "source_url": "https://www.gov.cn/zhengce/zhengceku/2021-12/31/content_5665849.htm",
+      "expire_date": "unknown",
+      "publish_date": "2021-12-31",
+      "发文机关": "财政部 税务总局",
+      "effective_date": "2022-01-01"
+     },
+     "tags": [
+      "宏观",
+      "财税",
+      "部委级"
+     ],
+     "all_nine": true,
+     "parse_status": "completed"
+    },
+    {
+     "id": "41ad5081-ebdf-4d99-97a0-50e8f3fe0693",
+     "title": "[宏观] 《批转中国民用航空局等部门关于由民航统一安排承运劳务人员和物资的请示》（2017-05-24）",
+     "keys_present": [
+      "doc_id",
+      "effective_date",
+      "expire_date",
+      "industry",
+      "level",
+      "publish_date",
+      "source_url",
+      "theme",
+      "发文机关",
+      "文号"
+     ],
+     "key_count": 10,
+     "custom_metadata": {
+      "level": "国家级",
+      "theme": "标准与技术;财税",
+      "doc_id": "73b4690b9dd5bda4",
+      "文号": "国发〔1984〕33号",
+      "industry": "宏观",
+      "source_url": "https://www.gov.cn/zhengce/zhengceku/2017-05/24/content_5192827.htm",
+      "expire_date": "unknown",
+      "publish_date": "2017-05-24",
+      "发文机关": "国务院",
+      "effective_date": "unknown"
+     },
+     "tags": [
+      "宏观",
+      "标准与技术",
+      "财税",
+      "国家级"
+     ],
+     "all_nine": true,
+     "parse_status": "completed"
+    },
+    {
+     "id": "ec52dc16-2c58-4152-b66d-f32186bc64e7",
+     "title": "[宏观] 《等部门关于整治虚拟货币“挖矿”活动》（2021-09-25）",
+     "keys_present": [
+      "doc_id",
+      "effective_date",
+      "expire_date",
+      "industry",
+      "level",
+      "publish_date",
+      "source_url",
+      "theme",
+      "发文机关",
+      "文号"
+     ],
+     "key_count": 10,
+     "custom_metadata": {
+      "level": "部委级",
+      "theme": "监管处罚;环保与能耗",
+      "doc_id": "79eafa89fe74ffac",
+      "文号": "发改运行〔2021〕1283号",
+      "industry": "宏观",
+      "source_url": "https://www.gov.cn/zhengce/zhengceku/2021-09/25/content_5639225.htm",
+      "expire_date": "unknown",
+      "publish_date": "2021-09-25",
+      "发文机关": "国家发展改革委 中央宣传部 中央网信办 工业和信息化部 公安部 财政部 人民银行 税务总局 市场监管总局 银保监会 国家能源局",
+      "effective_date": "unknown"
+     },
+     "tags": [
+      "宏观",
+      "环保与能耗",
+      "监管处罚",
+      "部委级"
+     ],
+     "all_nine": true,
+     "parse_status": "completed"
+    },
+    {
+     "id": "574727d3-3e51-4c58-829f-2aabf6c47efd",
+     "title": "[宏观] 《国家发展改革委 财政部 农业农村部 国家乡村振兴局关于进一步支持农民工就业创业的实施意见》（2022-11-18）",
+     "keys_present": [
+      "doc_id",
+      "effective_date",
+      "expire_date",
+      "industry",
+      "level",
+      "publish_date",
+      "source_url",
+      "theme",
+      "发文机关",
+      "文号"
+     ],
+     "key_count": 10,
+     "custom_metadata": {
+      "level": "部委级",
+      "theme": "规划与试点;财税;补贴与价格",
+      "doc_id": "10fc875e015e8e87",
+      "文号": "人社部发〔2022〕76号",
+      "industry": "宏观",
+      "source_url": "https://www.gov.cn/zhengce/zhengceku/2022-11/18/content_5727760.htm",
+      "expire_date": "unknown",
+      "publish_date": "2022-11-18",
+      "发文机关": "人力资源社会保障部 发展改革委 财政部 农业农村部 国家乡村振兴局",
+      "effective_date": "unknown"
+     },
+     "tags": [
+      "宏观",
+      "补贴与价格",
+      "规划与试点",
+      "财税",
+      "部委级"
+     ],
+     "all_nine": true,
+     "parse_status": "completed"
+    },
+    {
+     "id": "83ffd943-a5a5-4f79-b43a-500f4802d2e8",
+     "title": "[宏观] 《划转部分国有资本充实社保基金实施方案》（2017-11-18）",
+     "keys_present": [
+      "doc_id",
+      "effective_date",
+      "expire_date",
+      "industry",
+      "level",
+      "publish_date",
+      "source_url",
+      "theme",
+      "发文机关",
+      "文号"
+     ],
+     "key_count": 10,
+     "custom_metadata": {
+      "level": "国家级",
+      "theme": "规划与试点;财税",
+      "doc_id": "1cd70c83f7d16617",
+      "文号": "国发〔2017〕49号",
+      "industry": "宏观",
+      "source_url": "https://www.gov.cn/zhengce/zhengceku/2017-11/18/content_5240652.htm",
+      "expire_date": "unknown",
+      "publish_date": "2017-11-18",
+      "发文机关": "国务院",
+      "effective_date": "unknown"
+     },
+     "tags": [
+      "宏观",
+      "规划与试点",
+      "财税",
+      "国家级"
+     ],
+     "all_nine": true,
+     "parse_status": "completed"
+    },
+    {
+     "id": "fa5edb12-441c-4b89-b292-cc28b8f70c5f",
+     "title": "[宏观] 《失信行为纠正后的信用信息修复管理办法(试行)》（2023-01-17）",
+     "keys_present": [
+      "doc_id",
+      "effective_date",
+      "expire_date",
+      "industry",
+      "level",
+      "publish_date",
+      "source_url",
+      "theme",
+      "发文机关",
+      "文号"
+     ],
+     "key_count": 10,
+     "custom_metadata": {
+      "level": "部委级",
+      "theme": "监管处罚",
+      "doc_id": "9e93a8fb1b1c9cc7",
+      "文号": "2023年第58号令",
+      "industry": "宏观",
+      "source_url": "https://www.ndrc.gov.cn/xxgk/zcfb/fzggwl/202301/t20230117_1346719.html",
+      "expire_date": "unknown",
+      "publish_date": "2023-01-17",
+      "发文机关": "国家发展改革委",
+      "effective_date": "2023-05-01"
+     },
+     "tags": [
+      "宏观",
+      "监管处罚",
+      "部委级"
+     ],
+     "all_nine": true,
+     "parse_status": "completed"
+    },
+    {
+     "id": "668f1482-5363-4f84-9740-6a741b6304f5",
+     "title": "[宏观] 《中国反对拐卖人口行动计划（2021—2030年）》（2021-04-28）",
+     "keys_present": [
+      "doc_id",
+      "effective_date",
+      "expire_date",
+      "industry",
+      "level",
+      "publish_date",
+      "source_url",
+      "theme",
+      "发文机关",
+      "文号"
+     ],
+     "key_count": 10,
+     "custom_metadata": {
+      "level": "国家级",
+      "theme": "监管处罚;规划与试点",
+      "doc_id": "ae249a503d83cbec",
+      "文号": "国办发〔2021〕13号",
+      "industry": "宏观",
+      "source_url": "https://www.gov.cn/zhengce/zhengceku/2021-04/28/content_5603574.htm",
+      "expire_date": "unknown",
+      "publish_date": "2021-04-28",
+      "发文机关": "国务院办公厅",
+      "effective_date": "unknown"
+     },
+     "tags": [
+      "宏观",
+      "规划与试点",
+      "监管处罚",
+      "国家级"
+     ],
+     "all_nine": true,
+     "parse_status": "completed"
+    },
+    {
+     "id": "10ad1b74-1eab-4217-8ea3-f56c08a9f714",
+     "title": "[宏观] 《关于第三批取消中央指定地方实施行政许可事项的决定》（2017-01-21）",
+     "keys_present": [
+      "doc_id",
+      "effective_date",
+      "expire_date",
+      "industry",
+      "level",
+      "publish_date",
+      "source_url",
+      "theme",
+      "发文机关",
+      "文号"
+     ],
+     "key_count": 10,
+     "custom_metadata": {
+      "level": "国家级",
+      "theme": "监管处罚;准入与资质;安全",
+      "doc_id": "8af5c1cb9600fd48",
+      "文号": "国发〔2017〕7号",
+      "industry": "宏观",
+      "source_url": "https://www.gov.cn/zhengce/zhengceku/2017-01/21/content_5161879.htm",
+      "expire_date": "unknown",
+      "publish_date": "2017-01-21",
+      "发文机关": "国务院",
+      "effective_date": "unknown"
+     },
+     "tags": [
+      "宏观",
+      "准入与资质",
+      "安全",
+      "监管处罚",
+      "国家级"
+     ],
+     "all_nine": true,
+     "parse_status": "completed"
+    }
+   ]
+  },
+  {
+   "id": "6_hit_rate",
+   "metric_terms": 119,
+   "before": {
+    "n": 5560,
+    "hit": 3545,
+    "rate": 0.6376
+   },
+   "after": {
+    "n": 4524,
+    "hit": 3194,
+    "rate": 0.706
+   },
+   "after_sample100": {
+    "n": 100,
+    "hit": 72
+   },
+   "after_sample100_docs": [
+    "《关于进一步扩大和升级信息消费持续释放内需潜力的指导意见》（2017-08-24）",
+    "《关于开展污水处理绿色低碳标杆厂遴选工作的通知(发改办环资〔2024〕531号)》（2024-07-03）",
+    "《关于加快场景培育和开放推动新场景大规模应用的实施意见》（2025-11-07）",
+    "《浙江省嘉善县推进高质量发展第二批经验清单的通知(发改办区域〔2025〕755号)》（2025-09-02）",
+    "《常见类型移动互联网应用程序必要个人信息范围规定》（2021-03-23）",
+    "《“十四五”期间进口科学研究、科技开发和教学用品免税清单（第一批）》（2021-11-06）",
+    "《银行业保险业绿色金融高质量发展实施方案》（2025-02-27）",
+    "《中华人民共和国 公告》（2018-12-31）",
+    "《28部门关于开展2023年全国食品安全宣传周活动》（2023-11-26）",
+    "《工业重点行业领域设备更新和技术改造指南》（2024-09-20）",
+    "《建立扩大生物燃料乙醇生产和推广使用车用乙醇汽油工作信息月报制度》（2019-09-29）",
+    "《进一步规范财务审计秩序促进注册会计师行业健康发展》（2021-08-23）",
+    "《权益性投资经营所得个人所得税征收管理》（2021-12-31）",
+    "《批转中国民用航空局等部门关于由民航统一安排承运劳务人员和物资的请示》（2017-05-24）",
+    "《等部门关于整治虚拟货币“挖矿”活动》（2021-09-25）",
+    "《       关于进一步支持农民工就业创业的实施意见》（2022-11-18）",
+    "《划转部分国有资本充实社保基金实施方案》（2017-11-18）",
+    "《失信行为纠正后的信用信息修复管理办法(试行)》（2023-01-17）",
+    "《中国反对拐卖人口行动计划（2021—2030年）》（2021-04-28）",
+    "《关于第三批取消中央指定地方实施行政许可事项的决定》（2017-01-21）",
+    "《保险保障基金有关税收政策问题》（2018-12-31）",
+    "《延续实施应对疫情部分税费优惠政策》（2021-03-23）",
+    "《关于调整完善工业产品生产许可证管理目录的决定》（2024-05-09）",
+    "《优质中小企业梯度培育管理办法》（2026-01-20）",
+    "《西部地区鼓励类产业目录(2025年本)》（2024-11-29）",
+    "《下达2022年科技馆免费开放补助资金预算》（2022-05-10）",
+    "《自由贸易试验区外商投资准入特别管理措施（负面清单）（2017年版）》（2017-06-16）",
+    "《城市公共交通条例》（2024-10-23）",
+    "《中国（河南）自由贸易试验区总体方案》（2017-03-31）",
+    "《印发通知指导做好政府采购框架协议采购工作》（2022-05-23）",
+    "《促进数字技术适老化高质量发展工作方案》（2023-12-28）",
+    "《城市社区嵌入式服务设施建设导则（试行）》（2024-01-17）",
+    "《“十四五”信息化和工业化深度融合发展规划》（2021-12-01）",
+    "《对十届全国人大四次会议第2996号建议的答复》（2018-12-24）",
+    "《边民互市贸易进出口商品不予免税清单》（2024-04-10）",
+    "《国家机关事务管理局 国家发展和改革委员会关于印发“十四五”公共机构节约能源资源工作规划》（2021-06-04）",
+    "《进境物品关税、增值税、消费税征收办法》（2024-11-29）",
+    "《安全生产专用设备企业所得税优惠目录（2018年版）》（2019-10-11）",
+    "《国家标准化管理委员会 国家发展和改革委员会关于下达国家循环经济标准化试点示范项目》（2024-01-23）",
+    "《防止耕地“非粮化”稳定粮食生产》（2020-11-17）",
+    "《东北全面振兴“十四五”实施方案》（2021-09-13）",
+    "《政府会计准则制度解释第6号》（2023-11-01）",
+    "《等部门关于开展物流数据开放互联试点工作》（2025-02-15）",
+    "《便携式计算机政府采购需求标准（2023年版）》（2023-12-27）",
+    "《六部门关于开展2024年度智能工厂梯度培育行动》（2024-10-29）",
+    "《    人民银行  关于打赢疫情防控阻击战强化疫情防控重点保障企业资金支持的紧急通知》（2020-02-07）",
+    "《国家标准化管理委员会关于印发物联网标准体系建设指南（2024版）》（2024-08-27）",
+    "《 关于做好2019年畜禽粪污资源化利用项目实施工作》（2019-10-28）",
+    "《同意建立反不正当竞争部际联席会议制度》（2020-11-19）",
+    "《公告〔2026〕第8号》（2026-04-10）",
+    "《同意辽宁大连旅顺新港口岸对外开放》（2019-03-19）",
+    "《浙江、安徽、湖北、四川等省深化投资项目审批制度改革促进投资高质量发展典型经验的通知(发改办投资〔2022〕977号)》（2022-12-27）",
+    "《“十四五”大数据产业发展规划》（2021-11-30）",
+    "《关于促进平台经济规范健康发展的指导意见》（2019-08-08）",
+    "《外商投资证券公司管理办法》（2018-12-31）",
+    "《防震减灾规划(2016-2020年)》（2016-12-02）",
+    "《全国全面供应硫含量不大于10ppm普通柴油》（2017-10-31）",
+    "《 关于加快农机创新产品中试验证和熟化应用》（2025-09-04）",
+    "《   关于延续实施一次性扩岗补助政策有关工作》（2023-07-03）",
+    "《等部门关于促进企业数据资源开发利用》（2024-12-25）",
+    "《同意郑洛新国家高新区建设国家自主创新示范区》（2016-04-11）",
+    "《        全国总工会 全国妇联关于开展“迎新春送温暖、稳岗留工”专项行动》（2021-01-26）",
+    "《国际邮轮在中华人民共和国港口靠港补给的规定》（2024-04-26）",
+    "《铁路项目中央预算内投资专项管理办法》（2024-01-21）",
+    "《转发 物流业降本增效专项行动方案（2016—2018年）》（2016-09-26）",
+    "《2019年电子商务进农村综合示范工作》（2019-10-18）",
+    "《  国家铁路局 中国民用航空局  关于健全交通运输行业信用体系的实施意见》（2026-03-19）",
+    "《 关于授权和委托用地审批权的决定》（2020-03-13）",
+    "《下达2022年普惠金融发展专项资金预算》（2022-12-27）",
+    "《数据资产全过程管理试点方案》（2024-12-27）",
+    "《北京城市副中心建设国家绿色发展示范区实施方案》（2024-03-15）",
+    "《国家企业技术中心2021年评价结果》（2022-02-15）",
+    "《关于优化业务准入促进卫星通信产业发展的指导意见》（2025-08-27）",
+    "《“十四五”土壤、地下水和农村生态环境保护规划》（2022-01-04）",
+    "《推广随机抽查规范事中事后监管的实施方案（2020年修订）》（2020-04-08）",
+    "《   关于延续实施跨境电子商务出口退运商品税收政策》（2023-08-30）",
+    "《商业性个人住房贷款利率政策》（2024-05-19）",
+    "《关于实施〈公开募集证券投资基金信息披露管理办法〉有关问题的规定》（2019-11-14）",
+    "《证券交易所风险基金监管指引》（2019-11-14）",
+    "《  金融监管总局关于实施居民购房贷款贴息政策》（2026-09-29）",
+    "《决定废止的推荐性物流行业标准目录 2017年第16号公告》（2017-10-20）",
+    "《黄河流域国土空间规划（2021—2035年）》（2025-04-08）",
+    "《关于在北京市暂时调整有关行政审批和准入特别管理措施的决定》（2017-12-22）",
+    "《试点创新企业境内发行股票或存托凭证并上市监管工作实施办法》（2018-12-31）",
+    "《 关于印发气象基础设施中央预算内投资专项管理办法》（2022-03-19）",
+    "《关于进一步加强期货经营机构客户交易终端信息采集有关事项的公告》（2018-12-31）",
+    "《     关于进一步支持重点群体创业就业有关税收政策》（2023-08-03）",
+    "《河北雄安新区总体规划（2018—2035年）》（2019-01-02）",
+    "《中外中小企业合作区管理暂行办法》（2024-09-04）",
+    "《支持打造特色载体推动中小企业创新创业升级工作》（2018-12-31）",
+    "《绿色金融支持项目目录（2025年版）》（2025-07-15）",
+    "《国家粮食应急预案》（2018-12-03）",
+    "《关于2021年第四季度违背市场准入负面清单典型案例的通报》（2022-05-10）",
+    "《2018年畜禽粪污资源化利用项目实施工作》（2018-12-31）",
+    "《关于完善现代商贸流通体系推动批发零售业高质量发展的行动计划》（2024-12-03）",
+    "《中央网信办秘书局  办公厅  办公厅  办公厅关于进一步规范大学生互联网消费贷款监督管理工作》（2021-03-17）",
+    "《 办公厅关于公布第三批多式联运示范工程项目名单》（2018-12-31）",
+    "《对小微企业融资担保业务实施降费奖补政策》（2018-12-31）",
+    "《国际化消费环境建设工作》（2025-09-30）",
+    "《  中央文明办           人民银行   体育总局 国家网信办  公告》（2018-12-31）"
+   ]
+  }
+ ]
+}

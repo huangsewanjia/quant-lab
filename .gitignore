@@ -2,6 +2,8 @@
 /data/*
 !/data/README.md
 *.csv
+!docs/macro_prune_list.csv
+!docs/policy_prune/manual_100_review.csv
 !data_contracts/*.csv
 !experiments/*/metrics_table.csv
 # WORK-503 的交付物清单里点名引用的两张人读表（按档聚合表 + 成本敏感性表）
