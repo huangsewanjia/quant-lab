@@ -20,6 +20,9 @@ report.html
 # ---- WORK-535 例外：采购清单必须随仓可核验（价格与来源 URL 是本单的交付物本身） ----
 !docs/procurement_plan.csv
 
+# ---- WORK-618 例外：三档采购主表必须随仓可核验（一档 × 一家 × 一个产品，价格证据逐行标注） ----
+!docs/procurement_tiers.csv
+
 # ---- WORK-449 例外：本单的交付物必须可核验，报告成品入库 ----
 # 单文件 HTML 报告 + 1440x900 首屏 PNG + A4 打印 PDF + 论文对照 CSV + 图件
 !experiments/WORK-449/report.html
