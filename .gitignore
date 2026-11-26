@@ -53,3 +53,11 @@ Thumbs.db
 
 # ---- WORK-449 作废轮次产物（协方差缺陷修复前的运行结果，不作证据） ----
 experiments/WORK-449/void_run_*/
+
+# ---- WORK-619 例外：自建 Top-10 的选型表、台账、候选输入与单文件报告必须随仓可核验 ----
+!docs/selfbuild_top10.csv
+!docs/selfbuild_top10_candidates.csv
+!docs/alt_gap_ledger.csv
+!docs/selfbuild_report.html
+!scripts/alt/selection/candidates.csv
+!scripts/alt/selection/ledger_map.csv

@@ -209,3 +209,30 @@ CNESA 白皮书摘要 ｜ 电池网 CBEA 月度信息 ｜ McKinsey Our Insights�
 
 **取数前先看 §6.2**：Benchmark / S&P Global / IQVIA / 米内网 / BNEF / 医药工业信息中心 / GGII 的价格**官网不公开**，必须询价；SEMI 的价格**本机被限流（429）**，需人工浏览器复核。
 
+
+---
+
+## 7. 行业替代源（WORK-619 新增 10 个脚本，2026-11-27 实测）
+
+> 口径：`可用` = 本轮实跑落盘非空且连跑两次 sha256 一致；`部分可用` = 能落盘但口径/覆盖有硬约束。
+> 逐条证据：脚本 `scripts/alt/<slug>/fetch.py`、raw `raw/industry_alt/<slug>/`、运行日志 `docs/alt_run_log.json`。
+
+| slug | 来源 | 入口 | 形态 | 可用性 | 限制 | 采样日期 | 证据（行数 / sha256 前 12） |
+|---|---|---|---|---|---|---|---|
+| `trendforce_spot_price` | TrendForce 公开现货价表 | `https://www.trendforce.cn/price/dram/dram_spot` | HTML 表格 | **部分可用** | 现货价公开；合约价需 Gold+ 会员；无历史接口，只能日更累积 | 2026-11-27 | 23 行 / `feffbca4ccd3` |
+| `benchmark_public_index` | Benchmark Mineral Intelligence | `https://www.benchmarkminerals.com/price-assessments` | HTML | **部分可用** | 只有相对指数点；页面无评估日，快照日=抓取日 | 2026-11-27 | 16 行 / `afea6fca1e62` |
+| `sne_research_releases` | SNE Research 新闻稿 | `https://www.sneresearch.com/en/insight/release/` | HTML | **可用** | 列表只回最近 12 条；正文绝对值可抽，非数据库 | 2026-11-27 | 12 行 / `953f4e3ee8ca` |
+| `shfe_gfex_quotes` | 上期所 + 广期所 | `https://www.shfe.com.cn/data/tradedata/future/dailydata/kx{YYYYMMDD}.dat` | JSON | **可用** | 非交易日 404；PRODUCTID 小写；GFEX 日期须 YYYYMMDD 且 trade_type 必填 | 2026-11-27 | 1146 行 / `842a164d8ed5` |
+| `eurostat_trade` | Eurostat API | `https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/ext_lt_intratrd` | JSON-stat | **可用** | 多年度须重复 time= 参数，逗号分隔会 400 | 2026-11-27 | 140 行 / `2c7affbb28d6` |
+| `owid_ev_sales` | OWID（IEA GEO 派生） | `https://ourworldindata.org/grapher/electric-car-sales.csv` | CSV | **可用** | 派生序列，滞后一手源约一版 | 2026-11-27 | 1640 行 / `3c5c40b0a4f0` |
+| `owid_energy_co2` | OWID（IEA/Energy Institute 派生） | `https://ourworldindata.org/grapher/primary-energy-consumption-by-source.csv` | CSV | **可用** | 宽表需转长表；CO2 为总量含工业过程 | 2026-11-27 | 18735 行 / `72abb0d545ee` |
+| `worldbank_wdi` | World Bank WDI API | `https://api.worldbank.org/v2/country/WLD/indicator/NY.GDP.MKTP.KD` | JSON | **可用** | 水平值；无贸易量指数 | 2026-11-27 | 192 行 / `61439a90a367` |
+| `irena_re_capacity` | IRENA PxWeb API | `https://pxweb.irena.org/api/v1/en/IRENASTAT/Power%20Capacity%20and%20Generation/Region_ELECSTAT_2026_H2_PX.px` | JSON-stat | **部分可用** | GET ?query= 被忽略，必须 POST JSON body；偶发 404 需重试；储能仅抽水蓄能 | 2026-11-27 | 1318 行 / `756f07542eaf` |
+| `emmes_storage` | Energy Storage Europe / LCP Delta | `https://energystorageeurope.eu/publication/emmes-10-june-2026/` | HTML 正文 | **部分可用** | 数值写在新闻稿正文，无表结构；只有欧洲 | 2026-11-27 | 4 行 / `648c9facb83e` |
+
+**本轮新增的踩坑（已写进各脚本 docstring）**：
+1. IRENA PxWeb 的 `GET ?query=` 参数被忽略、只返回 metadata；必须 POST 同一 URL 带 JSON body。
+2. openFDA drugsfda 的 `limit=1000` 单页实测 298 s，`count=` 面不支持该端点 → 判据 4 不达标，本轮未入选。
+3. 广期所接口 `trade_date` 必须 `YYYYMMDD`，`trade_type` 必填，否则 `code=1` 空返回。
+4. 上期所 `PRODUCTID` 为小写（`cu_f`），与契约里的 `CU_F` 需统一。
+5. 生意社（100ppi）返回 660 字节 JS cookie 挑战页（`HW_CHECK`），模拟挑战属绕过访问控制，未做。

@@ -1,0 +1,368 @@
+{
+ "raw_root": "/srv/share/quantdb/raw/industry_alt",
+ "plan": [
+  [
+   "trendforce_spot_price",
+   [
+    "--start",
+    "2026-11-01"
+   ]
+  ],
+  [
+   "benchmark_public_index",
+   [
+    "--start",
+    "2026-11-01"
+   ]
+  ],
+  [
+   "sne_research_releases",
+   [
+    "--max-pages",
+    "2",
+    "--start",
+    "2026-10-01"
+   ]
+  ],
+  [
+   "shfe_gfex_quotes",
+   [
+    "--start",
+    "2026-11-17",
+    "--end",
+    "2026-11-27"
+   ]
+  ],
+  [
+   "eurostat_trade",
+   [
+    "--start",
+    "2020",
+    "--end",
+    "2024"
+   ]
+  ],
+  [
+   "owid_ev_sales",
+   [
+    "--start",
+    "2010",
+    "--end",
+    "2025"
+   ]
+  ],
+  [
+   "owid_energy_co2",
+   [
+    "--start",
+    "2010",
+    "--end",
+    "2024"
+   ]
+  ],
+  [
+   "worldbank_wdi",
+   [
+    "--start",
+    "2010",
+    "--end",
+    "2025"
+   ]
+  ],
+  [
+   "irena_re_capacity",
+   [
+    "--start",
+    "2015",
+    "--end",
+    "2025"
+   ]
+  ],
+  [
+   "emmes_storage",
+   []
+  ]
+ ],
+ "runs": [
+  {
+   "pass": 1,
+   "slug": "trendforce_spot_price",
+   "args": [
+    "--start",
+    "2026-11-01"
+   ],
+   "exit": 0,
+   "seconds": 1.4,
+   "rows": 23,
+   "csv_sha256": "feffbca4ccd304a82969708c0f5a57399eba20d657885304a4323b8ce330e6f0",
+   "data_sha256": "feffbca4ccd304a82969708c0f5a57399eba20d657885304a4323b8ce330e6f0",
+   "date_range": [
+    "2026-11-16",
+    "2026-11-26"
+   ],
+   "stderr_tail": ""
+  },
+  {
+   "pass": 1,
+   "slug": "benchmark_public_index",
+   "args": [
+    "--start",
+    "2026-11-01"
+   ],
+   "exit": 0,
+   "seconds": 2.1,
+   "rows": 16,
+   "csv_sha256": "afea6fca1e6287566c9e3555d9c5af5a9949e2fe60957afd19307095dfeaf4a2",
+   "data_sha256": "afea6fca1e6287566c9e3555d9c5af5a9949e2fe60957afd19307095dfeaf4a2",
+   "date_range": [
+    "2026-11-27",
+    "2026-11-27"
+   ],
+   "stderr_tail": ""
+  },
+  {
+   "pass": 1,
+   "slug": "sne_research_releases",
+   "args": [
+    "--max-pages",
+    "2",
+    "--start",
+    "2026-10-01"
+   ],
+   "exit": 0,
+   "seconds": 31.4,
+   "rows": 12,
+   "csv_sha256": "953f4e3ee8ca603cee4bc9f2c69bfd80f6d831bffe01569b27f5338181e408a3",
+   "data_sha256": "953f4e3ee8ca603cee4bc9f2c69bfd80f6d831bffe01569b27f5338181e408a3",
+   "date_range": [
+    "2026-10-15",
+    "2026-11-11"
+   ],
+   "stderr_tail": ""
+  },
+  {
+   "pass": 1,
+   "slug": "shfe_gfex_quotes",
+   "args": [
+    "--start",
+    "2026-11-17",
+    "--end",
+    "2026-11-27"
+   ],
+   "exit": 0,
+   "seconds": 0.3,
+   "rows": 1146,
+   "csv_sha256": "842a164d8ed5fb3d0c3a17e89704dcb87d12477ebbec4f1690d8da659c61f713",
+   "data_sha256": "842a164d8ed5fb3d0c3a17e89704dcb87d12477ebbec4f1690d8da659c61f713",
+   "date_range": [
+    "2026-11-17",
+    "2026-11-27"
+   ],
+   "stderr_tail": "WARN 1 个「日×所」失败，见 failed.json（不影响已取到的行）\n"
+  },
+  {
+   "pass": 1,
+   "slug": "eurostat_trade",
+   "args": [
+    "--start",
+    "2020",
+    "--end",
+    "2024"
+   ],
+   "exit": 0,
+   "seconds": 7.5,
+   "rows": 140,
+   "csv_sha256": "2c7affbb28d6483aca0f5ed034863fdf3c279684641cf91e5889b1dd441185e0",
+   "data_sha256": "2c7affbb28d6483aca0f5ed034863fdf3c279684641cf91e5889b1dd441185e0",
+   "date_range": [
+    "2020",
+    "2024"
+   ],
+   "stderr_tail": ""
+  },
+  {
+   "pass": 1,
+   "slug": "owid_ev_sales",
+   "args": [
+    "--start",
+    "2010",
+    "--end",
+    "2025"
+   ],
+   "exit": 0,
+   "seconds": 2.1,
+   "rows": 1640,
+   "csv_sha256": "3c5c40b0a4f08ddfccec009df2bfb347b7aadae5c9f268cd6070a7d3bfaa1512",
+   "data_sha256": "3c5c40b0a4f08ddfccec009df2bfb347b7aadae5c9f268cd6070a7d3bfaa1512",
+   "date_range": [
+    2010,
+    2025
+   ],
+   "stderr_tail": ""
+  },
+  {
+   "pass": 1,
+   "slug": "owid_energy_co2",
+   "args": [
+    "--start",
+    "2010",
+    "--end",
+    "2024"
+   ],
+   "exit": 0,
+   "seconds": 6.1,
+   "rows": 18735,
+   "csv_sha256": "72abb0d545eefed863c03a9e58369935296d69fee1b7c49d3d2db550fa06f209",
+   "data_sha256": "72abb0d545eefed863c03a9e58369935296d69fee1b7c49d3d2db550fa06f209",
+   "date_range": [
+    2010,
+    2024
+   ],
+   "stderr_tail": ""
+  },
+  {
+   "pass": 1,
+   "slug": "worldbank_wdi",
+   "args": [
+    "--start",
+    "2010",
+    "--end",
+    "2025"
+   ],
+   "exit": 0,
+   "seconds": 11.9,
+   "rows": 192,
+   "csv_sha256": "61439a90a367ddbd0cc81c75c12958f6471bcc2da29a94c771f668f1fd19dd2d",
+   "data_sha256": "61439a90a367ddbd0cc81c75c12958f6471bcc2da29a94c771f668f1fd19dd2d",
+   "date_range": [
+    2010,
+    2025
+   ],
+   "stderr_tail": ""
+  },
+  {
+   "pass": 1,
+   "slug": "irena_re_capacity",
+   "args": [
+    "--start",
+    "2015",
+    "--end",
+    "2025"
+   ],
+   "exit": 0,
+   "seconds": 96.6,
+   "rows": 1318,
+   "csv_sha256": "2c06c1e8183fd5b359a2cb84b78b89a8eeae1eb677a2fc78bfaa5acf316176c2",
+   "data_sha256": "2c06c1e8183fd5b359a2cb84b78b89a8eeae1eb677a2fc78bfaa5acf316176c2",
+   "date_range": [
+    2015,
+    2025
+   ],
+   "stderr_tail": ""
+  },
+  {
+   "pass": 1,
+   "slug": "emmes_storage",
+   "args": [],
+   "exit": 0,
+   "seconds": 0.0,
+   "rows": 4,
+   "csv_sha256": "648c9facb83e1fe0771d2221a94f597067d9303359e8168388435f437aabe469",
+   "data_sha256": "648c9facb83e1fe0771d2221a94f597067d9303359e8168388435f437aabe469",
+   "date_range": null,
+   "stderr_tail": ""
+  }
+ ],
+ "idempotency": [
+  {
+   "slug": "trendforce_spot_price",
+   "rows_1": 23,
+   "rows_2": 23,
+   "sha_equal": true,
+   "rows_equal": true,
+   "sha_1": "feffbca4ccd304a8",
+   "sha_2": "feffbca4ccd304a8"
+  },
+  {
+   "slug": "benchmark_public_index",
+   "rows_1": 16,
+   "rows_2": 16,
+   "sha_equal": true,
+   "rows_equal": true,
+   "sha_1": "afea6fca1e628756",
+   "sha_2": "afea6fca1e628756"
+  },
+  {
+   "slug": "sne_research_releases",
+   "rows_1": 12,
+   "rows_2": 12,
+   "sha_equal": true,
+   "rows_equal": true,
+   "sha_1": "953f4e3ee8ca603c",
+   "sha_2": "953f4e3ee8ca603c"
+  },
+  {
+   "slug": "shfe_gfex_quotes",
+   "rows_1": 1146,
+   "rows_2": 1146,
+   "sha_equal": true,
+   "rows_equal": true,
+   "sha_1": "842a164d8ed5fb3d",
+   "sha_2": "842a164d8ed5fb3d"
+  },
+  {
+   "slug": "eurostat_trade",
+   "rows_1": 140,
+   "rows_2": 140,
+   "sha_equal": true,
+   "rows_equal": true,
+   "sha_1": "2c7affbb28d6483a",
+   "sha_2": "2c7affbb28d6483a"
+  },
+  {
+   "slug": "owid_ev_sales",
+   "rows_1": 1640,
+   "rows_2": 1640,
+   "sha_equal": true,
+   "rows_equal": true,
+   "sha_1": "3c5c40b0a4f08ddf",
+   "sha_2": "3c5c40b0a4f08ddf"
+  },
+  {
+   "slug": "owid_energy_co2",
+   "rows_1": 18735,
+   "rows_2": 18735,
+   "sha_equal": true,
+   "rows_equal": true,
+   "sha_1": "72abb0d545eefed8",
+   "sha_2": "72abb0d545eefed8"
+  },
+  {
+   "slug": "worldbank_wdi",
+   "rows_1": 192,
+   "rows_2": 192,
+   "sha_equal": true,
+   "rows_equal": true,
+   "sha_1": "61439a90a367ddbd",
+   "sha_2": "61439a90a367ddbd"
+  },
+  {
+   "slug": "irena_re_capacity",
+   "rows_1": 1318,
+   "rows_2": 1318,
+   "sha_equal": true,
+   "rows_equal": true,
+   "sha_1": "2c06c1e8183fd5b3",
+   "sha_2": "2c06c1e8183fd5b3"
+  },
+  {
+   "slug": "emmes_storage",
+   "rows_1": 4,
+   "rows_2": 4,
+   "sha_equal": true,
+   "rows_equal": true,
+   "sha_1": "648c9facb83e1fe0",
+   "sha_2": "648c9facb83e1fe0"
+  }
+ ]
+}
