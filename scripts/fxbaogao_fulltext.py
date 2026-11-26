@@ -45,12 +45,14 @@ import re
 import sys
 import time
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 CHANNEL_ID = "fxbaogao_vip"
 SITE = "https://www.fxbaogao.com"
 DETAIL_RE = re.compile(r"^/detail/(\d+)/?$")
-CANON_ROOT = Path("/srv/share/quantdb/raw/reports_fulltext/fxbaogao")
+# 采集器在 Windows 上跑：落盘根优先取环境变量，避免把 POSIX 路径解析到 C:\srv\...
+CANON_ROOT = Path(os.environ.get("FXBAOGAO_ROOT")
+                  or "/srv/share/quantdb/raw/reports_fulltext/fxbaogao")
 DEFAULT_GAP = 1.05
 DEFAULT_CDP = "http://127.0.0.1:9222"
 
@@ -93,6 +95,8 @@ def pdf_pages(path: Path) -> int:
 
 
 def failure(root: Path, report_id, url: str, http_status, reason: str, path: str = "") -> dict:
+    if isinstance(report_id, str) and report_id.isdigit():
+        report_id = int(report_id)
     rec = {
         "report_id": report_id,
         "url": url or "",
@@ -191,16 +195,20 @@ def parse_candidates(html_text: str) -> list[dict]:
     return list(found.values())
 
 
+# ---------------------------------------------------------------- robots 判定
+def check_robots(probe, robots: dict, url: str) -> tuple[bool, str]:
+    """统一的 robots 判定：不可读一律按禁止处理（诊断与正式抓取同一口径）。"""
+    if robots.get("rules") is None:
+        return False, f"robots.txt 不可读（HTTP {robots.get('robots_status')}）"
+    return probe.robots_allows(robots["rules"], urlparse(url).path or "/")
+
+
 # ---------------------------------------------------------------- 抓详情页
 def fetch_detail(probe, report_id: str, url: str = "") -> dict:
     """robots 允许才抓；返回 detail dict + 状态码原文（证据口径同 work537_probe）。"""
     target = url or f"{SITE}/detail/{report_id}"
     robots = probe.get_robots_cached(target)
-    path = urlparse(target).path or "/"
-    if robots.get("rules") is None:
-        return {"ok": False, "url": target, "http_status": robots.get("robots_status", 0),
-                "reason": f"robots.txt 不可读（HTTP {robots.get('robots_status')}），按禁止处理"}
-    allowed, hit = probe.robots_allows(robots["rules"], path)
+    allowed, hit = check_robots(probe, robots, target)
     if not allowed:
         return {"ok": False, "url": target, "http_status": 0, "reason": f"robots 禁止: {hit}"}
     resp = probe.http_get(target)
@@ -251,8 +259,9 @@ PAGE_META_JS = """
 }
 """
 
+# 不把 /pdf 链接放进默认选择器：robots 禁止该路径。下载只允许点「下载」类控件，
+# 且点击前用 path_guard 校验 href（见 download()）。
 DEFAULT_SELECTORS = [
-    'a[href^="/pdf"]',
     'button:has-text("下载")',
     'a:has-text("下载")',
     '[class*="download"]',
@@ -265,6 +274,8 @@ class CdpDriver:
 
     def __init__(self, cdp_url: str = DEFAULT_CDP, settle_ms: int = 1500):
         from playwright.sync_api import sync_playwright
+
+        self.cdp_url = cdp_url
 
         self._pw = sync_playwright().start()
         try:
@@ -306,7 +317,8 @@ class CdpDriver:
                 continue
         return None, ""
 
-    def download(self, url: str, dest: Path, selectors=None, timeout_ms: int = 60000) -> dict:
+    def download(self, url: str, dest: Path, selectors=None, timeout_ms: int = 60000,
+                 path_guard=None) -> dict:
         selectors = selectors or DEFAULT_SELECTORS
         page = self._ctx.new_page()
         try:
@@ -317,6 +329,16 @@ class CdpDriver:
             if control is None:
                 return {"ok": False, "reason": "download_control_not_found",
                         "page_meta": meta, "html": page.content()[:60000]}
+            href = ""
+            try:
+                href = control.get_attribute("href") or ""
+            except Exception:  # noqa: BLE001 - 非 a 元素没有 href
+                href = ""
+            if href and path_guard is not None:
+                allowed, hit = path_guard(href)
+                if not allowed:
+                    return {"ok": False, "page_meta": meta, "control_href": href,
+                            "reason": f"下载控件指向 robots 禁止路径: {hit}"}
             dest.parent.mkdir(parents=True, exist_ok=True)
             part = dest.with_suffix(".pdf.part")
             with page.expect_download(timeout=timeout_ms) as pending:
@@ -395,11 +417,7 @@ def cmd_candidates(args) -> int:
     items: dict[str, dict] = {}
     for url in args.url:
         robots = probe.get_robots_cached(url)
-        path = urlparse(url).path or "/"
-        if robots.get("rules") is None:
-            print(f"[candidates] robots 不可读，跳过 {url}", file=sys.stderr)
-            continue
-        allowed, hit = probe.robots_allows(robots["rules"], path)
+        allowed, hit = check_robots(probe, robots, url)
         if not allowed:
             print(f"[candidates] robots 禁止（{hit}），跳过 {url}", file=sys.stderr)
             continue
@@ -476,20 +494,18 @@ def download_batch(driver, items: list[dict], root: Path, probe, limit: int = 20
         rid = str(item.get("report_id") or "")
         url = item.get("url") or f"{SITE}/detail/{rid}"
         robots = robots_lookup(url)
-        path = urlparse(url).path or "/"
-        if robots.get("rules") is None:
-            failure(root, rid, url, robots.get("robots_status", 0), "robots.txt 不可读")
-            stats["failed"] += 1
-            stats["skipped_robots"] += 1
-            continue
-        allowed, hit = probe.robots_allows(robots["rules"], path)
+        allowed, hit = check_robots(probe, robots, url)
         if not allowed:
-            failure(root, rid, url, 0, f"robots 禁止: {hit}")
+            failure(root, rid, url, robots.get("robots_status", 0), f"robots 禁止: {hit}")
             stats["failed"] += 1
             stats["skipped_robots"] += 1
             continue
         tmp = root / "_partial" / f"{rid}.pdf.part"
-        result = driver.download(url, tmp, selectors=selectors)
+        guard = None
+        if robots.get("rules") is not None:
+            guard = lambda href, _rules=robots["rules"]: probe.robots_allows(  # noqa: E731
+                _rules, urlparse(urljoin(url, href)).path or "/")
+        result = driver.download(url, tmp, selectors=selectors, path_guard=guard)
         if not result.get("ok"):
             reason = result.get("reason", "下载失败")
             if result.get("html"):
@@ -525,6 +541,11 @@ def download_batch(driver, items: list[dict], root: Path, probe, limit: int = 20
             continue
         dest.parent.mkdir(parents=True, exist_ok=True)
         os.replace(tmp, dest)
+        # 同一 report_id 只保留最新一份：标题/页面日期变化会换文件名，旧文件要清掉
+        for old in root.glob(f"*/{rid}-*.pdf"):
+            if old.resolve() != dest.resolve():
+                old.unlink(missing_ok=True)
+                old.with_suffix(".meta.json").unlink(missing_ok=True)
         write_meta(dest, {"report_id": rid, "title": title,
                           "org": detail.get("org", "") or item.get("org", ""),
                           "page_date": page_date, "url": url,
@@ -580,7 +601,7 @@ def _fetch_dry_run(args, probe, items, root: Path) -> int:
             rid = str(item.get("report_id") or "")
             url = item.get("url") or f"{SITE}/detail/{rid}"
             robots = probe.get_robots_cached(url)
-            allowed, hit = probe.robots_allows(robots.get("rules") or [], urlparse(url).path or "/")
+            allowed, hit = check_robots(probe, robots, url)
             page = driver._ctx.new_page()
             try:
                 page.goto(url, wait_until="domcontentloaded", timeout=45000)
@@ -594,7 +615,9 @@ def _fetch_dry_run(args, probe, items, root: Path) -> int:
                     if count:
                         candidates.append({"selector": selector, "count": count})
                 report["items"].append({"report_id": rid, "url": url, "robots_allowed": allowed,
-                                        "robots_rule": hit, "meta": page.evaluate(PAGE_META_JS),
+                                        "robots_rule": hit,
+                                        "robots_status": robots.get("robots_status"),
+                                        "meta": page.evaluate(PAGE_META_JS),
                                         "controls": candidates})
             finally:
                 page.close()

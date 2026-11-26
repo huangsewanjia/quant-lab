@@ -44,14 +44,22 @@ def _table_rows(con) -> list[dict]:
     return [dict(zip(cols, row)) for row in rows]
 
 
-def _disk_pdfs(root: Path) -> dict[int, Path]:
-    out: dict[int, Path] = {}
+def _disk_index(root: Path) -> tuple[dict[int, list[Path]], list[int]]:
+    """report_id -> 磁盘上的所有 PDF（同 id 多份要能被发现，不能互相覆盖）。"""
+    index: dict[int, list[Path]] = {}
     for pdf, _meta in rf.iter_artifacts(root):
         try:
-            out[int(pdf.name.split("-", 1)[0])] = pdf
+            rid = int(pdf.name.split("-", 1)[0])
         except ValueError:
             continue
-    return out
+        index.setdefault(rid, []).append(pdf)
+    duplicates = sorted(rid for rid, paths in index.items() if len(paths) > 1)
+    return index, duplicates
+
+
+def _disk_pdfs(root: Path) -> dict[int, Path]:
+    index, _dup = _disk_index(root)
+    return {rid: paths[0] for rid, paths in index.items()}
 
 
 def _result(name: str, ok: bool, detail: dict) -> dict:
@@ -60,15 +68,18 @@ def _result(name: str, ok: bool, detail: dict) -> dict:
 
 def c1_rows_match_files(con, root: Path, **_) -> dict:
     rows = _table_rows(con)
-    disk = _disk_pdfs(root)
+    index, duplicates = _disk_index(root)
     db_ids = {r["report_id"] for r in rows}
-    missing = sorted(set(disk) - db_ids)
-    orphan_rows = sorted(db_ids - set(disk))
-    ok = len(rows) == len(disk) and not missing and not orphan_rows
+    missing = sorted(set(index) - db_ids)
+    orphan_rows = sorted(db_ids - set(index))
+    pdf_files = sum(len(paths) for paths in index.values())
+    ok = len(rows) == pdf_files and not missing and not orphan_rows and not duplicates
     return _result("C1_rows_match_files", ok, {
-        "rows": len(rows), "pdf_files": len(disk),
+        "rows": len(rows), "pdf_files": pdf_files, "unique_report_ids_on_disk": len(index),
+        "duplicate_report_ids": duplicates[:20],
         "pdf_without_row": missing[:20], "row_without_pdf": orphan_rows[:20],
-        "hint": "row_without_pdf 表示库里有行但文件被删/移；pdf_without_row 表示未入库（先跑 ingest，再查 failed.jsonl）",
+        "hint": ("row_without_pdf 表示库里有行但文件被删/移；pdf_without_row 表示未入库（先跑 ingest，再查 failed.jsonl）；"
+                 "duplicate_report_ids 表示同一 report_id 有多份文件（会话重抓换名后未清理）"),
     })
 
 

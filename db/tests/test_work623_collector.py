@@ -51,17 +51,25 @@ class FakeProbe:
 class FakeDriver:
     cdp_url = "http://127.0.0.1:9222"
 
-    def __init__(self, pages=2, fail_ids=()):
+    def __init__(self, pages=2, fail_ids=(), title_template="开源证券:《测试报告{rid}》-发现报告",
+                 href=None):
         self.pages = pages
         self.fail_ids = set(fail_ids)
+        self.title_template = title_template
+        self.href = href
 
     def login_state(self):
         return {"logged_in": True, "advanced_vip": True, "vip_time": "2027-11-01T00:00:00.000Z"}
 
-    def download(self, url, dest, selectors=None):
+    def download(self, url, dest, selectors=None, path_guard=None):
         rid = url.rstrip("/").split("/")[-1]
         if rid in self.fail_ids:
             return {"ok": False, "reason": "download_control_not_found", "html": "<html>no control</html>"}
+        if self.href and path_guard is not None:
+            allowed, hit = path_guard(self.href)
+            if not allowed:
+                return {"ok": False, "reason": f"下载控件指向 robots 禁止路径: {hit}",
+                        "control_href": self.href}
         dest.parent.mkdir(parents=True, exist_ok=True)
         writer = PdfWriter()
         for _ in range(self.pages):
@@ -69,7 +77,7 @@ class FakeDriver:
         with open(dest, "wb") as fh:
             writer.write(fh)
         return {"ok": True, "page_meta": {
-            "title": f"开源证券:《测试报告{rid}》-发现报告",
+            "title": self.title_template.format(rid=rid),
             "keywords": "开源证券,测试",
             "published": "2026-11-16 10:15:02 CST (+08:00)"}}
 
@@ -97,6 +105,74 @@ def test_parse_candidates_dedupes_and_keeps_org_date():
 def test_dest_path_uses_page_date_and_keeps_cjk():
     dest = fx.dest_path(Path("/r"), "2026-11-16", "5884540", "艾奇在线:《GEO 报告》-发现报告")
     assert dest == Path("/r/2026-11-16/5884540-艾奇在线-GEO-报告.pdf")
+
+
+def test_default_selectors_never_target_pdf_path():
+    assert not any("/pdf" in sel for sel in fx.DEFAULT_SELECTORS)
+
+
+def test_download_batch_blocks_control_pointing_to_robots_disallowed_path(tmp_path):
+    root = tmp_path / "fxbaogao"
+    driver = FakeDriver(pages=1, href="/pdf/5884540")
+    stats = fx.download_batch(
+        driver, [{"report_id": "5884540", "url": "https://www.fxbaogao.com/detail/5884540"}],
+        root, FakeProbe, limit=1, gap=0,
+        robots_lookup=lambda u: {"rules": [("/pdf", False)], "robots_status": 200},
+        sleep=lambda _s: None)
+    assert stats["ok"] == 0 and stats["failed"] == 1
+    rec = json.loads((root / "failed.jsonl").read_text(encoding="utf-8"))
+    assert "robots 禁止路径" in rec["reason"] and rec["report_id"] == 5884540
+    assert not list(root.glob("*/5884540-*.pdf"))
+
+
+def test_download_batch_removes_stale_file_for_same_report(tmp_path):
+    root = tmp_path / "fxbaogao"
+    first = FakeDriver(pages=1, title_template="开源证券:《报告A》-发现报告")
+    fx.download_batch(first, [{"report_id": "9", "url": "https://www.fxbaogao.com/detail/9"}],
+                      root, FakeProbe, limit=1, gap=0,
+                      robots_lookup=lambda u: {"rules": [], "robots_status": 200},
+                      sleep=lambda _s: None)
+    second = FakeDriver(pages=1, title_template="开源证券:《报告A（修订版）》-发现报告")
+    fx.download_batch(second, [{"report_id": "9", "url": "https://www.fxbaogao.com/detail/9"}],
+                      root, FakeProbe, limit=1, gap=0,
+                      robots_lookup=lambda u: {"rules": [], "robots_status": 200},
+                      sleep=lambda _s: None)
+    pdfs = list(root.glob("*/9-*.pdf"))
+    metas = list(root.glob("*/9-*.meta.json"))
+    assert len(pdfs) == 1 and len(metas) == 1
+    assert "修订版" in pdfs[0].name
+
+
+def test_slug_algorithms_agree_between_collector_and_etl():
+    from db.etl import report_fulltext as rf
+
+    titles = ["艾奇在线:《GEO & SEO 报告》-发现报告",
+              "开源证券:《宁德时代(300750)：Q3业绩超预期》-发现报告",
+              "消费决策场景AI搜索洞察——2026年重点行业GEO差异化策略研究报告",
+              "报告/带 空格 与*星号*",
+              "   "]
+    for title in titles:
+        assert fx.slugify(title) == rf._slug(title), title
+
+
+def test_check_robots_treats_unreadable_as_denied():
+    assert fx.check_robots(FakeProbe, {"rules": None, "robots_status": 403},
+                           "https://www.fxbaogao.com/detail/1") == (
+        False, "robots.txt 不可读（HTTP 403）")
+    assert fx.check_robots(FakeProbe, {"rules": [("/pdf", False)], "robots_status": 200},
+                           "https://www.fxbaogao.com/detail/1")[0] is True
+
+
+def test_ledger_creates_missing_directory(tmp_path):
+    spec = importlib.util.spec_from_file_location(
+        "work537_probe", SCRIPT.with_name("work537_probe.py"))
+    probe = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(probe)
+    target = tmp_path / "newdir" / "request_ledger.json"
+    probe.LEDGER_PATH = str(target)
+    probe.LEDGER = [{"url": "https://example.invalid/", "ts": "2026-11-27T00:00:00+08:00"}]
+    probe._save_ledger()
+    assert target.exists()
 
 
 def test_dest_path_falls_back_when_date_is_not_iso():
@@ -137,7 +213,7 @@ def test_download_batch_writes_meta_and_failed_log(tmp_path):
 def test_download_batch_rejects_non_pdf(tmp_path):
     root = tmp_path / "fxbaogao"
     driver = FakeDriver()
-    def fake_download(url, dest, selectors=None):
+    def fake_download(url, dest, selectors=None, path_guard=None):
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(b"<html>login</html>")
         return {"ok": True, "page_meta": {"title": "t", "keywords": "", "published": ""}}

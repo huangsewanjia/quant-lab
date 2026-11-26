@@ -12,7 +12,7 @@
 - `db/schema_report_fulltext.sql`：`report_fulltext`（唯一键 `report_id`）、`report_fulltext_changes`（sha256 变更留痕）、`v_report_fulltext`、`v_report_fulltext_link_candidates`、`v_report_fulltext_linked`、`v_report_fulltext_unlinked`；标题/机构归一化只在 SQL 宏里定义（`fx_norm_title` / `fx_norm_org`）。
 - `db/etl/report_fulltext.py`：`ingest`（扫描落盘 PDF，sha256/字节/页数三项对不上就写 `failed.jsonl`，幂等 `INSERT OR REPLACE`）、`adopt`（手工下载收编，首页文字匹配，歧义不猜）。
 - `db/checks/report_fulltext.py`：C1–C7 对账闸（行数=文件数、页数>0、sha 对磁盘、失败台账字段、meta 完整、关联率分子/分母/口径、变更留痕一致性）。
-- `db/tests/test_report_fulltext.py`（11 条）、`db/tests/test_work623_collector.py`（7 条）：离线测试，18 passed。
+- `db/tests/test_report_fulltext.py`（16 条）、`db/tests/test_work623_collector.py`（14 条）：离线测试，30 passed（全套 192 passed）。
 
 实测与限制（见 `docs/WORK-623/01-feasibility.md`）：
 
@@ -20,6 +20,14 @@
 - 匿名详情页 HTTP 200 / 85,752 B，无站内 `/pdf` 链接（0 处）。
 - 登录态不存在（本机 CDP 9222 关闭、`secrets/` 未建、WORK-624 `todo`）：真实下载与 1–5 条验收**未执行**，不冒充已达成。
 - 真库已建表（0 行）；合成 PDF 彩排 5 篇：ingest 两次 5→5、C1–C7 全 PASS、关联 5/5。
+- 手工收编实测：headless Chrome 生成有文字层 PDF → `adopt` score 1.0 落盘 → `ingest` 6 篇、C6 5/6（1 篇为站点独家，未关联）。
+
+独立审查（round 1，commit `956cfef`）3 个 blocking 已修：
+
+- B1 请求台账目录：`_save_ledger` 改按 `LEDGER_PATH` 父目录建目录（原写死 `PROBE_DIR`，新落盘根首个请求即 FileNotFoundError）。
+- B2 下载控件：删除默认 `a[href^="/pdf"]` 选择器，点击前用 `path_guard` 校验 `href`，指向 robots 禁止路径则判失败并提示 `sheet` 手点。
+- B3 坏 meta：数值字段容错解析、顶层非对象直接判失败，`ingest`/C5 外层捕获异常，不再让整批 traceback。
+- 另修 S1–S5（同 id 多文件 C1 伪通过、重抓换名残留、Windows 落盘根、adopt 坏 PDF、dry-run robots 口径）与 N1–N4。
 
 
 ## 2026-11-26 · WORK-537 补正（定向，0 新请求）

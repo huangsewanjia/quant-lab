@@ -67,8 +67,12 @@ def _load_ledger() -> None:
 
 
 def _save_ledger() -> None:
-    """追加式落盘：先读回磁盘上的已有条目再合并，避免多进程/多次运行互相覆盖。"""
-    os.makedirs(PROBE_DIR, exist_ok=True)
+    """追加式落盘：先读回磁盘上的已有条目再合并，避免多进程/多次运行互相覆盖。
+
+    建目录按 LEDGER_PATH 的真实父目录来（调用方可能把台账指到渠道自有目录，
+    见 WORK-623），否则在新落盘根上第一次请求就 FileNotFoundError。
+    """
+    os.makedirs(os.path.dirname(LEDGER_PATH) or PROBE_DIR, exist_ok=True)
     on_disk = []
     if os.path.exists(LEDGER_PATH):
         try:

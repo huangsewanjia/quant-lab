@@ -80,7 +80,7 @@ def failure_record(report_id: Any, url: str, http_status: Any, reason: str, path
         "http_status": http_status if http_status is not None else 0,
         "reason": reason,
         "path": path,
-        "ts": dt.datetime.now().strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "ts": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
     }
 
 
@@ -115,6 +115,18 @@ def iter_artifacts(root: Path) -> Iterable[tuple[Path, Path]]:
         yield pdf, pdf.with_suffix(".meta.json")
 
 
+def _int_field(meta: dict, key: str, problems: list[str]) -> int | None:
+    """meta 数值字段容错解析：坏值记为问题并返回 None，不让整批崩掉。"""
+    value = meta.get(key)
+    if value in (None, ""):
+        return None
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        problems.append(f"{key} 非整数: {value!r}")
+        return None
+
+
 def _meta_report_id(meta: dict, pdf: Path) -> str:
     stem = pdf.stem
     match = re.match(r"^(\d+)-", stem)
@@ -132,14 +144,17 @@ def validate_artifact(pdf: Path, meta_path: Path) -> tuple[dict, list[str]]:
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
     except Exception as exc:  # noqa: BLE001 - 文件坏了要如实报，不要跳过
         return {}, [f"meta.json 无法解析: {type(exc).__name__}: {exc}"]
+    if not isinstance(meta, dict):
+        return {}, [f"meta.json 顶层不是对象: {type(meta).__name__}"]
     missing = [k for k in REQUIRED_META if k not in meta or meta.get(k) in (None, "")]
     if missing:
         problems.append("meta.json 缺字段: " + ", ".join(missing))
 
     bytes_on_disk = pdf.stat().st_size
     digest = sha256_file(pdf)
-    if meta.get("bytes") not in (None, "") and int(meta["bytes"]) != bytes_on_disk:
-        problems.append(f"字节数不符: meta={meta['bytes']} 磁盘={bytes_on_disk}")
+    meta_bytes = _int_field(meta, "bytes", problems)
+    if meta_bytes is not None and meta_bytes != bytes_on_disk:
+        problems.append(f"字节数不符: meta={meta_bytes} 磁盘={bytes_on_disk}")
     if meta.get("sha256") and str(meta["sha256"]).lower() != digest:
         problems.append(f"sha256 不符: meta={str(meta['sha256'])[:12]} 磁盘={digest[:12]}")
     try:
@@ -147,10 +162,11 @@ def validate_artifact(pdf: Path, meta_path: Path) -> tuple[dict, list[str]]:
     except Exception as exc:  # noqa: BLE001 - 坏 PDF 也要留证据
         problems.append(f"PDF 无法解析: {type(exc).__name__}: {exc}")
         pages = 0
+    meta_pages = _int_field(meta, "pages", problems)
     if pages <= 0:
         problems.append("页数为 0（空壳/错误页）")
-    elif meta.get("pages") not in (None, "") and int(meta["pages"]) != pages:
-        problems.append(f"页数不符: meta={meta['pages']} 实读={pages}")
+    elif meta_pages is not None and meta_pages != pages:
+        problems.append(f"页数不符: meta={meta_pages} 实读={pages}")
 
     report_id = _meta_report_id(meta, pdf)
     if not str(report_id).isdigit():
@@ -211,7 +227,10 @@ def ingest(root: Path | None = None, dry_run: bool = False, con=None) -> dict:
         apply_schema(con)
         for pdf, meta_path in iter_artifacts(root):
             stats["scanned"] += 1
-            row, problems = validate_artifact(pdf, meta_path)
+            try:
+                row, problems = validate_artifact(pdf, meta_path)
+            except Exception as exc:  # noqa: BLE001 - 校验自身异常也要落账，不能中断整批
+                row, problems = {}, [f"校验异常: {type(exc).__name__}: {exc}"]
             if problems:
                 stats["failed"] += 1
                 rec = failure_record(
@@ -321,7 +340,9 @@ def match_pdf(pdf: Path, items: list[dict], threshold: float = 0.90,
 
 
 def _slug(title: str, limit: int = 60) -> str:
-    text = re.sub(r"[^0-9A-Za-z\u4e00-\u9fff]+", "-", title or "report").strip("-")
+    """与采集器 slugify 保持同一算法（含剥离「-发现报告」后缀），否则两条路径文件名不一致。"""
+    text = re.sub(r"[-_—|]?\s*发现报告网?$", "", title or "")
+    text = re.sub(r"[^0-9A-Za-z\u4e00-\u9fff]+", "-", text).strip("-")
     return (text[:limit].strip("-") or "report")
 
 
@@ -352,25 +373,25 @@ def adopt(queue_path: Path, inbox: Path, root: Path | None = None,
             continue
         page_date = (item.get("page_date") or "").strip() or dt.date.today().isoformat()
         dest = root / page_date / f"{report_id}-{_slug(item.get('title', ''))}.pdf"
-        meta = {
-            "channel_id": "fxbaogao_vip",
-            "report_id": int(report_id),
-            "title": item.get("title", ""),
-            "org": item.get("org", ""),
-            "page_date": page_date,
-            "source_url": item.get("url", "") or item.get("page_url", ""),
-            "bytes": pdf.stat().st_size,
-            "pages": count_pages(pdf) if not dry_run else 0,
-            "sha256": sha256_file(pdf) if not dry_run else "",
-            "fetched_at": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
-            "fetch_mode": "manual",
-            "http_status": 200,
-        }
-        if dry_run:
-            stats["adopted"] += 1
-            stats["details"].append({"file": pdf.name, "dest": str(dest), "dry_run": True})
-            continue
         try:
+            meta = {
+                "channel_id": "fxbaogao_vip",
+                "report_id": int(report_id),
+                "title": item.get("title", ""),
+                "org": item.get("org", ""),
+                "page_date": page_date,
+                "source_url": item.get("url", "") or item.get("page_url", ""),
+                "bytes": pdf.stat().st_size,
+                "pages": count_pages(pdf) if not dry_run else 0,
+                "sha256": sha256_file(pdf) if not dry_run else "",
+                "fetched_at": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
+                "fetch_mode": "manual",
+                "http_status": 200,
+            }
+            if dry_run:
+                stats["adopted"] += 1
+                stats["details"].append({"file": pdf.name, "dest": str(dest), "dry_run": True})
+                continue
             dest.parent.mkdir(parents=True, exist_ok=True)
             if move:
                 shutil.move(str(pdf), dest)
@@ -385,8 +406,12 @@ def adopt(queue_path: Path, inbox: Path, root: Path | None = None,
             append_jsonl(root / "unmatched.jsonl", rec)
             continue
         stats["adopted"] += 1
-        stats["details"].append({"file": pdf.name, "dest": str(dest),
-                                 "score": round(match_score(_pdf_first_page_text(dest), item), 3)})
+        details = {"file": pdf.name, "dest": str(dest)}
+        try:
+            details["score"] = round(match_score(_pdf_first_page_text(dest), item), 3)
+        except Exception:  # noqa: BLE001 - 匹配分只是记录，读不出不影响已完成的收编
+            details["score"] = None
+        stats["details"].append(details)
     return stats
 
 

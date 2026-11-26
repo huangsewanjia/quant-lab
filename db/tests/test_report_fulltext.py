@@ -147,7 +147,7 @@ def test_invalid_artifact_logs_complete_failure(qdb):
     assert record["report_id"] == 2002 and "sha256 不符" in record["reason"]
 
 
-def test_missing_meta_and_zero_page_logged(qdb):
+def test_missing_meta_logged(qdb):
     ensure_meta_stub()
     root = rf.root_dir()
     make_pdf(root / "2026-11-16" / "3003-无meta.pdf", pages=1)
@@ -155,6 +155,47 @@ def test_missing_meta_and_zero_page_logged(qdb):
     assert stats["failed"] == 1
     assert "meta.json 缺失" in json.loads(
         (root / "failed.jsonl").read_text(encoding="utf-8").splitlines()[0])["reason"]
+
+
+def test_zero_page_pdf_logged(qdb):
+    ensure_meta_stub()
+    root = rf.root_dir()
+    pdf = root / "2026-11-16" / "3103-空壳.pdf"
+    pdf.parent.mkdir(parents=True, exist_ok=True)
+    with open(pdf, "wb") as fh:
+        PdfWriter().write(fh)
+    write_meta(pdf, pages=1)
+    stats = rf.ingest(root)
+    assert stats["failed"] == 1 and stats["inserted"] == 0
+    assert "页数为 0" in json.loads(
+        (root / "failed.jsonl").read_text(encoding="utf-8").splitlines()[0])["reason"]
+
+
+def test_malformed_meta_values_do_not_abort_batch(qdb):
+    ensure_meta_stub()
+    root = rf.root_dir()
+    bad = make_pdf(root / "2026-11-16" / "3203-坏字节.pdf", pages=1)
+    write_meta(bad, bytes="900.5", pages=1)
+    good = make_pdf(root / "2026-11-17" / "3204-好文件.pdf", pages=1)
+    write_meta(good, report_id=3204, page_date="2026-11-17", pages=1)
+    stats = rf.ingest(root)
+    assert stats["failed"] == 1 and stats["inserted"] == 1
+    reasons = [json.loads(l)["reason"] for l in
+               (root / "failed.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert any("bytes 非整数" in reason for reason in reasons)
+
+
+def test_non_object_meta_rejected_and_reported_by_checks(qdb):
+    ensure_meta_stub()
+    root = rf.root_dir()
+    pdf = make_pdf(root / "2026-11-16" / "3303-数组meta.pdf", pages=1)
+    pdf.with_suffix(".meta.json").write_text("[1, 2]", encoding="utf-8")
+    stats = rf.ingest(root)
+    assert stats["failed"] == 1
+    assert "顶层不是对象" in json.loads(
+        (root / "failed.jsonl").read_text(encoding="utf-8").splitlines()[0])["reason"]
+    payload = checks.run(["C5_meta_completeness"], root)
+    assert payload["blocking_fail"] == ["C5_meta_completeness"]
 
 
 def test_meta_report_id_mismatch_rejected(qdb):
@@ -203,6 +244,25 @@ def test_checks_c4_flags_incomplete_failure_line(qdb):
         json.dumps({"report_id": 1, "reason": "x"}, ensure_ascii=False) + "\n", encoding="utf-8")
     payload = checks.run(["C4_failed_log_schema"], root)
     assert payload["blocking_fail"] == ["C4_failed_log_schema"]
+
+
+def test_checks_c1_flags_duplicate_report_id_files(qdb):
+    con = common.duckdb_connect()
+    try:
+        stub_meta_table(con)
+        rf.apply_schema(con)
+    finally:
+        con.close()
+    root = rf.root_dir()
+    pdf = make_pdf(root / "2026-11-16" / "8101-a.pdf", pages=1)
+    write_meta(pdf, report_id=8101, pages=1)
+    rf.ingest(root)
+    make_pdf(root / "2026-11-17" / "8101-标题改版.pdf", pages=1)
+    payload = checks.run(["C1_rows_match_files"], root)
+    assert payload["blocking_fail"] == ["C1_rows_match_files"]
+    detail = payload["gates"][0]["detail"]
+    assert detail["duplicate_report_ids"] == [8101]
+    assert detail["pdf_files"] == 2 and detail["rows"] == 1
 
 
 def test_checks_c1_detects_pdf_without_row(qdb):

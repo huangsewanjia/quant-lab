@@ -35,7 +35,7 @@ Disallow: /view
 ```
 
 判定：`/detail/`、`/`、静态资源允许；`/pdf`、`/user`、`/page2`、`/view` 禁止。
-因此本通道实现上**从不向 `/pdf` 发 HTTP 请求**——PDF 只允许由用户自己的登录浏览器会话（CDP 驱动其已开窗口）或用户手动点击产生。自动化的网络请求只落在 `/detail/` 等允许路径。
+因此本通道的 **HTTP 客户端从不向 `/pdf` 发请求**：自动化网络请求只落在 `/detail/` 等允许路径；PDF 由用户自己的登录浏览器会话（CDP 驱动其已开窗口）或用户手动点击产生。点击前还会读控件 `href`，若指向 robots 禁止路径（如 `/pdf/...`）则跳过并写 `failed.jsonl`，提示改用 `sheet` 手点。
 
 ## 3. 登录态与执行位置（为什么真实抓取没跑）
 
@@ -63,5 +63,5 @@ $ ls /srv/share/quantdb/secrets     # 目录不存在
 ## 5. 对实现的影响（已落进代码的约束）
 
 1. 采集器把「登录态检查」做成**前置闸**：不是高级 VIP 就整批停，写 `login_state.json` 证据，不逐篇硬试。
-2. 首选路径是 CDP 复用用户已登录 Chrome；拿不到 CDP 时退到 `sheet` 子命令生成单文件待下载清单，用户手点，`adopt` 收编。两条路径都遵守 `/pdf` 不主动请求。
+2. 首选路径是 CDP 复用用户已登录 Chrome；拿不到 CDP 时退到 `sheet` 子命令生成单文件待下载清单，用户手点，`adopt` 收编。两条路径都遵守「HTTP 客户端不请求 `/pdf`」，且点击目标先过 robots 判定。
 3. 所有失败走 `failed.jsonl`（`report_id` / `url` / `http_status` / `reason`），不静默跳过。

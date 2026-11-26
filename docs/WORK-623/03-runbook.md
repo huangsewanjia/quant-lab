@@ -22,16 +22,19 @@ C:\fw\venv-623\Scripts\pip install playwright pypdf
 
 把仓库放到桌面机能访问的路径（Samba 共享或 git clone），在仓库根目录执行：
 
-```bash
-# 1) 先诊断：登录态 + robots + 详情页 + 下载控件候选，不点击、不下载
-python scripts/fxbaogao_fulltext.py fetch --input docs/WORK-623/sample_candidates.csv \
-    --limit 1 --dry-run --cdp http://127.0.0.1:9222
-# 产物：/srv/share/quantdb/raw/reports_fulltext/fxbaogao/dry_run_report.json
-# 看 login_state.advanced_vip 是否为 true；controls 里是否出现 ≥1 个选择器
+```bat
+:: 落盘根：Windows 侧指向 Samba 共享盘（按你的映射改）。不设则用 POSIX 默认（在 Windows 上会跑到 C:\srv\...）
+set FXBAOGAO_ROOT=\\192.168.9.104\quantdb\raw\reports_fulltext\fxbaogao
 
-# 2) 正式抓取（默认只认高级 VIP；单轮 20 篇、间隔 1.05s）
-python scripts/fxbaogao_fulltext.py fetch --input docs/WORK-623/sample_candidates.csv \
-    --limit 20 --cdp http://127.0.0.1:9222 --out /srv/share/quantdb/raw/reports_fulltext/fxbaogao/batch-$(date +%F).jsonl
+:: 1) 先诊断：登录态 + robots + 详情页 + 下载控件候选，不点击、不下载
+python scripts\fxbaogao_fulltext.py fetch --input docs\WORK-623\sample_candidates.csv ^
+    --limit 1 --dry-run --cdp http://127.0.0.1:9222
+:: 产物：%FXBAOGAO_ROOT%\dry_run_report.json
+:: 看 login_state.advanced_vip 是否为 true；controls 里是否出现 ≥1 个选择器
+
+:: 2) 正式抓取（默认只认高级 VIP；单轮 20 篇、间隔 1.05s）
+python scripts\fxbaogao_fulltext.py fetch --input docs\WORK-623\sample_candidates.csv ^
+    --limit 20 --cdp http://127.0.0.1:9222 --out %FXBAOGAO_ROOT%\batch-latest.jsonl
 ```
 
 失败明细固定写 `/srv/share/quantdb/raw/reports_fulltext/fxbaogao/failed.jsonl`，每行：
@@ -41,11 +44,11 @@ python scripts/fxbaogao_fulltext.py fetch --input docs/WORK-623/sample_candidate
  "reason": "download_control_not_found（页面快照: …/_diagnostics/5884540.html）", "path": "", "ts": "…"}
 ```
 
-选择器不匹配时，用快照里的真实控件覆盖：
+选择器不匹配时，用快照里的真实控件覆盖（**不要**用 `a[href^="/pdf"]`：`/pdf` 被 robots 禁止，点击前会被拦下并记失败）：
 
 ```bash
 python scripts/fxbaogao_fulltext.py fetch --input … --limit 20 \
-    --selector 'a[href^="/pdf"]' --selector 'button.download-btn'
+    --selector 'button.download-btn' --selector '[class*="download"]'
 ```
 
 ## 2. 手工兜底（不装 Playwright、或自动化被阻断）
