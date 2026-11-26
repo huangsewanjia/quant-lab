@@ -354,7 +354,15 @@ def adopt(queue_path: Path, inbox: Path, root: Path | None = None,
     stats = {"inbox": str(inbox), "seen": 0, "adopted": 0, "unmatched": 0, "details": []}
     for pdf in sorted(Path(inbox).glob("*.pdf")):
         stats["seen"] += 1
-        item, top = match_pdf(pdf, items)
+        try:
+            item, top = match_pdf(pdf, items)
+        except Exception as exc:  # noqa: BLE001 - 坏 PDF（截断/伪装）只影响这一份
+            stats["unmatched"] += 1
+            rec = {"file": pdf.name, "reason": f"无法解析 PDF: {type(exc).__name__}: {exc}"}
+            stats["details"].append(rec)
+            if not dry_run:
+                append_jsonl(root / "unmatched.jsonl", rec)
+            continue
         if item is None:
             stats["unmatched"] += 1
             rec = {

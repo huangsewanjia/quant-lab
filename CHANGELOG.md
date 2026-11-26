@@ -12,7 +12,7 @@
 - `db/schema_report_fulltext.sql`：`report_fulltext`（唯一键 `report_id`）、`report_fulltext_changes`（sha256 变更留痕）、`v_report_fulltext`、`v_report_fulltext_link_candidates`、`v_report_fulltext_linked`、`v_report_fulltext_unlinked`；标题/机构归一化只在 SQL 宏里定义（`fx_norm_title` / `fx_norm_org`）。
 - `db/etl/report_fulltext.py`：`ingest`（扫描落盘 PDF，sha256/字节/页数三项对不上就写 `failed.jsonl`，幂等 `INSERT OR REPLACE`）、`adopt`（手工下载收编，首页文字匹配，歧义不猜）。
 - `db/checks/report_fulltext.py`：C1–C7 对账闸（行数=文件数、页数>0、sha 对磁盘、失败台账字段、meta 完整、关联率分子/分母/口径、变更留痕一致性）。
-- `db/tests/test_report_fulltext.py`（16 条）、`db/tests/test_work623_collector.py`（14 条）：离线测试，30 passed（全套 192 passed）。
+- `db/tests/test_report_fulltext.py`（17 条）、`db/tests/test_work623_collector.py`（17 条）：离线测试，34 passed（全套 196 passed）。
 
 实测与限制（见 `docs/WORK-623/01-feasibility.md`）：
 
@@ -28,6 +28,8 @@
 - B2 下载控件：删除默认 `a[href^="/pdf"]` 选择器，点击前用 `path_guard` 校验 `href`，指向 robots 禁止路径则判失败并提示 `sheet` 手点。
 - B3 坏 meta：数值字段容错解析、顶层非对象直接判失败，`ingest`/C5 外层捕获异常，不再让整批 traceback。
 - 另修 S1–S5（同 id 多文件 C1 伪通过、重抓换名残留、Windows 落盘根、adopt 坏 PDF、dry-run robots 口径）与 N1–N4。
+
+独立审查（round 2，commit `70ac26e`）1 个 blocking 已修：`adopt` 的 `match_pdf` 原先在 try 外，坏 PDF 仍让整批退出 → 纳入单文件容错并补单测；同时收紧旧文件清理到日期目录（不再误删 `_inbox/`）、dry-run 不再导航 robots 禁止 URL、robots 拦截统一记 `http_status=0`，并补 `CdpDriver.download` 的 `path_guard` 直测。
 
 
 ## 2026-11-26 · WORK-537 补正（定向，0 新请求）

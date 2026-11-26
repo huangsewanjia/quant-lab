@@ -116,6 +116,7 @@ $PY scripts/fxbaogao_fulltext.py verify --meta "/srv/share/quantdb/raw/reports_f
 |---|---|---|
 | 退出码 3「登录态不是高级 VIP」 | `login_state.json` | 让用户在 Chrome 里重新登录/续费；不要在未登录时硬试 |
 | `download_control_not_found` | `_diagnostics/<id>.html` | 找真实按钮选择器，用 `--selector` 覆盖；不要改成裸请求 `/pdf` |
+| `下载控件指向 robots 禁止路径` | `failed.jsonl` 该行 | 控件 `href` 命中 `Disallow`（如 `/pdf/...`）。不要绕过；改用 `sheet` 让用户手点 |
 | PDF 校验失败：不是 PDF | 文件头 | 多半下到了登录页/错误页；确认登录态后重抓，该条已在 failed.jsonl |
 | 页数 0 | 文件 | 空壳 PDF，删掉重抓；不会入库 |
 | adopt unmatched | `unmatched.jsonl` 的 top3 | 补队列标题或人工按 report_id 重命名放进规范目录后直接 `ingest` |

@@ -143,6 +143,123 @@ def test_download_batch_removes_stale_file_for_same_report(tmp_path):
     assert "修订版" in pdfs[0].name
 
 
+def _stub_driver(href, download_bytes=b"%PDF-1.4\n%%EOF\n"):
+    """给 CdpDriver.download 用的最小 page/locator stub，不依赖 Playwright。"""
+
+    class Control:
+        def __init__(self):
+            self.clicked = 0
+
+        def is_visible(self):
+            return True
+
+        def get_attribute(self, name):
+            return href if name == "href" else None
+
+        def click(self):
+            self.clicked += 1
+
+    class Locator:
+        def __init__(self, control):
+            self.control = control
+            self.first = self
+
+        def count(self):
+            return 1
+
+        def is_visible(self):
+            return self.control.is_visible()
+
+        def get_attribute(self, name):
+            return self.control.get_attribute(name)
+
+        def click(self):
+            self.control.click()
+
+    class Download:
+        suggested_filename = "x.pdf"
+
+        def save_as(self, path):
+            with open(path, "wb") as fh:
+                fh.write(download_bytes)
+
+    class Pending:
+        value = Download()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    class Page:
+        def __init__(self, control):
+            self.control = control
+
+        def locator(self, selector):
+            return Locator(self.control)
+
+        def goto(self, *a, **k):
+            return None
+
+        def wait_for_timeout(self, _ms):
+            return None
+
+        def evaluate(self, _js):
+            return {"title": "开源证券:《报告》-发现报告", "keywords": "开源证券", "published": "2026-11-16"}
+
+        def content(self):
+            return "<html></html>"
+
+        def expect_download(self, timeout=None):
+            return Pending()
+
+        def close(self):
+            return None
+
+    class Ctx:
+        def __init__(self, control):
+            self.page = Page(control)
+
+        def new_page(self):
+            return self.page
+
+    control = Control()
+    driver = object.__new__(fx.CdpDriver)
+    driver._ctx = Ctx(control)
+    driver._settle_ms = 0
+    return driver, control
+
+
+def test_cdpdriver_blocks_click_on_robots_disallowed_href(tmp_path):
+    driver, control = _stub_driver("/pdf/5884540")
+    dest = tmp_path / "x.pdf"
+    guard = lambda href: (False, "Disallow:/pdf") if href.startswith("/pdf") else (True, "ok")  # noqa: E731
+    result = driver.download("https://www.fxbaogao.com/detail/5884540", dest, path_guard=guard)
+    assert result["ok"] is False and "robots 禁止路径" in result["reason"]
+    assert control.clicked == 0 and not dest.exists()
+
+
+def test_cdpdriver_allows_click_when_href_is_permitted(tmp_path):
+    driver, control = _stub_driver("/detail/5884540")
+    dest = tmp_path / "x.pdf"
+    guard = lambda href: (False, "Disallow:/pdf") if href.startswith("/pdf") else (True, "ok")  # noqa: E731
+    result = driver.download("https://www.fxbaogao.com/detail/5884540", dest, path_guard=guard)
+    assert result["ok"] is True and control.clicked == 1 and dest.exists()
+
+
+def test_download_batch_does_not_delete_inbox_files(tmp_path):
+    root = tmp_path / "fxbaogao"
+    inbox = root / "_inbox" / "7-待收编.pdf"
+    inbox.parent.mkdir(parents=True)
+    inbox.write_bytes(b"%PDF-1.4 manual")
+    fx.download_batch(FakeDriver(pages=1), [{"report_id": "7", "url": "https://www.fxbaogao.com/detail/7"}],
+                      root, FakeProbe, limit=1, gap=0,
+                      robots_lookup=lambda u: {"rules": [], "robots_status": 200},
+                      sleep=lambda _s: None)
+    assert inbox.exists()
+
+
 def test_slug_algorithms_agree_between_collector_and_etl():
     from db.etl import report_fulltext as rf
 

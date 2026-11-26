@@ -61,9 +61,9 @@ PY
 
 ```
 $ /home/moyongkai/.venvs/quantdb/bin/python -m pytest db/tests -q
-192 passed
+196 passed
 $ … pytest db/tests/test_report_fulltext.py db/tests/test_work623_collector.py -q
-30 passed
+34 passed
 ```
 
 ## 4.1 独立审查整改（round 1 → round 2）
@@ -71,14 +71,16 @@ $ … pytest db/tests/test_report_fulltext.py db/tests/test_work623_collector.py
 | 审查项 | 处置 |
 |---|---|
 | B1 台账目录写死 PROBE_DIR，新落盘根首个请求 FileNotFoundError | `work537_probe._save_ledger` 按 `LEDGER_PATH` 父目录建目录；补单测 |
-| B2 默认选择器含 `a[href^="/pdf"]`，点击会请求 robots 禁止路径 | 删除该默认选择器；点击前读 `href` 过 robots，违规即判失败并提示 `sheet`；runbook 同步 |
-| B3 坏 meta（数值非整数/顶层非对象）让整批 traceback | `_int_field` 容错 + 顶层类型校验 + ingest/C5 外层 try；补 3 条单测 |
+| B2 默认选择器含 `a[href^="/pdf"]`，点击会请求 robots 禁止路径 | 删除该默认选择器；点击前读 `href` 过 robots，违规即写 `failed.jsonl`（reason 含「下载控件指向 robots 禁止路径」）并跳过；runbook 同步 |
+| B3 坏 meta（数值非整数/顶层非对象）让整批 traceback | `validate_artifact` 内部容错（`_int_field` + 顶层类型校验），`ingest` 与 C5 共用该函数，坏值只写失败台账；补 3 条单测 |
 | S1 同 id 多文件被 `_disk_pdfs` 覆盖，C1 可伪通过 | `_disk_index` 保留多文件，C1 报 `duplicate_report_ids`；补单测 |
 | S2 重抓换名残留旧 PDF | 写入成功后清理同 id 旧文件/旧 meta；补单测；采集器与 `adopt` 的 slug 算法统一并加比对测试 |
 | S3 Windows 上 `/srv/share/...` 被解析到 `C:\srv` | 支持 `FXBAOGAO_ROOT`，runbook 给出 Windows 命令 |
-| S4 `adopt` 坏 PDF 让整次退出 | 单文件 try/except，坏文件写 `unmatched.jsonl` 后继续 |
+| S4 `adopt` 坏 PDF 让整次退出 | round-2 复审指正后重做：`match_pdf` 本身也纳入单文件 try/except，坏文件写 `unmatched.jsonl` 后继续；补单测 |
 | S5 `--dry-run` 把 robots 不可读当允许 | 统一 `check_robots()`：不可读=禁止；dry_run 报告带 `robots_status` |
 | N1–N4 | 0 页用例补齐；`failed.jsonl` 时间带时区；`CdpDriver.cdp_url` 记录进证据；sheet 文件名与 adopt 一致 |
+
+round-2 复审（`70ac26e`）追加：S4 实际未修（`match_pdf` 在 try 外）→ 已重做并补单测；清理旧文件的 glob 收到日期目录（不再误删 `_inbox/` 手工下载）；`--dry-run` 对 robots 禁止/不可读的 URL 不再导航；robots 拦截的 `failed.jsonl` 统一记 `http_status=0`（目标 URL 未发请求）；补 `CdpDriver.download` 的 `path_guard` 直测（stub page，不依赖 Playwright）。
 
 ## 5. 未验证项（明确列出，不冒充已验证）
 

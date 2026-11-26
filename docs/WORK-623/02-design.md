@@ -107,6 +107,6 @@ flowchart TD
 | `db/schema_report_fulltext.sql` | 表、留痕表、4 个视图、归一化宏 |
 | `db/etl/report_fulltext.py` | ingest / adopt / schema 子命令 |
 | `db/checks/report_fulltext.py` | C1–C7 对账闸 |
-| `db/tests/test_report_fulltext.py` | 入库/视图/闸门离线测试（11 条） |
-| `db/tests/test_work623_collector.py` | 采集器离线测试（7 条） |
+| `db/tests/test_report_fulltext.py` | 入库/视图/闸门离线测试（17 条） |
+| `db/tests/test_work623_collector.py` | 采集器离线测试（17 条） |
 | `docs/WORK-623/` | 本目录：可行性、设计、跑法、验收、交付 |

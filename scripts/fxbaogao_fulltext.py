@@ -496,7 +496,7 @@ def download_batch(driver, items: list[dict], root: Path, probe, limit: int = 20
         robots = robots_lookup(url)
         allowed, hit = check_robots(probe, robots, url)
         if not allowed:
-            failure(root, rid, url, robots.get("robots_status", 0), f"robots 禁止: {hit}")
+            failure(root, rid, url, 0, f"robots 禁止: {hit}")
             stats["failed"] += 1
             stats["skipped_robots"] += 1
             continue
@@ -542,7 +542,7 @@ def download_batch(driver, items: list[dict], root: Path, probe, limit: int = 20
         dest.parent.mkdir(parents=True, exist_ok=True)
         os.replace(tmp, dest)
         # 同一 report_id 只保留最新一份：标题/页面日期变化会换文件名，旧文件要清掉
-        for old in root.glob(f"*/{rid}-*.pdf"):
+        for old in root.glob(f"[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/{rid}-*.pdf"):
             if old.resolve() != dest.resolve():
                 old.unlink(missing_ok=True)
                 old.with_suffix(".meta.json").unlink(missing_ok=True)
@@ -602,6 +602,13 @@ def _fetch_dry_run(args, probe, items, root: Path) -> int:
             url = item.get("url") or f"{SITE}/detail/{rid}"
             robots = probe.get_robots_cached(url)
             allowed, hit = check_robots(probe, robots, url)
+            if not allowed:
+                report["items"].append({"report_id": rid, "url": url, "robots_allowed": False,
+                                        "robots_rule": hit,
+                                        "robots_status": robots.get("robots_status"),
+                                        "meta": {}, "controls": [], "skipped": "robots"})
+                time.sleep(args.gap)
+                continue
             page = driver._ctx.new_page()
             try:
                 page.goto(url, wait_until="domcontentloaded", timeout=45000)

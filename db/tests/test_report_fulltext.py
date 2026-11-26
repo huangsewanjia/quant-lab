@@ -280,6 +280,24 @@ def test_checks_c1_detects_pdf_without_row(qdb):
     assert payload["gates"][0]["detail"]["pdf_without_row"] == [6006]
 
 
+def test_adopt_isolates_unreadable_pdf(qdb):
+    ensure_meta_stub()
+    root = rf.root_dir()
+    inbox = root / "_inbox"
+    inbox.mkdir(parents=True, exist_ok=True)
+    (inbox / "bad.pdf").write_bytes(b"%PDF-1.4 truncated garbage")
+    make_pdf(inbox / "good.pdf", pages=1)
+    queue = root / "queue.jsonl"
+    queue.write_text(json.dumps({"report_id": "7007", "title": "某报告", "org": "某机构",
+                                 "page_date": "2026-11-16"}, ensure_ascii=False) + "\n",
+                     encoding="utf-8")
+    stats = rf.adopt(queue, inbox, root=root)
+    assert stats["seen"] == 2 and stats["unmatched"] == 2 and stats["adopted"] == 0
+    reasons = [d.get("reason", "") for d in stats["details"]]
+    assert any("无法解析 PDF" in r for r in reasons)
+    assert (root / "unmatched.jsonl").exists()
+
+
 def test_adopt_matching_scores_titles(qdb):
     item = {"report_id": "7007", "title": "开源证券:《宁德时代(300750)：Q3业绩超预期》-发现报告",
             "org": "开源证券", "url": "https://www.fxbaogao.com/detail/7007"}
