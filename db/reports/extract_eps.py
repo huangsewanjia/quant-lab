@@ -402,9 +402,8 @@ def _bind_years(sentence: str, value_start: int, n_values: int) -> tuple[list[in
     A range block or a lone year mention never outranks an anchor.
     """
     anchors = [anchor for anchor in _year_anchors(sentence) if anchor[0] < value_start]
-    # Nearest explicit anchor whose span length equals the value count.  When
-    # an enumeration covers exactly the same block (their ends coincide) the
-    # anchor wins and the value keeps its text_range label.
+    # Nearest explicit anchor whose span length equals the value count; a
+    # longer tie keeps the later one, i.e. the range closest to the numbers.
     anchor_best: tuple[int, list[int]] | None = None  # (end, years)
     for _start, end, years in anchors:
         if len(years) == n_values and (anchor_best is None or end >= anchor_best[0]):
@@ -428,18 +427,25 @@ def _bind_years(sentence: str, value_start: int, n_values: int) -> tuple[list[in
             gap = sentence[end:run_start]
             if year + 1 != run_years[0] or not re.fullmatch(_YEAR_GAP, gap):
                 break
-            # A block joined by a dash is a range; it must keep going through
-            # the anchors so "2024-2025年" keeps its text_range label.
+            # A dash-joined block is a range, not an enumeration: it keeps
+            # going through the anchors so "2024-2025年" stays text_range.
             enumeration = enumeration and re.fullmatch(_YEAR_ENUM_GAP, gap) is not None
         run_years.insert(0, year)
         run_start = start
         run_end = end
-    # Only a genuine enumeration (>= 2 years joined by list separators) may
-    # outrank an explicit range; a lone year token or a range block does not.
+    # A pure enumeration that ends closer to the values than the best anchor
+    # decides on its own: when its length differs from the value count the
+    # sentence is ambiguous and nothing is emitted (falling back to the
+    # earlier anchor would bind the column to the wrong years, WORK-603).
+    # A lone year token or a dash-joined block never overrides an anchor.
     if enumeration and len(run_years) >= 2 and (anchor_best is None or run_end > anchor_best[0]):
         return (run_years, "text_list") if len(run_years) == n_values else None
     if anchor_best is not None:
         return anchor_best[1], "text_range"
+    # No anchor of the right length: a contiguous run of n years (however it
+    # is joined, e.g. "2024-2025年、2026年") still binds the n values.
+    if len(run_years) == n_values:
+        return run_years, "text_list"
     return None
 
 

@@ -540,3 +540,12 @@ def test_year_binding_does_not_fall_back_to_an_earlier_range():
     # silently emit 2021=1.20 / 2022=1.50 instead of nothing.
     text = "2021-2022年营收增长。2024、2025、2026年EPS分别为1.20、1.50元。"
     assert extract_eps(text, {2021, 2022, 2024, 2025, 2026}) == []
+
+
+def test_year_binding_accepts_mixed_separator_year_chains():
+    # review of WORK-603: a chain that mixes a dash and list separators names
+    # three consecutive years for three values, so it must still bind even
+    # though it is not a "pure" enumeration.
+    text = "2024-2025年、2026年EPS分别为1.20、1.50、1.80元。"
+    values = {v.fiscal_year: v.eps for v in extract_eps(text, {2024, 2025, 2026})}
+    assert values == {2024: 1.20, 2025: 1.50, 2026: 1.80}
