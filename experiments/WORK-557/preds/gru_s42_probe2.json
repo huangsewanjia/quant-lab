@@ -1,0 +1,19 @@
+{
+ "kind": "gru",
+ "seed": 42,
+ "epochs": 2,
+ "valid_loss": 1.0333629266421,
+ "metrics": {
+  "rankic": 0.01958955900397609,
+  "rankicir": 0.13685232510901119
+ },
+ "preds": "C:\\Users\\MO_Yongkai\\multica_workspaces_cloud\\workspace-c8faa36a018a\\work-557-a221b7629a32\\workdir\\quant-lab\\experiments\\WORK-557\\preds\\gru_s42.parquet",
+ "seconds": 35.3,
+ "epoch_seconds": [
+  12.7,
+  26.4
+ ],
+ "epochs_ran": 2,
+ "device": "cuda",
+ "peak_vram_gb": 0.082
+}

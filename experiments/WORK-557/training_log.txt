@@ -1,0 +1,492 @@
+
+
+===== gru seed 42 (50 epochs)  (2026-11-24 23:27:06) =====
+W1124 23:27:17.865000 103028 site-packages\torch\utils\flop_counter.py:29] triton not found; flop counting will not work for triton kernels
+segment train: 802406 samples
+segment valid: 145800 samples
+segment test: 217800 samples
+ModuleNotFoundError. CatBoostModel are skipped. (optional: maybe installing CatBoostModel can fix it.)
+ModuleNotFoundError. XGBModel is skipped(optional: maybe installing xgboost can fix it).
+F:\001_install\020_Anaconda\envs\ds\Lib\site-packages\torch\nn\modules\rnn.py:1364: UserWarning: dropout option adds dropout after all but last recurrent layer, so non-zero dropout expects num_layers greater than 1, but got dropout=0.1 and num_layers=1
+  super().__init__("GRU", *args, **kwargs)
+C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\scripts\work557_baseline.py:185: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\generated\python_variable_methods.cpp:837.)
+  tot += float(loss)
+epoch 0: train 0.9854 valid 1.0012 (183s)
+epoch 1: train 0.9701 valid 1.0190 (364s)
+epoch 2: train 0.9577 valid 1.0187 (527s)
+
+
+===== gru seed 42 (50 epochs)  (2026-11-24 23:43:59) =====
+W1124 23:44:05.461000 121240 site-packages\torch\utils\flop_counter.py:29] triton not found; flop counting will not work for triton kernels
+segment train: 802406 samples
+segment valid: 145800 samples
+segment test: 217800 samples
+ModuleNotFoundError. CatBoostModel are skipped. (optional: maybe installing CatBoostModel can fix it.)
+ModuleNotFoundError. XGBModel is skipped(optional: maybe installing xgboost can fix it).
+F:\001_install\020_Anaconda\envs\ds\Lib\site-packages\torch\nn\modules\rnn.py:1364: UserWarning: dropout option adds dropout after all but last recurrent layer, so non-zero dropout expects num_layers greater than 1, but got dropout=0.1 and num_layers=1
+  super().__init__("GRU", *args, **kwargs)
+C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\scripts\work557_baseline.py:205: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\generated\python_variable_methods.cpp:837.)
+  tot += float(loss)
+epoch 0: train 0.9854 valid 1.0012 (73s)
+epoch 1: train 0.9701 valid 1.0190 (146s)
+epoch 2: train 0.9577 valid 1.0187 (220s)
+epoch 3: train 0.9415 valid 1.0546 (294s)
+epoch 4: train 0.9253 valid 1.0457 (368s)
+epoch 5: train 0.9096 valid 1.0691 (442s)
+epoch 6: train 0.8949 valid 1.1011 (515s)
+epoch 7: train 0.8813 valid 1.0990 (589s)
+epoch 8: train 0.8682 valid 1.1425 (666s)
+epoch 9: train 0.8568 valid 1.1215 (740s)
+epoch 10: train 0.8466 valid 1.1322 (815s)
+epoch 11: train 0.8360 valid 1.1498 (890s)
+epoch 12: train 0.8282 valid 1.1481 (964s)
+epoch 13: train 0.8206 valid 1.1711 (1037s)
+epoch 14: train 0.8131 valid 1.1827 (1111s)
+epoch 15: train 0.8074 valid 1.1821 (1186s)
+epoch 16: train 0.8002 valid 1.2014 (1260s)
+epoch 17: train 0.7947 valid 1.1892 (1334s)
+epoch 18: train 0.7888 valid 1.2127 (1407s)
+epoch 19: train 0.7841 valid 1.2045 (1481s)
+epoch 20: train 0.7790 valid 1.2047 (1554s)
+epoch 21: train 0.7742 valid 1.2096 (1627s)
+
+
+===== gru seed 42 (50 epochs)  (2026-11-25 00:41:51) =====
+W1125 00:41:57.521000 110928 site-packages\torch\utils\flop_counter.py:29] triton not found; flop counting will not work for triton kernels
+segment train: 802406 samples
+segment valid: 145800 samples
+segment test: 217800 samples
+ModuleNotFoundError. CatBoostModel are skipped. (optional: maybe installing CatBoostModel can fix it.)
+ModuleNotFoundError. XGBModel is skipped(optional: maybe installing xgboost can fix it).
+F:\001_install\020_Anaconda\envs\ds\Lib\site-packages\torch\nn\modules\rnn.py:1364: UserWarning: dropout option adds dropout after all but last recurrent layer, so non-zero dropout expects num_layers greater than 1, but got dropout=0.1 and num_layers=1
+  super().__init__("GRU", *args, **kwargs)
+C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\scripts\work557_baseline.py:206: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\generated\python_variable_methods.cpp:837.)
+  tot += float(loss)
+epoch 0: train 0.9854 valid 1.0012 (75s)
+epoch 1: train 0.9701 valid 1.0190 (152s)
+epoch 2: train 0.9577 valid 1.0187 (230s)
+epoch 3: train 0.9415 valid 1.0546 (306s)
+epoch 4: train 0.9253 valid 1.0457 (379s)
+epoch 5: train 0.9096 valid 1.0691 (453s)
+epoch 6: train 0.8949 valid 1.1011 (527s)
+epoch 7: train 0.8813 valid 1.0990 (602s)
+epoch 8: train 0.8682 valid 1.1425 (676s)
+epoch 9: train 0.8568 valid 1.1215 (751s)
+epoch 10: train 0.8466 valid 1.1322 (826s)
+epoch 11: train 0.8360 valid 1.1498 (900s)
+epoch 12: train 0.8282 valid 1.1481 (975s)
+epoch 13: train 0.8206 valid 1.1711 (1048s)
+epoch 14: train 0.8131 valid 1.1827 (1122s)
+epoch 15: train 0.8074 valid 1.1821 (1194s)
+epoch 16: train 0.8002 valid 1.2014 (1267s)
+epoch 17: train 0.7947 valid 1.1892 (1341s)
+epoch 18: train 0.7888 valid 1.2127 (1415s)
+epoch 19: train 0.7841 valid 1.2045 (1488s)
+epoch 20: train 0.7790 valid 1.2047 (1561s)
+epoch 21: train 0.7742 valid 1.2096 (1634s)
+epoch 22: train 0.7700 valid 1.2339 (1708s)
+epoch 23: train 0.7661 valid 1.2247 (1783s)
+epoch 24: train 0.7610 valid 1.2424 (1859s)
+epoch 25: train 0.7573 valid 1.2348 (1933s)
+epoch 26: train 0.7539 valid 1.2551 (2007s)
+epoch 27: train 0.7499 valid 1.2563 (2081s)
+epoch 28: train 0.7465 valid 1.2566 (2154s)
+epoch 29: train 0.7435 valid 1.2636 (2227s)
+epoch 30: train 0.7398 valid 1.2711 (2301s)
+epoch 31: train 0.7367 valid 1.2818 (2375s)
+epoch 32: train 0.7337 valid 1.2698 (2447s)
+epoch 33: train 0.7313 valid 1.2693 (2522s)
+epoch 34: train 0.7282 valid 1.2714 (2597s)
+epoch 35: train 0.7261 valid 1.2836 (2672s)
+epoch 36: train 0.7233 valid 1.2875 (2996s)
+Traceback (most recent call last):
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\scripts\work557_baseline.py", line 278, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\scripts\work557_baseline.py", line 206, in main
+    tot += float(loss)
+           ~~~~~^^^^^^
+torch.AcceleratorError: CUDA error: an illegal memory access was encountered
+Search for `cudaErrorIllegalAddress' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+
+
+===== full seed 42 (50 epochs)  (2026-11-25 01:33:59) =====
+W1125 01:34:08.880000 9476 site-packages\torch\utils\flop_counter.py:29] triton not found; flop counting will not work for triton kernels
+wandb: WARNING git root C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\data\WORK-557\logs does not exist
+Seed set to 42
+segment train: 802406 samples
+segment valid: 145800 samples
+segment test: 217800 samples
+Traceback (most recent call last):
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\scripts\work557_run_arms.py", line 444, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\scripts\work557_run_arms.py", line 335, in main
+    train_loader, n_batches = init_data_loader(train_ds, shuffle=True,
+                              ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+                                                num_workers=args.workers)
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\vendor\PRISM-VQ\dataset\dataset.py", line 45, in init_data_loader
+    sampler = DailyBatchSamplerRandom(handler, shuffle)
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\vendor\PRISM-VQ\dataset\dataset.py", line 11, in __init__
+    super().__init__(data_source)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+TypeError: object.__init__() takes exactly one argument (the instance to initialize)
+
+
+===== no_vq seed 42 (50 epochs)  (2026-11-25 01:34:20) =====
+W1125 01:34:26.805000 130592 site-packages\torch\utils\flop_counter.py:29] triton not found; flop counting will not work for triton kernels
+Seed set to 42
+segment train: 802406 samples
+segment valid: 145800 samples
+segment test: 217800 samples
+Traceback (most recent call last):
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\scripts\work557_run_arms.py", line 444, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\scripts\work557_run_arms.py", line 335, in main
+    train_loader, n_batches = init_data_loader(train_ds, shuffle=True,
+                              ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+                                                num_workers=args.workers)
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\vendor\PRISM-VQ\dataset\dataset.py", line 45, in init_data_loader
+    sampler = DailyBatchSamplerRandom(handler, shuffle)
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\vendor\PRISM-VQ\dataset\dataset.py", line 11, in __init__
+    super().__init__(data_source)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+TypeError: object.__init__() takes exactly one argument (the instance to initialize)
+
+
+===== no_moe seed 42 (50 epochs)  (2026-11-25 01:34:36) =====
+W1125 01:34:42.992000 120628 site-packages\torch\utils\flop_counter.py:29] triton not found; flop counting will not work for triton kernels
+Seed set to 42
+segment train: 802406 samples
+segment valid: 145800 samples
+segment test: 217800 samples
+Traceback (most recent call last):
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\scripts\work557_run_arms.py", line 444, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\scripts\work557_run_arms.py", line 335, in main
+    train_loader, n_batches = init_data_loader(train_ds, shuffle=True,
+                              ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+                                                num_workers=args.workers)
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\vendor\PRISM-VQ\dataset\dataset.py", line 45, in init_data_loader
+    sampler = DailyBatchSamplerRandom(handler, shuffle)
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\vendor\PRISM-VQ\dataset\dataset.py", line 11, in __init__
+    super().__init__(data_source)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+TypeError: object.__init__() takes exactly one argument (the instance to initialize)
+
+
+===== no_prior seed 42 (50 epochs)  (2026-11-25 01:34:52) =====
+W1125 01:34:59.535000 87820 site-packages\torch\utils\flop_counter.py:29] triton not found; flop counting will not work for triton kernels
+Seed set to 42
+segment train: 802406 samples
+segment valid: 145800 samples
+segment test: 217800 samples
+Traceback (most recent call last):
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\scripts\work557_run_arms.py", line 444, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\scripts\work557_run_arms.py", line 335, in main
+    train_loader, n_batches = init_data_loader(train_ds, shuffle=True,
+                              ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+                                                num_workers=args.workers)
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\vendor\PRISM-VQ\dataset\dataset.py", line 45, in init_data_loader
+    sampler = DailyBatchSamplerRandom(handler, shuffle)
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\vendor\PRISM-VQ\dataset\dataset.py", line 11, in __init__
+    super().__init__(data_source)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+TypeError: object.__init__() takes exactly one argument (the instance to initialize)
+
+
+===== gru seed 2024 (50 epochs)  (2026-11-25 01:35:08) =====
+W1125 01:35:15.793000 63404 site-packages\torch\utils\flop_counter.py:29] triton not found; flop counting will not work for triton kernels
+segment train: 802406 samples
+segment valid: 145800 samples
+segment test: 217800 samples
+ModuleNotFoundError. CatBoostModel are skipped. (optional: maybe installing CatBoostModel can fix it.)
+ModuleNotFoundError. XGBModel is skipped(optional: maybe installing xgboost can fix it).
+F:\001_install\020_Anaconda\envs\ds\Lib\site-packages\torch\nn\modules\rnn.py:1364: UserWarning: dropout option adds dropout after all but last recurrent layer, so non-zero dropout expects num_layers greater than 1, but got dropout=0.1 and num_layers=1
+  super().__init__("GRU", *args, **kwargs)
+C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\scripts\work557_baseline.py:206: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\generated\python_variable_methods.cpp:837.)
+  tot += float(loss)
+epoch 0: train 0.9856 valid 1.0104 (91s)
+epoch 1: train 0.9714 valid 1.0109 (209s)
+epoch 2: train 0.9585 valid 1.0251 (334s)
+epoch 3: train 0.9445 valid 1.0329 (445s)
+epoch 4: train 0.9295 valid 1.0445 (553s)
+epoch 5: train 0.9128 valid 1.0526 (661s)
+epoch 6: train 0.8971 valid 1.0859 (759s)
+epoch 7: train 0.8835 valid 1.1077 (854s)
+epoch 8: train 0.8715 valid 1.1088 (949s)
+epoch 9: train 0.8593 valid 1.1161 (1041s)
+epoch 10: train 0.8491 valid 1.1263 (1153s)
+epoch 11: train 0.8390 valid 1.1418 (1266s)
+epoch 12: train 0.8309 valid 1.1510 (1355s)
+epoch 13: train 0.8242 valid 1.1552 (1445s)
+epoch 14: train 0.8173 valid 1.1592 (1529s)
+epoch 15: train 0.8103 valid 1.1753 (1616s)
+epoch 16: train 0.8048 valid 1.1745 (1701s)
+epoch 17: train 0.7982 valid 1.1641 (1788s)
+epoch 18: train 0.7924 valid 1.1936 (1871s)
+epoch 19: train 0.7875 valid 1.1987 (1956s)
+epoch 20: train 0.7823 valid 1.1997 (2040s)
+epoch 21: train 0.7780 valid 1.2001 (2124s)
+epoch 22: train 0.7738 valid 1.2129 (2212s)
+epoch 23: train 0.7689 valid 1.2163 (2291s)
+epoch 24: train 0.7647 valid 1.2216 (2364s)
+epoch 25: train 0.7606 valid 1.2271 (2442s)
+epoch 26: train 0.7568 valid 1.2331 (2518s)
+epoch 27: train 0.7528 valid 1.2395 (2591s)
+epoch 28: train 0.7499 valid 1.2446 (2663s)
+epoch 29: train 0.7454 valid 1.2451 (2735s)
+epoch 30: train 0.7426 valid 1.2439 (2808s)
+epoch 31: train 0.7393 valid 1.2538 (2881s)
+epoch 32: train 0.7363 valid 1.2490 (2967s)
+epoch 33: train 0.7334 valid 1.2540 (3041s)
+epoch 34: train 0.7311 valid 1.2588 (3116s)
+epoch 35: train 0.7282 valid 1.2623 (3193s)
+epoch 36: train 0.7258 valid 1.2661 (3265s)
+epoch 37: train 0.7235 valid 1.2663 (3342s)
+epoch 38: train 0.7214 valid 1.2731 (3420s)
+epoch 39: train 0.7197 valid 1.2713 (3493s)
+epoch 40: train 0.7180 valid 1.2791 (3569s)
+epoch 41: train 0.7163 valid 1.2827 (3648s)
+epoch 42: train 0.7148 valid 1.2886 (3721s)
+epoch 43: train 0.7136 valid 1.2835 (3805s)
+epoch 44: train 0.7124 valid 1.2867 (3897s)
+epoch 45: train 0.7115 valid 1.2862 (3985s)
+epoch 46: train 0.7108 valid 1.2883 (4068s)
+epoch 47: train 0.7101 valid 1.2891 (4148s)
+epoch 48: train 0.7096 valid 1.2897 (4230s)
+epoch 49: train 0.7094 valid 1.2896 (4310s)
+{
+ "kind": "gru",
+ "seed": 2024,
+ "epochs": 50,
+ "valid_loss": 1.0104119818151733,
+ "metrics": {
+  "rankic": 0.05125543391204701,
+  "rankicir": 0.33846093103289027
+ },
+ "preds": "C:\\Users\\MO_Yongkai\\multica_workspaces_cloud\\workspace-c8faa36a018a\\work-557-a221b7629a32\\workdir\\quant-lab\\experiments\\WORK-557\\preds\\gru_s2024.parquet",
+ "seconds": 4346.0,
+ "epoch_seconds": [
+  90.8,
+  209.2,
+  333.6,
+  445.1,
+  553.1,
+  661.4,
+  759.1,
+  853.8,
+  949.2,
+  1041.3,
+  1152.6,
+  1266.3,
+  1355.3,
+  1445.0,
+  1528.7,
+  1616.4,
+  1700.8,
+  1788.4,
+  1871.0,
+  1955.6,
+  2040.4,
+  2124.1,
+  2212.4,
+  2290.6,
+  2364.0,
+  2441.9,
+  2517.9,
+  2590.8,
+  2662.9,
+  2735.2,
+  2808.3,
+  2880.8,
+  2967.5,
+  3041.0,
+  3115.5,
+  3192.8,
+  3265.0,
+  3342.1,
+  3420.0,
+  3492.5,
+  3568.8,
+  3647.5,
+  3720.8,
+  3805.3,
+  3897.5,
+  3984.8,
+  4067.9,
+  4148.4,
+  4230.3,
+  4310.2
+ ],
+ "epochs_ran": 50,
+ "device": "cuda",
+ "peak_vram_gb": 0.086
+}
+
+
+===== full seed 2024 (50 epochs)  (2026-11-25 02:48:07) =====
+W1125 02:48:15.955000 66440 site-packages\torch\utils\flop_counter.py:29] triton not found; flop counting will not work for triton kernels
+Seed set to 2024
+segment train: 802406 samples
+segment valid: 145800 samples
+segment test: 217800 samples
+Traceback (most recent call last):
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\scripts\work557_run_arms.py", line 444, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\scripts\work557_run_arms.py", line 335, in main
+    train_loader, n_batches = init_data_loader(train_ds, shuffle=True,
+                              ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+                                                num_workers=args.workers)
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\vendor\PRISM-VQ\dataset\dataset.py", line 45, in init_data_loader
+    sampler = DailyBatchSamplerRandom(handler, shuffle)
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\vendor\PRISM-VQ\dataset\dataset.py", line 11, in __init__
+    super().__init__(data_source)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+TypeError: object.__init__() takes exactly one argument (the instance to initialize)
+
+
+===== no_vq seed 2024 (50 epochs)  (2026-11-25 02:48:48) =====
+W1125 02:48:54.599000 77948 site-packages\torch\utils\flop_counter.py:29] triton not found; flop counting will not work for triton kernels
+Seed set to 2024
+segment train: 802406 samples
+segment valid: 145800 samples
+segment test: 217800 samples
+Traceback (most recent call last):
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\scripts\work557_run_arms.py", line 444, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\scripts\work557_run_arms.py", line 335, in main
+    train_loader, n_batches = init_data_loader(train_ds, shuffle=True,
+                              ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+                                                num_workers=args.workers)
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\vendor\PRISM-VQ\dataset\dataset.py", line 45, in init_data_loader
+    sampler = DailyBatchSamplerRandom(handler, shuffle)
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\vendor\PRISM-VQ\dataset\dataset.py", line 11, in __init__
+    super().__init__(data_source)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+TypeError: object.__init__() takes exactly one argument (the instance to initialize)
+
+
+===== no_moe seed 2024 (50 epochs)  (2026-11-25 02:49:03) =====
+W1125 02:49:09.977000 87940 site-packages\torch\utils\flop_counter.py:29] triton not found; flop counting will not work for triton kernels
+Seed set to 2024
+segment train: 802406 samples
+segment valid: 145800 samples
+segment test: 217800 samples
+Traceback (most recent call last):
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\scripts\work557_run_arms.py", line 444, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\scripts\work557_run_arms.py", line 335, in main
+    train_loader, n_batches = init_data_loader(train_ds, shuffle=True,
+                              ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+                                                num_workers=args.workers)
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\vendor\PRISM-VQ\dataset\dataset.py", line 45, in init_data_loader
+    sampler = DailyBatchSamplerRandom(handler, shuffle)
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\vendor\PRISM-VQ\dataset\dataset.py", line 11, in __init__
+    super().__init__(data_source)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+TypeError: object.__init__() takes exactly one argument (the instance to initialize)
+
+
+===== no_prior seed 2024 (50 epochs)  (2026-11-25 02:49:19) =====
+W1125 02:49:25.290000 125276 site-packages\torch\utils\flop_counter.py:29] triton not found; flop counting will not work for triton kernels
+Seed set to 2024
+segment train: 802406 samples
+segment valid: 145800 samples
+segment test: 217800 samples
+Traceback (most recent call last):
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\scripts\work557_run_arms.py", line 444, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\scripts\work557_run_arms.py", line 335, in main
+    train_loader, n_batches = init_data_loader(train_ds, shuffle=True,
+                              ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+                                                num_workers=args.workers)
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\vendor\PRISM-VQ\dataset\dataset.py", line 45, in init_data_loader
+    sampler = DailyBatchSamplerRandom(handler, shuffle)
+  File "C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\vendor\PRISM-VQ\dataset\dataset.py", line 11, in __init__
+    super().__init__(data_source)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+TypeError: object.__init__() takes exactly one argument (the instance to initialize)
+
+
+===== gru seed 42 (50 epochs)  (2026-11-25 02:49:36) =====
+W1125 02:49:43.364000 55456 site-packages\torch\utils\flop_counter.py:29] triton not found; flop counting will not work for triton kernels
+segment train: 802406 samples
+segment valid: 145800 samples
+segment test: 217800 samples
+ModuleNotFoundError. CatBoostModel are skipped. (optional: maybe installing CatBoostModel can fix it.)
+ModuleNotFoundError. XGBModel is skipped(optional: maybe installing xgboost can fix it).
+F:\001_install\020_Anaconda\envs\ds\Lib\site-packages\torch\nn\modules\rnn.py:1364: UserWarning: dropout option adds dropout after all but last recurrent layer, so non-zero dropout expects num_layers greater than 1, but got dropout=0.1 and num_layers=1
+  super().__init__("GRU", *args, **kwargs)
+C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab\scripts\work557_baseline.py:206: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\generated\python_variable_methods.cpp:837.)
+  tot += float(loss)
+epoch 0: train 0.9854 valid 1.0012 (80s)
+epoch 1: train 0.9701 valid 1.0190 (161s)
+epoch 2: train 0.9577 valid 1.0187 (241s)
+epoch 3: train 0.9415 valid 1.0546 (322s)
+epoch 4: train 0.9253 valid 1.0457 (402s)
+epoch 5: train 0.9096 valid 1.0691 (484s)
+epoch 6: train 0.8949 valid 1.1011 (565s)
+epoch 7: train 0.8813 valid 1.0990 (645s)
+epoch 8: train 0.8682 valid 1.1425 (724s)
+epoch 9: train 0.8568 valid 1.1215 (801s)
+epoch 10: train 0.8466 valid 1.1322 (874s)
+epoch 11: train 0.8360 valid 1.1498 (947s)
+epoch 12: train 0.8282 valid 1.1481 (1019s)
+epoch 13: train 0.8206 valid 1.1711 (1091s)
+epoch 14: train 0.8131 valid 1.1827 (1164s)
+epoch 15: train 0.8074 valid 1.1821 (1236s)
+epoch 16: train 0.8002 valid 1.2014 (1308s)
+epoch 17: train 0.7947 valid 1.1892 (1382s)
+epoch 18: train 0.7888 valid 1.2127 (1454s)
+epoch 19: train 0.7841 valid 1.2045 (1527s)
+epoch 20: train 0.7790 valid 1.2047 (1599s)
+epoch 21: train 0.7742 valid 1.2096 (1672s)
+epoch 22: train 0.7700 valid 1.2339 (1744s)
+epoch 23: train 0.7661 valid 1.2247 (1816s)
+epoch 24: train 0.7610 valid 1.2424 (1888s)
+epoch 25: train 0.7573 valid 1.2348 (1960s)
+epoch 26: train 0.7539 valid 1.2551 (2032s)
+epoch 27: train 0.7499 valid 1.2563 (2105s)
+epoch 28: train 0.7465 valid 1.2566 (2177s)
+epoch 29: train 0.7435 valid 1.2636 (2251s)
+epoch 30: train 0.7398 valid 1.2711 (2324s)
+epoch 31: train 0.7367 valid 1.2818 (2395s)
+epoch 32: train 0.7337 valid 1.2698 (2468s)
+epoch 33: train 0.7313 valid 1.2693 (2601s)
+epoch 34: train 0.7282 valid 1.2714 (2953s)
+epoch 35: train 0.7261 valid 1.2836 (3275s)
+epoch 36: train 0.7233 valid 1.2875 (3663s)
+epoch 37: train 0.7211 valid 1.2941 (3977s)
+epoch 38: train 0.7190 valid 1.2995 (4644s)
+epoch 39: train 0.7174 valid 1.2959 (5529s)
+epoch 40: train 0.7152 valid 1.3001 (6058s)
+epoch 41: train 0.7138 valid 1.3010 (6631s)
+epoch 42: train 0.7122 valid 1.3043 (7141s)
+
+### TIMEOUT after 7200s -> killed ###

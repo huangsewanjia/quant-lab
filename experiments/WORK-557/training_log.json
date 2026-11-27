@@ -1,0 +1,42 @@
+{
+ "experiment": "WORK-557",
+ "generated_at": "2026-11-25T04:49:37+0800",
+ "gpu": {
+  "spec": "NVIDIA GeForce RTX 3060, 12288 MiB, 610.88",
+  "torch": "2.11.0+cu128",
+  "cuda": "12.8",
+  "device": "NVIDIA GeForce RTX 3060"
+ },
+ "runs": {
+  "gru_s2024": {
+   "arm": "gru",
+   "seed": 2024,
+   "epochs_ran": 50,
+   "stage1_epochs_ran": null,
+   "early_stopped_epoch": null,
+   "stage1_early_stopped_epoch": null,
+   "mean_seconds_per_epoch": null,
+   "total_seconds": 4346.0,
+   "stage1_seconds": null,
+   "stage2_seconds": null,
+   "peak_vram_gb": 0.086,
+   "device": "cuda",
+   "rankic": 0.05125543391204701,
+   "rankicir": 0.33846093103289027,
+   "valid_loss": 1.0104119818151733,
+   "epoch_history": []
+  }
+ },
+ "failures": [
+  {
+   "arm": "gru",
+   "seed": 42,
+   "rc": -9,
+   "reason": "timeout"
+  }
+ ],
+ "notes": [],
+ "stopped": "stop condition 3 (single run > 7200s): gru seed 42 killed",
+ "max_run_seconds": 7200.0,
+ "wall_seconds": 7207.8
+}

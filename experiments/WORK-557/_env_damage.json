@@ -1,0 +1,886 @@
+{
+ "F:/001_install/020_Anaconda/envs/ds/Lib/site-packages": [
+  {
+   "dist": "akshare-1.20.40.dist-info",
+   "total": 811,
+   "missing": 7,
+   "missing_py": 2,
+   "examples": [
+    "akshare/bond/cons.py",
+    "akshare/data/calendar.json",
+    "akshare/data/cninfo.js",
+    "akshare/data/crypto_info.zip",
+    "akshare/data/jm.js",
+    "akshare/data/ths.js"
+   ]
+  },
+  {
+   "dist": "anyio-4.15.1.dist-info",
+   "total": 100,
+   "missing": 7,
+   "missing_py": 7,
+   "examples": [
+    "anyio/_backends/_asyncio.py",
+    "anyio/_backends/_trio.py",
+    "anyio/_core/_fileio.py",
+    "anyio/_core/_sockets.py",
+    "anyio/_core/_synchronization.py",
+    "anyio/_core/_tempfile.py"
+   ]
+  },
+  {
+   "dist": "attrs-26.1.0.dist-info",
+   "total": 55,
+   "missing": 4,
+   "missing_py": 4,
+   "examples": [
+    "attr/_funcs.py",
+    "attr/_make.py",
+    "attr/_next_gen.py",
+    "attr/validators.py"
+   ]
+  },
+  {
+   "dist": "beautifulsoup4-4.15.0.dist-info",
+   "total": 37,
+   "missing": 8,
+   "missing_py": 8,
+   "examples": [
+    "bs4/__init__.py",
+    "bs4/builder/__init__.py",
+    "bs4/builder/_html5lib.py",
+    "bs4/builder/_htmlparser.py",
+    "bs4/builder/_lxml.py",
+    "bs4/dammit.py"
+   ]
+  },
+  {
+   "dist": "certifi-2026.10.23.dist-info",
+   "total": 18,
+   "missing": 1,
+   "missing_py": 0,
+   "examples": [
+    "certifi/cacert.pem"
+   ]
+  },
+  {
+   "dist": "cffi-2.1.1.dist-info",
+   "total": 53,
+   "missing": 9,
+   "missing_py": 7,
+   "examples": [
+    "_cffi_backend.cp313-win_amd64.pyd",
+    "cffi/_embedding.h",
+    "cffi/api.py",
+    "cffi/backend_ctypes.py",
+    "cffi/cparser.py",
+    "cffi/model.py"
+   ]
+  },
+  {
+   "dist": "charset_normalizer-3.5.1.dist-info",
+   "total": 35,
+   "missing": 2,
+   "missing_py": 2,
+   "examples": [
+    "charset_normalizer/api.py",
+    "charset_normalizer/cd.py"
+   ]
+  },
+  {
+   "dist": "click-8.5.0.dist-info",
+   "total": 40,
+   "missing": 10,
+   "missing_py": 10,
+   "examples": [
+    "click/_compat.py",
+    "click/_termui_impl.py",
+    "click/core.py",
+    "click/decorators.py",
+    "click/parser.py",
+    "click/shell_completion.py"
+   ]
+  },
+  {
+   "dist": "colorama-0.4.6.dist-info",
+   "total": 31,
+   "missing": 1,
+   "missing_py": 0,
+   "examples": [
+    "colorama-0.4.6.dist-info/METADATA"
+   ]
+  },
+  {
+   "dist": "cryptography-50.0.1.dist-info",
+   "total": 199,
+   "missing": 5,
+   "missing_py": 5,
+   "examples": [
+    "cryptography/hazmat/_oid.py",
+    "cryptography/hazmat/asn1/asn1.py",
+    "cryptography/hazmat/primitives/serialization/ssh.py",
+    "cryptography/x509/base.py",
+    "cryptography/x509/extensions.py"
+   ]
+  },
+  {
+   "dist": "cycler-0.12.1.dist-info",
+   "total": 11,
+   "missing": 1,
+   "missing_py": 1,
+   "examples": [
+    "cycler/__init__.py"
+   ]
+  },
+  {
+   "dist": "et_xmlfile-2.0.0.dist-info",
+   "total": 14,
+   "missing": 1,
+   "missing_py": 1,
+   "examples": [
+    "et_xmlfile/incremental_tree.py"
+   ]
+  },
+  {
+   "dist": "filelock-3.32.3.dist-info",
+   "total": 48,
+   "missing": 1,
+   "missing_py": 1,
+   "examples": [
+    "filelock/_read_write.py"
+   ]
+  },
+  {
+   "dist": "fonttools-4.63.0.dist-info",
+   "total": 697,
+   "missing": 4,
+   "missing_py": 0,
+   "examples": [
+    "../../Scripts/fonttools.exe",
+    "../../Scripts/pyftmerge.exe",
+    "../../Scripts/pyftsubset.exe",
+    "../../Scripts/ttx.exe"
+   ]
+  },
+  {
+   "dist": "fsspec-2026.7.0.dist-info",
+   "total": 119,
+   "missing": 15,
+   "missing_py": 15,
+   "examples": [
+    "fsspec/asyn.py",
+    "fsspec/caching.py",
+    "fsspec/core.py",
+    "fsspec/implementations/cached.py",
+    "fsspec/implementations/http.py",
+    "fsspec/implementations/http_sync.py"
+   ]
+  },
+  {
+   "dist": "h11-0.16.0.dist-info",
+   "total": 29,
+   "missing": 1,
+   "missing_py": 1,
+   "examples": [
+    "h11/_connection.py"
+   ]
+  },
+  {
+   "dist": "httpcore-1.0.9.dist-info",
+   "total": 68,
+   "missing": 6,
+   "missing_py": 5,
+   "examples": [
+    "httpcore-1.0.9.dist-info/METADATA",
+    "httpcore/_async/connection_pool.py",
+    "httpcore/_async/http2.py",
+    "httpcore/_models.py",
+    "httpcore/_sync/connection_pool.py",
+    "httpcore/_sync/http2.py"
+   ]
+  },
+  {
+   "dist": "httpx-0.28.1.dist-info",
+   "total": 54,
+   "missing": 4,
+   "missing_py": 4,
+   "examples": [
+    "httpx/_client.py",
+    "httpx/_models.py",
+    "httpx/_urlparse.py",
+    "httpx/_urls.py"
+   ]
+  },
+  {
+   "dist": "idna-3.20.dist-info",
+   "total": 28,
+   "missing": 3,
+   "missing_py": 3,
+   "examples": [
+    "idna/core.py",
+    "idna/idnadata.py",
+    "idna/uts46data.py"
+   ]
+  },
+  {
+   "dist": "jinja2-3.1.6.dist-info",
+   "total": 57,
+   "missing": 10,
+   "missing_py": 10,
+   "examples": [
+    "jinja2/compiler.py",
+    "jinja2/environment.py",
+    "jinja2/ext.py",
+    "jinja2/filters.py",
+    "jinja2/lexer.py",
+    "jinja2/loaders.py"
+   ]
+  },
+  {
+   "dist": "joblib-1.5.3.dist-info",
+   "total": 219,
+   "missing": 14,
+   "missing_py": 14,
+   "examples": [
+    "joblib/_memmapping_reducer.py",
+    "joblib/_parallel_backends.py",
+    "joblib/_store_backends.py",
+    "joblib/compressor.py",
+    "joblib/externals/cloudpickle/cloudpickle.py",
+    "joblib/externals/loky/process_executor.py"
+   ]
+  },
+  {
+   "dist": "jsonschema-4.26.0.dist-info",
+   "total": 82,
+   "missing": 5,
+   "missing_py": 4,
+   "examples": [
+    "jsonschema/benchmarks/issue232/issue.json",
+    "jsonschema/tests/test_cli.py",
+    "jsonschema/tests/test_exceptions.py",
+    "jsonschema/tests/test_validators.py",
+    "jsonschema/validators.py"
+   ]
+  },
+  {
+   "dist": "latex2mathml-3.81.1.dist-info",
+   "total": 23,
+   "missing": 1,
+   "missing_py": 0,
+   "examples": [
+    "../../Scripts/l2m.exe"
+   ]
+  },
+  {
+   "dist": "lxml-6.1.3.dist-info",
+   "total": 208,
+   "missing": 37,
+   "missing_py": 4,
+   "examples": [
+    "lxml/apihelpers.pxi",
+    "lxml/classlookup.pxi",
+    "lxml/doctestcompare.py",
+    "lxml/etree.pyx",
+    "lxml/etree_api.h",
+    "lxml/extensions.pxi"
+   ]
+  },
+  {
+   "dist": "markdownify-1.2.3.dist-info",
+   "total": 14,
+   "missing": 1,
+   "missing_py": 1,
+   "examples": [
+    "markdownify/__init__.py"
+   ]
+  },
+  {
+   "dist": "mcp-1.30.0.dist-info",
+   "total": 228,
+   "missing": 14,
+   "missing_py": 14,
+   "examples": [
+    "mcp/client/auth/extensions/client_credentials.py",
+    "mcp/client/auth/oauth2.py",
+    "mcp/client/session.py",
+    "mcp/client/session_group.py",
+    "mcp/client/streamable_http.py",
+    "mcp/server/experimental/task_context.py"
+   ]
+  },
+  {
+   "dist": "mini_racer-0.14.1.dist-info",
+   "total": 30,
+   "missing": 1,
+   "missing_py": 0,
+   "examples": [
+    "py_mini_racer/icudtl.dat"
+   ]
+  },
+  {
+   "dist": "mpmath-1.3.0.dist-info",
+   "total": 180,
+   "missing": 37,
+   "missing_py": 37,
+   "examples": [
+    "mpmath/calculus/differentiation.py",
+    "mpmath/calculus/extrapolation.py",
+    "mpmath/calculus/inverselaplace.py",
+    "mpmath/calculus/optimization.py",
+    "mpmath/calculus/quadrature.py",
+    "mpmath/ctx_iv.py"
+   ]
+  },
+  {
+   "dist": "networkx-3.6.1.dist-info",
+   "total": 1182,
+   "missing": 120,
+   "missing_py": 111,
+   "examples": [
+    "networkx/algorithms/approximation/tests/test_traveling_salesman.py",
+    "networkx/algorithms/approximation/traveling_salesman.py",
+    "networkx/algorithms/bipartite/generators.py",
+    "networkx/algorithms/bipartite/matching.py",
+    "networkx/algorithms/bipartite/projection.py",
+    "networkx/algorithms/centrality/betweenness.py"
+   ]
+  },
+  {
+   "dist": "numpy-2.5.1.dist-info",
+   "total": 1356,
+   "missing": 3,
+   "missing_py": 0,
+   "examples": [
+    "../../Scripts/f2py.exe",
+    "../../Scripts/numpy-config.exe",
+    "numpy/_core/include/numpy/__multiarray_api.h"
+   ]
+  },
+  {
+   "dist": "openpyxl-3.1.5.dist-info",
+   "total": 386,
+   "missing": 6,
+   "missing_py": 6,
+   "examples": [
+    "openpyxl/drawing/geometry.py",
+    "openpyxl/drawing/text.py",
+    "openpyxl/pivot/cache.py",
+    "openpyxl/pivot/table.py",
+    "openpyxl/styles/builtins.py",
+    "openpyxl/worksheet/worksheet.py"
+   ]
+  },
+  {
+   "dist": "opentelemetry_api-1.45.2.dist-info",
+   "total": 78,
+   "missing": 3,
+   "missing_py": 3,
+   "examples": [
+    "opentelemetry/metrics/_internal/__init__.py",
+    "opentelemetry/trace/__init__.py",
+    "opentelemetry/trace/span.py"
+   ]
+  },
+  {
+   "dist": "opentelemetry_exporter_otlp_proto_http-1.45.2.dist-info",
+   "total": 21,
+   "missing": 1,
+   "missing_py": 1,
+   "examples": [
+    "opentelemetry/exporter/otlp/proto/http/metric_exporter/__init__.py"
+   ]
+  },
+  {
+   "dist": "opentelemetry_proto-1.45.2.dist-info",
+   "total": 74,
+   "missing": 4,
+   "missing_py": 0,
+   "examples": [
+    "opentelemetry/proto/logs/v1/logs_pb2.pyi",
+    "opentelemetry/proto/metrics/v1/metrics_pb2.pyi",
+    "opentelemetry/proto/profiles/v1development/profiles_pb2.pyi",
+    "opentelemetry/proto/trace/v1/trace_pb2.pyi"
+   ]
+  },
+  {
+   "dist": "opentelemetry_sdk-1.45.2.dist-info",
+   "total": 132,
+   "missing": 9,
+   "missing_py": 9,
+   "examples": [
+    "opentelemetry/sdk/_configuration/__init__.py",
+    "opentelemetry/sdk/_logs/_internal/__init__.py",
+    "opentelemetry/sdk/environment_variables/__init__.py",
+    "opentelemetry/sdk/metrics/_internal/__init__.py",
+    "opentelemetry/sdk/metrics/_internal/aggregation.py",
+    "opentelemetry/sdk/metrics/_internal/export/__init__.py"
+   ]
+  },
+  {
+   "dist": "packaging-26.3.dist-info",
+   "total": 29,
+   "missing": 9,
+   "missing_py": 9,
+   "examples": [
+    "packaging/_ranges.py",
+    "packaging/licenses/_spdx.py",
+    "packaging/markers.py",
+    "packaging/metadata.py",
+    "packaging/pylock.py",
+    "packaging/ranges.py"
+   ]
+  },
+  {
+   "dist": "pandas-3.0.5.dist-info",
+   "total": 2990,
+   "missing": 73,
+   "missing_py": 73,
+   "examples": [
+    "pandas/_config/config.py",
+    "pandas/_testing/__init__.py",
+    "pandas/_testing/asserters.py",
+    "pandas/conftest.py",
+    "pandas/core/_numba/extensions.py",
+    "pandas/core/accessor.py"
+   ]
+  },
+  {
+   "dist": "pip-26.1.2.dist-info",
+   "total": 866,
+   "missing": 3,
+   "missing_py": 0,
+   "examples": [
+    "../../../bin/pip",
+    "../../../bin/pip3",
+    "../../../bin/pip3.13"
+   ]
+  },
+  {
+   "dist": "protobuf-7.36.2.dist-info",
+   "total": 122,
+   "missing": 12,
+   "missing_py": 11,
+   "examples": [
+    "google/_upb/_message.pyd",
+    "google/protobuf/descriptor.py",
+    "google/protobuf/descriptor_pb2.py",
+    "google/protobuf/descriptor_pool.py",
+    "google/protobuf/internal/containers.py",
+    "google/protobuf/internal/decoder.py"
+   ]
+  },
+  {
+   "dist": "psutil-7.2.2.dist-info",
+   "total": 27,
+   "missing": 10,
+   "missing_py": 8,
+   "examples": [
+    "psutil-7.2.2.dist-info/METADATA",
+    "psutil/__init__.py",
+    "psutil/_common.py",
+    "psutil/_psaix.py",
+    "psutil/_psbsd.py",
+    "psutil/_pslinux.py"
+   ]
+  },
+  {
+   "dist": "pydantic-2.13.5.dist-info",
+   "total": 217,
+   "missing": 36,
+   "missing_py": 35,
+   "examples": [
+    "pydantic-2.13.5.dist-info/METADATA",
+    "pydantic/_internal/_decorators.py",
+    "pydantic/_internal/_discriminated_union.py",
+    "pydantic/_internal/_fields.py",
+    "pydantic/_internal/_generate_schema.py",
+    "pydantic/_internal/_generics.py"
+   ]
+  },
+  {
+   "dist": "pydantic_core-2.46.5.dist-info",
+   "total": 13,
+   "missing": 4,
+   "missing_py": 1,
+   "examples": [
+    "pydantic_core-2.46.5.dist-info/sboms/pydantic-core.cyclonedx.json",
+    "pydantic_core/_pydantic_core.cp313-win_amd64.pyd",
+    "pydantic_core/_pydantic_core.pyi",
+    "pydantic_core/core_schema.py"
+   ]
+  },
+  {
+   "dist": "pydantic_settings-2.15.0.dist-info",
+   "total": 50,
+   "missing": 3,
+   "missing_py": 3,
+   "examples": [
+    "pydantic_settings/main.py",
+    "pydantic_settings/sources/base.py",
+    "pydantic_settings/sources/providers/cli.py"
+   ]
+  },
+  {
+   "dist": "pyjwt-2.15.1.dist-info",
+   "total": 32,
+   "missing": 3,
+   "missing_py": 3,
+   "examples": [
+    "jwt/algorithms.py",
+    "jwt/api_jws.py",
+    "jwt/api_jwt.py"
+   ]
+  },
+  {
+   "dist": "pymupdf-1.28.2.dist-info",
+   "total": 139,
+   "missing": 11,
+   "missing_py": 1,
+   "examples": [
+    "pymupdf/_wxcolors.py",
+    "pymupdf/mupdf-devel/include/mupdf/fitz/device.h",
+    "pymupdf/mupdf-devel/include/mupdf/fitz/document.h",
+    "pymupdf/mupdf-devel/include/mupdf/fitz/font.h",
+    "pymupdf/mupdf-devel/include/mupdf/fitz/write-pixmap.h",
+    "pymupdf/mupdf-devel/include/mupdf/helpers/mu-office-lib.h"
+   ]
+  },
+  {
+   "dist": "pypdfium2-5.15.2.dist-info",
+   "total": 137,
+   "missing": 10,
+   "missing_py": 6,
+   "examples": [
+    "pypdfium2-5.15.2.dist-info/METADATA",
+    "pypdfium2-5.15.2.dist-info/licenses/BUILD_LICENSES/cibw_musl/libgcc_and_libstdc++.txt",
+    "pypdfium2-5.15.2.dist-info/licenses/BUILD_LICENSES/icu.txt",
+    "pypdfium2/_helpers/bitmap.py",
+    "pypdfium2/_helpers/document.py",
+    "pypdfium2/_helpers/page.py"
+   ]
+  },
+  {
+   "dist": "pyqt6-6.9.1.dist-info",
+   "total": 673,
+   "missing": 3,
+   "missing_py": 0,
+   "examples": [
+    "C:\\miniconda3\\conda-bld\\pyqt-split_1757511039072\\_h_env\\pylupdate6.bat",
+    "C:\\miniconda3\\conda-bld\\pyqt-split_1757511039072\\_h_env\\pyuic6.bat",
+    "pyqt6-6.9.1.dist-info/licenses/LICENSE"
+   ]
+  },
+  {
+   "dist": "python_dateutil-2.9.0.post0.dist-info",
+   "total": 46,
+   "missing": 5,
+   "missing_py": 4,
+   "examples": [
+    "dateutil/parser/_parser.py",
+    "dateutil/relativedelta.py",
+    "dateutil/rrule.py",
+    "dateutil/tz/tz.py",
+    "dateutil/zoneinfo/dateutil-zoneinfo.tar.gz"
+   ]
+  },
+  {
+   "dist": "python_docx-1.2.0.dist-info",
+   "total": 221,
+   "missing": 9,
+   "missing_py": 6,
+   "examples": [
+    "docx/opc/constants.py",
+    "docx/oxml/section.py",
+    "docx/oxml/table.py",
+    "docx/oxml/xmlchemy.py",
+    "docx/section.py",
+    "docx/table.py"
+   ]
+  },
+  {
+   "dist": "python_multipart-0.0.32.dist-info",
+   "total": 22,
+   "missing": 1,
+   "missing_py": 1,
+   "examples": [
+    "python_multipart/multipart.py"
+   ]
+  },
+  {
+   "dist": "python_pptx-1.0.2.dist-info",
+   "total": 218,
+   "missing": 19,
+   "missing_py": 16,
+   "examples": [
+    "pptx/chart/axis.py",
+    "pptx/chart/data.py",
+    "pptx/chart/xmlwriter.py",
+    "pptx/enum/lang.py",
+    "pptx/enum/shapes.py",
+    "pptx/opc/constants.py"
+   ]
+  },
+  {
+   "dist": "pywin32-312.dist-info",
+   "total": 1067,
+   "missing": 74,
+   "missing_py": 66,
+   "examples": [
+    "../../Scripts/pywin32_postinstall.py",
+    "adodbapi/adodbapi.py",
+    "adodbapi/apibase.py",
+    "adodbapi/license.txt",
+    "adodbapi/test/adodbapitest.py",
+    "adodbapi/test/dbapi20.py"
+   ]
+  },
+  {
+   "dist": "pyyaml-6.0.3.dist-info",
+   "total": 43,
+   "missing": 4,
+   "missing_py": 4,
+   "examples": [
+    "yaml/constructor.py",
+    "yaml/emitter.py",
+    "yaml/parser.py",
+    "yaml/scanner.py"
+   ]
+  },
+  {
+   "dist": "referencing-0.37.0.dist-info",
+   "total": 33,
+   "missing": 3,
+   "missing_py": 3,
+   "examples": [
+    "referencing/_core.py",
+    "referencing/jsonschema.py",
+    "referencing/tests/test_core.py"
+   ]
+  },
+  {
+   "dist": "requests-2.34.2.dist-info",
+   "total": 46,
+   "missing": 5,
+   "missing_py": 5,
+   "examples": [
+    "requests/adapters.py",
+    "requests/cookies.py",
+    "requests/models.py",
+    "requests/sessions.py",
+    "requests/utils.py"
+   ]
+  },
+  {
+   "dist": "scikit_learn-1.9.0.dist-info",
+   "total": 1713,
+   "missing": 1,
+   "missing_py": 1,
+   "examples": [
+    "sklearn/externals/array_api_compat/common/_aliases.py"
+   ]
+  },
+  {
+   "dist": "scipy-1.18.0.dist-info",
+   "total": 2523,
+   "missing": 1,
+   "missing_py": 1,
+   "examples": [
+    "scipy/_external/packaging_version/version.py"
+   ]
+  },
+  {
+   "dist": "setuptools-81.0.0.dist-info",
+   "total": 787,
+   "missing": 13,
+   "missing_py": 11,
+   "examples": [
+    "setuptools/_vendor/backports/tarfile/__init__.py",
+    "setuptools/_vendor/importlib_metadata/__init__.py",
+    "setuptools/_vendor/jaraco/functools/__init__.py",
+    "setuptools/_vendor/jaraco/text/__init__.py",
+    "setuptools/_vendor/more_itertools-10.8.0.dist-info/METADATA",
+    "setuptools/_vendor/more_itertools/more.py"
+   ]
+  },
+  {
+   "dist": "sip-6.12.0.dist-info",
+   "total": 560,
+   "missing": 51,
+   "missing_py": 0,
+   "examples": [
+    "../../Scripts/sip-build.exe",
+    "../../Scripts/sip-distinfo.exe",
+    "../../Scripts/sip-install.exe",
+    "../../Scripts/sip-module.exe",
+    "../../Scripts/sip-sdist.exe",
+    "../../Scripts/sip-wheel.exe"
+   ]
+  },
+  {
+   "dist": "six-1.17.0.dist-info",
+   "total": 10,
+   "missing": 1,
+   "missing_py": 1,
+   "examples": [
+    "six.py"
+   ]
+  },
+  {
+   "dist": "starlette-1.7.0.dist-info",
+   "total": 78,
+   "missing": 4,
+   "missing_py": 4,
+   "examples": [
+    "starlette/datastructures.py",
+    "starlette/responses.py",
+    "starlette/routing.py",
+    "starlette/testclient.py"
+   ]
+  },
+  {
+   "dist": "sympy-1.14.0.dist-info",
+   "total": 3105,
+   "missing": 444,
+   "missing_py": 440,
+   "examples": [
+    "sympy-1.14.0.dist-info/licenses/AUTHORS",
+    "sympy/__init__.py",
+    "sympy/algebras/quaternion.py",
+    "sympy/algebras/tests/test_quaternion.py",
+    "sympy/assumptions/ask.py",
+    "sympy/assumptions/ask_generated.py"
+   ]
+  },
+  {
+   "dist": "tabulate-0.10.0.dist-info",
+   "total": 10,
+   "missing": 2,
+   "missing_py": 1,
+   "examples": [
+    "tabulate-0.10.0.dist-info/METADATA",
+    "tabulate/__init__.py"
+   ]
+  },
+  {
+   "dist": "torch-2.11.0+cu128.dist-info",
+   "total": 14050,
+   "missing": 1,
+   "missing_py": 0,
+   "examples": [
+    "torch/_VF.pyi"
+   ]
+  },
+  {
+   "dist": "tqdm-4.70.1.dist-info",
+   "total": 72,
+   "missing": 2,
+   "missing_py": 1,
+   "examples": [
+    "tqdm-4.70.1.dist-info/METADATA",
+    "tqdm/std.py"
+   ]
+  },
+  {
+   "dist": "typing_extensions-4.16.0.dist-info",
+   "total": 7,
+   "missing": 1,
+   "missing_py": 1,
+   "examples": [
+    "typing_extensions.py"
+   ]
+  },
+  {
+   "dist": "typing_inspection-0.4.4.dist-info",
+   "total": 13,
+   "missing": 2,
+   "missing_py": 2,
+   "examples": [
+    "typing_inspection/introspection.py",
+    "typing_inspection/typing_objects.py"
+   ]
+  },
+  {
+   "dist": "tzdata-2026.2.dist-info",
+   "total": 658,
+   "missing": 22,
+   "missing_py": 0,
+   "examples": [
+    "tzdata/__pycache__/__init__.cpython-314.pyc",
+    "tzdata/zoneinfo/Africa/__pycache__/__init__.cpython-314.pyc",
+    "tzdata/zoneinfo/America/Argentina/__pycache__/__init__.cpython-314.pyc",
+    "tzdata/zoneinfo/America/Indiana/__pycache__/__init__.cpython-314.pyc",
+    "tzdata/zoneinfo/America/Kentucky/__pycache__/__init__.cpython-314.pyc",
+    "tzdata/zoneinfo/America/North_Dakota/__pycache__/__init__.cpython-314.pyc"
+   ]
+  },
+  {
+   "dist": "urllib3-2.8.0.dist-info",
+   "total": 79,
+   "missing": 10,
+   "missing_py": 10,
+   "examples": [
+    "urllib3/_collections.py",
+    "urllib3/connection.py",
+    "urllib3/connectionpool.py",
+    "urllib3/contrib/emscripten/fetch.py",
+    "urllib3/contrib/pyopenssl.py",
+    "urllib3/poolmanager.py"
+   ]
+  },
+  {
+   "dist": "uvicorn-0.54.0.dist-info",
+   "total": 98,
+   "missing": 8,
+   "missing_py": 8,
+   "examples": [
+    "uvicorn/config.py",
+    "uvicorn/main.py",
+    "uvicorn/protocols/http/h11_impl.py",
+    "uvicorn/protocols/http/httptools_impl.py",
+    "uvicorn/protocols/http/zttp_h2_impl.py",
+    "uvicorn/protocols/http/zttp_impl.py"
+   ]
+  },
+  {
+   "dist": "wheel-0.47.0.dist-info",
+   "total": 21,
+   "missing": 3,
+   "missing_py": 2,
+   "examples": [
+    "F:/001_install/020_Anaconda/envs/ds/Scripts/wheel.exe",
+    "wheel/_bdist_wheel.py",
+    "wheel/macosx_libfile.py"
+   ]
+  },
+  {
+   "dist": "wrapt-2.5.2.dist-info",
+   "total": 37,
+   "missing": 6,
+   "missing_py": 4,
+   "examples": [
+    "wrapt-stubs/__init__.pyi",
+    "wrapt/_wrappers.c",
+    "wrapt/decorators.py",
+    "wrapt/patches.py",
+    "wrapt/synchronization.py",
+    "wrapt/wrappers.py"
+   ]
+  },
+  {
+   "dist": "xlsxwriter-3.2.9.dist-info",
+   "total": 92,
+   "missing": 9,
+   "missing_py": 9,
+   "examples": [
+    "xlsxwriter/chart.py",
+    "xlsxwriter/drawing.py",
+    "xlsxwriter/format.py",
+    "xlsxwriter/packager.py",
+    "xlsxwriter/styles.py",
+    "xlsxwriter/utility.py"
+   ]
+  }
+ ],
+ ".venv/Lib/site-packages": []
+}

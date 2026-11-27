@@ -1,0 +1,39 @@
+{
+ "experiment": "WORK-557",
+ "started_at": "2026-11-25T04:49:46+0800",
+ "wait": {
+  "finished": true,
+  "reason": "driver_wrote_training_log",
+  "waited_s": 0.0
+ },
+ "steps": [
+  {
+   "step": "backtest_main",
+   "rc": 1,
+   "seconds": 119.7,
+   "log": "C:\\Users\\MO_Yongkai\\multica_workspaces_cloud\\workspace-c8faa36a018a\\work-557-a221b7629a32\\workdir\\quant-lab\\experiments\\WORK-557\\logs\\finish_backtest_main.log",
+   "cmd": [
+    "C:\\Users\\MO_Yongkai\\multica_workspaces_cloud\\workspace-c8faa36a018a\\work-557-a221b7629a32\\workdir\\quant-lab\\.venv\\Scripts\\python.exe",
+    "-u",
+    "scripts/work557_backtest.py",
+    "--exp",
+    "WORK-557",
+    "--buy-bps",
+    "5",
+    "--sell-bps",
+    "15",
+    "--out",
+    "backtest_results.json"
+   ],
+   "critical": true,
+   "note": "backtest 自检不通过：backtest_results.json 解析失败: UnicodeDecodeError('utf-8', b'{\\r\\n \"gru_s2024\": {\\r\\n  \"rankic\": 0.05125543391204701,\\r\\n  \"rankicir\": 0.33846093103289027,\\r\\n  \"ar\": -0.12327831742123008,\\r\\n  \"mdd\": 0.464160492279439,\\r\\n  \"sr\": -0.6381654337450707,\\r\\n  \"turnover\": 0.1667807867183932,\\r\\n  \"turnover_both_sides\": 0.3335615734367864,\\r\\n  \"days\": 725,\\r\\n  \"mean_holdings\": 29.784827586206898,\\r\\n  \"mean_cash_weight\": 0.03493473302360596,\\r\\n  \"n_trades\": 11069,\\r\\n  \"violation\": \"\",\\r\\n  \"alpha_equal_weight\": {\\r\\n   \"n_days\": 725,\\r\\n   \"excess_annualized\": -0.03892552785385486,\\r\\n   \"information_ratio\": -0.025412462707875543,\\r\\n   \"tracking_error\": 0.006078371157808703,\\r\\n   \"bench_annualized\": -0.0713371359550329,\\r\\n   \"port_annualized\": -0.11026266380888773,\\r\\n   \"benchmark\": \"PIT \\xc3\\xfb\\xb5\\xa5\\xb5\\xc8\\xc8\\xa8\\xa3\\xa8\\xd7\\xd4\\xbd\\xa8\\xa3\\xa9\"\\r\\n  },\\r\\n  \"alpha_cap_weighted\": {\\r\\n   \"n_days\": 725,\\r\\n   \"excess_annualized\": -0.15713353020792695,\\r\\n   \"information_ratio\": -0.09079792673282398,\\r\\n   \"tracking_error\": 0.006867400801211747,\\r\\n   \"bench_annualized\": 0.0468708663990392,\\r\\n   \"port_annualized\": -0.11026266380888773,\\r\\n   \"benchmark\": \"PIT \\xc3\\xfb\\xb5\\xa5\\xd7\\xdc\\xca\\xd0\\xd6\\xb5\\xbc\\xd3\\xc8\\xa8\\xa3\\xa8\\xd7\\xd4\\xbd\\xa8\\xa3\\xbb\\xb7\\xc7\\xd6\\xb8\\xca\\xfd\\xbf\\xda\\xbe\\xb6\\xa3\\xac\\xd6\\xb8\\xca\\xfd\\xce\\xaa\\xd7\\xd4\\xd3\\xc9\\xc1\\xf7\\xcd\\xa8\\xca\\xd0\\xd6\\xb5\\xbc\\xd3\\xc8\\xa8\\xa3\\xa9\"\\r\\n  },\\r\\n  \"alpha_index\": {\\r\\n   \"n_days\": 725,\\r\\n   \"excess_annualized\": -0.050307619848933574,\\r\\n   \"information_ratio\": -0.03189902437097811,\\r\\n   \"tracking_error\": 0.006258292096248882,\\r\\n   \"bench_annualized\": -0.05995504395995416,\\r\\n   \"port_annualized\": -0.11026266380888773,\\r\\n   \"benchmark\": \"CSI300 \\xd6\\xb8\\xca\\xfd\\xa3\\xa8000300.SH\\xa3\\xac\\xbc\\xdb\\xb8\\xf1\\xd6\\xb8\\xca\\xfd\\xa3\\xa9\"\\r\\n  }\\r\\n }\\r\\n}', 699, 700, 'invalid continuation byte')"
+  }
+ ],
+ "backtest_validation": {
+  "ok": false,
+  "detail": "backtest_results.json 解析失败: UnicodeDecodeError('utf-8', b'{\\r\\n \"gru_s2024\": {\\r\\n  \"rankic\": 0.05125543391204701,\\r\\n  \"rankicir\": 0.33846093103289027,\\r\\n  \"ar\": -0.12327831742123008,\\r\\n  \"mdd\": 0.464160492279439,\\r\\n  \"sr\": -0.6381654337450707,\\r\\n  \"turnover\": 0.1667807867183932,\\r\\n  \"turnover_both_sides\": 0.3335615734367864,\\r\\n  \"days\": 725,\\r\\n  \"mean_holdings\": 29.784827586206898,\\r\\n  \"mean_cash_weight\": 0.03493473302360596,\\r\\n  \"n_trades\": 11069,\\r\\n  \"violation\": \"\",\\r\\n  \"alpha_equal_weight\": {\\r\\n   \"n_days\": 725,\\r\\n   \"excess_annualized\": -0.03892552785385486,\\r\\n   \"information_ratio\": -0.025412462707875543,\\r\\n   \"tracking_error\": 0.006078371157808703,\\r\\n   \"bench_annualized\": -0.0713371359550329,\\r\\n   \"port_annualized\": -0.11026266380888773,\\r\\n   \"benchmark\": \"PIT \\xc3\\xfb\\xb5\\xa5\\xb5\\xc8\\xc8\\xa8\\xa3\\xa8\\xd7\\xd4\\xbd\\xa8\\xa3\\xa9\"\\r\\n  },\\r\\n  \"alpha_cap_weighted\": {\\r\\n   \"n_days\": 725,\\r\\n   \"excess_annualized\": -0.15713353020792695,\\r\\n   \"information_ratio\": -0.09079792673282398,\\r\\n   \"tracking_error\": 0.006867400801211747,\\r\\n   \"bench_annualized\": 0.0468708663990392,\\r\\n   \"port_annualized\": -0.11026266380888773,\\r\\n   \"benchmark\": \"PIT \\xc3\\xfb\\xb5\\xa5\\xd7\\xdc\\xca\\xd0\\xd6\\xb5\\xbc\\xd3\\xc8\\xa8\\xa3\\xa8\\xd7\\xd4\\xbd\\xa8\\xa3\\xbb\\xb7\\xc7\\xd6\\xb8\\xca\\xfd\\xbf\\xda\\xbe\\xb6\\xa3\\xac\\xd6\\xb8\\xca\\xfd\\xce\\xaa\\xd7\\xd4\\xd3\\xc9\\xc1\\xf7\\xcd\\xa8\\xca\\xd0\\xd6\\xb5\\xbc\\xd3\\xc8\\xa8\\xa3\\xa9\"\\r\\n  },\\r\\n  \"alpha_index\": {\\r\\n   \"n_days\": 725,\\r\\n   \"excess_annualized\": -0.050307619848933574,\\r\\n   \"information_ratio\": -0.03189902437097811,\\r\\n   \"tracking_error\": 0.006258292096248882,\\r\\n   \"bench_annualized\": -0.05995504395995416,\\r\\n   \"port_annualized\": -0.11026266380888773,\\r\\n   \"benchmark\": \"CSI300 \\xd6\\xb8\\xca\\xfd\\xa3\\xa8000300.SH\\xa3\\xac\\xbc\\xdb\\xb8\\xf1\\xd6\\xb8\\xca\\xfd\\xa3\\xa9\"\\r\\n  }\\r\\n }\\r\\n}', 699, 700, 'invalid continuation byte')"
+ },
+ "finished_at": "2026-11-25T04:51:46+0800",
+ "ok": false,
+ "failed_signal_rc": 1
+}

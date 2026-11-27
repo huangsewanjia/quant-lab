@@ -161,6 +161,82 @@ def _ffill_bfill(x: np.ndarray) -> np.ndarray:
                          neginf=0.0).astype("float32")
 
 
+def patch_sampler_init():
+    """修复上游 `DailyBatchSamplerRandom.__init__` 与 torch>=2.x 的不兼容。
+
+    上游 `vendor/PRISM-VQ/dataset/dataset.py:11` 写着
+        class DailyBatchSamplerRandom(Sampler):
+            def __init__(self, data_source, shuffle=False):
+                super().__init__(data_source)
+    但 torch 自 2.x 起把 `Sampler.__init__` 收回到 object（不再接受 data_source），
+    于是本机 torch 2.11.0 上每档都在 `init_data_loader` 处
+    `TypeError: object.__init__() takes exactly one argument` 秒退（2026-11-25 01:34/
+    02:48 共 8 次实测，见 experiments/WORK-557/training_log.txt）。
+
+    处置：在适配层把 `__init__` 原体**逐行照抄**、只去掉 `super().__init__(data_source)`
+    这一行。不改 vendor/ 任何文件，不碰模型结构与采样逻辑（daily_count / daily_index /
+    dates 三个字段与迭代顺序逐字不变），故 batch 组成与顺序不变，数值口径不变。
+    """
+    import numpy as _np
+    import pandas as _pd
+    import dataset.dataset as _ds
+    if getattr(_ds, "_work557_sampler_init", False):
+        return
+
+    def __init__(self, data_source, shuffle=False):  # noqa: N807
+        # torch>=2：Sampler 不再有 __init__(data_source)，故不再调用 super()
+        self.data_source = data_source
+        self.shuffle = shuffle
+
+        self.index_df = self.data_source.get_index()
+        datetime_level = self.index_df.names.index("datetime")
+        daily_groups = _pd.Series(self.index_df.values).groupby(
+            self.index_df.get_level_values(datetime_level))
+
+        self.daily_count = daily_groups.size().values
+        self.daily_index = _np.roll(_np.cumsum(self.daily_count), 1)
+        self.daily_index[0] = 0
+        self.dates = daily_groups.groups.keys()
+
+    _ds.DailyBatchSamplerRandom.__init__ = __init__
+    _ds._work557_sampler_init = True
+
+
+def patch_data_loader_collate():
+    """让上游 `init_data_loader` 在 `num_workers>0` 下可用（Windows spawn）。
+
+    上游把 `float_collate_fn` 定义在 `init_data_loader` **内部**（闭包），而
+    DataLoader 在 num_workers>0 时必须把 collate_fn pickle 给子进程 ——
+    局部函数不可 pickle，于是实测报
+    `Got pickle error when attempting to start a worker Process` → `EOFError`
+    （2026-11-26 15:37 smoke，日志 experiments/WORK-557/logs/smoke_full_s42.log）。
+
+    处置：适配层把 `init_data_loader` 原体**逐行照抄**，只把 collate 提升为模块级
+    函数（可 pickle）。不碰 vendor/，Sampler / 参数 / 返回值逐字不变。
+    """
+    import dataset.dataset as _ds
+    if getattr(_ds, "_work557_collate", False):
+        return
+    # 模块级函数：spawn 子进程能按 __module__ 自动 import（scripts/ 在 sys.path）
+    from work557_dl_adapter import float_collate_fn as _float_collate_fn
+
+    def init_data_loader(handler, shuffle, num_workers=0, index=False):  # noqa: N807
+        sampler = _ds.DailyBatchSamplerRandom(handler, shuffle)
+        num_batches_per_epoch = len(sampler)
+        data_loader = _ds.DataLoader(handler,
+                                     batch_sampler=sampler,
+                                     pin_memory=True,
+                                     num_workers=num_workers,
+                                     drop_last=False,
+                                     collate_fn=_float_collate_fn)
+        if index is True:
+            return data_loader, handler, num_batches_per_epoch
+        return data_loader, num_batches_per_epoch
+
+    _ds.init_data_loader = init_data_loader
+    _ds._work557_collate = True
+
+
 def patch_persistent_workers():
     """给上游 dataset.dataset 的 DataLoader 打开 persistent_workers。
 
@@ -301,12 +377,20 @@ def main():
     os.makedirs(out_dir, exist_ok=True)
     os.makedirs(os.path.join(VENDOR, "checkpoints"), exist_ok=True)
 
-    from dataset.dataset import init_data_loader
     import pytorch_lightning as pl
 
     # 上游 DataLoader 没开 persistent_workers（Windows 上每轮重建 worker），
     # 这里从外部打补丁，不改 vendor/ 里的任何文件。
     patch_persistent_workers()
+    # torch>=2 的 Sampler API 变更（2026-11-25 8 次秒退的根因）
+    patch_sampler_init()
+    # 闭包 collate_fn 不可 pickle（num_workers>0 时子进程起不来）
+    patch_data_loader_collate()
+
+    # 补丁必须在 import 之前打好：`from ... import init_data_loader` 会把当时
+    # 已绑定的同名对象固化到本地名字，之后再改模块属性不影响它（2026-11-26 15:39
+    # 实测：补丁打了仍报 `Can't get local object 'init_data_loader.<locals>...'`）。
+    from dataset.dataset import init_data_loader
 
     # The seed has to initialise the global RNGs BEFORE the model is built and
     # before the per-day batch order is drawn.  Upstream stage2.py does the
