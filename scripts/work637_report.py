@@ -430,7 +430,8 @@ def build_html(dat, v, snap, imgl, emb, sig, audit, asserts, ft, jit=None):
 测试段 2021-01-04 至 2026-11-13 共 {nl['n_weeks']} 周的<b>净 Sharpe = {v['sr_mean']:+.2f}</b>（两个种子 {v['sr_range']:.2f} 极差），
 95% block bootstrap 区间 {bs['ci95'][0]:+.2f} ~ {bs['ci95'][1]:+.2f}；毛口径 Sharpe {gl['sharpe']:+.2f}、年化超额 {gl['ann_return']:+.1%}，
 换手吃掉年化 {gl['ann_return'] - nl['ann_return']:.1%}。机制检验（只用本股自身历史）{'与论文同向' if v['h2_direction_matches_paper'] else '与论文反向'}。
-第二种子只换了平局打散与 bootstrap、复用同一份冻结编码（§7 已披露），因此两种子数值相同——这不是稳健性证据。
+第二种子只换了平局打散与 bootstrap、复用同一份冻结编码（§7 已披露），两种子差 {v['sr_range']:.3f}——
+这是同库不同随机源的重跑，不是渲染抖动的复现，也不构成跨种子稳健性证据。
 论文的 2.81（毛、美股、全市场、多空）在本口径下不可直接对标，见 §6。
 </div>
 
