@@ -133,9 +133,15 @@ def fig_images(path):
 def fig_performance(path, prim, costs):
     fig, axes = plt.subplots(1, 2, figsize=(6.3, 2.15), gridspec_kw={"width_ratios": [1.35, 1]})
     ax = axes[0]
-    wk = pd.to_datetime(prim["weekly"]["date"])
+    www = prim["weekly"]
+    if "date" in www.columns:
+        wk = pd.to_datetime(www["date"])
+    else:                                   # weekly_*.csv carries the week index only
+        wk = pd.to_datetime(C.load_panel_cached()["days"][C.load_panel_cached()["week_idx"]])[www["week"].to_numpy()]
+    keep = (wk >= "2021-01-04") & (wk <= "2026-11-18")
+    wk = wk[keep]
     for bp, color, lw in ((0, TEAL, 0.9), (8, BLUE, 0.9), (12, BLUE, 1.2), (20, RED, 0.9)):
-        series = np.array(costs[bp]["net"])
+        series = np.array(costs[bp]["net"])[keep]
         ax.plot(wk, np.cumprod(1 + series), color=color, lw=lw,
                 label=f"{bp} bp" + (" (pre-registered)" if bp == 12 else ""))
     ax.axhline(1.0, color=GREY, lw=0.5, ls=":")
@@ -310,7 +316,7 @@ hr{border:0;border-top:0.5pt solid var(--rule);margin:8mm 0}
 """
 
 
-def build_html(dat, v, snap, imgl, emb, sig, audit, asserts, ft):
+def build_html(dat, v, snap, imgl, emb, sig, audit, asserts, ft, jit=None):
     s0 = SEEDS[0]
     prim = dat["seeds"][s0]
     m = prim["metrics"]
@@ -405,6 +411,12 @@ def build_html(dat, v, snap, imgl, emb, sig, audit, asserts, ft):
 <td>阶段 B {'已跑' if ft else '因时间不足未启动（预注册 §10 执行条件）'}</td></tr>
 """
 
+    jit = jit or {}
+    jit_cos = jit.get("cosine_self", float("nan"))
+    jit_jac = jit.get("topk_jaccard_mean", float("nan"))
+    jit_jac10 = jit.get("topk_jaccard_p10", float("nan"))
+    jit_rho = jit.get("signal_corr", float("nan"))
+    jit_d = jit.get("signal_mean_abs_diff", float("nan"))
     tol = audit["tolerance"]
     body = f"""
 <div class="page">
@@ -418,6 +430,7 @@ def build_html(dat, v, snap, imgl, emb, sig, audit, asserts, ft):
 测试段 2021-01-04 至 2026-11-13 共 {nl['n_weeks']} 周的<b>净 Sharpe = {v['sr_mean']:+.2f}</b>（两个种子 {v['sr_range']:.2f} 极差），
 95% block bootstrap 区间 {bs['ci95'][0]:+.2f} ~ {bs['ci95'][1]:+.2f}；毛口径 Sharpe {gl['sharpe']:+.2f}、年化超额 {gl['ann_return']:+.1%}，
 换手吃掉年化 {gl['ann_return'] - nl['ann_return']:.1%}。机制检验（只用本股自身历史）{'与论文同向' if v['h2_direction_matches_paper'] else '与论文反向'}。
+第二种子只换了平局打散与 bootstrap、复用同一份冻结编码（§7 已披露），因此两种子数值相同——这不是稳健性证据。
 论文的 2.81（毛、美股、全市场、多空）在本口径下不可直接对标，见 §6。
 </div>
 
@@ -473,7 +486,8 @@ def build_html(dat, v, snap, imgl, emb, sig, audit, asserts, ft):
 <th class="num">95% CI（净）</th><th class="num">年化净超额</th><th class="num">最大回撤</th><th class="num">年化换手</th><th class="num">RankIC</th></tr></thead>
 <tbody>{rows_seed}</tbody></table>
 <div class="cap"><b>表 3｜H1。</b>换手口径为周度双边 Σ|Δw| × 52；RankIC 为每周横截面 Spearman 的均值。
-两个种子的差异来自渲染 y 轴 padding（2% / 6%）与平局打散，本单如实报告：这一差异很小，「跨种子方向一致」在阶段 A 是弱检验。</div>
+两个种子的数字完全相同，因为第二个种子复用了同一份冻结编码、只换平局打散与 bootstrap 的随机源；
+它与预注册 §7「渲染抖动 2% / 6%」的第二个种子<b>不是同一件事</b>，本单按未完成项披露（§7），不把它包装成稳健性过关。</div>
 
 <figure><img src="{png_uri(os.path.join(FIG, 'fig3_performance.png'))}" alt="performance">
 <div class="cap"><b>图 3｜净值与分年。</b>(a) 四种成本档下的累计净超额净值；(b) 12 bp 下逐年净 Sharpe。
@@ -515,6 +529,11 @@ def build_html(dat, v, snap, imgl, emb, sig, audit, asserts, ft):
 <h2>7 失败记录与已知限制</h2>
 <div class="panel">
 <ul>
+<li><b>第二个渲染种子未跑（预注册 §7 种子纪律未完全满足）</b>：预注册的种子 2024 本应把 y 轴 padding 换成 6%
+重新渲染 185,729 张图并重新编码。实测本机在共享负载下吞吐从 170 张/秒掉到 86–110 张/秒、编码从 58.7 掉到 15.5 张/秒，
+第二遍完整渲染+编码需 1.5–4 小时；本轮改为<b>用同一份冻结编码跑第二个随机种子</b>（只换平局打散与 bootstrap），
+因此两种子数值相同。替代诊断（见 §8）实测：同一张图 padding 2%→6% 会换掉 61% 的 top-1000 邻居，
+但信号与原版相关 0.87——说明渲染抖动会改变检索细节、未必改变结论，但<b>本单没有资格声称已跨种子复现</b>。</li>
 <li><b>阶段 B 未跑</b>（{ft and '已跑' or '未跑'}）：CPU 无 GPU，1 个 epoch 的训练加重新编码约需 2 小时；预注册 §10 规定
 「阶段 A 全流程完成且剩余 ≥ 3 小时」才启动，本轮不满足，故 H4 无结论，判词完全基于阶段 A。</li>
 <li><b>图像分辨率 140×140</b>（论文未写）：受 CPU 吞吐约束（224 时 24 张/秒，140 时 59 张/秒）。这是分辨率与可跑完之间的取舍。</li>
@@ -536,6 +555,10 @@ def build_html(dat, v, snap, imgl, emb, sig, audit, asserts, ft):
 <thead><tr><th>指标</th><th class="num">复算值</th><th class="num">建模值</th><th class="num">相对差</th><th>判定</th></tr></thead>
 <tbody>{chk_rows}</tbody></table>
 
+<p>渲染抖动诊断（替代第二遍整库重渲染）：对 1,200 张图把 y 轴 padding 从 2% 改成 6% 重新渲染并编码，
+与自身 embedding 的余弦为 {jit_cos:.4f}，top-1000 邻居重合度（Jaccard）均值 {jit_jac:.2f}（10% 分位 {jit_jac10:.2f}），
+检索信号与原版的相关 <b>{jit_rho:.2f}</b>、平均绝对差 {jit_d:.4f}。结论：渲染细节显著改变「哪几张图被检索到」，
+但对信号值的影响有限；这既解释了为什么第二个渲染种子值得跑，也说明把它省掉会让判词缺一块证据。</p>
 <table>
 <thead><tr><th>引擎断言</th><th>状态</th><th>原文</th></tr></thead>
 <tbody>{assert_rows}</tbody></table>
@@ -600,7 +623,8 @@ def main():
         h2v = v["h2"][str(s0)] if v["h2"] else {"baseline_sr": 0.0, "same_stock_sr": 0.0}
         fig_ablation(os.path.join(FIG, "fig4_ablation.png"), h2v, dat["costs"][s0])
 
-    html = build_html(dat, v, snap, imgl, emb, sig, audit, asserts, ft_stats)
+    jit = load_json(os.path.join(C.EXP, "jitter_check.json"), {})
+    html = build_html(dat, v, snap, imgl, emb, sig, audit, asserts, ft_stats, jit)
     hp = os.path.join(C.EXP, "report.html")
     with open(hp, "w") as f:
         f.write(html)

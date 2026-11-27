@@ -159,35 +159,28 @@ def main():
             recs.append(None)
             continue
         mem = None
-        for s in snaps:
-            if s <= w:
-                mem = by_snap[s]
+        for s0 in snaps:
+            if s0 <= w:
+                mem = by_snap[s0]
             else:
                 break
+        mem = mem or set()
         ent_d, ext_d = cal[wi + 1], cal[wi + 6]
-        week = {"date": str(w), "names": []}
-        for c in sorted(mem or ()):
+        # "rets" covers every instrument with prices (the modelling side's label
+        # matrix does not depend on pool membership); "names" is the investable
+        # subset. Weight drift of a name that leaves the index needs the former.
+        week = {"date": str(w), "names": [], "rets": {}}
+        for c in order_codes:
             if c not in px:
-                continue
-            if has_window(c, wi) is False:
-                continue
-            if list_date.get(c) is None:
-                continue
-            # listed trading-day count
-            if sum(1 for k in range(0, wi + 1) if cal[k] >= list_date[c]) < MIN_LIST:
                 continue
             o_e = open_at(c, ent_d)
             if o_e is None or o_e <= 0:
                 continue
-            up, _ = limit(c, ent_d)
-            if up is not None and open_raw(c, ent_d) is not None and open_raw(c, ent_d) >= up - 1e-3:
-                continue
-            # exit with carry-forward
-            p_exit, delayed = None, 0
             o_x = open_at(c, ext_d)
             _, dn = limit(c, ext_d)
             orx = open_raw(c, ext_d)
-            if o_x is not None and not (dn is not None and orx is not None and orx <= dn + 1e-3):
+            p_exit, delayed = None, 0
+            if o_x is not None and dn is not None and orx is not None and orx > dn + 1e-3:
                 p_exit = o_x
             else:
                 for dk in range(1, 11):
@@ -197,18 +190,32 @@ def main():
                     pp = open_at(c, dd)
                     _, dnl = limit(c, dd)
                     prx = open_raw(c, dd)
-                    if pp is not None and not (dnl is not None and prx is not None and prx <= dnl + 1e-3):
+                    if pp is not None and dnl is not None and prx is not None and prx > dnl + 1e-3:
                         p_exit, delayed = pp, dk
                         break
             if p_exit is None:
-                # same fallback as the modelling side: mark at the last available
-                # close on day t+16 if no tradeable open exists within 10 days
                 dd = cal[min(wi + 16, len(cal) - 1)]
                 v = px[c].get(dd)
                 if v is None or not (v[1] > 0):
                     continue
                 p_exit = v[1]
-            week["names"].append((c, p_exit / o_e - 1.0))
+            ret = p_exit / o_e - 1.0
+            week["rets"][c] = ret
+            # investable: in the index, complete window, seasoned, tradeable entry
+            if c not in mem:
+                continue
+            if not has_window(c, wi):
+                continue
+            ld = list_date.get(c)
+            if ld is None:
+                continue
+            if sum(1 for k in range(0, wi + 1) if cal[k] >= ld) < MIN_LIST:
+                continue
+            up, _ = limit(c, ent_d)
+            orx_e = open_raw(c, ent_d)
+            if up is None or orx_e is None or orx_e >= up - 1e-3:
+                continue
+            week["names"].append((c, ret))
         recs.append(week)
 
     # ---- portfolio ----
@@ -236,7 +243,7 @@ def main():
         drift = {}
         denom = 1.0
         for c, pw in prev.items():
-            rr = dict(rec["names"]).get(c, 0.0)
+            rr = rec["rets"].get(c, 0.0)
             d = pw * (1 + rr)
             drift[c] = d
             denom += pw * rr
@@ -253,6 +260,8 @@ def main():
     # the published metrics are the TEST-WINDOW metrics only (preregistration §1)
     rows = [r for r in daily_rows
             if r is not None and TEST_START <= r["date"] <= TEST_END]
+    pd.DataFrame(rows).to_csv(os.path.join(EXP, "audit_weekly.csv"), index=False,
+                              float_format="%.12g")
     test_recs = [r for r in recs if r is not None and TEST_START <= r["date"] <= TEST_END]
     net = np.array([r["gross"] - r["bench"] - r["turnover"] * 12 / 1e4 for r in rows])
     gross_ex = np.array([r["gross"] - r["bench"] for r in rows])
@@ -347,7 +356,7 @@ def main():
            "authoritative": "recomputed values where a check fails"}
     p = os.path.join(EXP, "audit_recompute.json")
     with open(p, "w") as f:
-        json.dump(out, f, indent=1, ensure_ascii=False)
+        json.dump(out, f, indent=1, ensure_ascii=False, default=bool)
     for c in checks:
         flag = "OK " if c["ok"] else "FAIL"
         print(f"{flag} {c['item']:20s} recomputed={c['recomputed']!r:>24} "

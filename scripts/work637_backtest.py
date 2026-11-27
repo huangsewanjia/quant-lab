@@ -40,7 +40,8 @@ def _require_masks(enabled: bool) -> None:
 
 def exit_prices(panel, elig) -> tuple[np.ndarray, np.ndarray]:
     """Exit price with the carry-forward rule of §6 when the exit day is untradeable."""
-    ro = panel["ro"]
+    ro = panel["ro"]        # raw: price-limit test only
+    oq = panel["o"]         # qfq: the price actually used for returns
     n = len(panel["days"])
     W, S = elig["ext"].shape
     px = elig["ext"].copy()
@@ -58,9 +59,11 @@ def exit_prices(panel, elig) -> tuple[np.ndarray, np.ndarray]:
                 t = jx + d
                 if t >= n:
                     break
-                p = ro[t, j]
+                p = oq[t, j]
                 lim = panel["dn"][t, j]
-                if (not np.isnan(p)) and (not np.isnan(lim)) and p > lim + 1e-3:
+                praw = ro[t, j]
+                if (not np.isnan(p)) and (not np.isnan(lim)) and (not np.isnan(praw)) \
+                        and praw > lim + 1e-3:
                     px[k, j] = p
                     delayed[k, j] = d
                     break
@@ -211,11 +214,12 @@ def main():
     else:
         sub = sig[sig["K"] == args.K]
         wide = sub.pivot(index="week", columns="ts_code", values="signal")
-        wide = wide.reindex(columns=panel["codes"])
+        # weeks with an empty library produce no rows, so the pivot index must be
+        # re-anchored on the full week range — otherwise every later week's signal
+        # slides forward in time (look-ahead).
+        wide = wide.reindex(index=pd.RangeIndex(len(weeks)), columns=panel["codes"])
         S = wide.to_numpy(dtype=float)
-    if S.shape[0] != len(weeks):
-        pad = np.full((len(weeks) - S.shape[0], S.shape[1]), np.nan)
-        S = np.vstack([S, pad])
+        assert S.shape[0] == len(weeks), (S.shape, len(weeks))
 
     CODES_REF[0] = panel["codes"]
     df, hold, short = run(S, eligible, r, eligible, args.cost_bp,

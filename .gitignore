@@ -67,3 +67,11 @@ experiments/WORK-449/void_run_*/
 
 # ---- 上游模型 checkpoint（体积大，可由训练脚本重建） ----
 vendor/PRISM-VQ/checkpoints/
+
+# ---- WORK-637 例外：报告成品与论文对照表入库 ----
+!experiments/WORK-637/report.html
+!experiments/WORK-637/preview_first_screen.png
+!experiments/WORK-637/report_print.pdf
+!experiments/WORK-637/paper_comparison.csv
+!/figures/WORK-637/
+!/figures/WORK-637/*.png

@@ -67,10 +67,15 @@ def main():
         # chartable set, so provoke the same guard with a hole-punched window
         p = dict(panel)
         p["ma"] = panel["ma"].copy()
-        p["ma"][-1, 0] = np.nan
+        chartable = elig["chartable"]
+        w = int(np.nonzero(chartable.any(axis=1))[0][-1])
+        j = int(np.nonzero(chartable[w])[0][0])
+        p["ma"][int(panel["week_idx"][w]), j] = np.nan   # hole inside the D20 window
         R._G["panel"] = p
-        w = len(panel["week_idx"]) - 1
-        R._render((w, 0, "/tmp/_w637_probe.png"))
+        probe = "/tmp/_w637_probe2.png"
+        if os.path.exists(probe):
+            os.remove(probe)
+        R._render((w, j, probe))
         raise SystemExit("window assertion did not fire")
     except RuntimeError as exc:
         record("assertion_violation_window.txt", f"RuntimeError: {exc}")

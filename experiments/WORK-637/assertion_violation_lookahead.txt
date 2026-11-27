@@ -1,0 +1,4 @@
+frontier-offset=20 injection
+1
+    raise RuntimeError(f"look-ahead violation at week {w}: {int(bad.sum())} neighbours "
+RuntimeError: look-ahead violation at week 0: 5520 neighbours with unrealised labels

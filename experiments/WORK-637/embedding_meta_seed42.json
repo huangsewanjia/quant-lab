@@ -1,0 +1,16 @@
+{
+ "seed": 42,
+ "n": 185729,
+ "dim": 384,
+ "px": 140,
+ "weights": "facebook/dinov2-small model.safetensors",
+ "weights_sha256": "ae1e99fcefd534ed978cdeb8326f08030c96e28b7a81ffcbc98a857c84d14be1",
+ "norms": {
+  "min": 0.9999998211860657,
+  "max": 1.0000001192092896
+ },
+ "seconds": 3119.9,
+ "images_per_s": 59.53,
+ "sha256": "e16d3cc16258492644e37413c739f4af1ae52dacf52588d304e892005760b630",
+ "bytes": 285279872
+}

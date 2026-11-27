@@ -90,8 +90,6 @@ def main():
             frontier += 1
         if args.frontier_offset:
             frontier = min(len(order), frontier + args.frontier_offset)
-        if frontier > len(index):
-            pass
         new = order[added_through + 1:frontier]
         if len(new):
             index.add(np.ascontiguousarray(emb[new]))

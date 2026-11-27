@@ -213,7 +213,7 @@ def eligibility(panel: dict) -> dict:
     """Per (week, stock): chartable, pool-member, entry-tradeable, exit info."""
     wk = panel["week_idx"]
     present = panel["present"]
-    ro, up, dn = panel["ro"], panel["up"], panel["dn"]
+    ro, up, dn, oq = panel["ro"], panel["up"], panel["dn"], panel["o"]
     n = len(panel["days"])
     W, S = len(wk), len(panel["codes"])
 
@@ -231,10 +231,10 @@ def eligibility(panel: dict) -> dict:
     for k in range(W):
         i, jx = ent_ix[k], ext_ix[k]
         if i < n:
-            ent[k] = ro[i]
+            ent[k] = oq[i]          # qfq entry price (preregistration §5)
             ent_trade[k] = present[i] & ~np.isnan(ro[i]) & ~(ro[i] >= up[i] - 1e-3) & ~np.isnan(up[i])
         if jx < n:
-            ext[k] = ro[jx]
+            ext[k] = oq[jx]         # qfq exit price; limits are still tested on raw
             ext_trade[k] = present[jx] & ~np.isnan(ro[jx]) & ~(ro[jx] <= dn[jx] + 1e-3) & ~np.isnan(dn[jx])
     chartable = has_chart & in_pool & listed
     eligible = chartable & ok_e[:, None] & ent_trade

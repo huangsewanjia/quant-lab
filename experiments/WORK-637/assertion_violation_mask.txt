@@ -1,0 +1,1 @@
+MaskDisabled: tradability mask disabled: refusing to produce a backtest. The mask (suspension / price-limit at entry and exit) is part of the pre-registered executable protocol (preregistration §6).

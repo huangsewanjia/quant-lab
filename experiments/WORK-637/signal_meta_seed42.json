@@ -1,0 +1,16 @@
+{
+ "seed": 42,
+ "emb_seed": 42,
+ "k_list": [
+  100,
+  1000,
+  3000
+ ],
+ "rows": 555531,
+ "weeks": 660,
+ "lookahead_violations": 0,
+ "signal_csv": "experiments/WORK-637/signals/seed42_knn.csv",
+ "signal_csv_sha256": "0d876807485ba3322c736bd84ea1def204541cda8721e4dd2220fd720e326475",
+ "same_stock_csv_sha256": "890578687dae90a08d47f87ab396e7bfa68024389889dc048b398a73de256f80",
+ "seconds": 378.0
+}

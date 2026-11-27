@@ -60,15 +60,18 @@ def main():
     shard = 20000
     shard_dir = os.path.join(C.DATA, f"shards_seed{args.seed}")
     os.makedirs(shard_dir, exist_ok=True)
+    nxt_shard = shard
     with torch.inference_mode():
         for s in range(0, n, args.batch):
             xb = load_paths(paths[s:s + args.batch], C.IMG_PX)
             h = model(pixel_values=xb).last_hidden_state[:, 0, :]
             h = h / h.norm(dim=-1, keepdim=True).clamp_min(1e-12)
             out[s:s + len(xb)] = h.numpy()
-            if (s + len(xb)) % shard == 0 or s + len(xb) == n:
-                np.save(os.path.join(shard_dir, f"{s + len(xb):06d}.npy"),
-                        out[:s + len(xb)])
+            done = s + len(xb)
+            if done >= nxt_shard or done == n:
+                np.save(os.path.join(shard_dir, f"{done:06d}.npy"), out[:done])
+                while nxt_shard <= done:
+                    nxt_shard += shard
             if (s // args.batch) % 200 == 0:
                 el = time.time() - t0
                 done = s + len(xb)

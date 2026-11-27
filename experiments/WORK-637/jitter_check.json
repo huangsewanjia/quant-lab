@@ -1,0 +1,12 @@
+{
+ "n": 1200,
+ "k": 1000,
+ "alt_pad": 0.06,
+ "base_pad": 0.02,
+ "cosine_self": 0.9850535988807678,
+ "topk_jaccard_mean": 0.39222411461768625,
+ "topk_jaccard_p10": 0.1954572624028691,
+ "signal_corr": 0.8710103159433431,
+ "signal_mean_abs_diff": 0.0017101606621832987,
+ "queries_used": 1186
+}

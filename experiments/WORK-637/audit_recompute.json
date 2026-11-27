@@ -1,0 +1,155 @@
+{
+ "audit_object": {
+  "signals": "experiments/WORK-637/signals/seed42_knn.csv",
+  "modelling_json": "experiments/WORK-637/backtest_seed42_K1000_c12.json",
+  "snapshot": "experiments/WORK-637/snapshot_manifest.json"
+ },
+ "tolerance": 1e-06,
+ "recomputed": {
+  "weeks": 300,
+  "test_start": "2021-01-08",
+  "test_end": "2026-11-13",
+  "net_sharpe": -0.6516075417983489,
+  "gross_sharpe": 0.2881021551959148,
+  "ann_return_net": -0.06802608125813148,
+  "mdd_net": -0.4040181747301551,
+  "mean_turnover": 1.5115146281604328,
+  "ann_turnover": 78.5987606643425,
+  "mean_weekly_net": -0.0012573903372782062,
+  "sd_weekly_net": 0.013915079379890073,
+  "rank_ic_mean": 0.007606838473259471,
+  "rank_ic_weeks": 300,
+  "cost_sharpe": {
+   "8": -0.33819832531780786,
+   "12": -0.6516075417983489,
+   "20": -1.2788185112266852
+  }
+ },
+ "modelling": {
+  "weeks": 300,
+  "net_sharpe": -0.6516075417983473,
+  "gross_sharpe": 0.288102155195915,
+  "ann_return_net": -0.06802608125813159,
+  "mdd_net": -0.40401817473015567,
+  "mean_turnover": 1.5115146281604324,
+  "ann_turnover": 78.59876066434248,
+  "mean_weekly_net": -0.0012573903372782031,
+  "sd_weekly_net": 0.013915079379890073,
+  "rank_ic_mean": 0.007606838473259471,
+  "cost_sharpe": {
+   "8": -0.3381983253178074,
+   "12": -0.6516075417983473,
+   "20": -1.2788185112266846
+  }
+ },
+ "checks": [
+  {
+   "item": "weeks",
+   "recomputed": 300,
+   "modelling": 300,
+   "abs_diff": 0,
+   "rel_diff": 0.0,
+   "ok": true
+  },
+  {
+   "item": "net_sharpe",
+   "recomputed": -0.6516075417983489,
+   "modelling": -0.6516075417983473,
+   "abs_diff": 1.5543122344752192e-15,
+   "rel_diff": 2.3853502833707706e-15,
+   "ok": true
+  },
+  {
+   "item": "gross_sharpe",
+   "recomputed": 0.2881021551959148,
+   "modelling": 0.288102155195915,
+   "abs_diff": 1.6653345369377348e-16,
+   "rel_diff": 5.780361260419158e-16,
+   "ok": true
+  },
+  {
+   "item": "ann_return_net",
+   "recomputed": -0.06802608125813148,
+   "modelling": -0.06802608125813159,
+   "abs_diff": 1.1102230246251565e-16,
+   "rel_diff": 1.6320549472963276e-15,
+   "ok": true
+  },
+  {
+   "item": "mdd_net",
+   "recomputed": -0.4040181747301551,
+   "modelling": -0.40401817473015567,
+   "abs_diff": 5.551115123125783e-16,
+   "rel_diff": 1.373976585789335e-15,
+   "ok": true
+  },
+  {
+   "item": "mean_turnover",
+   "recomputed": 1.5115146281604328,
+   "modelling": 1.5115146281604324,
+   "abs_diff": 4.440892098500626e-16,
+   "rel_diff": 2.938041098487648e-16,
+   "ok": true
+  },
+  {
+   "item": "ann_turnover",
+   "recomputed": 78.5987606643425,
+   "modelling": 78.59876066434248,
+   "abs_diff": 2.842170943040401e-14,
+   "rel_diff": 3.616050582754029e-16,
+   "ok": true
+  },
+  {
+   "item": "mean_weekly_net",
+   "recomputed": -0.0012573903372782062,
+   "modelling": -0.0012573903372782031,
+   "abs_diff": 3.0357660829594124e-18,
+   "rel_diff": 2.4143386448561007e-15,
+   "ok": true
+  },
+  {
+   "item": "sd_weekly_net",
+   "recomputed": 0.013915079379890073,
+   "modelling": 0.013915079379890073,
+   "abs_diff": 0.0,
+   "rel_diff": 0.0,
+   "ok": true
+  },
+  {
+   "item": "rank_ic_mean",
+   "recomputed": 0.007606838473259471,
+   "modelling": 0.007606838473259471,
+   "abs_diff": 0.0,
+   "rel_diff": 0.0,
+   "ok": true
+  },
+  {
+   "item": "cost_sharpe_8bp",
+   "recomputed": -0.33819832531780786,
+   "modelling": -0.3381983253178074,
+   "abs_diff": 4.440892098500626e-16,
+   "rel_diff": 1.313102923950758e-15,
+   "ok": true
+  },
+  {
+   "item": "cost_sharpe_12bp",
+   "recomputed": -0.6516075417983489,
+   "modelling": -0.6516075417983473,
+   "abs_diff": 1.5543122344752192e-15,
+   "rel_diff": 2.3853502833707706e-15,
+   "ok": true
+  },
+  {
+   "item": "cost_sharpe_20bp",
+   "recomputed": -1.2788185112266852,
+   "modelling": -1.2788185112266846,
+   "abs_diff": 6.661338147750939e-16,
+   "rel_diff": 5.208978513582171e-16,
+   "ok": true
+  }
+ ],
+ "n_checks": 13,
+ "n_ok": 13,
+ "n_fail": 0,
+ "authoritative": "recomputed values where a check fails"
+}
