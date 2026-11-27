@@ -8,7 +8,7 @@
 |---|---|
 | `preregistration.md` | 预注册协议（8 项写死 + D1–D10 偏离清单 + 阶段 B 超参）。提交早于任何回测产物 |
 | `snapshot_manifest.json` | 8 个 quantdb 端点的 ok/error 原文、行数、日期范围、sha256；派生面板 sha256 |
-| `imagelib_manifest_seed42.json` / `_seed2024.json` | 图像库目录、文件数、字节数、按年分布、清单级 sha256、重建命令 |
+| `imagelib_manifest_seed42.json` | 图像库目录、文件数、字节数、按年分布、清单级 sha256、重建命令（第二个渲染种子未跑，见 `failure_log.md` F13） |
 | `embedding_meta_seed*.json` | 权重 sha256、维度、分辨率、实测吞吐、embedding npy 的 sha256 |
 | `signal_meta_seed*.json` | K 网格、行数、前视违规计数、信号 CSV 的 sha256 |
 | `signals/` | `seed*_knn.csv`（K=100/1000/3000 长表）、`seed*_same_stock.csv`（H2 消融）、`weekly_*.csv` |
@@ -40,7 +40,8 @@ $PY -u scripts/work637_report.py --preview   # 图 + HTML + 首屏 + PDF
 ```
 
 图像库落在 `/srv/share/quantdb/code/WORK-637/imagelib/seed<seed>/<year>/`（不入 git，可由上面的 render 命令重建，
-重建后的 PNG 字节与清单 sha256 一致）。面板与 embedding 落在 `data/WORK-637/`（`*.npy` / `*.parquet` 被 .gitignore 覆盖）。
+清单 sha256 是「排序后相对路径换行拼接」的 sha，覆盖文件名与结构，**不覆盖 PNG 字节内容**；
+像素级一致性靠渲染脚本本身确定（同一 matplotlib/PIL 版本下重跑逐字节相同，本单实测 HDD 与 SSD 两遍的清单 sha 完全一致）。面板与 embedding 落在 `data/WORK-637/`（`*.npy` / `*.parquet` 被 .gitignore 覆盖）。
 
 ## 关键口径（一句话）
 

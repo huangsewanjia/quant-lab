@@ -1,9 +1,9 @@
 paper_table,item,paper,local,seed,note
 Table 2,DINOv2-S K=1000 EW gross,Ret 26.0% / SR 2.81,Ret +2.4% / SR +0.29,42,"long-only excess vs pool, not H-L; weekly library"
 Table 2,DINOv2-S K=1000 EW net,Ret -6.0% / SR -0.63,Ret -6.8% / SR -0.65,42,12 bp one-way vs their 10/20 bp tiered
-Table 6A,Same-Stock ablation (H-L SR),6.37 -> 1.38,+0.37 -> -0.11,42,"gross long-short Sharpe, paper-comparable column only"
+Table 6A,Same-Stock ablation (H-L SR),6.37 -> 1.38,+0.38 -> -0.11,42,"gross long-short Sharpe, paper-comparable column only"
 Table 2,K sensitivity (net SR),1.12 / 2.81 / 2.90,-1.49 / -0.65 / -0.63,42,paper rows are gross H-L; local rows are net long-only excess
-Table 2,DINOv2-S K=1000 EW gross,Ret 26.0% / SR 2.81,Ret +2.4% / SR +0.29,2024,"long-only excess vs pool, not H-L; weekly library"
-Table 2,DINOv2-S K=1000 EW net,Ret -6.0% / SR -0.63,Ret -6.8% / SR -0.65,2024,12 bp one-way vs their 10/20 bp tiered
+Table 2,DINOv2-S K=1000 EW gross,Ret 26.0% / SR 2.81,Ret +2.4% / SR +0.28,2024,"long-only excess vs pool, not H-L; weekly library"
+Table 2,DINOv2-S K=1000 EW net,Ret -6.0% / SR -0.63,Ret -6.9% / SR -0.66,2024,12 bp one-way vs their 10/20 bp tiered
 Table 6A,Same-Stock ablation (H-L SR),6.37 -> 1.38,+0.37 -> -0.11,2024,"gross long-short Sharpe, paper-comparable column only"
-Table 2,K sensitivity (net SR),1.12 / 2.81 / 2.90,-1.49 / -0.65 / -0.63,2024,paper rows are gross H-L; local rows are net long-only excess
+Table 2,K sensitivity (net SR),1.12 / 2.81 / 2.90,-1.48 / -0.66 / -0.63,2024,paper rows are gross H-L; local rows are net long-only excess

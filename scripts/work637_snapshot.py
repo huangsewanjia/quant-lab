@@ -55,7 +55,7 @@ ENDPOINTS = {
     "index_daily_csi300": (
         "select trade_date, close from index_daily where ts_code='000300.SH' "
         "and trade_date between date '2020-12-01' and date '2026-11-26'"),
-    "stock_basic": "select ts_code, name, list_date, delist_date from stock_basic",
+    "stock_basic": "select ts_code, name, list_date from stock_basic",
 }
 
 

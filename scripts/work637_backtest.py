@@ -137,8 +137,12 @@ def run(sig, eligible, r, bench_mask, cost_bp, masks_on, seed):
             ls = gross - float(np.nansum(ws * np.where(np.isfinite(r[w]), r[w], 0.0)))
         else:
             ls = 0.0
-        drift = np.where(h | (prev > 0), prev * (1 + rr), 0.0)
-        denom = 1.0 + float(np.sum(prev * rr))
+        # the weight set held into this week was bought at t_{w-1}+1 and drifted
+        # with the return that was realised *before* this rebalance (r[w-1]);
+        # using r[w] would charge turnover on information from after the trade.
+        rr_prev = np.where(np.isfinite(r[w - 1]), r[w - 1], 0.0) if w else np.zeros(S)
+        drift = np.where(prev > 0, prev * (1 + rr_prev), 0.0)
+        denom = 1.0 + float(np.sum(prev * rr_prev))
         drift = drift / denom if denom > 0 else drift
         turn = float(np.abs(wts - drift).sum())
         cost = turn * cost_bp / 1e4
@@ -160,7 +164,7 @@ def stats(x: pd.Series, turnover: pd.Series | None = None) -> dict:
     ar = float((np.prod(1 + x)) ** (52 / n) - 1) if np.all(1 + x > 0) else float("nan")
     if not np.isfinite(ar):
         ar = float((1 + mu) ** 52 - 1)
-    nav = np.cumprod(1 + x)
+    nav = np.concatenate([[1.0], np.cumprod(1 + x)])   # peak must include starting capital
     mdd = float(np.min(nav / np.maximum.accumulate(nav) - 1))
     out = dict(n_weeks=n, mean_weekly=mu, sd_weekly=sd, sharpe=sr, ann_return=ar,
                mdd=mdd, t_stat=mu / (sd / np.sqrt(n)) if sd > 0 else float("nan"))

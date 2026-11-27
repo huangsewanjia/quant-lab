@@ -43,6 +43,9 @@ def main():
     ap.add_argument("--frontier-offset", type=int, default=0,
                     help="DIAGNOSTIC ONLY: push the library frontier past the legal "
                          "point to prove the look-ahead assertion fires")
+    ap.add_argument("--out-suffix", default="",
+                    help="DIAGNOSTIC ONLY: write to signals/seed<n>_knn<suffix>.csv "
+                         "instead of the production file")
     ap.add_argument("--smoke-weeks", type=int, default=0,
                     help="DIAGNOSTIC ONLY: stop after N weeks")
     args = ap.parse_args()
@@ -101,6 +104,10 @@ def main():
         D, I = index.search(np.ascontiguousarray(emb[qs]), min(KMAX, index.ntotal))
         # map faiss local ids back to global row ids: ids are insertion order == order[:frontier]
         G = order[:frontier][I]
+        # seed-specific tie-break: the salt can only reorder *exact* distance ties
+        # (it is 1e-12, far below float32 spacing at these similarities).
+        key = -(D.astype(np.float64) + salt[G] * 1e-12)
+        G = np.take_along_axis(G, np.argsort(key, axis=1, kind="stable"), axis=1)
         # look-ahead assertion: every used neighbour's label must already be realised
         bad = panel["week_idx"][week_of[G]] + 6 > qidx
         if bad.any():
@@ -128,7 +135,7 @@ def main():
 
     sig = pd.concat(out_rows, ignore_index=True)
     os.makedirs(os.path.join(C.EXP, "signals"), exist_ok=True)
-    sp = os.path.join(C.EXP, "signals", f"seed{args.seed}_knn.csv")
+    sp = os.path.join(C.EXP, "signals", f"seed{args.seed}_knn{args.out_suffix}.csv")
     sig.to_csv(sp, index=False, float_format="%.10g")
 
     # ---- H2 ablation: same-stock-only library ----

@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-27T02:56:56.246581+00:00",
+ "generated_at": "2026-11-27T07:34:49.367324+00:00",
  "db": "/srv/share/quantdb/db/quantdb.duckdb",
  "data_cutoff": "2026-11-26",
  "endpoints": {
@@ -124,9 +124,15 @@
    "n_dates": 1452
   },
   "stock_basic": {
-   "sql": "select ts_code, name, list_date, delist_date from stock_basic",
-   "ok": false,
-   "error": "BinderException: Binder Error: Referenced column \"delist_date\" not found in FROM clause!\nCandidate bindings: \"list_date\", \"ts_code\", \"act_name\", \"act_ent_type\", \"industry\"\n\nLINE 1: select ts_code, name, list_date, delist_date from stock_basic\n                                         ^^^^^^^^^^^"
+   "sql": "select ts_code, name, list_date from stock_basic",
+   "ok": true,
+   "rows": 5925,
+   "cols": [
+    "ts_code",
+    "name",
+    "list_date"
+   ],
+   "sha256": "3595b59dedf61ac10231e6cebee50066f7c8433b03f86e2dc753a8ec3308c1b7"
   }
  },
  "panel": {

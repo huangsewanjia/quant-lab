@@ -486,8 +486,10 @@ def build_html(dat, v, snap, imgl, emb, sig, audit, asserts, ft, jit=None):
 <th class="num">95% CI（净）</th><th class="num">年化净超额</th><th class="num">最大回撤</th><th class="num">年化换手</th><th class="num">RankIC</th></tr></thead>
 <tbody>{rows_seed}</tbody></table>
 <div class="cap"><b>表 3｜H1。</b>换手口径为周度双边 Σ|Δw| × 52；RankIC 为每周横截面 Spearman 的均值。
-两个种子的数字完全相同，因为第二个种子复用了同一份冻结编码、只换平局打散与 bootstrap 的随机源；
-它与预注册 §7「渲染抖动 2% / 6%」的第二个种子<b>不是同一件事</b>，本单按未完成项披露（§7），不把它包装成稳健性过关。</div>
+第二个种子复用同一份冻结编码，只换邻居平局打散、十分位平局与 bootstrap 的随机源，
+因此两种子的净 Sharpe 相差 {v['sr_range']:.3f}（{', '.join(f"{k}: {x:+.3f}" for k, x in v['sr_by_seed'].items())}）——
+它是「同一图库、不同随机源」的复现，<b>不是</b>预注册 §7 里「渲染抖动 2% / 6%」意义上的第二种子。
+后者本单没跑，按未完成项披露（§7），不拿这 0.007 的极差冒充稳健性过关。</div>
 
 <figure><img src="{png_uri(os.path.join(FIG, 'fig3_performance.png'))}" alt="performance">
 <div class="cap"><b>图 3｜净值与分年。</b>(a) 四种成本档下的累计净超额净值；(b) 12 bp 下逐年净 Sharpe。
@@ -531,8 +533,8 @@ def build_html(dat, v, snap, imgl, emb, sig, audit, asserts, ft, jit=None):
 <ul>
 <li><b>第二个渲染种子未跑（预注册 §7 种子纪律未完全满足）</b>：预注册的种子 2024 本应把 y 轴 padding 换成 6%
 重新渲染 185,729 张图并重新编码。实测本机在共享负载下吞吐从 170 张/秒掉到 86–110 张/秒、编码从 58.7 掉到 15.5 张/秒，
-第二遍完整渲染+编码需 1.5–4 小时；本轮改为<b>用同一份冻结编码跑第二个随机种子</b>（只换平局打散与 bootstrap），
-因此两种子数值相同。替代诊断（见 §8）实测：同一张图 padding 2%→6% 会换掉 61% 的 top-1000 邻居，
+第二遍完整渲染+编码需 1.5–4 小时；本轮改为<b>用同一份冻结编码跑第二个随机种子</b>（只换邻居平局打散、十分位平局与 bootstrap），
+两种子净 Sharpe 相差 {v['sr_range']:.3f}。替代诊断（见 §8）实测：同一张图 padding 2%→6% 会换掉 61% 的 top-1000 邻居，
 但信号与原版相关 0.87——说明渲染抖动会改变检索细节、未必改变结论，但<b>本单没有资格声称已跨种子复现</b>。</li>
 <li><b>阶段 B 未跑</b>（{ft and '已跑' or '未跑'}）：CPU 无 GPU，1 个 epoch 的训练加重新编码约需 2 小时；预注册 §10 规定
 「阶段 A 全流程完成且剩余 ≥ 3 小时」才启动，本轮不满足，故 H4 无结论，判词完全基于阶段 A。</li>

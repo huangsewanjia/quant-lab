@@ -220,6 +220,7 @@ def main():
 
     # ---- portfolio ----
     prev = {}
+    prev_rec = None
     daily_rows = []
     for rec in recs:
         if rec is None or len(rec["names"]) < 2 * DECILES:
@@ -242,8 +243,11 @@ def main():
         ls = gross - sum(ws * rr for _, rr in short)
         drift = {}
         denom = 1.0
+        # weights held into this week drifted with the return realised BEFORE
+        # this rebalance (the previous week's label), never with this week's
+        prev_rets = prev_rec["rets"] if prev_rec is not None else {}
         for c, pw in prev.items():
-            rr = rec["rets"].get(c, 0.0)
+            rr = prev_rets.get(c, 0.0)
             d = pw * (1 + rr)
             drift[c] = d
             denom += pw * rr
@@ -254,6 +258,7 @@ def main():
         for c in set(list(wts) + list(drift)):
             turn += abs(wts.get(c, 0.0) - drift.get(c, 0.0))
         prev = dict(wts)
+        prev_rec = rec
         daily_rows.append({"date": rec["date"], "gross": gross, "bench": bench,
                            "ls": ls, "turnover": turn, "n": k})
 

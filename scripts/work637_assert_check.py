@@ -50,7 +50,8 @@ def main():
     # look-ahead: the signal engine is invoked with a library frontier pushed
     # 20 rows past the legal point; it must raise.
     r1 = subprocess.run([PY, os.path.join(HERE, "work637_signal.py"), "--seed", "42",
-                         "--frontier-offset", "20", "--smoke-weeks", "8"],
+                         "--frontier-offset", "20", "--smoke-weeks", "8",
+                         "--out-suffix", "_assertcheck"],
                         capture_output=True, text=True)
     txt = (r1.stderr or "") + (r1.stdout or "")
     if "look-ahead violation" not in txt:
@@ -58,6 +59,9 @@ def main():
     lines = [ln for ln in txt.splitlines() if "look-ahead violation" in ln]
     record("assertion_violation_lookahead.txt",
            f"frontier-offset=20 injection\n{r1.returncode}\n" + "\n".join(lines))
+    stray = os.path.join(C.EXP, "signals", "seed42_knn_assertcheck.csv")
+    if os.path.exists(stray):
+        os.remove(stray)
 
     # renderer window check
     import work637_render as R
