@@ -56,12 +56,19 @@ def main():
     n = len(paths)
     out = np.empty((n, 384), dtype=np.float32)
     t0 = time.time()
+    # shard checkpoints: a killed run loses at most one shard, not the whole pass
+    shard = 20000
+    shard_dir = os.path.join(C.DATA, f"shards_seed{args.seed}")
+    os.makedirs(shard_dir, exist_ok=True)
     with torch.inference_mode():
         for s in range(0, n, args.batch):
             xb = load_paths(paths[s:s + args.batch], C.IMG_PX)
             h = model(pixel_values=xb).last_hidden_state[:, 0, :]
             h = h / h.norm(dim=-1, keepdim=True).clamp_min(1e-12)
             out[s:s + len(xb)] = h.numpy()
+            if (s + len(xb)) % shard == 0 or s + len(xb) == n:
+                np.save(os.path.join(shard_dir, f"{s + len(xb):06d}.npy"),
+                        out[:s + len(xb)])
             if (s // args.batch) % 200 == 0:
                 el = time.time() - t0
                 done = s + len(xb)

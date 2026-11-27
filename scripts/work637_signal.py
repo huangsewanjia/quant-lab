@@ -36,6 +36,10 @@ def tiebreak_order(dists: np.ndarray, ids: np.ndarray, salt: np.ndarray) -> np.n
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--seed", type=int, required=True, choices=list(C.SEEDS))
+    ap.add_argument("--emb-seed", type=int, default=None,
+                    help="reuse another seed's frozen embedding pass (used for the reduced "
+                         "seed check when a second render+encode pass is not affordable); "
+                         "the seed still drives tie-breaks and the bootstrap")
     ap.add_argument("--frontier-offset", type=int, default=0,
                     help="DIAGNOSTIC ONLY: push the library frontier past the legal "
                          "point to prove the look-ahead assertion fires")
@@ -48,8 +52,9 @@ def main():
     lab = C.label_matrix(panel, elig)
     code_ix = {c: j for j, c in enumerate(panel["codes"])}
 
-    idx = pd.read_parquet(os.path.join(C.DATA, f"index_seed{args.seed}.parquet"))
-    emb = np.load(os.path.join(C.DATA, f"emb_seed{args.seed}.npy"))
+    emb_seed = args.emb_seed if args.emb_seed is not None else args.seed
+    idx = pd.read_parquet(os.path.join(C.DATA, f"index_seed{emb_seed}.parquet"))
+    emb = np.load(os.path.join(C.DATA, f"emb_seed{emb_seed}.npy"))
     assert len(idx) == len(emb)
 
     # row -> (week, stock) and label
@@ -156,7 +161,7 @@ def main():
     same_df.to_csv(os.path.join(C.EXP, "signals", f"seed{args.seed}_same_stock.csv"),
                    index=False, float_format="%.10g")
 
-    meta = {"seed": args.seed, "k_list": list(KS), "rows": int(len(sig)),
+    meta = {"seed": args.seed, "emb_seed": emb_seed, "k_list": list(KS), "rows": int(len(sig)),
             "weeks": int(len(panel["week_idx"])), "lookahead_violations": n_violation,
             "signal_csv": os.path.relpath(sp, C.REPO),
             "signal_csv_sha256": C.sha256_file(sp),

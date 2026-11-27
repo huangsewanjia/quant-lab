@@ -201,7 +201,13 @@ def main():
                         p_exit, delayed = pp, dk
                         break
             if p_exit is None:
-                continue
+                # same fallback as the modelling side: mark at the last available
+                # close on day t+16 if no tradeable open exists within 10 days
+                dd = cal[min(wi + 16, len(cal) - 1)]
+                v = px[c].get(dd)
+                if v is None or not (v[1] > 0):
+                    continue
+                p_exit = v[1]
             week["names"].append((c, p_exit / o_e - 1.0))
         recs.append(week)
 
@@ -244,7 +250,10 @@ def main():
         daily_rows.append({"date": rec["date"], "gross": gross, "bench": bench,
                            "ls": ls, "turnover": turn, "n": k})
 
-    rows = [r for r in daily_rows if r is not None]
+    # the published metrics are the TEST-WINDOW metrics only (preregistration §1)
+    rows = [r for r in daily_rows
+            if r is not None and TEST_START <= r["date"] <= TEST_END]
+    test_recs = [r for r in recs if r is not None and TEST_START <= r["date"] <= TEST_END]
     net = np.array([r["gross"] - r["bench"] - r["turnover"] * 12 / 1e4 for r in rows])
     gross_ex = np.array([r["gross"] - r["bench"] for r in rows])
     turn = np.array([r["turnover"] for r in rows])
@@ -267,7 +276,7 @@ def main():
 
     # rank IC
     ics = []
-    for rec in recs:
+    for rec in test_recs:
         if rec is None or rec["date"] not in sig.index:
             continue
         srow = sig.loc[rec["date"]]

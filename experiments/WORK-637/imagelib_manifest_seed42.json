@@ -1,5 +1,5 @@
 {
- "dir": "/srv/share/quantdb/code/WORK-637/imagelib/seed42",
+ "dir": "/srv/data/multica/workspaces/workspace-c8faa36a018a/work-637-328d3fac2b83/workdir/imagelib/seed42",
  "file_count": 185729,
  "bytes": 502636292,
  "per_year": {
@@ -15,8 +15,7 @@
   "2023": 14980,
   "2024": 15209,
   "2025": 15733,
-  "2026": 13063,
-  "seed42": 0
+  "2026": 13063
  },
  "manifest_sha256": "e347bd17dcf77d55ca0986319484b3f3f24b2f6c4ce4587f3a18e101c6919a77",
  "manifest_sha256_note": "sha256 of the sorted, newline-joined relative path list",
@@ -24,7 +23,7 @@
  "seed": 42,
  "px": 140,
  "pad": 0.02,
- "seconds": 1087.1,
+ "seconds": 368.9,
  "charts": 185729,
- "charts_per_s": 170.9
+ "charts_per_s": 503.4
 }

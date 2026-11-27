@@ -29,7 +29,7 @@ import work637_common as C
 _G = {}
 
 
-def _worker_init(panel, pad, seed):
+def _worker_init(panel, pad, seed, force=False):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -41,11 +41,13 @@ def _worker_init(panel, pad, seed):
     fig.patch.set_facecolor("#ffffff")
     ax = fig.add_axes([0.0, 0.28, 1.0, 0.72])
     axv = fig.add_axes([0.0, 0.0, 1.0, 0.20])
-    _G.update(panel=panel, pad=pad, seed=seed, fig=fig, ax=ax, axv=axv, plt=plt)
+    _G.update(panel=panel, pad=pad, seed=seed, fig=fig, ax=ax, axv=axv, plt=plt, force=force)
 
 
 def _render(task):
     w, j, path = task
+    if not _G.get("force") and os.path.exists(path) and os.path.getsize(path) > 0:
+        return path
     p, ax, axv, plt = _G["panel"], _G["ax"], _G["axv"], _G["plt"]
     i = p["week_idx"][w]
     s = slice(i - C.MA_WIN - C.LOOKBACK + 2, i + 1)
@@ -135,6 +137,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--seed", type=int, required=True, choices=list(C.SEEDS))
     ap.add_argument("--jobs", type=int, default=8)
+    ap.add_argument("--force", action="store_true",
+                    help="re-render even when the PNG already exists (default: resume)")
     args = ap.parse_args()
     root = C.imagelib_dir(args.seed)
     os.makedirs(root, exist_ok=True)
@@ -147,7 +151,7 @@ def main():
     print(f"seed {args.seed}: {len(tasks)} charts, {len(idx['dir'].unique())} dirs")
     t0 = time.time()
     pad = C.PAD_BY_SEED[args.seed]
-    with Pool(args.jobs, initializer=_worker_init, initargs=(panel, pad, args.seed)) as pool:
+    with Pool(args.jobs, initializer=_worker_init, initargs=(panel, pad, args.seed, args.force)) as pool:
         done = 0
         for _ in pool.imap_unordered(_render, tasks, chunksize=400):
             done += 1

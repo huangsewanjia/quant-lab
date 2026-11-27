@@ -19,7 +19,8 @@ DB = "/srv/share/quantdb/db/quantdb.duckdb"
 REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 EXP = os.path.join(REPO, "experiments", "WORK-637")
 DATA = os.path.join(REPO, "data", "WORK-637")
-IMAGELIB_ROOT = "/srv/share/quantdb/code/WORK-637/imagelib"
+IMAGELIB_ROOT = os.environ.get("W637_IMAGELIB_ROOT",
+                                 "/srv/share/quantdb/code/WORK-637/imagelib")
 MODEL_DIR = os.path.join(os.path.dirname(REPO), "models")
 
 INDEX_CODE = "000300.SH"
