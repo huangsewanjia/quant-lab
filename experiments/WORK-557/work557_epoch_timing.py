@@ -110,7 +110,7 @@ def main():
                     enable_model_summary=False, deterministic=True,
                     limit_train_batches=(None if args.train_batches < 0 else args.train_batches),
                     limit_val_batches=(None if args.val_batches < 0 else args.val_batches))
-    ev("trainer built; fit() start (含 8 worker spawn)")
+    ev(f"trainer built; fit() start (num_workers={args.workers})")
     t_fit = time.time()
     tr.fit(model, train_dataloaders=train_loader, val_dataloaders=valid_loader)
     fit_s = time.time() - t_fit
@@ -137,7 +137,6 @@ def main():
         "epoch_1_seconds_with_spawn": warm,
         "steady_state_median_s_per_epoch": steady,
         "s_per_batch_steady": round(steady / n_batches, 3) if steady else None,
-        "s_per_batch_timestamps": round(fit_s / max(1, sum(ep)), 3) if ep else None,
         "peak_vram_gb": round(peak, 3),
         "stage1_50_epochs_hours_steady": round(steady * 50 / 3600, 2) if steady else None,
         "stage1_50_epochs_hours_with_first": round((sum(ep) / max(1, len(ep))) * 50 / 3600, 2) if ep else None,

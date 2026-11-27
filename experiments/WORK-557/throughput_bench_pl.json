@@ -24,7 +24,6 @@
  "epoch_1_seconds_with_spawn": 138.01,
  "steady_state_median_s_per_epoch": 136.1,
  "s_per_batch_steady": 0.051,
- "s_per_batch_timestamps": 1.028,
  "peak_vram_gb": 0.077,
  "stage1_50_epochs_hours_steady": 1.89,
  "stage1_50_epochs_hours_with_first": 1.9,
@@ -103,5 +102,6 @@
  "device": "NVIDIA GeForce RTX 3060",
  "torch": "2.11.0+cu128",
  "wandb": "disabled",
- "note": "真实 PL 循环 + 真实 valid 段（valid 用 num_workers=0，与生产一致）；checkpoint 落 checkpoints_bench/，不动官方 stage1_s<seed>.pt。"
+ "note": "真实 PL 循环 + 真实 valid 段（valid 用 num_workers=0，与生产一致）；checkpoint 落 checkpoints_bench/，不动官方 stage1_s<seed>.pt。",
+ "s_per_batch_steady_note": "s_per_batch_steady = 稳态中位轮墙钟 / train batches(2675)；分母只含 train 段，valid 段 486 batch 已摊在分子里，故该值略高于纯 train 步耗时。"
 }
