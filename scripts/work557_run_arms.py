@@ -26,6 +26,18 @@ import shutil
 import sys
 import time
 
+# Headless by design.  pytorch_lightning imports matplotlib at import time,
+# and upstream draws a codebook histogram with pyplot at every epoch end
+# (vendor/PRISM-VQ/trainer/train_vqvae.py:98).  With no backend pinned,
+# matplotlib here resolves to QtAgg, and this box's PyQt6 has no Qt6 plugin
+# directory (PyQt6/Qt6/plugins is missing), so plt.figure() blocks on a
+# modal "This application failed to start because no Qt platform plugin
+# could be initialized." dialog and the run never reaches its epoch summary.
+# Must be set before matplotlib is first imported; wandb.Image(plt) still
+# works with Agg.  Regression test: experiments/WORK-557/_headless_mpl_test.py
+if not os.environ.get("MPLBACKEND"):
+    os.environ["MPLBACKEND"] = "Agg"
+
 import numpy as np
 import pandas as pd
 import torch
