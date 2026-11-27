@@ -1,0 +1,57 @@
+[
+ {
+  "label": "gru seed 42 (50 epochs)",
+  "ts": "2026-11-24 23:27:06",
+  "n_epochs": 3,
+  "last": {
+   "epoch": 2,
+   "train": 0.9577,
+   "valid": 1.0187,
+   "cum_s": 527
+  }
+ },
+ {
+  "label": "gru seed 42 (50 epochs)",
+  "ts": "2026-11-24 23:43:59",
+  "n_epochs": 22,
+  "last": {
+   "epoch": 21,
+   "train": 0.7742,
+   "valid": 1.2096,
+   "cum_s": 1627
+  }
+ },
+ {
+  "label": "gru seed 42 (50 epochs)",
+  "ts": "2026-11-25 00:41:51",
+  "n_epochs": 37,
+  "last": {
+   "epoch": 36,
+   "train": 0.7233,
+   "valid": 1.2875,
+   "cum_s": 2996
+  }
+ },
+ {
+  "label": "gru seed 2024 (50 epochs)",
+  "ts": "2026-11-25 01:35:08",
+  "n_epochs": 50,
+  "last": {
+   "epoch": 49,
+   "train": 0.7094,
+   "valid": 1.2896,
+   "cum_s": 4310
+  }
+ },
+ {
+  "label": "gru seed 42 (50 epochs)",
+  "ts": "2026-11-25 02:49:36",
+  "n_epochs": 43,
+  "last": {
+   "epoch": 42,
+   "train": 0.7122,
+   "valid": 1.3043,
+   "cum_s": 7141
+  }
+ }
+]

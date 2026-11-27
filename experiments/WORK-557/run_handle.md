@@ -64,3 +64,23 @@ schtasks /delete /tn WORK557_run /f
    的线程 `01a20e19-bf19-732d-b57f-e8e05364375e`；
 5. 把 issue 状态置为 `in_review` —— 对应一次性 wakeup `--until-status in_review`，
    用于让下一轮智能体核验并交付段 3 / 段 4（避免 20 分钟轮询继续烧额度）。
+
+---
+
+## 2026-11-27 状态（段 3/段 4 拉起时现读）
+
+- `schtasks /query /tn WORK557_run /v /fo list` → **没有在跑**：`上次运行时间 2026/11/25 0:43:00`、
+  `模式: 就绪`、`上次结果: 0`。本轮**没有起任何新的计划任务**，所以「续跑句柄」当前为空。
+- 若要重跑（需先修 teardown 死锁，见 `report.html` §2）：
+  ```powershell
+  cd C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab
+  schtasks /run /tn WORK557_run            # 起训（脱离 run 生命周期）
+  schtasks /query /tn WORK557_run /v /fo list
+  Get-Content experiments\WORK-557\run_all.log -Tail 40
+  # 停止（可逆，不删产物）：
+  schtasks /end /tn WORK557_run
+  # 彻底删除任务（不可逆，但产物保留）：
+  schtasks /delete /tn WORK557_run /f
+  ```
+- 机器在 2026-11-26T18:14Z → 2026-11-27T13:00Z 离线 18h45m，期间目录内**零新文件**
+  （见 `report.html` 表 1）——这次丢的是可用时间，不是数据。

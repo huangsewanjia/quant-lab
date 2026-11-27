@@ -1,0 +1,18 @@
+{
+ "n_batches_per_epoch": 2675,
+ "workers": 8,
+ "n_timed": 20,
+ "data_ms_per_batch": 125.8,
+ "model_ms_per_batch": 137.5,
+ "combined_s_per_epoch": 704.4,
+ "stage1_50_epochs_hours": 9.78,
+ "peak_vram_gb": 0.16,
+ "batch_shape": [
+  219,
+  20,
+  174
+ ],
+ "torch": "2.11.0+cu128",
+ "device": "NVIDIA GeForce RTX 3060",
+ "note": "stage-1 only (VQ-VAE). 阶段2 (GenerateReturn) 未计时；stage-1 权重复用后每个 seed 的 full/no_moe/no_prior 三档仍各要重训 stage2。"
+}
