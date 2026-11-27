@@ -57,7 +57,7 @@ PASS C2 … C5；INFO C6 numerator=5 denominator=5 rate=1.0；PASS C7
 ```
 report_fulltext 列：report_id … site_url, pdf_url（旧表已 ALTER 补列，幂等）
 rows = 0；v_report_fulltext_linked = 0；report_meta = 68874
-checks C1–C7 全 PASS（空表），C6 INFO 0/0
+checks：C1 FAIL（`pdf_without_row=[5913596]`，本轮 1 篇未 ingest，归 WORK-628），C2–C5/C7 PASS，C6 INFO 0/0
 ```
 
 ## 5. 回归（单测）
@@ -73,12 +73,11 @@ $ … pytest db/tests/test_report_fulltext.py db/tests/test_work623_api.py -q
 
 | 未验证 | 原因 | 谁/何时验证 |
 |---|---|---|
-| token 有效性、VIP 的 API 权限 | token 未写入 | WORK-624 完成后 `check-auth` |
-| 搜索成功响应的真实字段名 | 无 token | 首次 `search` 后对照 `search_raw/page1.json`，必要时扩字段变体 |
-| 分页 1–10 的真实条数 | 无 token | 同上 |
-| 下载额度字段与单篇扣减 | 无 token；不拿假 key 试 | 首次 `fetch --limit 5`，看 `.download.json` |
-| 真实标题一致性 | 无真实 PDF | 首次 `fetch` 后 `verify` |
-| 真实关联率 | 无真实正文 | 首批入库后 C6 |
+| 分页 2–10 的每页条数 | 本轮只取 pageNum=1 | 下次 `search --pages 10` 后对照 `search_raw/pageN.json` |
+| 下载额度扣减数 | download 回包无额度字段 | 站内会员中心对账（本接口读不到） |
+| ≥5 篇真实报告 | 派单只要 1 篇端到端 | WORK-628 首批入库前补测 |
+| 真实关联率 | 本轮未 ingest | WORK-628 入库后 C6 |
+| 标题与站内一致性 | meta.title 来自 search 回包（同源），无独立站内对照 | 用 `site_url` 人工抽查；如需机器校验再加 `/detail/` 对照 |
 
 ## 7. 独立审查
 

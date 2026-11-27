@@ -50,4 +50,4 @@
 1. 成败判定看 `body.code`（0/200 成功），HTTP 状态只作证据；`code/msg` 原样进 `failed.jsonl`。
 2. token 只从 secrets 文件读，日志只写路径与 sha256 前 8 位；`check-auth` 用一次搜索验证（不扣下载额度）。
 3. `fetch` 默认 `--limit 5`、同域 ≥1.05s、已存在文件默认跳过（避免重复扣额度）；`--force` 才重下。
-4. 每篇写 `site_url = https://www.fxbaogao.com/view?id=<id>` 与 `pdf_url`，`download` 原始回包留 `<id>-<slug>.download.json`（额度字段证据）。
+4. 每篇写 `site_url = https://www.fxbaogao.com/view?id=<id>` 与 `pdf_url`，`download` 原始回包留 `<id>-<slug>.download.json`（含 `code/msg/data`；实测无额度字段）。

@@ -27,7 +27,7 @@ flowchart LR
 | 搜索 | `pageNum` 1–10；超出直接报错（不翻页）；每页原始回包落 `search_raw/pageN.json`；`title/orgName` 去 `<em>` 等标签后入库 |
 | 取地址 | `GET /mofoun/agent/download?reportId=`；实测 `data` 是**字符串 PDF 地址**（带签名），递归找 `pdfUrl/url/fileUrl/downloadUrl/data`；相对路径拼 `dr.fxbaogao.com` |
 | 拉 PDF | 仅当地址在 `api.fxbaogao.com` 时才带 Authorization；`Accept: application/pdf,*/*`；二进制不经 utf-8 解码 |
-| 落盘 | `<page_date>/<report_id>-<slug>.pdf` + `.meta.json` + `.download.json`（download 原始回包，含额度字段证据） |
+| 落盘 | `<page_date>/<report_id>-<slug>.pdf` + `.meta.json` + `.download.json`（download 原始回包：`code/msg/data`；实测**无额度字段**） |
 | 重复扣额度防护 | 同 id 已有 PDF 默认跳过；`--force` 才重下；单轮 `--limit` 默认 5 |
 | 同 id 换名 | 新文件落盘后清理同日期目录层内的旧 `<id>-*.pdf/.meta.json/.download.json`（不动 `_inbox/`） |
 | 节流/台账 | 复用 `scripts/work537_probe.py`：同域 ≥1.05s（按完成时刻）、append 式 `request_ledger.json` |

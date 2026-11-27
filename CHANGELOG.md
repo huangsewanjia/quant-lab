@@ -12,6 +12,8 @@ token 已由 WORK-624 写入（35 B、600、sha256 前 8 位 `19c8f87e`），实
 - 本轮**不写库**：`report_fulltext` 归 WORK-628；未执行 ingest。
 
 测试 46 条（采集器 28 + 入库/视图/闸门 18），全套 208 passed。
+
+独立审查 `a82d32b`：**PASS（0 blocking）**；3 条 suggestion / 3 条 nit 均为文档口径与两处死代码（`DETAIL_BASE`、未用 import），本轮只修文档（C1 现状、未验证项、额度措辞、runbook 示例），代码未改动，交付代码 SHA 仍为 `a82d32b`。
 证据：`/srv/share/quantdb/raw/reports_fulltext/_evidence/2026-11-27-api-real/`（`summary.json` 与逐文件 sha256）。
 
 

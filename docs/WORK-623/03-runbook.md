@@ -41,7 +41,7 @@ $PY scripts/fxbaogao_fulltext.py fetch --input <candidates.jsonl> --limit 5
 ```
 
 - 默认单轮 5 篇、同域 ≥1.05s；已存在同 id PDF 默认跳过（不重复扣额度），`--force` 才重下。
-- 产物：`<page_date>/<report_id>-<slug>.pdf` + `.meta.json` + `.download.json`（download 原始回包，含额度字段证据）。
+- 产物：`<page_date>/<report_id>-<slug>.pdf` + `.meta.json` + `.download.json`（download 原始回包：`code/msg/data`；实测无额度字段）。
 - 单篇失败写 `failed.jsonl`：
   `{"report_id":…, "url":"https://www.fxbaogao.com/view?id=…", "http_status":200, "code":300011, "msg":"请传入正确Authorization", "reason":"取 PDF 地址失败: …", "path":"", "ts":"…"}`
 
@@ -73,7 +73,7 @@ $PY scripts/fxbaogao_fulltext.py verify --meta "/srv/share/quantdb/raw/reports_f
 | token 验证结果 | `<root>/check_auth.json` |
 | 搜索原始回包 | `<候选目录>/search_raw/page*.json` |
 | 失败台账 | `<root>/failed.jsonl` |
-| download 原始回包（额度证据） | `<date>/<id>-<slug>.download.json` |
+| download 原始回包（`code/msg/data`，实测无额度字段） | `<date>/<id>-<slug>.download.json` |
 | 对账报告 | `/srv/share/quantdb/meta/checks/report_fulltext.json` |
 | API 文档/官方 MCP 源码留档 | `/srv/share/quantdb/raw/reports_fulltext/_evidence/2026-11-27-api/` |
 

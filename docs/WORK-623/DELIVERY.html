@@ -73,7 +73,7 @@ footer{margin-top:56px;padding-top:18px;border-top:2px solid var(--ink);
     <span>交付日期 2026-11-27</span>
     <span>代码 SHA e5181ee</span>
     <span>独立审查 2 轮（f7ba957 → c9a181e）；e5181ee 为二轮 blocking 修复，未做第三轮</span>
-    <span>状态 <span class="pill p-warn">管线已交付 · 真实抓取待 API token</span></span>
+    <span>状态 <span class="pill p-ok">已交付 · 真实端到端 1 篇</span></span>
   </div>
 </header>
 
@@ -102,17 +102,18 @@ footer{margin-top:56px;padding-top:18px;border-top:2px solid var(--ink);
       <li>采集器 4 个子命令：<code>check-auth / search / fetch / verify</code></li>
       <li>业务错误按 <code>body.code</code> 判定（300011 不会当成功）</li>
       <li>幂等入库 + sha 变更留痕 + C1–C7 闸门</li>
-      <li>离线测试 44 条（FakeProbe 覆盖错误码/额度无地址/非 PDF/跳过已存在）；全套 206 passed</li>
-      <li>合成 PDF 彩排 5 篇：两次 ingest 5→5，C1–C7 PASS，关联 5/5</li>
+      <li>离线测试 46 条（FakeProbe 覆盖错误码/额度无地址/非 PDF/跳过已存在）；全套 208 passed</li>
+      <li>真实端到端 1 篇：reportId 5913596，56 页 / 45,441,360 B / sha256 <code>a6b3612d</code></li>
+      <li>上轮合成 PDF 彩排 5 篇：两次 ingest 5→5，C1–C7 PASS，关联 5/5（本轮未写库）</li>
     </ul>
   </div>
   <div class="callout warn">
     <p><b>没做完（阻塞，不修饰）</b></p>
     <ul>
-      <li>真实搜索/下载：<code>/srv/share/quantdb/secrets/fxbaogao_api_key</code> 不存在，<code>check-auth</code> 退出码 3、零请求</li>
-      <li>分页 1–10 的每页真实条数：未取到</li>
-      <li>下载额度字段与单篇扣减数：未取到（不拿假 key 试）</li>
-      <li>真实标题一致性与真实关联率：无真实 PDF，未取到</li>
+      <li>≥5 篇真实报告：本轮派单只要 1 篇端到端，未做 5 篇</li>
+      <li>分页 2–10 的每页条数：只实测 page1=20 条</li>
+      <li>下载额度：回包里没有额度字段（只有 <code>code/msg/data</code>），扣减在服务端</li>
+      <li><code>report_fulltext</code> 入库与关联率：按派单不写库，归 WORK-628</li>
     </ul>
   </div>
 </div>
@@ -122,7 +123,7 @@ footer{margin-top:56px;padding-top:18px;border-top:2px solid var(--ink);
   <li><b>数据维护者</b>：token 到位后按第 4 节顺序跑 <code>check-auth → search → fetch → ingest → checks</code>；命令可照抄。</li>
   <li><b>研究/选股使用者</b>：直接查 <code>v_report_fulltext</code> 与 <code>v_report_fulltext_linked</code>；每行带官网回查链接 <code>site_url</code> 与 PDF 路径。</li>
 </ul>
-<p>当前可查正文：<b>0 篇</b>（token 未写入）。表结构与视图已就绪，token 一到即可入库；不会出现「建了表不知道查哪张」。</p>
+<p>本轮已真实落盘 1 篇（45 MB / 56 页），未写库（<code>report_fulltext</code> 归 WORK-628）。表结构与视图在分支内已就绪。</p>
 
 <h2 id="s3"><span class="num">3</span>系统架构</h2>
 
@@ -211,15 +212,15 @@ footer{margin-top:56px;padding-top:18px;border-top:2px solid var(--ink);
     <tr><td>落盘 <code>&lt;date&gt;/&lt;id&gt;-&lt;slug&gt;.pdf</code> + meta（含 site_url/pdf_url）</td><td><span class="pill p-ok">达成</span></td><td>单测断言文件名、页数、sha、<code>site_url</code>、<code>pdf_url</code>、<code>download.json</code>；入库断言表内 site_url</td></tr>
     <tr><td>DuckDB 表 + 检索视图 + 关联视图（±3 天）</td><td><span class="pill p-ok">达成</span></td><td>真库 4 视图可查；旧表已 <code>ALTER</code> 补 <code>site_url/pdf_url</code>，0 行数据不受影响</td></tr>
     <tr><td>一条批量入口、逐条落、失败写 failed.jsonl</td><td><span class="pill p-ok">达成</span></td><td><code>fetch --input … --limit 5</code>；单测 6 类失败路径；C4 校验六字段</td></tr>
-    <tr><td>验收 1：≥5 篇真实报告 + 页数 &gt;0 + 标题一致</td><td><span class="pill p-fail">未达成</span></td><td>token 不存在；<code>check-auth</code> 退出码 3、零请求。合成 PDF 彩排 5 篇通过，但<strong>不是</strong>真实抓取</td></tr>
-    <tr><td>验收 2：<code>count(*)</code> = 落盘 PDF 篇数</td><td><span class="pill p-ok">机制达成</span></td><td>真库 0=0；彩排 5=5；C1 逐篇差集 + 同 id 重复检测</td></tr>
-    <tr><td>验收 3：重复跑行数不变</td><td><span class="pill p-ok">机制达成</span></td><td>彩排 run1 inserted=5 → run2 unchanged=5；两次 count 均 5</td></tr>
+    <tr><td>验收 1：≥5 篇真实报告 + 页数 &gt;0 + 标题一致</td><td><span class="pill p-warn">本轮 1 篇真实</span></td><td>reportId 5913596：56 页、45,441,360 B、sha256 <code>a6b3612d</code>、HTTP 200/code 0；<code>verify</code> 页数/字节/sha 全一致。≥5 篇本轮未做（派单只要 1 篇）</td></tr>
+    <tr><td>验收 2：<code>count(*)</code> = 落盘 PDF 篇数</td><td><span class="pill p-info">本轮不适用</span></td><td>派单明确「不写 report_fulltext，归 WORK-628」；本轮只落 1 个 PDF，未 ingest。C1 闸门在分支内，彩排 5=5</td></tr>
+    <tr><td>验收 3：重复跑行数不变</td><td><span class="pill p-info">本轮不适用</span></td><td>不写库；采集侧幂等为「同 id 已存在默认跳过」，单测验证第二次零请求</td></tr>
     <tr><td>验收 4：failed.jsonl 字段齐（含 code/msg）</td><td><span class="pill p-ok">达成</span></td><td>C4 六字段校验；单测覆盖缺 meta/sha 不符/0 页/report_id 不符/bytes 非整数/顶层非对象/业务错误</td></tr>
-    <tr><td>验收 5：关联率给分子/分母/口径</td><td><span class="pill p-warn">机制达成 · 真实 0/0</span></td><td>C6 输出 <code>numerator_linked/denominator_fulltext/rate/criteria/query</code>；彩排 5/5，真库 0/0</td></tr>
+    <tr><td>验收 5：关联率给分子/分母/口径</td><td><span class="pill p-info">本轮不适用</span></td><td>未 ingest（归 WORK-628）；C6 与口径文案在分支内</td></tr>
     <tr><td>验收 6：交付说明可复现</td><td><span class="pill p-ok">达成</span></td><td>本页 + <code>docs/WORK-623/03-runbook.md</code>（命令、日志、失败处置、回滚）</td></tr>
     <tr><td>验收 7：版权口径落 README/交付说明</td><td><span class="pill p-ok">达成</span></td><td><code>/srv/share/quantdb/README.md</code> §3.3、runbook §8、本页页脚；<code>.gitignore</code> 排除 PDF 与 secrets</td></tr>
-    <tr><td>N1 分页上限 10 的实测记录</td><td><span class="pill p-warn">参数达成 · 实测未取到</span></td><td>pageNum 0/11 直接报错（单测）；真实每页条数需 token 后落 <code>search_raw</code></td></tr>
-    <tr><td>N2 下载额度消耗实测</td><td><span class="pill p-fail">未取到</span></td><td><code>.download.json</code> 保留原始回包；无 token 未下载，不猜额度数值</td></tr>
+    <tr><td>N1 分页上限 10 的实测记录</td><td><span class="pill p-ok">page1 = 20 条</span></td><td>真实 <code>pageNum=1</code> → 20 条，原始回包 <code>search-page1-raw.json</code>；page 2–10 未取；<code>--pages</code> 0/11 退出 2</td></tr>
+    <tr><td>N2 下载额度消耗实测</td><td><span class="pill p-warn">1 篇实测 · 回包无额度字段</span></td><td>真实下载 1 篇：HTTP 200/code 0/msg ok，<code>data</code> 为签名 PDF 地址；回包只有 <code>code/msg/data</code>，扣减在服务端；原始回包留 <code>.download.json</code></td></tr>
     <tr><td>N3 失败 code/msg 逐条入台账</td><td><span class="pill p-ok">达成（单测）</span></td><td>300011/300012 原文进 <code>failed.jsonl</code>，字段与 C4 对齐</td></tr>
   </tbody>
 </table>
@@ -228,22 +229,23 @@ footer{margin-top:56px;padding-top:18px;border-top:2px solid var(--ink);
 
 <h3>7.1 测试（实际输出）</h3>
 <pre><code>$ /home/moyongkai/.venvs/quantdb/bin/python -m pytest db/tests -q
-197 passed in 11.03s
+208 passed in 19.68s
 
 $ … pytest db/tests/test_report_fulltext.py db/tests/test_work623_api.py -q
-35 passed</code></pre>
-<p class="small">44 = 本单（入库/视图/闸门 18 + 采集器 26）；其余 162 条为既有回归。</p>
+46 passed</code></pre>
+<p class="small">46 = 本单（入库/视图/闸门 18 + 采集器 28）；其余 162 条为既有回归。</p>
 
-<h3>7.2 真库与彩排</h3>
-<pre><code>真库：report_fulltext 0 行；v_report_fulltext_linked 0；report_meta 68,874
-      列已含 site_url / pdf_url；C1–C7 PASS（C6 INFO 0/0）
+<h3>7.2 真实端到端（1 篇，2026-11-27 12:58–12:59 CST）</h3>
+<pre><code>check-auth : http=200 code=0 msg=ok bytes=54996   (token sha256_8 = 19c8f87e)
+search     : POST /mofoun/agent/search {"keywords":"储能","pageNum":1} → 20 条/页
+             title 原文含 &lt;em&gt;；清洗后「构建新型电力系统的解决方案——电网、储能与水电的作用」
+download   : GET /mofoun/agent/download?reportId=5913596 → http=200 code=0 msg=ok
+             data = 字符串签名地址（auth_key，带时效）；回包无额度字段
+PDF        : 56 页（pypdf）/ 45,441,360 B / sha256 前 8 位 a6b3612d / http 200
+verify     : 页数 56/56、字节 45,441,360/45,441,360、sha256 一致</code></pre>
+<p class="small">证据：<code>/srv/share/quantdb/raw/reports_fulltext/_evidence/2026-11-27-api-real/</code>（<code>summary.json</code>、search 原始回包、download 原包、meta、verify 输出）。本轮未执行 ingest（归 WORK-628），未写 <code>report_fulltext</code>。</p>
 
-彩排（合成 PDF，5 篇）：
-run1 {"scanned":5,"inserted":5,"updated":0,"unchanged":0,"failed":0}
-run2 {"scanned":5,"inserted":0,"updated":0,"unchanged":5,"failed":0}
-C1 5=5 · C2/C3/C4/C5 PASS · C6 5/5 rate=1.0 · C7 PASS</code></pre>
-
-<h3>7.3 API 实测与凭据闸</h3>
+<h3>7.3 API 事实与凭据闸</h3>
 <table>
   <thead><tr><th>项</th><th>实测</th></tr></thead>
   <tbody>
@@ -251,20 +253,22 @@ C1 5=5 · C2/C3/C4/C5 PASS · C6 5/5 rate=1.0 · C7 PASS</code></pre>
     <tr><td><code>GET /mcp/</code></td><td>HTTP 405（端点存在，只收 POST）</td></tr>
     <tr><td>业务错误形态</td><td>HTTP 200 + <code>{"code":300011,"msg":"请传入正确Authorization"}</code>（大管家 01:37 实测，写入派单评论）</td></tr>
     <tr><td>官方 MCP 源码（PyPI 1.0.3）</td><td>确认 <code>data/dataList</code>、PDF 字段 <code>pdfUrl/url/fileUrl/downloadUrl</code>、相对路径拼 <code>dr.fxbaogao.com</code>；sdist 留档</td></tr>
-    <tr><td>无 token 的 <code>check-auth</code></td><td>退出码 <b>3</b>；<code>check_auth.json</code> ok=false；<b>零 HTTP 请求</b>（台账未生成）</td></tr>
+    <tr><td>真实 <code>check-auth</code></td><td>token 35 B/600/sha256 前 8 位 <code>19c8f87e</code>；退出码 0，HTTP 200、<code>code=0</code>、54,996 B</td></tr>
+    <tr><td>搜索字段</td><td><code>reportId/title/orgName/industryName/pageNum/pubTime/pubTimeStr/whitelistRequired/paragraphs</code>；<code>pageNum</code>=报告页数（本例 56，与 PDF 一致）</td></tr>
+    <tr><td>下载回包</td><td><code>data</code> 是字符串签名地址；无额度字段</td></tr>
   </tbody>
 </table>
 <p class="small">证据目录 <code>/srv/share/quantdb/raw/reports_fulltext/_evidence/2026-11-27-api/</code>：<code>api-doc.html</code>（sha256 <code>2011c52d…</code>）、<code>fxbaogao_mcp-1.0.3.tar.gz</code>（<code>d7215097…</code>）、<code>check_auth_no_token.json</code>、<code>manifest.json</code>。</p>
 
 <h3>7.4 独立审查</h3>
 <table>
-  <thead><tr><th style="width:12%">轮次</th><th style="width:16%">审查对象</th><th style="width:15%">结论</th><th>处置</th></tr></thead>
+  <thead><tr><th style="width:12%">轮次</th><th style="width:16%">审查对象</th><th style="width:16%">结论</th><th>处置</th></tr></thead>
   <tbody>
-    <tr><td>round 1</td><td><code>f7ba957</code></td><td><span class="pill p-fail">NEEDS WORK · 1</span></td><td>PDF 端点失败时台账写 <code>code=200</code>、额度错误原文丢失 → 改为 download 成功即落 <code>.download.json</code>、PDF 失败解析 <code>code/msg</code>；<code>--pages</code> 越界报错；<code>code</code> 字符串归一化 → <code>c9a181e</code></td></tr>
-    <tr><td>round 2</td><td><code>c9a181e</code></td><td><span class="pill p-fail">NEEDS WORK · 1</span></td><td>非 2xx 的 PDF 回包正文在 <code>body</code> 而非 <code>raw</code>，仍读不到 → <code>raw or body.encode()</code>；<code>no_pdf_url</code> 也落 <code>.download.json</code>；token 权限按符号链接目标判定；bool <code>code</code> 判失败 → <code>e5181ee</code></td></tr>
+    <tr><td>本轮</td><td><code>a82d32b</code></td><td><span class="pill p-ok">PASS · 0 blocking</span></td><td>3 suggestion / 3 nit 均为文档口径与两处死代码（<code>DETAIL_BASE</code>、未用 import）：本轮只修文档（C1 现状、未验证项表、额度措辞、runbook 示例路径），<strong>代码未改动</strong>，交付代码 SHA 仍是被审的 <code>a82d32b</code></td></tr>
+    <tr><td>上一版</td><td><code>f7ba957 → c9a181e → e5181ee</code></td><td><span class="pill p-fail">两轮 NEEDS WORK</span></td><td>见 CHANGELOG「API 版审查修复」；浏览器版历史已作废</td></tr>
   </tbody>
 </table>
-<p class="small">第三轮按守则「最多 2 轮，第 3 轮前停下问用户」未执行；<code>e5181ee</code> 的修复由新增单测（HTTP 403 额度错、no-url 回包、目录权限、符号链接、bool code）覆盖。</p>
+<p class="small">代码侧已知 nit（不阻断）：<code>verify</code> 对坏 meta 仍会 traceback（旧版同样）、<code>request_ledger.json</code> 的 <code>n</code> 每个子命令从 1 重计、<code>DETAIL_BASE</code>/未用 import 未清。本轮按「审查 PASS 后不改代码」保留原 SHA。</p>
 
 <h2 id="s8"><span class="num">8</span>数据口径与幂等</h2>
 <dl class="kv">
@@ -319,13 +323,13 @@ rm -rf /srv/share/quantdb/raw/reports_fulltext/fxbaogao</code></pre>
 
 <h2>交付四段</h2>
 <h3>做了什么</h3>
-<p>按契约变更 01 重写采集层为官方 API（check-auth/search/fetch/verify），删除浏览器/CDP/sheet/adopt；入库层与对账闸沿用并补 <code>site_url/pdf_url</code> 列；44 条离线测试、跑法与交付页。</p>
+<p>按契约变更 01 重写采集层为官方 API（check-auth/search/fetch/verify），删除浏览器/CDP/sheet/adopt；入库层与对账闸沿用并补 <code>site_url/pdf_url</code> 列；46 条离线测试、跑法与交付页。</p>
 <h3>怎么验证</h3>
-<p><code>pytest db/tests</code> 206 passed；真库 C1–C7 PASS（0 行）；彩排 5 篇两次 5→5、关联 5/5。真实抓取未验证：token 不存在，<code>check-auth</code> 退出码 3 且零请求。</p>
+<p><code>pytest db/tests</code> 208 passed；真实端到端 1 篇：reportId 5913596、56 页、45,441,360 B、sha256 <code>a6b3612d</code>、HTTP 200/code 0，<code>verify</code> 全一致。本轮未写库（归 WORK-628）。</p>
 <h3>怎么回滚</h3>
 <p>执行第 10 节 SQL；删 <code>raw/reports_fulltext/fxbaogao</code>；代码在独立分支未合并。</p>
 <h3>遗留与需要确认</h3>
-<p>等 WORK-624 写入 API token。之后顺序：<code>check-auth</code> → <code>search</code> → <code>fetch --limit 5</code> → <code>ingest</code> → <code>checks</code> → <code>verify</code>；把首次真实回包（搜索字段、分页条数、下载额度字段）补进证据与本文，再按新 SHA 做独立审查。</p>
+<p>本轮交付采集器与 1 篇真实证据；<code>report_fulltext</code> 入库与关联率归 WORK-628。剩余未取：≥5 篇、page 2–10 条数、额度字段（接口不返回，需站内会员中心核对）。本轮改动需按新 SHA 做独立审查（结果见交付评论）。</p>
 
 <footer>
   <p><b>版权口径</b>　正文 PDF 仅限内部检索与研究使用：不得对外分发、不得作为引用来源转载、不得整段复制进对外材料。仓库为 public，PDF 与 API Key 一律不入 git。</p>
