@@ -84,3 +84,13 @@ schtasks /delete /tn WORK557_run /f
   ```
 - 机器在 2026-11-26T18:14Z → 2026-11-27T13:00Z 离线 18h45m，期间目录内**零新文件**
   （见 `report.html` 表 1）——这次丢的是可用时间，不是数据。
+
+## 2026-11-27 起训参数（返工后新增）
+
+- **`--workers 2`**：`num_workers=8` 在这台机器上三次尝试两次硬退（RC=127，无 traceback）、
+  一次成功但 worker spawn 用掉 121 s；`workers=2` 下同一档 10 轮 1,411 s 连跑、干净退出。
+- **不要省 `wandb.init(mode="disabled")`**：上游 `train_vqvae.py:97` 每轮末调用
+  `wandb.log(wandb.Image(plt))`，不 init 会联网挂住（本轮 faulthandler 实测栈在
+  `wandb/sdk/lib/asyncio_manager.py`）。生产路径 `work557_run_arms.py` 本来就有，标定脚本已补。
+- 单档定价（stage-1，实测）：**136.1 s/轮**、峰值显存 **0.077 GB**、50 轮 **1.89 h**。
+  复跑：`.venv\Scripts\python.exe -u experiments\WORK-557\work557_epoch_timing.py --epochs 10 --workers 2 --seed 42`

@@ -1,0 +1,107 @@
+{
+ "arm": "full",
+ "seed": 42,
+ "n_epochs_requested": 10,
+ "n_epochs_ran": 10,
+ "n_batches_per_epoch": 2675,
+ "n_valid_batches": 486,
+ "num_workers": 2,
+ "val_batches": -1,
+ "train_batches": -1,
+ "fit_seconds": 1403.9,
+ "epoch_seconds": [
+  138.01,
+  134.85,
+  135.64,
+  140.78,
+  136.66,
+  136.1,
+  136.25,
+  135.5,
+  136.43,
+  135.37
+ ],
+ "epoch_1_seconds_with_spawn": 138.01,
+ "steady_state_median_s_per_epoch": 136.1,
+ "s_per_batch_steady": 0.051,
+ "s_per_batch_timestamps": 1.028,
+ "peak_vram_gb": 0.077,
+ "stage1_50_epochs_hours_steady": 1.89,
+ "stage1_50_epochs_hours_with_first": 1.9,
+ "epoch_history": [
+  {
+   "epoch": 0,
+   "seconds": 138.01,
+   "train_loss": 1.3139711618423462,
+   "val_loss": 1.0707600116729736,
+   "peak_vram_gb": 0.077
+  },
+  {
+   "epoch": 1,
+   "seconds": 134.85,
+   "train_loss": 0.8276548981666565,
+   "val_loss": 0.7901787161827087,
+   "peak_vram_gb": 0.077
+  },
+  {
+   "epoch": 2,
+   "seconds": 135.64,
+   "train_loss": 0.7699440121650696,
+   "val_loss": 0.6683064699172974,
+   "peak_vram_gb": 0.077
+  },
+  {
+   "epoch": 3,
+   "seconds": 140.78,
+   "train_loss": 0.7251203656196594,
+   "val_loss": 0.6799627542495728,
+   "peak_vram_gb": 0.077
+  },
+  {
+   "epoch": 4,
+   "seconds": 136.66,
+   "train_loss": 0.7202396392822266,
+   "val_loss": 0.657302737236023,
+   "peak_vram_gb": 0.077
+  },
+  {
+   "epoch": 5,
+   "seconds": 136.1,
+   "train_loss": 0.7097987532615662,
+   "val_loss": 0.6662499904632568,
+   "peak_vram_gb": 0.077
+  },
+  {
+   "epoch": 6,
+   "seconds": 136.25,
+   "train_loss": 0.7103879451751709,
+   "val_loss": 0.6693658232688904,
+   "peak_vram_gb": 0.077
+  },
+  {
+   "epoch": 7,
+   "seconds": 135.5,
+   "train_loss": 0.7145245671272278,
+   "val_loss": 0.6823422312736511,
+   "peak_vram_gb": 0.077
+  },
+  {
+   "epoch": 8,
+   "seconds": 136.43,
+   "train_loss": 0.7187353372573853,
+   "val_loss": 0.6792647838592529,
+   "peak_vram_gb": 0.077
+  },
+  {
+   "epoch": 9,
+   "seconds": 135.37,
+   "train_loss": 0.7197360992431641,
+   "val_loss": 0.6828209161758423,
+   "peak_vram_gb": 0.077
+  }
+ ],
+ "device": "NVIDIA GeForce RTX 3060",
+ "torch": "2.11.0+cu128",
+ "wandb": "disabled",
+ "note": "真实 PL 循环 + 真实 valid 段（valid 用 num_workers=0，与生产一致）；checkpoint 落 checkpoints_bench/，不动官方 stage1_s<seed>.pt。"
+}
