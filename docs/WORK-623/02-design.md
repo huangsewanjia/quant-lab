@@ -24,8 +24,8 @@ flowchart LR
 |---|---|
 | 鉴权 | 只读 `/srv/share/quantdb/secrets/fxbaogao_api_key`（单行、600、目录 700）；日志只写 sha256 前 8 位 |
 | 成功判定 | HTTP 200 且 `body.code ∈ {0,200}`；否则失败（**不看 HTTP 200 就当成功**） |
-| 搜索 | `pageNum` 1–10；超出直接报错（不翻页，按官方要求改检索条件）；每页原始回包落 `search_raw/pageN.json` |
-| 取地址 | `GET /mofoun/agent/download?reportId=`，递归找 `pdfUrl/url/fileUrl/downloadUrl`；相对路径拼 `dr.fxbaogao.com` |
+| 搜索 | `pageNum` 1–10；超出直接报错（不翻页）；每页原始回包落 `search_raw/pageN.json`；`title/orgName` 去 `<em>` 等标签后入库 |
+| 取地址 | `GET /mofoun/agent/download?reportId=`；实测 `data` 是**字符串 PDF 地址**（带签名），递归找 `pdfUrl/url/fileUrl/downloadUrl/data`；相对路径拼 `dr.fxbaogao.com` |
 | 拉 PDF | 仅当地址在 `api.fxbaogao.com` 时才带 Authorization；`Accept: application/pdf,*/*`；二进制不经 utf-8 解码 |
 | 落盘 | `<page_date>/<report_id>-<slug>.pdf` + `.meta.json` + `.download.json`（download 原始回包，含额度字段证据） |
 | 重复扣额度防护 | 同 id 已有 PDF 默认跳过；`--force` 才重下；单轮 `--limit` 默认 5 |
@@ -64,11 +64,11 @@ flowchart LR
 
 | 文件 | 作用 |
 |---|---|
-| `scripts/fxbaogao_fulltext.py` | 采集器：check-auth / search / fetch / verify |
+| `scripts/fxbaogao_fulltext.py` | 采集器：check-auth / search / fetch / verify（verify 为本地页数/sha/字节复核，不访问网络） |
 | `scripts/work537_probe.py` | HTTP 基础：`http_request`（GET/POST/二进制）、节流、台账、robots |
 | `db/schema_report_fulltext.sql` | 表、留痕表、4 视图、归一化宏、旧表补列 |
 | `db/etl/report_fulltext.py` | ingest（幂等入库） |
 | `db/checks/report_fulltext.py` | C1–C7 对账闸 |
-| `db/tests/test_work623_api.py` | 采集器离线测试（26 条，FakeProbe） |
+| `db/tests/test_work623_api.py` | 采集器离线测试（28 条，FakeProbe） |
 | `db/tests/test_report_fulltext.py` | 入库/视图/闸门离线测试（18 条） |
 | `docs/WORK-623/` | 可行性、设计、跑法、验收、交付页 |

@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-11-27 · WORK-623 真实端到端打通（1 篇）+ 采集器对齐实测字段
+
+token 已由 WORK-624 写入（35 B、600、sha256 前 8 位 `19c8f87e`），实测通过：
+
+- `check-auth`：HTTP 200、`code=0`、`msg=ok`、54,996 B。
+- `search`（`储能`，pageNum=1）：20 条/页；字段 `reportId/title/orgName/industryName/pageNum/pubTime/pubTimeStr/whitelistRequired/paragraphs`；`title` 含 `<em>` 高亮标签 → 采集器改为去标签/反转义后再入库；`pubTime` 为秒级时间戳（`norm_date` 已兼容）；`pageNum` 是报告页数（本例 56）。
+- `download`（reportId=5913596）：HTTP 200、`code=0`、`msg=ok`；`data` 为**字符串签名 PDF 地址**（`auth_key` 带时效），不是对象；回包**无额度字段**。
+- 真实 PDF：56 页（pypdf，与 search 的 `pageNum` 一致）、45,441,360 B、sha256 前 8 位 `a6b3612d`。
+- `verify` 改为**本地复核**（页数/sha256/字节，不访问网络、不消耗额度）；实测 56/56、字节一致、sha 一致。
+- 本轮**不写库**：`report_fulltext` 归 WORK-628；未执行 ingest。
+
+测试 46 条（采集器 28 + 入库/视图/闸门 18），全套 208 passed。
+证据：`/srv/share/quantdb/raw/reports_fulltext/_evidence/2026-11-27-api-real/`（`summary.json` 与逐文件 sha256）。
+
+
 ## 2026-11-27 · WORK-623 API 版审查修复（round 1 → round 2）
 
 - round 1（`f7ba957`，NEEDS WORK）：PDF 端点失败时台账写 download 的 `code=200`，服务端额度错误丢失 → 改为 download 一成功即落 `.download.json`、PDF 失败解析其 `code/msg` 并写 `pdf_error`；`--pages` 越界报错；`code` 字符串归一化；token 权限硬校验；org 可选。

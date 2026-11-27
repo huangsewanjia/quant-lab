@@ -16,12 +16,12 @@
   search       搜索 -> 候选 JSONL（report_id / title / org / page_date / site_url / raw）
   fetch        按候选逐篇取 PDF：download 拿地址 -> 拉 PDF -> 校验 -> 落盘 + meta.json
                失败写 failed.jsonl（report_id / url / http_status / code / msg / reason）
-  verify       用官网详情页标题核对落盘 meta（robots 允许的 /detail/ 路径），并复核页数
+  verify       对已落盘 PDF 复核页数 / sha256 / 字节数（不访问网络、不消耗额度）
 
 鉴权口径（必须）：失败返回 **HTTP 200 + body.code=300011**，不是 401。
 所以本脚本判成败看 `code`（0/200 视为成功），HTTP 状态只作证据。
 
-复用：节流（同域名 ≥1.05s，按请求**完成**时刻计）、请求台账、robots 判定全部来自
+复用：节流（同域名 ≥1.05s，按请求**完成**时刻计）与请求台账来自
 ``scripts/work537_probe.py``；本文件不新造 HTTP 框架。
 
 凭据：``/srv/share/quantdb/secrets/fxbaogao_api_key``（单行、600、目录 700）。
@@ -58,7 +58,6 @@ SUCCESS_CODES = {0, 200}
 
 PDF_URL_KEYS = {"pdfurl", "url", "fileurl", "downloadurl"}
 PDF_RELATIVE_KEYS = PDF_URL_KEYS | {"data"}
-PARAGRAPH_NOT_USED = True  # paragraph 只做预留；本单不写正文文本层
 
 UA_API = "quantdb-worker-623/1.0 (internal research)"
 
@@ -220,6 +219,15 @@ def _first(item: dict, keys: tuple[str, ...]):
     return None
 
 
+TAG = re.compile(r"(?s)<[^>]+>")
+
+
+def clean_text(value) -> str:
+    """搜索结果会带 <em> 高亮标签；入库前统一去标签、反转义、压空白。"""
+    text = TAG.sub("", str(value or ""))
+    return re.sub(r"\s+", " ", html.unescape(text)).strip()
+
+
 def normalize_report(item: dict) -> dict | None:
     """把搜索结果的字段变体收敛成规范行（字段名以官方 MCP 源码可证的 reportId 为准，其余容错）。"""
     if not isinstance(item, dict):
@@ -228,9 +236,11 @@ def normalize_report(item: dict) -> dict | None:
     if report_id is None or not str(report_id).strip().isdigit():
         return None
     report_id = str(report_id).strip()
-    title = _first(item, ("title", "reportTitle", "reportName", "name")) or ""
-    org = _first(item, ("orgName", "orgShortName", "org", "orgNameCn", "author")) or ""
+    title = clean_text(_first(item, ("title", "reportTitle", "reportName", "name")))
+    org = clean_text(_first(item, ("orgName", "orgShortName", "org", "orgNameCn", "author")))
     page_date = norm_date(_first(item, ("publishTime", "publishDate", "publish_date", "date", "pubTime")))
+    if not page_date:
+        page_date = norm_date(_first(item, ("pubTimeStr", "publishTimeStr", "dateStr")))
     return {
         "report_id": report_id,
         "title": str(title).strip(),
@@ -555,60 +565,31 @@ def cmd_fetch(args) -> int:
     return 0 if stats["failed"] == 0 else 1
 
 
-# ---------------------------------------------------------------- 核对（官网详情页）
-def _load_web():
-    return _load_probe()
-
-
-META_TAG = re.compile(r'<meta\s+[^>]*?(?:property|name)=["\']([^"\']+)["\'][^>]*?content=["\'](.*?)["\']',
-                      re.I | re.S)
-TITLE_TAG = re.compile(r"(?is)<title[^>]*>(.*?)</title>")
-
-
-def clean(fragment: str) -> str:
-    text = re.sub(r"(?is)<(script|style)[^>]*>.*?</\1>", " ", fragment)
-    text = re.sub(r"(?s)<[^>]+>", " ", text)
-    return re.sub(r"\s+", " ", html.unescape(text)).strip()
-
-
-def parse_detail_title(page_html: str) -> str:
-    metas = {k.strip().lower(): clean(v) for k, v in META_TAG.findall(page_html)}
-    if metas.get("og:title"):
-        return metas["og:title"]
-    match = TITLE_TAG.search(page_html)
-    return clean(match.group(1)) if match else ""
-
-
-def check_robots(probe, robots: dict, url: str) -> tuple[bool, str]:
-    if robots.get("rules") is None:
-        return False, f"robots.txt 不可读（HTTP {robots.get('robots_status')}）"
-    return probe.robots_allows(robots["rules"], urlparse(url).path or "/")
-
-
+# ---------------------------------------------------------------- 本地复核
 def cmd_verify(args) -> int:
-    root = Path(args.root)
-    probe = prepare_probe(root, args.max_requests)
+    """对已落盘 PDF 复核页数 / sha256 / 字节数（不访问网络、不消耗额度）。"""
     bad = 0
     for meta_path in [Path(p) for p in args.meta.split(",") if p.strip()]:
-        meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        rid = str(meta["report_id"])
-        detail_url = DETAIL_BASE + rid
-        robots = probe.get_robots_cached(detail_url)
-        allowed, hit = check_robots(probe, robots, detail_url)
-        if not allowed:
-            print(f"[verify] {rid} robots 禁止详情页: {hit}")
+        pdf = meta_path.with_suffix("").with_suffix(".pdf")
+        if not meta_path.exists() or not pdf.exists():
+            print(f"[verify] 缺文件: {meta_path} / {pdf}")
             bad += 1
             continue
-        resp = probe.http_get(detail_url)
-        live = parse_detail_title(resp.get("body", "")) if resp["status"] == 200 else ""
-        stored = (meta.get("title") or "").strip()
-        same = bool(live) and (stored == live or stored in live or live in stored)
-        pdf = meta_path.with_suffix("").with_suffix(".pdf")
-        pages = pdf_pages(pdf) if pdf.exists() else -1
-        print(f"[verify] {rid} HTTP {resp['status']} 落盘标题={stored[:60]!r} "
-              f"重取标题={live[:60]!r} 一致={same} 页数={pages}")
-        bad += 0 if same and pages > 0 else 1
-        time.sleep(args.gap)
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        rid = meta.get("report_id")
+        try:
+            pages = pdf_pages(pdf)
+        except Exception as exc:  # noqa: BLE001 - 坏 PDF 如实报
+            print(f"[verify] {rid} PDF 无法解析: {type(exc).__name__}: {exc}")
+            bad += 1
+            continue
+        digest = sha256_file(pdf)
+        size = pdf.stat().st_size
+        ok = (pages > 0 and pages == meta.get("pages") and digest == meta.get("sha256")
+              and size == meta.get("bytes"))
+        print(f"[verify] {rid} 页数={pages}/{meta.get('pages')} 字节={size}/{meta.get('bytes')} "
+              f"sha256={digest[:8]} 一致={ok}")
+        bad += 0 if ok else 1
     return 0 if bad == 0 else 1
 
 

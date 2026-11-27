@@ -1,8 +1,8 @@
 # 01 · 可行性实测（WORK-623，官方 API 口径）
 
-统计时点：2026-11-27 02:10–02:15 CST　主机：Mo-server（Linux）
-证据：`/srv/share/quantdb/raw/reports_fulltext/_evidence/2026-11-27-api/`
-（`api-doc.html`、`fxbaogao_mcp-1.0.3.tar.gz`、`check_auth_no_token.json`；sha256 见 `manifest.json`）
+统计时点：2026-11-27 02:10–13:00 CST　主机：Mo-server（Linux）
+证据：`/srv/share/quantdb/raw/reports_fulltext/_evidence/2026-11-27-api/`（接口文档与 MCP 源码）+
+`/srv/share/quantdb/raw/reports_fulltext/_evidence/2026-11-27-api-real/`（真实端到端：check-auth / search / download / verify，sha256 见 `summary.json`）
 
 > 契约变更 01（大管家 2026-11-27 01:40）已把「CDP 复用桌面 Chrome / cookie 文件 / robots 降级人工点」整节作废，改走官方接口。本文只覆盖 API 口径；浏览器方案在本单**从未取到真实数据**，相关代码已删除。
 
@@ -29,17 +29,21 @@
 | `getent hosts api.fxbaogao.com` | `47.117.79.47` |
 | `GET https://api.fxbaogao.com/mcp/` | HTTP 405（端点在，只收 POST） |
 | PyPI `fxbaogao-mcp` | 200，sdist 1.0.3 已下载并阅读源码 |
-| token 文件 `/srv/share/quantdb/secrets/fxbaogao_api_key` | **不存在**（`secrets/` 目录也未建） |
-| `check-auth`（无 token） | 退出码 **3**，写 `check_auth.json`（ok=false），**零 HTTP 请求**（台账无文件） |
+| token 文件 `/srv/share/quantdb/secrets/fxbaogao_api_key` | **已到位**：35 B、权限 600、sha256 前 8 位 `19c8f87e` |
+| `check-auth`（真实 token） | 退出码 0；HTTP 200、`code=0`、`msg=ok`、54,996 B |
+| 搜索（真实） | `keywords=储能, pageNum=1` → 20 条/页；字段 `reportId/title/orgName/industryName/pageNum/pubTime/pubTimeStr/whitelistRequired/paragraphs` |
+| 下载（真实，1 篇） | reportId 5913596 → HTTP 200、`code=0`、PDF 地址（签名串）→ 56 页、45,441,360 B、sha256 前 8 位 `a6b3612d`；`pageNum` 字段=56 与 pypdf 一致 |
 
-## 3. 未取到（不是不存在）
+## 3. 仍未取到 / 已实测
 
 | 问题 | 状态 |
 |---|---|
-| token 是否有效、高级 VIP 的 API 权限是否已开 | 未取到（token 未写入） |
-| 搜索成功响应的完整字段（标题/机构/日期的真实键名） | 未取到（无 token；按官方 MCP 源码 + 变体容错实现） |
-| 下载额度字段名与单篇扣减数 | 未取到（需真实下载；本单不拿假 key 试） |
-| 分页 1–10 的真实返回条数 | 未取到（等 token；参数校验与本地上限已实现） |
+| token 有效、API 权限 | **已实测**：`code=0`，20 条/页 |
+| 搜索响应字段 | **已实测**：`reportId, title, orgName, industryName, pageNum, pubTime, pubTimeStr, whitelistRequired, paragraphs`；`title` 含 `<em>` 高亮标签（采集器已清洗） |
+| 下载响应 | **已实测**：`data` 是**字符串 PDF 地址**（带 `auth_key` 签名），不是对象；`urls[0].field="data"` |
+| 下载额度字段 | 回包里**没有额度字段**（只有 `code/msg/data`）；扣减在服务端，无法从本接口读到剩余额度——实测只下 1 篇 |
+| 分页 2–10 的每页条数 | 只实测 page1=20 条；其余页未取（避免无意义请求） |
+| 失败样本（真实） | 未制造（不主动打假 key/越权），失败路径由单测覆盖 300011/300012/300021/403 |
 
 ## 4. 对实现的影响
 

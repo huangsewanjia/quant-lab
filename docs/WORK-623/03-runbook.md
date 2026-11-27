@@ -56,14 +56,14 @@ $PY -m db.checks.report_fulltext all
 
 `checks` 输出 C1–C7；C6 给关联率分子/分母/口径/查询（信息项，不判 FAIL）。
 
-## 4. 标题抽查（验收 1）
+## 4. 本地复核（验收 1）
 
 ```bash
-$PY scripts/fxbaogao_fulltext.py verify --meta "/srv/share/quantdb/raw/reports_fulltext/fxbaogao/2026-11-16/5884540-xxx.meta.json"
+$PY scripts/fxbaogao_fulltext.py verify --meta "/srv/share/quantdb/raw/reports_fulltext/fxbaogao/2026-11-26/5913596-xxx.meta.json"
 ```
 
-用官网详情页 `og:title` 对比落盘标题，并复核 pypdf 页数；不一致退出码 1。
-（只读 `/detail/` 路径，遵守 robots；不请求 `/pdf`。）
+复核 pypdf 页数、sha256、字节数与 meta 是否一致；不一致退出码 1。**不访问网络、不消耗额度。**
+标题一致性由 search 回包的 `title`（已去 `<em>`）与落盘 meta 对照；需要回原文时用 `site_url` 打开官网。
 
 ## 5. 日志与证据
 
@@ -83,7 +83,7 @@ $PY scripts/fxbaogao_fulltext.py verify --meta "/srv/share/quantdb/raw/reports_f
 |---|---|---|
 | 退出码 3 | token 文件 | 不存在/为空/含空白/权限不是 600（目录 700）；让用户按 WORK-624 写入；不要用假 key 试接口 |
 | 退出码 4 / `code=300011` | `check_auth.json` 的 `msg` | 换 key 或确认高级 VIP 的 API 权限；不要把失败当成功 |
-| `没有 PDF 地址（可能是额度不足…）` | `.download.json` 原始回包 | 对照回包里的额度字段/报错原文；不要猜数值 |
+| `没有 PDF 地址（可能是额度不足…）` | `.download.json` 原始回包 | 实测正常回包也没有额度字段（只有 `code/msg/data`）；对照 `code/msg` 与站内会员中心，不要猜数值 |
 | PDF 拉取失败 | `failed.jsonl` 的 `http_status`/`path` | 地址可能带时效；重跑 `fetch`（已存在会跳过） |
 | 入库失败 `sha256 不符` | 文件与 meta | 半截下载会先被 `%PDF`/页数拦住；修好重下 |
 

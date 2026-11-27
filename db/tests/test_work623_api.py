@@ -451,26 +451,36 @@ def test_fetch_rejects_non_numeric_report_id(tmp_path, token_file, monkeypatch):
     assert "report_id 非数字" in rec["reason"]
 
 
-def test_verify_compares_detail_title(tmp_path, monkeypatch):
-    root = tmp_path / "root"
-    date_dir = root / "2026-11-16"
+def test_clean_text_strips_em_tags():
+    assert fx.clean_text("构建<em>新型电力系统</em>的解决方案 &amp; 路径") == \
+        "构建新型电力系统的解决方案 & 路径"
+    assert fx.clean_text(None) == ""
+
+
+def test_verify_local_pdf_checks(tmp_path):
+    date_dir = tmp_path / "2026-11-16"
     date_dir.mkdir(parents=True)
-    root = date_dir.parent
     pdf = date_dir / "5884540-x.pdf"
     writer = PdfWriter()
-    writer.add_blank_page(width=100, height=100)
+    for _ in range(2):
+        writer.add_blank_page(width=100, height=100)
     with open(pdf, "wb") as fh:
         writer.write(fh)
-    meta = {"report_id": 5884540, "title": "储能行业深度：市场化拐点",
-            "pages": 1, "sha256": fx.sha256_file(pdf)}
+    meta = {"report_id": 5884540, "title": "t", "pages": 2,
+            "bytes": pdf.stat().st_size, "sha256": fx.sha256_file(pdf)}
     meta_path = pdf.with_suffix(".meta.json")
     meta_path.write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
-    detail_html = '<meta property="og:title" content="储能行业深度：市场化拐点-发现报告">'
-    probe = FakeProbe([("/detail/5884540", {"status": 200, "body": detail_html, "bytes": 100,
-                                            "headers": {}, "error": "", "raw": b""})])
-    monkeypatch.setattr(fx, "prepare_probe", lambda r, m: probe)
-    assert fx.main(["verify", "--root", str(root), "--token-file", str(tmp_path / "nope"),
-                    "--meta", str(meta_path), "--gap", "0"]) == 0
-    probe.robots = {"rules": [("/detail", False)], "robots_status": 200}
-    assert fx.main(["verify", "--root", str(root), "--token-file", str(tmp_path / "nope"),
-                    "--meta", str(meta_path), "--gap", "0"]) == 1
+    argv = ["verify", "--root", str(tmp_path), "--meta", str(meta_path), "--gap", "0"]
+    assert fx.main(argv) == 0
+    meta["pages"] = 3
+    meta_path.write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+    assert fx.main(argv) == 1
+    pdf.unlink()
+    assert fx.main(argv) == 1
+
+
+def test_verify_reports_missing_pdf(tmp_path):
+    meta_path = tmp_path / "2026-11-16" / "1-x.meta.json"
+    meta_path.parent.mkdir(parents=True)
+    meta_path.write_text("{}", encoding="utf-8")
+    assert fx.main(["verify", "--root", str(tmp_path), "--meta", str(meta_path), "--gap", "0"]) == 1
