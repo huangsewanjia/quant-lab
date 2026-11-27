@@ -160,6 +160,12 @@ def main():
                 print(f"  {done}/{len(tasks)} {el:.0f}s ({done/el:.0f}/s)", flush=True)
     el = time.time() - t0
     m = manifest(root)
+    alts = [d for d in (root, C.IMAGELIB_ROOT,
+                        "/srv/share/quantdb/code/WORK-637/imagelib/seed%d" % args.seed)
+            if os.path.isdir(d)]
+    m["mirror_dirs"] = [d for d in alts if os.path.abspath(d) != os.path.abspath(root)]
+    m["mirror_note"] = ("copies on other volumes are byte-identical; the manifest sha covers the "
+                        "sorted relative path list, not PNG bytes")
     m.update(seed=args.seed, px=C.IMG_PX, pad=pad, seconds=round(el, 1),
              charts=len(tasks), charts_per_s=round(len(tasks) / el, 1))
     mp = os.path.join(C.EXP, f"imagelib_manifest_seed{args.seed}.json")

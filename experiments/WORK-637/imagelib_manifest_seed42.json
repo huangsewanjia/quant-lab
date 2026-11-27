@@ -25,5 +25,9 @@
  "pad": 0.02,
  "seconds": 368.9,
  "charts": 185729,
- "charts_per_s": 503.4
+ "charts_per_s": 503.4,
+ "mirror_dirs": [
+  "/srv/share/quantdb/code/WORK-637/imagelib/seed42"
+ ],
+ "mirror_note": "两处副本的文件数、字节数与清单 sha256 实测一致（验收方另行复核）；清单 sha 只覆盖相对路径列表，不覆盖 PNG 字节"
 }

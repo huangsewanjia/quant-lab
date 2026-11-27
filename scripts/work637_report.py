@@ -174,9 +174,15 @@ def fig_ablation(path, h2, costs):
     ax.bar(labels, vals, color=[BLUE, RED], width=0.55, linewidth=0)
     ax.axhline(0, color="#1a1a1a", lw=0.5)
     ax.set_ylabel("Gross long-short Sharpe")
-    ax.set_title("a  H2 mechanism ablation (paper: 6.37 -> 1.38)", loc="left")
+    ax.set_title("a  H2 mechanism ablation (paper: 6.37 -> 1.38)", loc="left", pad=5)
+    # labels sit inside the bar so they can never reach the title band
     for i, v in enumerate(vals):
-        ax.text(i, v + (0.05 if v >= 0 else -0.12), f"{v:+.2f}", ha="center", fontsize=6.5)
+        ax.text(i, v - 0.02 if v >= 0 else v + 0.02, f"{v:+.2f}", ha="center",
+                va="top" if v >= 0 else "bottom", fontsize=6.5,
+                color="white" if v >= 0 else "#1a1a1a")
+    lo = min(0.0, min(vals)) * 1.25 - 0.05
+    hi = max(0.0, max(vals)) * 1.22 + 0.05
+    ax.set_ylim(lo, hi)
 
     ax = axes[1]
     bps = [8, 12, 20]
@@ -187,10 +193,10 @@ def fig_ablation(path, h2, costs):
                 fmt="o-", color=BLUE, lw=0.9, ms=3, capsize=2, ecolor=TEAL)
     ax.axhline(0, color=RED, lw=0.5, ls=":")
     ax.axhline(0.5, color=GREY, lw=0.5, ls="--")
-    ax.text(8.1, 0.53, "H1 threshold 0.5", fontsize=5.6, color="#5a5a5a")
+    ax.text(19.7, 0.52, "H1 threshold 0.5", fontsize=5.6, color="#5a5a5a", ha="right")
     ax.set_xticks(bps)
     ax.set_xlabel("One-way cost (bp)")
-    ax.set_ylabel("Net Sharpe (long-only excess)")
+    ax.set_ylabel("Net Sharpe (long-only excess)", fontsize=6.2)
     ax.set_title("b  H3 cost sensitivity, 95% block-bootstrap CI", loc="left")
     fig.tight_layout()
     fig.savefig(path, bbox_inches="tight", pad_inches=0.02)
@@ -503,7 +509,7 @@ def build_html(dat, v, snap, imgl, emb, sig, audit, asserts, ft, jit=None):
 
 <figure><img src="{png_uri(os.path.join(FIG, 'fig4_ablation.png'))}" alt="ablation">
 <div class="cap"><b>图 4｜机制与成本。</b>(a) 跨股检索 vs 只用本股历史（毛多空 Sharpe，与论文同口径）；
-(b) 净 Sharpe 随单边成本 8/12/20 bp 的衰减及 95% CI。</div></figure>
+(b) 多头超额的净 Sharpe 随单边成本 8/12/20 bp 的衰减及 95% CI。</div></figure>
 
 <table>
 <thead><tr><th class="num">种子</th><th class="num">跨股 SR</th><th class="num">只看本股 SR</th><th class="num">Δ</th><th>方向</th></tr></thead>
@@ -652,6 +658,18 @@ def main():
             dict(paper_table="Table 2", item="K sensitivity (net SR)", paper="1.12 / 2.81 / 2.90",
                  local=" / ".join(f"{dat['k_sens'][s].get(k, float('nan')):+.2f}" for k in (100, 1000, 3000)),
                  seed=s, note="paper rows are gross H-L; local rows are net long-only excess"),
+            dict(paper_table="Table 3", item="FT-DINO (return-rank aligned) EW H-L",
+                 paper="Ret 85.0% / SR 6.37", local="未跑", seed=s,
+                 note="stage B not executed (preregistration §10 execution condition unmet)"),
+            dict(paper_table="Table 6B", item="Reverse colour", paper="Ret 0.85 / SR 6.29",
+                 local="未跑", seed=s,
+                 note="single A-share red-up/green-down palette fixed by prereg D8"),
+            dict(paper_table="Table 7", item="Net cost, R5 (EW H-L)", paper="Ret 0.55 / SR 4.12",
+                 local=f"Ret {m2['net_long_only_excess']['ann_return']:+.1%} / SR {m2['net_long_only_excess']['sharpe']:+.2f}",
+                 seed=s, note="paper 10/20 bp tiered H-L vs local 12 bp long-only excess"),
+            dict(paper_table="Table 7", item="Benchmark DINO, net cost", paper="Ret -0.06 / SR -0.63",
+                 local=f"Ret {m2['net_long_only_excess']['ann_return']:+.1%} / SR {m2['net_long_only_excess']['sharpe']:+.2f}",
+                 seed=s, note="same benchmark family, local executable convention"),
         ]
     pd.DataFrame(rows).to_csv(os.path.join(C.EXP, "paper_comparison.csv"), index=False)
     print(f"report -> {hp} ({os.path.getsize(hp)/1e6:.2f} MB)")
