@@ -1,0 +1,30 @@
+{
+ "dir": "/srv/share/quantdb/code/WORK-637/imagelib/seed42",
+ "file_count": 185729,
+ "bytes": 502636292,
+ "per_year": {
+  "2014": 13942,
+  "2015": 12384,
+  "2016": 13097,
+  "2017": 13313,
+  "2018": 14071,
+  "2019": 14691,
+  "2020": 15153,
+  "2021": 15367,
+  "2022": 14726,
+  "2023": 14980,
+  "2024": 15209,
+  "2025": 15733,
+  "2026": 13063,
+  "seed42": 0
+ },
+ "manifest_sha256": "e347bd17dcf77d55ca0986319484b3f3f24b2f6c4ce4587f3a18e101c6919a77",
+ "manifest_sha256_note": "sha256 of the sorted, newline-joined relative path list",
+ "rebuild": "…/.venv/bin/python -u scripts/work637_render.py --seed <seed>",
+ "seed": 42,
+ "px": 140,
+ "pad": 0.02,
+ "seconds": 1087.1,
+ "charts": 185729,
+ "charts_per_s": 170.9
+}
