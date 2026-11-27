@@ -1,0 +1,181 @@
+{
+ "generated_at": "2026-11-27T02:56:56.246581+00:00",
+ "db": "/srv/share/quantdb/db/quantdb.duckdb",
+ "data_cutoff": "2026-11-26",
+ "endpoints": {
+  "trade_cal_sse": {
+   "sql": "select cal_date, is_open from trade_cal where exchange='SSE' and cal_date between date '2013-01-01' and date '2026-11-26'",
+   "ok": true,
+   "rows": 5078,
+   "cols": [
+    "cal_date",
+    "is_open"
+   ],
+   "sha256": "a8b3c25aa3664ca33488d1edad62a26423c4226962e50d431c8768f78904faa1",
+   "date_range": [
+    "2013-01-01",
+    "2026-11-26"
+   ],
+   "n_dates": 5078
+  },
+  "index_weight_csi300": {
+   "sql": "select index_code, con_code, trade_date, weight from index_weight where index_code='000300.SH'",
+   "ok": true,
+   "rows": 74998,
+   "cols": [
+    "index_code",
+    "con_code",
+    "trade_date",
+    "weight"
+   ],
+   "sha256": "8f782e1877527d38a04788722fcf845276711ecb0cf2192ca80f118ef05428a0",
+   "date_range": [
+    "2006-01-25",
+    "2026-10-30"
+   ],
+   "n_dates": 250
+  },
+  "v_daily_qfq": {
+   "sql": "select ts_code, trade_date, open_qfq, high_qfq, low_qfq, close_qfq, vol, amount from v_daily_qfq where trade_date between date '2013-01-01' and date '2026-11-26' and ts_code in (select distinct con_code from index_weight where index_code='000300.SH')",
+   "ok": true,
+   "rows": 2704664,
+   "cols": [
+    "ts_code",
+    "trade_date",
+    "open_qfq",
+    "high_qfq",
+    "low_qfq",
+    "close_qfq",
+    "vol",
+    "amount"
+   ],
+   "sha256": "92624fefb9508287202f5e608bd8667db20c15fc73e2e627264b527978ae034c",
+   "date_range": [
+    "2013-01-04",
+    "2026-11-26"
+   ],
+   "n_dates": 3374
+  },
+  "daily_raw_open_close": {
+   "sql": "select ts_code, trade_date, open, close, pre_close, pct_chg from daily where trade_date between date '2013-01-01' and date '2026-11-26' and ts_code in (select distinct con_code from index_weight where index_code='000300.SH')",
+   "ok": true,
+   "rows": 2704664,
+   "cols": [
+    "ts_code",
+    "trade_date",
+    "open",
+    "close",
+    "pre_close",
+    "pct_chg"
+   ],
+   "sha256": "c57c57bf15ff62a4173daf9a5bbecf00775ce27d873271f919c424af92a35ef9",
+   "date_range": [
+    "2013-01-04",
+    "2026-11-26"
+   ],
+   "n_dates": 3374
+  },
+  "stk_limit": {
+   "sql": "select ts_code, trade_date, up_limit, down_limit from stk_limit where trade_date between date '2013-01-01' and date '2026-11-26' and ts_code in (select distinct con_code from index_weight where index_code='000300.SH')",
+   "ok": true,
+   "rows": 2774452,
+   "cols": [
+    "ts_code",
+    "trade_date",
+    "up_limit",
+    "down_limit"
+   ],
+   "sha256": "6dc24283de2456a0f9f4068bfd03d09addd4f48ac0a9fd185beb0ec7a3d1c7a6",
+   "date_range": [
+    "2013-01-04",
+    "2026-11-26"
+   ],
+   "n_dates": 3374
+  },
+  "suspend_d": {
+   "sql": "select ts_code, trade_date, suspend_type from suspend_d where trade_date between date '2013-01-01' and date '2026-11-26'",
+   "ok": true,
+   "rows": 412149,
+   "cols": [
+    "ts_code",
+    "trade_date",
+    "suspend_type"
+   ],
+   "sha256": "84a2de5c9a16e2853c2bb169983a73b28808eb2b3cd0a2701d1965ba861f061f",
+   "date_range": [
+    "2013-01-04",
+    "2026-11-26"
+   ],
+   "n_dates": 3374
+  },
+  "index_daily_csi300": {
+   "sql": "select trade_date, close from index_daily where ts_code='000300.SH' and trade_date between date '2020-12-01' and date '2026-11-26'",
+   "ok": true,
+   "rows": 1452,
+   "cols": [
+    "trade_date",
+    "close"
+   ],
+   "sha256": "0bab4b497e0c6ce78798d7c616dfb3f2ba58237fc4db1505aa9a703493f6bf45",
+   "date_range": [
+    "2020-12-01",
+    "2026-11-26"
+   ],
+   "n_dates": 1452
+  },
+  "stock_basic": {
+   "sql": "select ts_code, name, list_date, delist_date from stock_basic",
+   "ok": false,
+   "error": "BinderException: Binder Error: Referenced column \"delist_date\" not found in FROM clause!\nCandidate bindings: \"list_date\", \"ts_code\", \"act_name\", \"act_ent_type\", \"industry\"\n\nLINE 1: select ts_code, name, list_date, delist_date from stock_basic\n                                         ^^^^^^^^^^^"
+  }
+ },
+ "panel": {
+  "path": "data/WORK-637/panel.npz",
+  "bytes": 80060045,
+  "sha256": "6f6431a1480b8b7f9fcc214c9941733de9fe2c8f0d1cab980d3d3b3d854bb5a3"
+ },
+ "splits": {
+  "train": {
+   "start": "2014-01-02",
+   "end": "2018-12-28",
+   "weeks": 257,
+   "chart_images": 66807,
+   "query_eligible_mean": 258.44747081712063,
+   "labels_finite": 183439
+  },
+  "val": {
+   "start": "2019-01-02",
+   "end": "2020-12-31",
+   "weeks": 103,
+   "chart_images": 29844,
+   "query_eligible_mean": 289.3203883495146,
+   "labels_finite": 86444
+  },
+  "test": {
+   "start": "2021-01-04",
+   "end": "2026-11-18",
+   "weeks": 300,
+   "chart_images": 89078,
+   "query_eligible_mean": 296.13666666666666,
+   "labels_finite": 261725
+  }
+ },
+ "grid": {
+  "weeks": 660,
+  "first": "2014-01-03",
+  "last": "2026-11-13",
+  "chartable_total": 185729
+ },
+ "pool": {
+  "index": "000300.SH",
+  "snapshots": 250,
+  "codes_ever": 932,
+  "pool_obs": 198000
+ },
+ "panel_rows": {
+  "qfq": 2704664,
+  "raw": 2704664,
+  "lim": 2774452,
+  "iw": 74998
+ }
+}
