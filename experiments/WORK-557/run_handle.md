@@ -94,3 +94,30 @@ schtasks /delete /tn WORK557_run /f
   `wandb/sdk/lib/asyncio_manager.py`）。生产路径 `work557_run_arms.py` 本来就有，标定脚本已补。
 - 单档定价（stage-1，实测）：**136.1 s/轮**、峰值显存 **0.077 GB**、50 轮 **1.89 h**。
   复跑：`.venv\Scripts\python.exe -u experiments\WORK-557\work557_epoch_timing.py --epochs 10 --workers 2 --seed 42`
+
+## 2026-11-28 最小核实运行（两个计划任务 + 结果）
+
+| 计划任务 | 跑什么 | 日志 | 结果 |
+|---|---|---|---|
+| `WORK557_verify` | `work557_verify_driver.py`：阶段一（早停开）→ 条件触发阶段二 | `verify/driver.log`、`verify/console.log` | 阶段一 28 轮停，fit 3,825.8 s |
+| `WORK557_verify_full50` | `work557_verify_run.py --phase full50`（早停关，跑满 50 轮） | `verify/console_full50.log` | 50/50 轮，fit 6,648.5 s = 1.847 h，rc=0 |
+
+**实测（stage-1，full/seed42，workers=2，含完整 valid 段）**
+- 满 50 轮：**6,648.5 s = 1.847 h**，均值 **133.0 s/轮**、稳态中位 **126.7 s**、逐轮 125.0–151.8 s
+- 早停口径：**第 28 轮停**（min val_loss 0.5881 @ epoch 12，patience=15）→ 3,825.8 s = **1.063 h**
+- 峰值显存 **0.077 GB**；两段训练墙钟合计 10,474.3 s = **2.91 h**
+- 确定性复现：两段同 seed 同数据的前 28 轮 `val_loss` **逐位相同（28/28）**
+
+**停止 / 清理（可逆，不删产物）**
+```powershell
+schtasks /end /tn WORK557_verify
+schtasks /end /tn WORK557_verify_full50
+schtasks /delete /tn WORK557_verify /f          # 不可逆，产物保留
+schtasks /delete /tn WORK557_verify_full50 /f
+```
+
+**中断续跑**（checkpoint 在 `experiments/WORK-557/verify/ckpt/last.ckpt`，每轮覆盖）
+```powershell
+cd C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab
+.venv\Scripts\python.exe -u experiments\WORK-557\work557_verify_run.py --phase full50 --seed 42 --workers 2 --max-epochs 50 --resume
+```

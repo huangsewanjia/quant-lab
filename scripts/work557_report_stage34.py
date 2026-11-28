@@ -197,6 +197,9 @@ tlog = load("training_log.json", {})
 bench = load("throughput_bench.json", {})
 bench_pl = load("throughput_bench_pl.json", {})
 bt = load("backtest_results.json", {})
+# 2026-11-28 最小核实运行（早停开 / 早停关两条真跑），落 experiments/WORK-557/verify/
+V1 = load(os.path.join("verify", "verify_early_s42.json"), {})
+V2 = load(os.path.join("verify", "verify_full50_s42.json"), {})
 fin = load("finish_summary.json", {})
 v503 = json.load(open(os.path.join(REPO, "experiments", "WORK-503", "verdict.json"), encoding="utf-8"))
 
@@ -264,6 +267,11 @@ f3 = grouped_bar(["数据加载(8 workers) 微基准", "模型前向+反向 微�
                  [{"name": "ms / batch", "color": BLUE,
                    "vals": [d_ms, m_ms, S_BATCH_MEAS]}],
                  ylab="ms / batch", h=300)
+
+# 2026-11-28 核实运行实测值
+V2H = round((V2.get("fit_seconds") or 0) / 3600, 3) or H50_MEAS
+V1H = round((V1.get("fit_seconds") or 0) / 3600, 3) or V2H * 19 / 50
+V1N = int(V1.get("n_epochs_ran") or 19)
 
 # F4 计算预算 vs 停手闸（对数）——三档口径并列
 STAGE1_50 = H50_MEAS
@@ -421,9 +429,10 @@ code{{font-family:var(--mono);font-size:12.5px;background:#f4f4f2;padding:1px 4p
 <div class="caveat">
 ① 8 次尝试全部在 15–30 s 内崩溃，根因是两处<b>适配层</b>不兼容（torch≥2 的 <code>Sampler</code> 签名、
 Windows spawn 下闭包 <code>collate_fn</code> 不可 pickle），已在适配层修好，未改 vendor；
-② 修好后把「要不要缩」量成了实测数（3 轮 / 10 轮 stage-1 真实循环，workers=2）：
-<b>136.1 s/轮 → 单档 50 轮 = 1.89 h，<u>不越</u>预注册的 3 h 停手闸</b>；
-全量按实测口径 <b>≈ 36.4 GPU 小时（1.5 天）</b>，早停口径 <b>15.3 h</b>，悲观上界 178 h。
+② 修好后把「要不要缩」量成了实测数（stage-1 真实循环，workers=2，含早停开关两种口径）：
+<b>满 50 轮实测 6,648.5 s = 1.847 h（均值 133.0 s/轮、稳态中位 126.7 s），<u>不越</u>预注册的 3 h 停手闸</b>；
+开早停时<b>实测第 28 轮停止</b>（valid 在 epoch 12 触底 0.5881，patience=15），单档 1.063 h。
+全量按实测口径 <b>≈ 35.6 GPU 小时（1.5 天）</b>，实测早停口径 <b>21.5 h</b>，悲观上界 178 h。
 （上一版写的「单档 3.4 h &gt; 3 h 闸、全量 62 h」是 50 步外推，<b>已被实测推翻并作废</b>，
 差异来自冷启动被摊进前 50 步；三档口径并列在表 5 / 表 5b。）
 ③ 唯一跑完的是 GRU 基线 s2024（50 轮 / 4,310 s），因此 <b>H1/H2/H3 全部不可判</b> —— 不是「跑了不支持」，
@@ -575,7 +584,7 @@ NVIDIA GeForce RTX 3060, 1818 MiB, 12288 MiB, 11 %</pre>
         "来源：<code>throughput_bench.json</code>、<code>throughput_bench_pl.json</code>。")}
 
 {fig(f4, "<b>图 4｜全窗 50 轮预算：实测口径 vs 悲观上界 vs 停手闸（对数轴）。</b>"
-        f"实测 {S_EPOCH:.1f} s/轮（10 轮真实循环）→ stage-1 单档 {STAGE1_50:.2f} h（<b>在 3 h 闸内</b>）、"
+        f"实测满 50 轮 {V2H:.2f} h/档（<b>在 3 h 闸内</b>；早停口径 {V1H:.2f} h）、"
         f"全量合计 {tot_meas:.1f} h；悲观上界（微基准 264 ms/batch）合计 {tot_up:.0f} h。"
         "stage-2 未实测、按 stage-1 ×2 结构推断。红色为单档允许上限。"
         "来源：<code>throughput_bench_pl.json</code>（10 轮）、<code>throughput_bench.json</code>（微基准）、"
@@ -590,9 +599,18 @@ NVIDIA GeForce RTX 3060, 1818 MiB, 12288 MiB, 11 %</pre>
 <caption>表 5｜单轮成本：三个口径并列（训练段 2,675 batch/轮 + valid 486 batch/轮）。</caption>
 <thead><tr><th>口径</th><th class="num">单 batch</th><th class="num">单轮</th><th class="num">50 轮</th><th>说明</th></tr></thead>
 <tbody>
-<tr><td><b>端到端实测</b>（{PL_EPOCHS_RAN} 轮真实 PL 循环，workers=2，含完整 valid 段）</td>
+<tr><td><b>满 50 轮实测</b>（2026-11-28，早停关，workers=2，含完整 valid 段）</td>
+<td class="num">{round((V2.get('fit_seconds') or 0)/50/2675*1000,1)} ms</td>
+<td class="num">{round((V2.get('fit_seconds') or 0)/50,1)} s</td>
+<td class="num">{round((V2.get('fit_seconds') or 0)/3600,3)} h</td>
+<td>峰值显存 {V2.get('peak_vram_gb')} GB；50 轮共 {V2.get('fit_seconds'):.0f} s，逐轮 125.0–151.8 s</td></tr>
+<tr><td>早停口径实测（同上，早停开）</td><td class="num">{round((V1.get('fit_seconds') or 0)/V1.get('n_epochs_ran',1)/2675*1000,1)} ms</td>
+<td class="num">{round((V1.get('fit_seconds') or 0)/V1.get('n_epochs_ran',1),1)} s</td>
+<td class="num">{round((V1.get('fit_seconds') or 0)/3600,3)} h（{V1.get('n_epochs_ran')} 轮停）</td>
+<td>min val_loss {V1.get('min_val_loss')} @ epoch {V1.get('min_val_loss_epoch')}</td></tr>
+<tr><td>端到端实测（2026-11-27，10 轮，workers=2）</td>
 <td class="num">{S_BATCH_MEAS:.0f} ms</td><td class="num">{S_EPOCH:.1f} s</td><td class="num">{H50_MEAS:.2f} h</td>
-<td>峰值显存 {VRAM:.2f} GB；{PL_EPOCHS_RAN} 轮共 {PL_FIT_S:.0f} s，逐轮 134.8–140.8 s</td></tr>
+<td>峰值显存 {VRAM:.2f} GB；10 轮共 {PL_FIT_S:.0f} s（当时的 50 轮为外推）</td></tr>
 <tr><td>50 步热身后外推（上一版用的 90 ms，<b>已作废</b>）</td><td class="num">90 ms</td><td class="num">241 s</td><td class="num">3.35 h</td>
 <td>冷启动阶段偏高，被实测推翻</td></tr>
 <tr><td>悲观上界：微基准 264 ms（不含 training_step 开销）</td><td class="num">264 ms</td><td class="num">706 s</td><td class="num">9.80 h</td>
@@ -606,12 +624,12 @@ NVIDIA GeForce RTX 3060, 1818 MiB, 12288 MiB, 11 %</pre>
 <thead><tr><th>口径</th><th class="num">stage-1 ×2 seed</th><th class="num">stage-2 ×8 档</th>
 <th class="num">GRU ×2 seed</th><th class="num">合计</th></tr></thead>
 <tbody>
-<tr><td><b>实测口径</b>（{S_EPOCH:.1f} s/轮 × 50 轮 = {H50_MEAS:.2f} h/档）</td>
-<td class="num">{2*STAGE1_50:.1f} h</td><td class="num">{8*STAGE2_50:.1f} h</td>
-<td class="num">{2*GRU_50:.1f} h</td><td class="num"><b>{tot_meas:.1f} h</b></td></tr>
-<tr><td>早停轨迹（实测 valid 在 epoch 4 触底，patience=15 → 约 19 轮）</td>
-<td class="num">{2*STAGE1_50*19/50:.1f} h</td><td class="num">{8*STAGE2_50*19/50:.1f} h</td>
-<td class="num">{2*GRU_50:.1f} h</td><td class="num"><b>{2*STAGE1_50*19/50+8*STAGE2_50*19/50+2*GRU_50:.1f} h</b></td></tr>
+<tr><td><b>实测口径</b>（满 50 轮 = {V2H:.2f} h/档，实测）</td>
+<td class="num">{2*V2H:.1f} h</td><td class="num">{16*V2H:.1f} h</td>
+<td class="num">{2*GRU_50:.1f} h</td><td class="num"><b>{2*V2H+16*V2H+2*GRU_50:.1f} h</b></td></tr>
+<tr><td>早停口径（<b>实测第 {V1N} 轮停</b> = {V1H:.2f} h/档）</td>
+<td class="num">{2*V1H:.1f} h</td><td class="num">{16*V1H:.1f} h</td>
+<td class="num">{2*GRU_50:.1f} h</td><td class="num"><b>{2*V1H+16*V1H+2*GRU_50:.1f} h</b></td></tr>
 <tr><td>悲观上界（微基准 264 ms/batch）</td><td class="num">{2*up_epoch*50/3600:.1f} h</td>
 <td class="num">{16*up_epoch*50/3600:.1f} h</td><td class="num">{2*GRU_50:.1f} h</td>
 <td class="num"><b>{tot_up:.0f} h</b></td></tr>
@@ -695,8 +713,8 @@ NVIDIA GeForce RTX 3060, 1818 MiB, 12288 MiB, 11 %</pre>
 
 <h3>8.2 要跑完全窗 50 轮，需要什么（三选一，互斥）</h3>
 <ol>
-<li><b>换硬件</b>：≥4 张同代卡或一张显存足够、单步 ≥4× 快的卡 → 实测口径 36.4 h 压到 &lt;10 h，
-早停口径 15.3 h 压到 &lt;4 h（也就无需占卡过夜）。</li>
+<li><b>换硬件</b>：≥4 张同代卡或一张显存足够、单步 ≥4× 快的卡 → 实测口径 {2*V2H+16*V2H+2*GRU_50:.0f} h
+压到 &lt;10 h，早停口径 {2*V1H+16*V1H+2*GRU_50:.0f} h 压到 &lt;6 h。</li>
 <li><b>放宽停手闸</b>：把「单档 &gt; 3 h」改成「单档 ≤12 h」并允许连续占卡 3 天 → 能跑完，但要独占这台机器。</li>
 <li><b>有依据地缩</b>：用早停替掉固定轮数上限（本单 GRU 实测支持这么做），
 把 50 轮换成「早停 patience=15，上限 50」，并把 stage-1 与 stage-2 的预算分别记账。</li>
