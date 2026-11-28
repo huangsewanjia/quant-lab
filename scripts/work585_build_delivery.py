@@ -153,9 +153,11 @@ def main() -> None:
     head_sha = "HEAD"
     if (META / "work585-code-sha256.txt").exists():
         for line in (META / "work585-code-sha256.txt").read_text(encoding="utf-8").splitlines():
-            if line.startswith("head_sha:"):
+            if line.startswith("func_sha:"):
                 head_sha = line.split(":", 1)[1].split("#")[0].strip()[:7]
                 break
+            if line.startswith("head_sha:") and head_sha == "HEAD":
+                head_sha = line.split(":", 1)[1].split("#")[0].strip()[:7]
 
     sha_file = META / "work585-code-sha256.txt"
     sha_block = sha_file.read_text().strip() if sha_file.exists() else "（缺：meta/industry/work585-code-sha256.txt）"
