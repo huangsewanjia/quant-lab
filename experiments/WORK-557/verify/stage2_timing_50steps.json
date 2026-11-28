@@ -1,0 +1,26 @@
+{
+ "stage": 2,
+ "arm": "full",
+ "seed": 42,
+ "workers": 2,
+ "mode": "50_steps",
+ "steps_done": 50,
+ "n_batches_per_epoch": 2675,
+ "n_valid_batches": 486,
+ "fit_seconds": 33.8,
+ "s_per_step": 0.677,
+ "projected_s_per_epoch": 1810.9,
+ "projected_s_per_epoch_note": "含 worker spawn 与进程启动的一次性开销摊在本段步骤里",
+ "epoch_history_seconds": [
+  8.2
+ ],
+ "epoch_val_loss": [
+  NaN
+ ],
+ "peak_vram_gb": 0.069,
+ "trainable_params_m": 0.2,
+ "stage1_ckpt_used": "C:\\Users\\MO_Yongkai\\multica_workspaces_cloud\\workspace-c8faa36a018a\\work-557-a221b7629a32\\workdir\\quant-lab\\checkpoints\\stage2_timing_s42.pt",
+ "device": "NVIDIA GeForce RTX 3060",
+ "torch": "2.11.0+cu128",
+ "note": "stage-2 = GenerateReturn（VQ-VAE 已 freeze，MoE + Transformer 预测器）；未改 vendor/PRISM-VQ 任何文件；stage-1 权重从 verify/ckpt 复制到 ./checkpoints/。"
+}

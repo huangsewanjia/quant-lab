@@ -200,6 +200,7 @@ bt = load("backtest_results.json", {})
 # 2026-11-28 最小核实运行（早停开 / 早停关两条真跑），落 experiments/WORK-557/verify/
 V1 = load(os.path.join("verify", "verify_early_s42.json"), {})
 V2 = load(os.path.join("verify", "verify_full50_s42.json"), {})
+S2 = load(os.path.join("verify", "stage2_timing_summary.json"), {})
 fin = load("finish_summary.json", {})
 v503 = json.load(open(os.path.join(REPO, "experiments", "WORK-503", "verdict.json"), encoding="utf-8"))
 
@@ -272,30 +273,35 @@ f3 = grouped_bar(["数据加载(8 workers) 微基准", "模型前向+反向 微�
 V2H = round((V2.get("fit_seconds") or 0) / 3600, 3) or H50_MEAS
 V1H = round((V1.get("fit_seconds") or 0) / 3600, 3) or V2H * 19 / 50
 V1N = int(V1.get("n_epochs_ran") or 19)
+S2B = round(float(S2.get("median_s_per_epoch") or 112.9) / (2675 + 486) * 1000, 1)
 
-# F4 计算预算 vs 停手闸（对数）——三档口径并列
-STAGE1_50 = H50_MEAS
-STAGE2_50 = STAGE1_50 * 2
+# F4 计算预算 vs 停手闸（对数）——三档口径并列（stage-1 与 stage-2 都是实测）
 GRU_50 = 4310 / 3600
-tot_meas = 2 * STAGE1_50 + 8 * STAGE2_50 + 2 * GRU_50
+S2H = float(S2.get("h_50_epochs") or 1.596)          # stage-2 满 50 轮，实测
+S2H28 = float(S2.get("h_28_epochs") or 0.894)        # stage-2 按 28 轮（早停假设）
+STAGE1_50 = V2H                                      # 1.847 h（实测满 50 轮）
+tot_meas = 2 * STAGE1_50 + 8 * S2H + 2 * GRU_50
+tot_early = 2 * V1H + 8 * S2H28 + 2 * GRU_50
 up_epoch = (d_ms + m_ms) / 1000 * bench.get("n_batches_per_epoch", 2675)
 tot_up = (2 * up_epoch * 50 / 3600) + 8 * 2 * (up_epoch * 50 / 3600) + 2 * GRU_50
-need = {"stage-1 单档 50 轮": round(STAGE1_50, 2),
-        "stage-2 x8 档(2x 推断)": round(8 * STAGE2_50, 1),
+need = {"stage-1 x2 seed": round(2 * STAGE1_50, 2),
+        "stage-2 x8 档": round(8 * S2H, 1),
         "GRU x2 seed": round(2 * GRU_50, 2), "合计": round(tot_meas, 1)}
 f4 = grouped_bar(list(need.keys()),
-                 [{"name": "实测口径 %.1f h" % tot_meas, "color": TEAL, "vals": list(need.values())},
+                 [{"name": "满 50 轮实测 %.1f h" % tot_meas, "color": TEAL, "vals": list(need.values())},
+                  {"name": "早停口径 %.1f h" % tot_early, "color": BLUE,
+                   "vals": [round(2 * V1H, 2), round(8 * S2H28, 1), round(2 * GRU_50, 2), round(tot_early, 1)]},
                   {"name": "悲观上界 %.0f h" % tot_up, "color": GREY,
                    "vals": [round(up_epoch * 50 / 3600, 2), round(8 * 2 * up_epoch * 50 / 3600, 1),
                             round(2 * GRU_50, 2), round(tot_up, 1)]},
                   {"name": "停手闸 3 h/档", "color": RED, "vals": [3, 3, 3, 3]}],
-                 ylab="GPU 小时（对数轴）", h=330, logy=True, ymax=400)
+                 ylab="GPU 小时（对数轴）", h=340, logy=True, ymax=600)
 
 # F7 逐轮墙钟（稳定性）
-_ep = [round(x, 1) for x in (bench_pl.get("epoch_seconds") or [])]
+_ep = [round(x, 1) for x in (V2.get("epoch_seconds") or bench_pl.get("epoch_seconds") or [])]
 f7 = grouped_bar([str(i) for i in range(len(_ep))],
                  [{"name": "每轮墙钟 s", "color": BLUE, "vals": _ep}],
-                 ylab="秒 / 轮（含完整 valid 段）", h=280) if _ep else ""
+                 ylab="秒 / 轮（含完整 valid 段）", h=300) if _ep else ""
 
 # F5 逐年：无行率 vs 真缺口率
 yrs = [d["year"] for d in cross.get("check_A_suspend", {}).get("by_year", [])]
@@ -432,7 +438,9 @@ Windows spawn 下闭包 <code>collate_fn</code> 不可 pickle），已在适配�
 ② 修好后把「要不要缩」量成了实测数（stage-1 真实循环，workers=2，含早停开关两种口径）：
 <b>满 50 轮实测 6,648.5 s = 1.847 h（均值 133.0 s/轮、稳态中位 126.7 s），<u>不越</u>预注册的 3 h 停手闸</b>；
 开早停时<b>实测第 28 轮停止</b>（valid 在 epoch 12 触底 0.5881，patience=15），单档 1.063 h。
-全量按实测口径 <b>≈ 35.6 GPU 小时（1.5 天）</b>，实测早停口径 <b>21.5 h</b>，悲观上界 178 h。
+stage-2（MoE + Transformer 预测器，VQ-VAE 冻结）也已完成实测：<b>112.9 s/轮中位</b>（106.1 / 112.9 / 114.9），
+只有 stage-1 的 <b>0.89×</b>（不是原假设的 2×）。于是整队全量：<b>满 50 轮口径 ≈ {tot_meas:.1f} GPU 小时</b>、
+<b>早停口径 ≈ {tot_early:.1f} h</b>、悲观上界 178 h。
 （上一版写的「单档 3.4 h &gt; 3 h 闸、全量 62 h」是 50 步外推，<b>已被实测推翻并作废</b>，
 差异来自冷启动被摊进前 50 步；三档口径并列在表 5 / 表 5b。）
 ③ 唯一跑完的是 GRU 基线 s2024（50 轮 / 4,310 s），因此 <b>H1/H2/H3 全部不可判</b> —— 不是「跑了不支持」，
@@ -584,16 +592,17 @@ NVIDIA GeForce RTX 3060, 1818 MiB, 12288 MiB, 11 %</pre>
         "来源：<code>throughput_bench.json</code>、<code>throughput_bench_pl.json</code>。")}
 
 {fig(f4, "<b>图 4｜全窗 50 轮预算：实测口径 vs 悲观上界 vs 停手闸（对数轴）。</b>"
-        f"实测满 50 轮 {V2H:.2f} h/档（<b>在 3 h 闸内</b>；早停口径 {V1H:.2f} h）、"
-        f"全量合计 {tot_meas:.1f} h；悲观上界（微基准 264 ms/batch）合计 {tot_up:.0f} h。"
-        "stage-2 未实测、按 stage-1 ×2 结构推断。红色为单档允许上限。"
+        f"stage-1 满 50 轮 {V2H:.3f} h/档、stage-2 实测 {S2H:.3f} h/档（均<b>在 3 h 闸内</b>）："
+        f"满 50 轮口径合计 {tot_meas:.1f} h，早停口径（stage-1 实测 28 轮）{tot_early:.1f} h；"
+        f"悲观上界合计 {tot_up:.0f} h。红色为单档允许上限。"
+        '<b>stage-2 不再是推断</b>：3 轮实测 106.1 / 112.9 / 114.9 s。' 
         "来源：<code>throughput_bench_pl.json</code>（10 轮）、<code>throughput_bench.json</code>（微基准）、"
         "<code>data_probe.json</code>（2,675 个交易日）。")}
 
-{fig(f7, "<b>图 5｜逐轮墙钟（10 轮，workers=2，含完整 valid 段）。</b>"
-        "134.8–140.8 s、中位 136.1 s，全程无退化 —— 与 11-25 那次「epoch 从 73 s 退化到 800 s」形成对照，"
-        "说明那时的退化更像 8 worker 争抢，而不是模型越跑越慢。"
-        "来源：<code>throughput_bench_pl.json</code> 的 <code>epoch_seconds</code>。")}
+{fig(f7, f"<b>图 5｜stage-1 满 50 轮的逐轮墙钟（workers=2，含完整 valid 段）。</b>"
+        f"125.0–151.8 s，均值 {round(sum(V2.get('epoch_seconds') or [0])/max(1,len(V2.get('epoch_seconds') or [1])),1)} s；"
+        "前 40 轮稳定在 125–128 s，第 41–45 轮抬到 139–147 s 又回落（原因未定位，量级远小于 11-25 那次 73 s→800 s）。"
+        "来源：<code>verify/verify_full50_s42.json</code> 的 <code>epoch_seconds</code>。")}
 
 <table>
 <caption>表 5｜单轮成本：三个口径并列（训练段 2,675 batch/轮 + valid 486 batch/轮）。</caption>
@@ -615,7 +624,12 @@ NVIDIA GeForce RTX 3060, 1818 MiB, 12288 MiB, 11 %</pre>
 <td>冷启动阶段偏高，被实测推翻</td></tr>
 <tr><td>悲观上界：微基准 264 ms（不含 training_step 开销）</td><td class="num">264 ms</td><td class="num">706 s</td><td class="num">9.80 h</td>
 <td>取数 126 + 模型 138，偏保守</td></tr>
-<tr><td>PRISM-VQ stage-2</td><td class="num">未实测</td><td class="num">未实测</td><td class="num">未实测</td><td>一次都没跑进去，只能按结构推断</td></tr>
+<tr><td><b>PRISM-VQ stage-2 实测</b>（2026-11-28，3 轮，VQ-VAE 冻结）</td>
+<td class="num">{S2B:.1f} ms</td><td class="num">{S2.get('median_s_per_epoch')} s</td>
+<td class="num">{S2H:.3f} h</td>
+<td>逐轮 {S2.get('epoch_seconds')}；峰值显存 {S2.get('peak_vram_gb')} GB；可训练参数 {S2.get('trainable_params_m')} M</td></tr>
+<tr><td>PRISM-VQ stage-2（原「×2 结构推断」，<b>已作废</b>）</td><td class="num">—</td><td class="num">—</td><td class="num">≈3.70 h</td>
+<td>实测 1.596 h，推断高估 2.3×</td></tr>
 <tr><td>GRU 基线 s2024（实测）</td><td class="num">—</td><td class="num">86 s</td><td class="num">4,310 s</td><td>另一模型，仅供参考</td></tr>
 </tbody></table>
 
@@ -624,12 +638,12 @@ NVIDIA GeForce RTX 3060, 1818 MiB, 12288 MiB, 11 %</pre>
 <thead><tr><th>口径</th><th class="num">stage-1 ×2 seed</th><th class="num">stage-2 ×8 档</th>
 <th class="num">GRU ×2 seed</th><th class="num">合计</th></tr></thead>
 <tbody>
-<tr><td><b>实测口径</b>（满 50 轮 = {V2H:.2f} h/档，实测）</td>
-<td class="num">{2*V2H:.1f} h</td><td class="num">{16*V2H:.1f} h</td>
-<td class="num">{2*GRU_50:.1f} h</td><td class="num"><b>{2*V2H+16*V2H+2*GRU_50:.1f} h</b></td></tr>
-<tr><td>早停口径（<b>实测第 {V1N} 轮停</b> = {V1H:.2f} h/档）</td>
-<td class="num">{2*V1H:.1f} h</td><td class="num">{16*V1H:.1f} h</td>
-<td class="num">{2*GRU_50:.1f} h</td><td class="num"><b>{2*V1H+16*V1H+2*GRU_50:.1f} h</b></td></tr>
+<tr><td><b>满 50 轮实测</b>（stage-1 {V2H:.3f} h/档、stage-2 {S2H:.3f} h/档，均实测）</td>
+<td class="num">{2*V2H:.1f} h</td><td class="num">{8*S2H:.1f} h</td>
+<td class="num">{2*GRU_50:.1f} h</td><td class="num"><b>{tot_meas:.1f} h</b></td></tr>
+<tr><td>早停口径（stage-1 <b>实测第 {V1N} 轮停</b>；stage-2 未测早停轮次，<b>按 28 轮假设</b>）</td>
+<td class="num">{2*V1H:.1f} h</td><td class="num">{8*S2H28:.1f} h</td>
+<td class="num">{2*GRU_50:.1f} h</td><td class="num"><b>{tot_early:.1f} h</b></td></tr>
 <tr><td>悲观上界（微基准 264 ms/batch）</td><td class="num">{2*up_epoch*50/3600:.1f} h</td>
 <td class="num">{16*up_epoch*50/3600:.1f} h</td><td class="num">{2*GRU_50:.1f} h</td>
 <td class="num"><b>{tot_up:.0f} h</b></td></tr>
@@ -697,10 +711,14 @@ NVIDIA GeForce RTX 3060, 1818 MiB, 12288 MiB, 11 %</pre>
 
 <h3>8.1 不确定项</h3>
 <ul>
-<li><b>stage-2 成本完全未测</b>：一次都没跑进去，表 5b 的 2× 是结构推断。若 stage-2 实际是 stage-1 的 4×，
-实测口径总量会从 {tot_meas:.1f} h 涨到 {2*STAGE1_50 + 16*STAGE2_50 + 2*GRU_50:.0f} h 量级。</li>
-<li><b>实测只覆盖 stage-1、单 seed、前 10 轮</b>：10 轮都在 valid 触底（epoch 4）之后，未跑到早停；
-50 轮墙钟是按 136.1 s/轮线性外推（图 5 逐轮稳定，线性外推置信度较高）。</li>
+<li><b>stage-2 已是实测，但只有 3 轮、1 个 seed</b>：112.9 s/轮中位（0.89× stage-1，不是原假设的 2×），
+整队满 50 轮口径因此从 35.6 h 降到 {tot_meas:.1f} h。它的 <b>早停轮次未测</b>（3 轮里 val_loss 还在降），
+早停口径 {tot_early:.1f} h 用的是「28 轮」假设，属上界侧估计。</li>
+<li><b>50 轮墙钟已是实测，不再外推</b>：2026-11-28 关掉早停跑满 50 轮，6,648.5 s = 1.847 h（均值 133.0 s/轮）；
+稳态中位 126.7 s。注意两个口径不要混用：<code>fit_seconds/50 = 132.97 s</code>（含启动摊销）、
+<code>epoch_seconds</code> 均值 131.0 s —— 本文一律用前者，与表 5 一致。</li>
+<li><b>stage-2 只测了 3 轮、1 个 seed</b>：106.1/112.9/114.9 s，val_loss 仍在下降（1.0639→1.0324→1.0243），
+<b>它的早停轮次未测</b>，本文按 stage-1 的 28 轮假设（因此早停口径是上界侧的估计）。</li>
 <li><b>「teardown 死锁」是上一版的误判</b>，本轮更正为「标定脚本缺 <code>wandb.init</code>」+「8 worker spawn 不稳」；
 生产路径在 workers=2 下 10 轮干净退出，未见死锁。</li>
 <li><b>GRU 基线只有 1 个 seed 完成</b>（s42 被硬闸杀掉），表 4 的对照只有 s2024 一格。</li>

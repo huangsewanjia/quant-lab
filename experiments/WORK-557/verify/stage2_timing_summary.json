@@ -1,0 +1,29 @@
+{
+ "stage": 2,
+ "arm": "full",
+ "seed": 42,
+ "workers": 2,
+ "source_files": [
+  "verify/stage2_timing_3ep.log",
+  "verify/stage2_timing_full_epoch.json",
+  "verify/stage2_timing_50steps.json"
+ ],
+ "epochs_ran": 3,
+ "epoch_seconds": [
+  106.1,
+  112.9,
+  114.9
+ ],
+ "median_s_per_epoch": 112.9,
+ "last_epoch_s": 114.9,
+ "s_per_epoch_incl_startup": 119.9,
+ "fit_seconds_3ep": 359.8,
+ "peak_vram_gb": 0.068,
+ "trainable_params_m": 0.2,
+ "s_per_batch_median": 35.7,
+ "stage2_over_stage1_ratio": 0.891,
+ "h_50_epochs": 1.596,
+ "h_50_epochs_median": 1.568,
+ "h_28_epochs": 0.894,
+ "note": "stage-2 = GenerateReturn（VQ-VAE 冻结，仅 0.20 M 可训练参数 + MoE/Transformer 预测器）；50 步短跑 8.2 s 里 25 s 级是一次性启动，故用整轮值定价。"
+}
