@@ -336,10 +336,18 @@ def main():
         h2[str(s)]["mean_full"] = float(np.nanmean(j["full"]))
         h2[str(s)]["mean_base"] = float(np.nanmean(j["base"]))
         h2[str(s)]["n_joined_days"] = int(len(j))
+    # 2026-11-29 修：note 原来是模板文字，写死「CI 含 0」；当实测 CI 不含 0 时，
+    # 与同一对象里的 lo/hi 自相矛盾（会把"有增量"读成"不显著"）。改为按实测逐 seed 生成。
+    _ci_bits = []
+    for _s, _v in h2.items():
+        _cnt = not (_v["lo"] <= 0.0 <= _v["hi"])
+        _ci_bits.append(f"s{_s}: {_v['point']:+.4f} [{_v['lo']:+.4f}, {_v['hi']:+.4f}] "
+                        + ("不含 0（增量在 95% 水平可证）" if _cnt
+                           else "含 0（增量在统计上不可证）"))
     out["H2"] = {
         "baseline": BASELINE, "per_seed": h2,
-        "note": "论文自曝对 DTML/GRU 未达显著；CI 含 0 判「与论文自曝弱点一致」，"
-                "不算失败，但必须写明本方法的增量在统计上不可证",
+        "note": "10,000 次 block bootstrap（block=5 日）逐 seed 结果 —— " + "；".join(_ci_bits)
+                + "。论文自曝对 DTML/GRU 未达显著；CI 含 0 只说明本 seed 上增量不可证，不算失败。",
         "join": "按日期 inner join 两档的逐日 RankIC 序列后再做 block bootstrap",
     }
 

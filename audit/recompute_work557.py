@@ -456,7 +456,9 @@ def main():
     report = {"tolerance": TOL, "items": out, "mismatches": mismatches,
               "n_mismatches": len(mismatches),
               "independence": independence_selfcheck()}
-    json.dump(report, open(os.path.join(EXP, cli.out), "w"),
+    # 2026-11-29 修：原来用默认编码（Windows=cp936）写出，产物是 GBK，
+    # 与其它 json（utf-8）不一致，读的时候必须试两种编码。统一成 utf-8。
+    json.dump(report, open(os.path.join(EXP, cli.out), "w", encoding="utf-8"),
               ensure_ascii=False, indent=1)
     for k, v in out.items():
         print(f"{k}: recompute RankIC {v['rankic']:.6f} SR {v['sr']:.6f} "

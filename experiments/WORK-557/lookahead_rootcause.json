@@ -1,0 +1,296 @@
+{
+ "fit_skipped_symbols": [],
+ "n_fit_mean_nan": 0,
+ "probes": [
+  {
+   "instrument": "sh600332",
+   "date": "2022-06-15",
+   "row_index": 3995,
+   "n_cols": 158,
+   "n_diff_gt_1e-4": 0,
+   "max_abs_diff": 5.404437470254986e-06,
+   "top5": [
+    {
+     "col": "HIGH0",
+     "stored": 0.027177,
+     "qlib_rebuilt": 0.027172,
+     "abs_diff": 5e-06
+    },
+    {
+     "col": "LOW0",
+     "stored": 0.439838,
+     "qlib_rebuilt": 0.439834,
+     "abs_diff": 4e-06
+    },
+    {
+     "col": "VSUMN60",
+     "stored": 0.127758,
+     "qlib_rebuilt": 0.12776,
+     "abs_diff": 2e-06
+    },
+    {
+     "col": "VSUMN30",
+     "stored": -0.355236,
+     "qlib_rebuilt": -0.355234,
+     "abs_diff": 1e-06
+    },
+    {
+     "col": "VSUMN20",
+     "stored": -0.948397,
+     "qlib_rebuilt": -0.948396,
+     "abs_diff": 1e-06
+    }
+   ],
+   "shift_minus1_max_abs_diff": 3.072052401280523,
+   "shift_plus1_max_abs_diff": 3.2399618497981315,
+   "stored_row_mean": 0.0351,
+   "stored_row_std": 0.65,
+   "rebuilt_row_mean": 0.0351,
+   "rebuilt_row_std": 0.65,
+   "n_stored_at_clip": 0,
+   "n_rebuilt_at_clip": 0
+  },
+  {
+   "instrument": "sh600332",
+   "date": "2023-03-15",
+   "row_index": 4178,
+   "n_cols": 158,
+   "n_diff_gt_1e-4": 0,
+   "max_abs_diff": 2.9882892508270587e-06,
+   "top5": [
+    {
+     "col": "HIGH0",
+     "stored": -0.284501,
+     "qlib_rebuilt": -0.284504,
+     "abs_diff": 3e-06
+    },
+    {
+     "col": "VSUMN30",
+     "stored": -0.577588,
+     "qlib_rebuilt": -0.577586,
+     "abs_diff": 2e-06
+    },
+    {
+     "col": "MA60",
+     "stored": -0.813999,
+     "qlib_rebuilt": -0.813997,
+     "abs_diff": 1e-06
+    },
+    {
+     "col": "LOW0",
+     "stored": -0.366023,
+     "qlib_rebuilt": -0.366024,
+     "abs_diff": 1e-06
+    },
+    {
+     "col": "QTLU30",
+     "stored": -0.75727,
+     "qlib_rebuilt": -0.757271,
+     "abs_diff": 1e-06
+    }
+   ],
+   "shift_minus1_max_abs_diff": 1.7571834507423998,
+   "shift_plus1_max_abs_diff": 1.9897475315536546,
+   "stored_row_mean": 0.0173,
+   "stored_row_std": 0.8125,
+   "rebuilt_row_mean": 0.0173,
+   "rebuilt_row_std": 0.8125,
+   "n_stored_at_clip": 3,
+   "n_rebuilt_at_clip": 3
+  },
+  {
+   "instrument": "sh600332",
+   "date": "2024-06-14",
+   "row_index": 4480,
+   "n_cols": 158,
+   "n_diff_gt_1e-4": 0,
+   "max_abs_diff": 2.0474700872519236e-06,
+   "top5": [
+    {
+     "col": "VSUMN30",
+     "stored": 2.116617,
+     "qlib_rebuilt": 2.116615,
+     "abs_diff": 2e-06
+    },
+    {
+     "col": "VSUMP30",
+     "stored": -2.08434,
+     "qlib_rebuilt": -2.084342,
+     "abs_diff": 2e-06
+    },
+    {
+     "col": "LOW0",
+     "stored": -0.240953,
+     "qlib_rebuilt": -0.240955,
+     "abs_diff": 2e-06
+    },
+    {
+     "col": "VSUMN60",
+     "stored": -0.063712,
+     "qlib_rebuilt": -0.06371,
+     "abs_diff": 2e-06
+    },
+    {
+     "col": "QTLU30",
+     "stored": 0.403879,
+     "qlib_rebuilt": 0.403878,
+     "abs_diff": 1e-06
+    }
+   ],
+   "shift_minus1_max_abs_diff": 2.1371403733095136,
+   "shift_plus1_max_abs_diff": 2.098567532189111,
+   "stored_row_mean": -0.1722,
+   "stored_row_std": 0.8686,
+   "rebuilt_row_mean": -0.1722,
+   "rebuilt_row_std": 0.8686,
+   "n_stored_at_clip": 1,
+   "n_rebuilt_at_clip": 1
+  },
+  {
+   "instrument": "sz300529",
+   "date": "2022-06-15",
+   "row_index": 3995,
+   "n_cols": 158,
+   "n_diff_gt_1e-4": 0,
+   "max_abs_diff": 1.2901589406366654e-05,
+   "top5": [
+    {
+     "col": "HIGH0",
+     "stored": 1.001545,
+     "qlib_rebuilt": 1.001532,
+     "abs_diff": 1.3e-05
+    },
+    {
+     "col": "LOW0",
+     "stored": -0.123602,
+     "qlib_rebuilt": -0.123604,
+     "abs_diff": 2e-06
+    },
+    {
+     "col": "VSUMN30",
+     "stored": -0.751681,
+     "qlib_rebuilt": -0.751679,
+     "abs_diff": 2e-06
+    },
+    {
+     "col": "MA60",
+     "stored": -1.093613,
+     "qlib_rebuilt": -1.093611,
+     "abs_diff": 2e-06
+    },
+    {
+     "col": "VSUMN20",
+     "stored": -1.645962,
+     "qlib_rebuilt": -1.64596,
+     "abs_diff": 1e-06
+    }
+   ],
+   "shift_minus1_max_abs_diff": 3.2916317986442154,
+   "shift_plus1_max_abs_diff": 2.23079949617805,
+   "stored_row_mean": 0.0316,
+   "stored_row_std": 1.2527,
+   "rebuilt_row_mean": 0.0316,
+   "rebuilt_row_std": 1.2527,
+   "n_stored_at_clip": 3,
+   "n_rebuilt_at_clip": 3
+  },
+  {
+   "instrument": "sz300529",
+   "date": "2023-03-15",
+   "row_index": 4178,
+   "n_cols": 158,
+   "n_diff_gt_1e-4": 0,
+   "max_abs_diff": 6.498616406946933e-06,
+   "top5": [
+    {
+     "col": "HIGH0",
+     "stored": 0.168197,
+     "qlib_rebuilt": 0.16819,
+     "abs_diff": 6e-06
+    },
+    {
+     "col": "LOW0",
+     "stored": 0.894949,
+     "qlib_rebuilt": 0.894943,
+     "abs_diff": 6e-06
+    },
+    {
+     "col": "VSUMN60",
+     "stored": 0.92643,
+     "qlib_rebuilt": 0.926433,
+     "abs_diff": 3e-06
+    },
+    {
+     "col": "MAX10",
+     "stored": 0.264846,
+     "qlib_rebuilt": 0.264848,
+     "abs_diff": 2e-06
+    },
+    {
+     "col": "QTLU30",
+     "stored": 1.086548,
+     "qlib_rebuilt": 1.086547,
+     "abs_diff": 1e-06
+    }
+   ],
+   "shift_minus1_max_abs_diff": 2.542077095721598,
+   "shift_plus1_max_abs_diff": 2.0721865522239935,
+   "stored_row_mean": -0.0759,
+   "stored_row_std": 0.9735,
+   "rebuilt_row_mean": -0.0759,
+   "rebuilt_row_std": 0.9735,
+   "n_stored_at_clip": 1,
+   "n_rebuilt_at_clip": 1
+  },
+  {
+   "instrument": "sz300529",
+   "date": "2024-06-14",
+   "row_index": 4480,
+   "n_cols": 158,
+   "n_diff_gt_1e-4": 0,
+   "max_abs_diff": 1.3297892303532066e-05,
+   "top5": [
+    {
+     "col": "HIGH0",
+     "stored": 1.044981,
+     "qlib_rebuilt": 1.044967,
+     "abs_diff": 1.3e-05
+    },
+    {
+     "col": "VSUMN30",
+     "stored": 2.174793,
+     "qlib_rebuilt": 2.174791,
+     "abs_diff": 2e-06
+    },
+    {
+     "col": "VSUMP30",
+     "stored": -2.142465,
+     "qlib_rebuilt": -2.142467,
+     "abs_diff": 2e-06
+    },
+    {
+     "col": "MA60",
+     "stored": -0.678037,
+     "qlib_rebuilt": -0.678036,
+     "abs_diff": 1e-06
+    },
+    {
+     "col": "MAX10",
+     "stored": -0.073386,
+     "qlib_rebuilt": -0.073384,
+     "abs_diff": 1e-06
+    }
+   ],
+   "shift_minus1_max_abs_diff": 3.97360010272724,
+   "shift_plus1_max_abs_diff": 3.385950818272713,
+   "stored_row_mean": -0.0339,
+   "stored_row_std": 1.0255,
+   "rebuilt_row_mean": -0.0339,
+   "rebuilt_row_std": 1.0255,
+   "n_stored_at_clip": 1,
+   "n_rebuilt_at_clip": 1
+  }
+ ],
+ "verdict": "仍不能判定",
+ "why": ""
+}

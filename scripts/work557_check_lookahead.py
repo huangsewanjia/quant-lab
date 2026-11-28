@@ -45,7 +45,10 @@ REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 EXP = os.path.join(REPO, "experiments", "WORK-557")
 DATA = os.path.join(REPO, "data", "WORK-557")
 DS = os.path.join(DATA, "ds")
-TRAIN = ("2015-01-01", "2019-12-31")
+TRAIN = ("2009-01-01", "2019-12-31")   # 2026-11-29 修：原来写的是 2015–2019（WORK-503 的缩窗），
+                                        # 而 `work557_build_dataset.py` 的 fit_stats.npz 是按
+                                        # WORK-557 预注册 C1 的 2009–2019 拟合的。窗口不同 →
+                                        # f_mean/f_std 不同 → 逐列全"不一致"。改回 2009–2019。
 
 
 def main():
@@ -81,7 +84,9 @@ def main():
     skipped_fit = []
     for gstart in range(0, len(symbols), 120):
         group = symbols[gstart:gstart + 120]
-        raw = D.features(group, expr_list, start_time="2012-01-01",
+        # 2026-11-29 修：起点必须覆盖 cal（2006-01-04），否则 reindex 出的 2006–2011 行是 NaN，
+        # 会把 2009–2011 的 fit 行污染成 NaN，导致后面所有"不一致"都是假的。
+        raw = D.features(group, expr_list, start_time="2006-01-01",
                          end_time="2024-12-31")
         raw.columns = feat_names
         _have = set(raw.index.get_level_values("instrument"))
@@ -140,7 +145,7 @@ def main():
             break
         _sym = symbols[_si]
         try:
-            _probe = D.features([_sym], expr_list, start_time="2012-01-01",
+            _probe = D.features([_sym], expr_list, start_time="2006-01-01",
                                 end_time="2024-12-31")
             _probe.xs(_sym, level="instrument")
         except (KeyError, ValueError):
@@ -150,7 +155,7 @@ def main():
     out["n_instruments_used"] = len(_picked)
     for si in _picked:
         sym = symbols[si]
-        raw = D.features([sym], expr_list, start_time="2012-01-01",
+        raw = D.features([sym], expr_list, start_time="2006-01-01",
                          end_time="2024-12-31")
         raw.columns = feat_names
         sub = raw.xs(sym, level="instrument").reindex(cal).to_numpy("float64")

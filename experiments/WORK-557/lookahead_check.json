@@ -1,54 +1,51 @@
 {
- "features_checked": 2327786,
- "max_feat_abs_diff": 4.8147386139428265,
- "feature_date_mismatches": 1997525,
- "prior_max_abs_diff": 1.1053533991323152,
+ "features_checked": 2456852,
+ "max_feat_abs_diff": 2.8393914816682297e-05,
+ "feature_date_mismatches": 0,
+ "prior_max_abs_diff": 2.199693050375373e-06,
  "label_max_abs_diff": 7.352726982823299e-09,
  "samples": [
   {
    "instrument": "sz002424",
    "rows": 4616,
-   "max_abs_diff": 1.3489814187255784,
-   "n_clipped": 247203
+   "max_abs_diff": 2.8200202729422585e-05,
+   "n_clipped": 187282
   },
   {
    "instrument": "sz300529",
    "rows": 4616,
-   "max_abs_diff": 1.3489814187255784,
-   "n_clipped": 417543
+   "max_abs_diff": 2.8215851025858996e-05,
+   "n_clipped": 416430
   },
   {
    "instrument": "sz300999",
    "rows": 4616,
-   "max_abs_diff": 1.4613962029092276,
-   "n_clipped": 572731
+   "max_abs_diff": 2.8393914816682297e-05,
+   "n_clipped": 572366
   },
   {
    "instrument": "sh600332",
    "rows": 4616,
-   "max_abs_diff": 4.8147386139428265,
-   "n_clipped": 245880
+   "max_abs_diff": 2.8318197881294083e-05,
+   "n_clipped": 27160
   },
   {
    "instrument": "sh600271",
    "rows": 4616,
-   "max_abs_diff": 1.3489814187255784,
-   "n_clipped": 246051
+   "max_abs_diff": 2.8384313142115758e-05,
+   "n_clipped": 22657
   },
   {
-   "instrument": "sh603699",
+   "instrument": "sh600296",
    "rows": 4616,
-   "max_abs_diff": 1.4613962029092276,
-   "n_clipped": 318774
+   "max_abs_diff": 2.783612441348282e-05,
+   "n_clipped": 693221
   }
  ],
- "skipped_symbols": [
-  "sh600296"
- ],
  "n_instruments_used": 6,
- "prior_checked": 2625423,
- "prior_mismatches": 2617126,
+ "prior_checked": 2731806,
+ "prior_mismatches": 0,
  "label_checked": 125,
  "label_mismatches": 0,
- "passed": false
+ "passed": true
 }

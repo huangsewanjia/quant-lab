@@ -123,7 +123,7 @@ code{font-family:var(--mono);font-size:12.5px;background:#f4f4f2;padding:1px 4px
 
 <div class="verdict negative">
 <h3>结论</h3>
-<div class="word">两 seed 跑完：Δ_drop = <b>-10.19%</b>（部分复现，离 −10% 边界仅 0.19pp），净 SR &lt; 0 判退；无 MoE / 无先验两档仍未跑</div>
+<div class="word">两 seed 跑完：Δ_drop = <b>-10.19%</b>（部分复现，离 −10% 边界仅 0.19pp）—— <b>结论脆</b>：s2024 单 seed 已落在「退」带内</div>
 <div class="caveat">
 ① 8 次尝试全部在 15–30 s 内崩溃，根因是两处<b>适配层</b>不兼容（torch≥2 的 <code>Sampler</code> 签名、
 Windows spawn 下闭包 <code>collate_fn</code> 不可 pickle），已在适配层修好，未改 vendor；
@@ -158,6 +158,24 @@ seed 42 缺 GRU 基线（<code>gru_s42</code> 从未成功），故 H2 只有 1/
 <tr><td><b>Δ_drop</b>（H1）</td><td class="num" colspan="7"><b>-10.19%</b> —— 预注册带：进 [−40%,−15%] / 退 [−10%,+10%]，
 其余判「部分复现」→ <b>部分复现</b>（论文 Table 2 的 Δ_formula = 26.93%，即 Δ_drop = −26.93%，本单弱了 16.7 个百分点）</td></tr>
 </tbody></table>
+
+<div class="keybox">
+<h3>边界与翻带条件（必须一起读）</h3>
+<p>预注册的判带是：进 [−40%, −15%]、退 [−10%, +10%]，其余判「部分复现」。本单三个口径分别落在：</p>
+<table>
+<caption>表 0c｜同一批结果的三种读数（H1 的边界脆性）</caption>
+<thead><tr><th>口径</th><th class="num">Δ_drop</th><th>落在哪一带</th><th>差多少</th></tr></thead>
+<tbody>
+<tr><td>seed 42 单 seed</td><td class="num">-13.83%</td><td>部分复现</td><td>离「退」边界 −10% 有 3.83pp 余量</td></tr>
+<tr><td>seed 2024 单 seed</td><td class="num">-6.46%</td><td><b>「退」带内</b>（&gt; −10%）</td><td>深入「退」带 3.54pp</td></tr>
+<tr><td><b>两 seed 中位数（预注册口径）</b></td><td class="num"><b>-10.19%</b></td><td><b>部分复现</b></td>
+<td><b>只超「退」边界 0.19pp</b></td></tr>
+</tbody></table>
+<p><b>翻带条件（写死，便于复核）</b>：① 再补一个 seed，若其 Δ_drop &gt; −10%，中位数会跟着挪；
+② 换合并口径（如取两 seed 的均值而非中位数：(-13.83% + -6.46%)/2 = -10.15%），同样可能落进「退」；
+③ 结论对 RankIC 的极小幅波动敏感 —— 只要 no_vq 的 RankIC 再高 0.0008 左右，Δ_drop 就会跨过 −10%。
+所以本单的 H1 应读作「<b>不支持「码本无效」（退），但也不足以判「进」</b>」，不能读作「码本有效性已被证实」。</p>
+</div>
 
 <table>
 <caption>表 0b｜成本敏感性（seed 42，同一组预测只换成本点）。0 bps 是事后诊断，不入预注册。</caption>
@@ -265,7 +283,9 @@ NVIDIA GeForce RTX 3060, 1818 MiB, 12288 MiB, 11 %</pre>
 <td class="st teal">2/4 → <b>seed 42 可判：-10.19%（部分复现）</b>；缺 s2024，未达 ≥2 seed</td></tr>
 <tr><td>H2</td><td>vs GRU 基线的 RankIC 差，10,000 次 block bootstrap（block=5 日）95% CI</td>
 <td><code>full_*</code> 两份 + <code>gru_*</code> 两份（后者本单有 1 份）</td>
-<td class="st teal">1/2 → <b>seed 2024 可判</b>：ΔRankIC +0.0188，95% CI [+0.0050, +0.0313]（不含 0）；seed 42 缺 gru_s42</td></tr>
+<td class="st teal">1/2 → <b>seed 2024 可判</b>：ΔRankIC +0.0188，95% CI [+0.0050, +0.0313]（<b>不含 0</b>）；
+seed 42 缺 gru_s42。<code>H2.note</code> 里原来那句「CI 含 0 判与论文自曝弱点一致」是模板残留，
+已改为按实测逐 seed 生成（本 seed CI 不含 0）</td></tr>
 <tr><td>H3</td><td>净 SR（8 / 30 bps 两档）、AR、MDD、换手；净 SR &lt; 0 直接判退</td>
 <td>四档 × 成本档回测产物</td>
 <td class="st teal">4/8 → 两 seed 的 full/no_vq 可判：净 SR 中位 -0.1282，<b>判退</b>；
@@ -319,8 +339,10 @@ WORK-503 数值取自 <code>experiments/WORK-503/verdict.json</code> 的 <code>r
 <tr><td>H2 vs GRU 增量 CI</td><td class="num">见 503 §H2</td>
 <td class="num">+0.0188 [+0.0050, +0.0313]</td><td class="num">—</td>
 <td><b>可判（s2024）</b>：10,000 次 block bootstrap（block=5）95% CI <b>不含 0</b>；s42 缺 <code>gru_s42</code></td></tr>
-<tr><td>H3 净 SR（8/30 bps）</td><td class="num">见 503</td><td class="num">-0.1282（两 seed 中位）</td>
-<td class="num">—</td><td><b>可判</b>：判退（&lt;0）；<b>已独立复算 0 mismatch @1e-6</b></td></tr>
+<tr><td>H3 净 SR（8/30 bps）</td><td class="num">见 503</td><td class="num">-0.1282</td>
+<td class="num">—</td><td><b>可判</b>：判退（&lt;0）；已独立复算 0 mismatch @1e-6。
+<b>口径</b>：-0.1282 是 <b>full 档两 seed 的中位</b>（per-seed -0.1935 / -0.0628）；
+若把四个 VQ run（full+no_vq × 2 seed）一起取中位，则是 <b>-0.2079</b>（差 8.0pp）</td></tr>
 </tbody></table>
 <p class="note"><b>必须回答的那一句</b>：训练窗从 2015 扩到 2009、轮数从 6 放到 50，
 <b>Δ_drop 变没变、往哪边变？—— 无法回答</b>。Δ_drop 的两端（PRISM-VQ full 与 no_vq）
@@ -462,7 +484,16 @@ WORK-503 数值取自 <code>experiments/WORK-503/verdict.json</code> 的 <code>r
 <tr><td>8</td><td>两份沉淀</td><td class="st teal">已交付</td><td><code>data_health_checklist.md</code>、<code>window_cost_note.md</code></td></tr>
 </tbody></table>
 
-<li><b>lookahead 检查仍不可用（已修到能跑完，但未通过）</b>：修掉 <code>KeyError: sh600001</code>
+<li><b>lookahead 检查：已通过（2026-11-29 定位到根因在检查脚本自己身上）</b>——
+<code>feature_date_mismatches = 0 / 2,327,786</code>、<code>prior_mismatches = 0 / 2,731,806</code>、
+<code>label_mismatches = 0</code>，最大残差 2.8e-05 / 2.2e-06 / 7.4e-09（float32 量级）。
+根因：检查脚本的 <code>TRAIN</code> 常量写成了 <b>2015–2019</b>（WORK-503 的缩窗），
+而 <code>work557_build_dataset.py</code> 的 <code>fit_stats</code> 是按本单预注册 C1 的
+<b>2009–2019</b> 拟合的 —— 拟合窗口不同 → <code>f_mean/f_std</code> 不同 → 逐列**全都**对不上，
+看起来像 86% 的行「日期错位」。逐列取证：6 个探针日 × 2 只票 × 158 列，<b>0/158 列差异 &gt; 1e-4</b>；
+把 qlib 侧整体前移/后移一天后差值反而升到 1.8–4.0（排除日期错位）。改回 2009–2019 后检查通过。
+下一条是修之前的状态，保留以免误导：</li>
+<li><b>（历史）lookahead 曾不可用</b>：修掉 <code>KeyError: sh600001</code>
 （qlib 二进制缺票 → 现按候选序跳过并记 <code>skipped_symbols</code>）后能完整跑完，结果是
 标签轴 <code>label_max_abs_diff = 7.4e-9</code>（通过），但 <code>feature_date_mismatches = 1,997,525 / 2,327,786</code>、
 <code>prior_mismatches = 2,617,126 / 2,625,423</code>，最大绝对差 1.35–4.81 且呈<b>常量偏移</b> ——

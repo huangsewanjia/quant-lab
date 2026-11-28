@@ -152,3 +152,15 @@ cd C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-
   I3 从 false → **true**；I4 仍是 5,798 条，全部落在 2012-01-04 起头 20 个交易日（检查读的是 503 时代新浪快照，起点 2012）。
 - `scripts/work557_check_lookahead.py`：qlib 缺票导致 `KeyError: sh600001` → 改为按候选序跳过并记录；
   现在能跑完，但 **feature/prior 两轴仍未通过**（标签轴 0 差）。
+
+## 2026-11-29（不占 GPU）：前视检查根因 + 四处口径
+
+- **lookahead 通过**：根因是 `scripts/work557_check_lookahead.py` 的 `TRAIN` 常量写成 **2015–2019**
+  （WORK-503 的缩窗），而 `work557_build_dataset.py` 的 `fit_stats` 按本单预注册 C1 是 **2009–2019**。
+  拟合窗口不同 → `f_mean/f_std` 不同 → 逐列全"不一致"（2.1M 格）。
+  改回 2009–2019 后：feature 0/2,327,786、prior 0/2,731,806、label 0；最大残差 2.8e-05/2.2e-06/7.4e-09。
+  逐列取证脚本：`experiments/WORK-557/work557_lookahead_rootcause.py`（6 探针 × 158 列，0/158 差 > 1e-4）、
+  `work557_lookahead_where.py`（两只票全 4,616 天，0 坏格）。
+- `verdict.py`：`H2.note` 由模板改为按实测 CI 逐 seed 生成（原来写死「CI 含 0」，与 lo/hi 自相矛盾）。
+- `audit/recompute_work557.py`：输出改 utf-8（原来 Windows 默认 cp936 → GBK 文件）。
+  独立复算没有 import 建模模块的证据字段在 `independence.modeling_imports_found = 0`。
