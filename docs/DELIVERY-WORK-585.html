@@ -39,7 +39,7 @@ footer{margin-top:56px;border-top:1px solid var(--line);padding-top:14px;
 </style></head><body><main>
 
 <h1>行业装载变更留痕：diff 日志 + 快照源整源替换</h1>
-<p class="sub">WORK-585 · 数据底座 quantdb · 生成于 2026-11-29 00:06 CST · 目标 runtime：Mo-server</p>
+<p class="sub">WORK-585 · 数据底座 quantdb · 生成于 2026-11-29 00:07 CST · 目标 runtime：Mo-server</p>
 
 <div class="lede">
 <b>一句话：</b>装载器现在每次替换前先把「库内现状 vs 本次快照」的逐行差异写进
@@ -187,14 +187,13 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 <p>run <code>20261129T000158</code>：diff 行合计 <b>17</b>，
 覆盖 <b>17</b> 张表；库内 <code>industry_*</code> 基表
 <b>21</b> 张（17 观测 + 1 预测 + audit + diff + catalog_map），
-行业层业务表合计（17 观测 + 1 预测）<b>265,638</b> 行；近 30 天复核视图 <b>47</b> 行
-（本次装载与库内一致，没有值变化与被删行，视图为空是正确结果）。</p>
+行业层业务表合计（17 观测 + 1 预测）<b>265,638</b> 行；近 30 天复核视图 <b>47</b> 行（视图里的行是近 30 天的历史变更，本轮装载本身 0 值变化 0 删行）。</p>
 <table>
 <tr><th>table_name</th><th>change_type</th><th class="num">n</th></tr>
 <tr><td>industry_benchmark_public_index</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_caam_auto_output</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_chinamoney_lpr</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_cnesa_storage</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_cninfo_announcements</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_comtrade_trade_values</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_cpcaauto_nev</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_exchange_daily_quotes</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_gfex_lithium_carbonate</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_mof_fiscal</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_nea_power</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_ow_iea_usgs_timeseries</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_pbc_shrzgm</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_ppi_spot_prices</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_sne_public_battery</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_stats_gov_release</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_trendforce_spot_price</td><td>no_change</td><td class='num'>1</td></tr>
 </table>
 <p class="muted">自检：各 <code>change_type</code> 分项相加 = 17；
-各表相加 = 17。统计时点 2026-11-29 00:06 CST。</p>
+各表相加 = 17。统计时点 2026-11-29 00:07 CST。</p>
 
 <h3>6.5 四要素实证：出处覆盖率与上游原句</h3>
 <p>变更行（<code>value_changed</code> / <code>row_added</code> / <code>row_dropped</code>）
@@ -210,7 +209,7 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 <td class="num"><b>100.0%</b></td><td class="num">—</td></tr>
 </table>
 <p class="muted">自检：各源变更行相加 = 706；有 source_doc 相加 = 706；
-缺口 = 0。统计时点 2026-11-29 00:06 CST。</p>
+缺口 = 0。统计时点 2026-11-29 00:07 CST。</p>
 
 <h3>6.6 value_changed 的 reason 长什么样（取 5 行）</h3>
 <p class="muted">生产 raw 这两天没有值变化（<code>value_changed</code> 现读 0 行），下面 5 行取自

@@ -240,6 +240,9 @@ def main() -> None:
     cov_pct = round(100.0 * cov_doc / cov_total, 1) if cov_total else 0.0
     samples = (demo.get("changed") or [])[:5]
     n_changed = len(demo.get("changed") or [])
+    view_note = ("（本轮装载与库内逐行一致，0 值变化 / 0 删行，视图为空是正确结果）"
+                 if view_n == 0 else
+                 "（视图里的行是近 30 天的历史变更，本轮装载本身 0 值变化 0 删行）")
     sample_rows = "".join(
         f"<tr><td>{esc(r.get('indicator',''))}</td>"
         f"<td>{esc(r.get('old_value',''))} → <b>{esc(r.get('new_value',''))}</b></td>"
@@ -438,8 +441,7 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 <p>run <code>{esc(run_id or "—")}</code>：diff 行合计 <b>{diff_total}</b>，
 覆盖 <b>{len({t for t, _, _ in per_table})}</b> 张表；库内 <code>industry_*</code> 基表
 <b>{tables_n}</b> 张（17 观测 + 1 预测 + audit + diff + catalog_map），
-行业层业务表合计（17 观测 + 1 预测）<b>{fmt(obs_rows)}</b> 行；近 30 天复核视图 <b>{view_n}</b> 行
-（本次装载与库内一致，没有值变化与被删行，视图为空是正确结果）。</p>
+行业层业务表合计（17 观测 + 1 预测）<b>{fmt(obs_rows)}</b> 行；近 30 天复核视图 <b>{view_n}</b> 行{view_note}。</p>
 <table>
 <tr><th>table_name</th><th>change_type</th><th class="num">n</th></tr>
 {rows_html}
