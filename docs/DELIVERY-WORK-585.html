@@ -39,7 +39,7 @@ footer{margin-top:56px;border-top:1px solid var(--line);padding-top:14px;
 </style></head><body><main>
 
 <h1>行业装载变更留痕：diff 日志 + 快照源整源替换</h1>
-<p class="sub">WORK-585 · 数据底座 quantdb · 生成于 2026-11-29 00:05 CST · 目标 runtime：Mo-server</p>
+<p class="sub">WORK-585 · 数据底座 quantdb · 生成于 2026-11-29 00:06 CST · 目标 runtime：Mo-server</p>
 
 <div class="lede">
 <b>一句话：</b>装载器现在每次替换前先把「库内现状 vs 本次快照」的逐行差异写进
@@ -145,8 +145,8 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 [213.3, 54.0, 31.3, 144.7, 85.0] 改成 150.9，并删掉 2022-01 那一期，第 3 轮原样重跑。</p>
 <figure><svg viewBox="0 0 630 154" width="100%" role="img" aria-label="三轮演示的差异构成"><text x="4" y="31" font-size="12" fill="#334155">第 1 轮 首次装载（空表）</text><rect x="210" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="225" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="240" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="255" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="270" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="285" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="300" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="315" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="330" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="345" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="360" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="375" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="390" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="405" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="420" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="435" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="450" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="465" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="480" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="495" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="510" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="525" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="210" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="225" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="240" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="255" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="270" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="285" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="300" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="315" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="330" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="345" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="360" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><text x="548" y="29" font-size="12" fill="#0f172a">33 行</text><text x="4" y="65" font-size="12" fill="#334155">第 2 轮 值修改 + 撤期</text><rect x="210" y="52" width="12" height="12" rx="2" fill="#f59e0b"><title>值变化</title></rect><rect x="225" y="52" width="12" height="12" rx="2" fill="#f59e0b"><title>值变化</title></rect><rect x="240" y="52" width="12" height="12" rx="2" fill="#f59e0b"><title>值变化</title></rect><rect x="255" y="52" width="12" height="12" rx="2" fill="#f59e0b"><title>值变化</title></rect><rect x="270" y="52" width="12" height="12" rx="2" fill="#f59e0b"><title>值变化</title></rect><rect x="285" y="52" width="12" height="12" rx="2" fill="#dc2626"><title>行被删</title></rect><text x="548" y="63" font-size="12" fill="#0f172a">6 行</text><text x="4" y="99" font-size="12" fill="#334155">第 3 轮 同 raw 重跑</text><rect x="210" y="86" width="12" height="12" rx="2" fill="#94a3b8"><title>无变化汇总</title></rect><text x="548" y="97" font-size="12" fill="#0f172a">1 行</text><rect x="210" y="133" width="11" height="11" rx="2" fill="#1d4ed8"/><text x="226" y="144" font-size="11" fill="#334155">新增行</text><rect x="360" y="133" width="11" height="11" rx="2" fill="#f59e0b"/><text x="376" y="144" font-size="11" fill="#334155">值变化</text><rect x="510" y="133" width="11" height="11" rx="2" fill="#dc2626"/><text x="526" y="144" font-size="11" fill="#334155">行被删</text><rect x="660" y="133" width="11" height="11" rx="2" fill="#94a3b8"/><text x="676" y="144" font-size="11" fill="#334155">无变化汇总</text></svg>
 <figcaption>图 2｜三轮演示各自的 diff 构成。第 1 轮空表装载全是 <code>row_added</code>；
-第 2 轮恰好 1 条 <code>value_changed</code>（144.7 → 150.9）+ 1 条 <code>row_dropped</code>（2022-01 撤期）；
-第 3 轮同 raw 重跑只写 1 行 <code>no_change</code> 汇总。</figcaption></figure>
+第 2 轮 5 条 <code>value_changed</code>（每行 reason 带上游原句）+ 1 条
+<code>row_dropped</code>（2022-01 撤期）；第 3 轮同 raw 重跑只写 1 行 <code>no_change</code> 汇总。</figcaption></figure>
 <table>
 <tr><th>轮次</th><th>change_type</th><th>indicator</th><th>old → new</th>
 <th>reason（改动原因）</th><th>source_doc（对应 URL）</th></tr>
@@ -194,7 +194,7 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 <tr><td>industry_benchmark_public_index</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_caam_auto_output</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_chinamoney_lpr</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_cnesa_storage</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_cninfo_announcements</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_comtrade_trade_values</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_cpcaauto_nev</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_exchange_daily_quotes</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_gfex_lithium_carbonate</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_mof_fiscal</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_nea_power</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_ow_iea_usgs_timeseries</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_pbc_shrzgm</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_ppi_spot_prices</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_sne_public_battery</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_stats_gov_release</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_trendforce_spot_price</td><td>no_change</td><td class='num'>1</td></tr>
 </table>
 <p class="muted">自检：各 <code>change_type</code> 分项相加 = 17；
-各表相加 = 17。统计时点 2026-11-29 00:05 CST。</p>
+各表相加 = 17。统计时点 2026-11-29 00:06 CST。</p>
 
 <h3>6.5 四要素实证：出处覆盖率与上游原句</h3>
 <p>变更行（<code>value_changed</code> / <code>row_added</code> / <code>row_dropped</code>）
@@ -210,7 +210,7 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 <td class="num"><b>100.0%</b></td><td class="num">—</td></tr>
 </table>
 <p class="muted">自检：各源变更行相加 = 706；有 source_doc 相加 = 706；
-缺口 = 0。统计时点 2026-11-29 00:05 CST。</p>
+缺口 = 0。统计时点 2026-11-29 00:06 CST。</p>
 
 <h3>6.6 value_changed 的 reason 长什么样（取 5 行）</h3>
 <p class="muted">生产 raw 这两天没有值变化（<code>value_changed</code> 现读 0 行），下面 5 行取自
@@ -336,7 +336,7 @@ QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
 branch: agent/work-585-diff-log
 base_sha: 59e5682e438373d594c482257a095a364adf20f8   # WORK-584 交付 tip
 func_sha: 1df4704e7b74965601fbcefc468d132515d60095   # 功能实现提交（reason/source_doc/回滚三项）
-head_sha: fab67c986a25601043e601d3ee4438e540eab8cc
+head_sha: 9f4dde4ec2227ab590938f6eca05e76a9873d67d
 files (8):
 1b66f08d122402d674ac025908b9e3d009eab293041794fc2e6d056bb84897a2  db/etl/industry.py
 953b45baea45d716abd3a65b3b929811b25f64d35b9937a64f62bcf2232d9029  db/checks/industry.py

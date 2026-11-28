@@ -239,6 +239,7 @@ def main() -> None:
     )
     cov_pct = round(100.0 * cov_doc / cov_total, 1) if cov_total else 0.0
     samples = (demo.get("changed") or [])[:5]
+    n_changed = len(demo.get("changed") or [])
     sample_rows = "".join(
         f"<tr><td>{esc(r.get('indicator',''))}</td>"
         f"<td>{esc(r.get('old_value',''))} → <b>{esc(r.get('new_value',''))}</b></td>"
@@ -400,8 +401,8 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 {demo.get("before_value")} 改成 150.9，并删掉 2022-01 那一期，第 3 轮原样重跑。</p>
 <figure>{demo_svg(demo)}
 <figcaption>图 2｜三轮演示各自的 diff 构成。第 1 轮空表装载全是 <code>row_added</code>；
-第 2 轮恰好 1 条 <code>value_changed</code>（144.7 → 150.9）+ 1 条 <code>row_dropped</code>（2022-01 撤期）；
-第 3 轮同 raw 重跑只写 1 行 <code>no_change</code> 汇总。</figcaption></figure>
+第 2 轮 {n_changed} 条 <code>value_changed</code>（每行 reason 带上游原句）+ 1 条
+<code>row_dropped</code>（2022-01 撤期）；第 3 轮同 raw 重跑只写 1 行 <code>no_change</code> 汇总。</figcaption></figure>
 <table>
 <tr><th>轮次</th><th>change_type</th><th>indicator</th><th>old → new</th>
 <th>reason（改动原因）</th><th>source_doc（对应 URL）</th></tr>
