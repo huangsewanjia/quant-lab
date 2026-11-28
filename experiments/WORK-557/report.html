@@ -123,7 +123,7 @@ code{font-family:var(--mono);font-size:12.5px;background:#f4f4f2;padding:1px 4px
 
 <div class="verdict negative">
 <h3>结论</h3>
-<div class="word">段 2 未达成：四档 PRISM-VQ × 2 seed = 8 次尝试，<b>0 次进入有效训练</b></div>
+<div class="word">seed 42 两档已跑出：Δ_drop = <b>−13.83%</b>（部分复现），净 SR &lt; 0 判退；其余三档仍未跑</div>
 <div class="caveat">
 ① 8 次尝试全部在 15–30 s 内崩溃，根因是两处<b>适配层</b>不兼容（torch≥2 的 <code>Sampler</code> 签名、
 Windows spawn 下闭包 <code>collate_fn</code> 不可 pickle），已在适配层修好，未改 vendor；
@@ -135,9 +135,40 @@ stage-2（MoE + Transformer 预测器，VQ-VAE 冻结）也已完成实测：<b>
 <b>早停口径 ≈ 11.7 h</b>、悲观上界 178 h。
 （上一版写的「单档 3.4 h &gt; 3 h 闸、全量 62 h」是 50 步外推，<b>已被实测推翻并作废</b>，
 差异来自冷启动被摊进前 50 步；三档口径并列在表 5 / 表 5b。）
-③ 唯一跑完的是 GRU 基线 s2024（50 轮 / 4,310 s），因此 <b>H1/H2/H3 全部不可判</b> —— 不是「跑了不支持」，
-是「没跑出来」。本报告不替它们下判词。
+③ 2026-11-28 晚补跑 <code>full / seed 42</code> 与 <code>no_vq / seed 42</code>（各含 stage-1 + stage-2），
+预测与回测已出，<b>H1 可判</b>：Δ_drop = <b>-13.83%</b>，落在「部分复现」带（不进 [−40%,−15%] 也不退 [−10%,+10%]）；
+H3 仍判<b>退</b>（净 SR -0.194 &lt; 0，与 H1 无关）。<b>H2 仍不可判</b>（缺 gru_s42 与其余两档），
+且本结果<b>只有 1 个 seed（n_seeds=1），不满足预注册的 ≥2 seed</b>。
 </div>
+</div>
+
+<div class="keybox">
+<h3>seed 42 的结果（2026-11-28 晚补跑，n_seeds = 1）</h3>
+<table>
+<caption>表 0｜seed 42 两档：预测质量（RankIC 由 test 段 2022–2024 计算）与组合表现（5/15 bps 主口径）。</caption>
+<thead><tr><th>档</th><th class="num">RankIC</th><th class="num">RankICIR</th><th class="num">净 SR</th>
+<th class="num">年化 AR</th><th class="num">MDD</th><th class="num">日均单边换手</th><th class="num">实际轮次</th></tr></thead>
+<tbody>
+<tr><td>PRISM-VQ full</td><td class="num">0.0716</td><td class="num">0.4956</td><td class="num">-0.1935</td>
+<td class="num">-3.76%</td><td class="num">0.3281</td><td class="num">0.1669</td><td class="num">28（早停）</td></tr>
+<tr><td>PRISM-VQ no_vq</td><td class="num">0.0617</td><td class="num">0.4168</td><td class="num">-0.2681</td>
+<td class="num">-5.01%</td><td class="num">0.3912</td><td class="num">0.1667</td><td class="num">早停</td></tr>
+<tr><td><b>Δ_drop</b>（H1）</td><td class="num" colspan="7"><b>-13.83%</b> —— 预注册带：进 [−40%,−15%] / 退 [−10%,+10%]，
+其余判「部分复现」→ <b>部分复现</b>（论文 Table 2 的 Δ_formula = 26.93%，即 Δ_drop = −26.93%，本单弱了 13.1 个百分点）</td></tr>
+</tbody></table>
+
+<table>
+<caption>表 0b｜成本敏感性（seed 42，同一组预测只换成本点）。0 bps 是事后诊断，不入预注册。</caption>
+<thead><tr><th>成本点</th><th class="num">full 净 SR</th><th class="num">no_vq 净 SR</th><th class="num">full 年化</th><th class="num">no_vq 年化</th></tr></thead>
+<tbody>
+<tr><td>0 bps（事后诊断）</td><td class="num">0.2316</td><td class="num">0.1712</td><td class="num">4.69%</td><td class="num">3.33%</td></tr>
+<tr><td>单边 8 bps（预注册敏感性）</td><td class="num">-0.1089</td><td class="num">-0.1807</td><td class="num">-2.13%</td><td class="num">-3.41%</td></tr>
+<tr><td>买 5 / 卖 15 bps（主口径）</td><td class="num">-0.1935</td><td class="num">-0.2681</td><td class="num">-3.76%</td><td class="num">-5.01%</td></tr>
+<tr><td>双边 30 bps（预注册敏感性）</td><td class="num">-0.4060</td><td class="num">-0.4878</td><td class="num">-7.74%</td><td class="num">-8.94%</td></tr>
+</tbody></table>
+<p class="note">读法：<b>毛利（0 bps）是正的</b>（full SR 0.232 / no_vq 0.171），
+到 8 bps 就转负 —— 与 WORK-503 同型：信号有，但被日均 16.7% 的换手吃掉了。
+主口径下 full 净 SR -0.194 &lt; 0，按预注册 <b>H3 判退</b>（与 H1 无关，直接判退）。</p>
 </div>
 
 <h2><span class="num">1</span>现场取证：计划任务到底跑出了什么</h2>
@@ -218,7 +249,7 @@ NVIDIA GeForce RTX 3060, 1818 MiB, 12288 MiB, 11 %</pre>
 在 <code>num_workers=2</code> 下 10 轮跑完并正常退出；真正要治的是 <b>8 worker 的 spawn 不稳定</b>，
 下一轮起训一律用 <code>--workers 2</code>。</p>
 
-<h2><span class="num">3</span>段 3 主检验：H1 / H2 / H3 全部「不可判」</h2>
+<h2><span class="num">3</span>段 3 主检验：H1 已可判（seed 42），H2 仍不可判</h2>
 
 <p class="lead">预注册把判词写死成对 <b>full 与 no_vq 两档的 RankIC 之差</b>，而这两档本单都没有产物。
 所以本节不给判词 —— 给的是「为什么不给」以及「能给的那一格」。</p>
@@ -228,11 +259,13 @@ NVIDIA GeForce RTX 3060, 1818 MiB, 12288 MiB, 11 %</pre>
 <thead><tr><th>假设</th><th>定义（照抄）</th><th>需要的产物</th><th>本单</th></tr></thead>
 <tbody>
 <tr><td>H1</td><td>Δ_drop = (RankIC_no_vq − RankIC_full) / RankIC_full，取两 seed 中位数</td>
-<td><code>full_{s42,s2024}</code>、<code>no_vq_{s42,s2024}</code> 四份预测</td><td class="st red">0/4 → 不可判</td></tr>
+<td><code>full_{s42,s2024}</code>、<code>no_vq_{s42,s2024}</code> 四份预测</td>
+<td class="st teal">2/4 → <b>seed 42 可判：-13.83%（部分复现）</b>；缺 s2024，未达 ≥2 seed</td></tr>
 <tr><td>H2</td><td>vs GRU 基线的 RankIC 差，10,000 次 block bootstrap（block=5 日）95% CI</td>
 <td><code>full_*</code> 两份 + <code>gru_*</code> 两份（后者本单有 1 份）</td><td class="st red">0/2 → 不可判</td></tr>
 <tr><td>H3</td><td>净 SR（8 / 30 bps 两档）、AR、MDD、换手；净 SR &lt; 0 直接判退</td>
-<td>四档 × 成本档的回测产物</td><td class="st red">0/8 → 不可判</td></tr>
+<td>四档 × 成本档回测产物</td>
+<td class="st red">2/8 → seed 42 两档可判：净 SR -0.194 / -0.268，<b>判退</b></td></tr>
 </tbody></table>
 
 

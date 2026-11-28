@@ -1,0 +1,125 @@
+{
+ "full_s42": {
+  "rankic": 0.07155735541735327,
+  "rankicir": 0.49563070600979403,
+  "ar": 0.04685446896077483,
+  "mdd": 0.25316569406936396,
+  "sr": 0.23159435960946217,
+  "turnover": 0.16675628530598496,
+  "turnover_both_sides": 0.3335125706119699,
+  "days": 725,
+  "mean_holdings": 29.78896551724138,
+  "mean_cash_weight": 0.0323890762081332,
+  "n_trades": 11044,
+  "violation": "",
+  "alpha_equal_weight": {
+   "n_days": 725,
+   "excess_annualized": 0.13669512810164297,
+   "information_ratio": 0.08109599616743117,
+   "tracking_error": 0.0066888750390389565,
+   "bench_annualized": -0.0713371359550329,
+   "port_annualized": 0.0653579921466101,
+   "benchmark": "PIT 名单等权（自建）"
+  },
+  "alpha_cap_weighted": {
+   "n_days": 725,
+   "excess_annualized": 0.018487125747570873,
+   "information_ratio": 0.010316290896448563,
+   "tracking_error": 0.0071112389952733245,
+   "bench_annualized": 0.0468708663990392,
+   "port_annualized": 0.0653579921466101,
+   "benchmark": "PIT 名单总市值加权（自建；非指数口径，指数为自由流通市值加权）"
+  },
+  "alpha_index": {
+   "n_days": 725,
+   "excess_annualized": 0.12531303610656425,
+   "information_ratio": 0.07256791763569428,
+   "tracking_error": 0.006852531655934278,
+   "bench_annualized": -0.05995504395995416,
+   "port_annualized": 0.0653579921466101,
+   "benchmark": "CSI300 指数（000300.SH，价格指数）"
+  }
+ },
+ "no_vq_s42": {
+  "rankic": 0.06166114728031629,
+  "rankicir": 0.4168098504338388,
+  "ar": 0.03332618627272166,
+  "mdd": 0.2781760093448258,
+  "sr": 0.17118372071971966,
+  "turnover": 0.16661764540441004,
+  "turnover_both_sides": 0.3332352908088201,
+  "days": 725,
+  "mean_holdings": 29.817931034482758,
+  "mean_cash_weight": 0.028950098428813596,
+  "n_trades": 11270,
+  "violation": "",
+  "alpha_equal_weight": {
+   "n_days": 725,
+   "excess_annualized": 0.12249874751484506,
+   "information_ratio": 0.08469079817595852,
+   "tracking_error": 0.0057397751751254306,
+   "bench_annualized": -0.0713371359550329,
+   "port_annualized": 0.0511616115598122,
+   "benchmark": "PIT 名单等权（自建）"
+  },
+  "alpha_cap_weighted": {
+   "n_days": 725,
+   "excess_annualized": 0.004290745160772978,
+   "information_ratio": 0.00266362306643145,
+   "tracking_error": 0.006392333331838592,
+   "bench_annualized": 0.0468708663990392,
+   "port_annualized": 0.0511616115598122,
+   "benchmark": "PIT 名单总市值加权（自建；非指数口径，指数为自由流通市值加权）"
+  },
+  "alpha_index": {
+   "n_days": 725,
+   "excess_annualized": 0.11111665551976635,
+   "information_ratio": 0.07576514990722888,
+   "tracking_error": 0.00581981438359632,
+   "bench_annualized": -0.05995504395995416,
+   "port_annualized": 0.0511616115598122,
+   "benchmark": "CSI300 指数（000300.SH，价格指数）"
+  }
+ },
+ "gru_s2024": {
+  "rankic": 0.05125543391204701,
+  "rankicir": 0.33846093103289027,
+  "ar": -0.04611725001925249,
+  "mdd": 0.3644214292525716,
+  "sr": -0.22939819252132135,
+  "turnover": 0.16666219497317963,
+  "turnover_both_sides": 0.33332438994635927,
+  "days": 725,
+  "mean_holdings": 29.784827586206898,
+  "mean_cash_weight": 0.036026173037009245,
+  "n_trades": 10979,
+  "violation": "",
+  "alpha_equal_weight": {
+   "n_days": 725,
+   "excess_annualized": 0.04533206611296828,
+   "information_ratio": 0.029622201482737257,
+   "tracking_error": 0.0060727813004300335,
+   "bench_annualized": -0.0713371359550329,
+   "port_annualized": -0.02600506984206461,
+   "benchmark": "PIT 名单等权（自建）"
+  },
+  "alpha_cap_weighted": {
+   "n_days": 725,
+   "excess_annualized": -0.07287593624110382,
+   "information_ratio": -0.042169477877111776,
+   "tracking_error": 0.0068578089589282415,
+   "bench_annualized": 0.0468708663990392,
+   "port_annualized": -0.02600506984206461,
+   "benchmark": "PIT 名单总市值加权（自建；非指数口径，指数为自由流通市值加权）"
+  },
+  "alpha_index": {
+   "n_days": 725,
+   "excess_annualized": 0.033949974117889546,
+   "information_ratio": 0.021551338434853393,
+   "tracking_error": 0.006251218221210731,
+   "bench_annualized": -0.05995504395995416,
+   "port_annualized": -0.02600506984206461,
+   "benchmark": "CSI300 指数（000300.SH，价格指数）"
+  }
+ }
+}

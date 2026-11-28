@@ -1,0 +1,121 @@
+{
+ "tolerance": 1e-06,
+ "items": {
+  "full_s42": {
+   "rankic": 0.07155735541735327,
+   "rankicir": 0.49563070600979403,
+   "ar": 0.0,
+   "mdd": 0.0,
+   "sr": NaN,
+   "turnover": 0.0,
+   "days": 725
+  },
+  "no_vq_s42": {
+   "rankic": 0.06166114728031629,
+   "rankicir": 0.4168098504338388,
+   "ar": 0.0,
+   "mdd": 0.0,
+   "sr": NaN,
+   "turnover": 0.0,
+   "days": 725
+  },
+  "gru_s2024": {
+   "rankic": 0.05125543391204701,
+   "rankicir": 0.33846093103289027,
+   "ar": 0.0,
+   "mdd": 0.0,
+   "sr": NaN,
+   "turnover": 0.0,
+   "days": 725
+  }
+ },
+ "mismatches": [
+  {
+   "key": "full_s42",
+   "field": "ar",
+   "model_side": -0.03760962586782879,
+   "recompute": 0.0,
+   "rel_diff": 1.0
+  },
+  {
+   "key": "full_s42",
+   "field": "mdd",
+   "model_side": 0.32806574564184443,
+   "recompute": 0.0,
+   "rel_diff": 1.0
+  },
+  {
+   "key": "full_s42",
+   "field": "turnover",
+   "model_side": 0.16687553533107155,
+   "recompute": 0.0,
+   "rel_diff": 1.0
+  },
+  {
+   "key": "no_vq_s42",
+   "field": "ar",
+   "model_side": -0.05013329165252378,
+   "recompute": 0.0,
+   "rel_diff": 1.0
+  },
+  {
+   "key": "no_vq_s42",
+   "field": "mdd",
+   "model_side": 0.39123560368621924,
+   "recompute": 0.0,
+   "rel_diff": 1.0
+  },
+  {
+   "key": "no_vq_s42",
+   "field": "turnover",
+   "model_side": 0.16673730619804084,
+   "recompute": 0.0,
+   "rel_diff": 1.0
+  },
+  {
+   "key": "gru_s2024",
+   "field": "ar",
+   "model_side": -0.12327831742123008,
+   "recompute": 0.0,
+   "rel_diff": 1.0
+  },
+  {
+   "key": "gru_s2024",
+   "field": "mdd",
+   "model_side": 0.464160492279439,
+   "recompute": 0.0,
+   "rel_diff": 1.0
+  },
+  {
+   "key": "gru_s2024",
+   "field": "turnover",
+   "model_side": 0.1667807867183932,
+   "recompute": 0.0,
+   "rel_diff": 1.0
+  }
+ ],
+ "n_mismatches": 9,
+ "independence": {
+  "imported_modules": [
+   "__future__",
+   "argparse",
+   "ast",
+   "glob",
+   "json",
+   "numpy",
+   "os",
+   "pandas",
+   "scipy",
+   "sys"
+  ],
+  "modeling_imports": [],
+  "modeling_imports_found": 0,
+  "stdlib_only": false,
+  "third_party_deps": [
+   "numpy",
+   "pandas",
+   "scipy"
+  ],
+  "deviation_note": "audit/README.md 规则 2 的「只允许标准库」一条未满足：预测快照是 parquet，标准库没有 parquet 读取器。第三方库仅用于读快照与算 spearman；组合数值全部由本脚本自己的字典/账本实现重算，与 scripts/work503_backtest.py 不共用任何函数。"
+ }
+}

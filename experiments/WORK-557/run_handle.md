@@ -121,3 +121,17 @@ schtasks /delete /tn WORK557_verify_full50 /f
 cd C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-a221b7629a32\workdir\quant-lab
 .venv\Scripts\python.exe -u experiments\WORK-557\work557_verify_run.py --phase full50 --seed 42 --workers 2 --max-epochs 50 --resume
 ```
+
+## 2026-11-28 晚：seed42 两档（full / no_vq）
+
+| 计划任务 | 跑什么 | 日志 | 结果 |
+|---|---|---|---|
+| `WORK557_seed42`（**16:53 失败**） | full → no_vq（python.exe） | `logs/seed42_arms.log` | `forrtl: error (200) window-CLOSE event`，主进程 + worker 全灭于 epoch 6 |
+| `WORK557_seed42w`（成功启动） | 同上，改 `pythonw.exe`（无控制台） | `logs/seed42_arms_w.log`（stdout 丢，仅 cmd 回显） | full 18:17 训完 stage-1、18:58 退出；no_vq 19:32 退出 |
+| 补推理 `work557_infer_only.py` | 两档 stage-2 checkpoint → `preds/<arm>_s42.parquet` | `logs/infer_full_s42.log`、`logs/infer_no_vq_s42.log` | full RankIC .0716 / no_vq .0617 |
+
+**教训**：`python.exe` 在计划任务里会被 console-close 事件打死（MKL Fortran runtime 直接 abort）；
+改用 `pythonw.exe`（GUI 子系统、无控制台）后不再复现，**代价是 stdout 全丢**，只能靠产物与 checkpoint 判断进度。
+
+**停止 / 清理**：`schtasks /end /tn WORK557_seed42w`、`schtasks /delete /tn WORK557_seed42w /f`
+（`WORK557_seed42` 那次的句柄同样可 /end /delete）

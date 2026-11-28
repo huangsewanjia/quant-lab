@@ -466,8 +466,16 @@ def main():
         best = ck.best_model_path or os.path.join(
             VENDOR, "checkpoints", f"stage1_s{args.seed}.ckpt")
         state = torch.load(best, map_location="cpu")
-        torch.save({"state_dict": state["state_dict"] if "state_dict" in state
-                    else state}, ckpt_path)
+        sd = state["state_dict"] if "state_dict" in state else state
+        torch.save({"state_dict": sd}, ckpt_path)
+        # 2026-11-28 修：上游 train_ypred.py:112 用 **cwd 相对**路径
+        # `checkpoints/<predictor.saved_model>` 载入 stage-1 权重，而 cwd=REPO，
+        # 所以真正被读的是 REPO/checkpoints/<ckpt_name>，不是 vendor/ 下这份。
+        # 不补这一步，stage-2 会在 __init__ 里 FileNotFoundError（本轮之前从未跑到）。
+        _cwd_ckpt = os.path.join(REPO, "checkpoints", ckpt_name)
+        os.makedirs(os.path.dirname(_cwd_ckpt), exist_ok=True)
+        torch.save({"state_dict": sd}, _cwd_ckpt)
+        log["stage1_ckpt_for_stage2"] = _cwd_ckpt
         log["stage1_best"] = str(best)
         log["stage1_seconds"] = round(time.time() - t0, 1)
         log["stage1_epochs_ran"] = len(timer.history)

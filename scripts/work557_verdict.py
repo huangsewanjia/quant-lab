@@ -212,6 +212,23 @@ def load_rankic_dates(key: str):
     return pd.DatetimeIndex(sorted(pd.to_datetime(df["datetime"]).unique()))
 
 
+def _load_json(path):
+    """读 JSON：utf-8 优先，失败回退 gbk。
+
+    2026-11-28 实测：`work557_backtest.py` 用默认编码（Windows=cp936）写出的
+    backtest_results.json 带中文 benchmark 名，强制 utf-8 会 UnicodeDecodeError；
+    而 data_probe.json 是 utf-8。两种都真实存在，故双向回退，只改读法不改判据。
+    """
+    last = None
+    for enc in ("utf-8", "gbk", "cp936"):
+        try:
+            with open(path, encoding=enc) as fh:
+                return json.load(fh)
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            last = exc
+    raise last
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--exp", default="WORK-557")
@@ -223,7 +240,7 @@ def main():
     if not os.path.exists(res_path):
         print(f"missing {res_path}")
         return 1
-    res = json.load(open(res_path))
+    res = _load_json(res_path)
     seeds = [int(s) for s in args.seeds.split(",")]
 
     # ---- collect -------------------------------------------------------
@@ -381,7 +398,7 @@ def main():
 
     # ---- the five pre-registered failure criteria ----------------------
     fc = {}
-    ic = json.load(open(os.path.join(exp_dir, "integrity_check.json")))
+    ic = _load_json(os.path.join(exp_dir, "integrity_check.json"))
     i5 = ic["I5_test_coverage"]
     # 预注册 v1.0 §9 判据 1 有两个触发条件：PIT 成分覆盖率 <90%，或日频有效
     # bar <85%。v1.3 §6 明确了前者的测量口径（由 check_integrity.py 计算）。
@@ -399,7 +416,7 @@ def main():
                  "按 v1.3 §6 的口径补测后再判"
                  if pit_cov is None else ""),
     }
-    probe = json.load(open(os.path.join(exp_dir, "data_probe.json")))
+    probe = _load_json(os.path.join(exp_dir, "data_probe.json"))
     bad = [e for e in probe.get("endpoints", []) if e.get("status") not in
            ("ok", "ok_cross_checked")]
     fc["2_endpoints"] = {"n_failed": len(bad), "hit": len(bad) > 0}
@@ -410,7 +427,7 @@ def main():
     audit_path = os.path.join(exp_dir, "audit_recompute.json")
     audit_items = {}
     if os.path.exists(audit_path):
-        a = json.load(open(audit_path))
+        a = _load_json(audit_path)
         audit_items = a.get("items", {})
         fc["5_recompute_agreement"] = {"n_mismatches": a["n_mismatches"],
                                        "tolerance": a["tolerance"],
@@ -560,7 +577,7 @@ def main():
     pd.DataFrame(cmp_rows).to_csv(
         os.path.join(exp_dir, "paper_comparison.csv"), index=False)
 
-    json.dump(out, open(os.path.join(exp_dir, "verdict.json"), "w"),
+    json.dump(out, open(os.path.join(exp_dir, "verdict.json"), "w", encoding="utf-8"),
               ensure_ascii=False, indent=1, default=float)
     print(json.dumps({"H1": out["H1"], "H3_sr_median": out["H3"]["sr_median"],
                       "verdict": out["verdict"],

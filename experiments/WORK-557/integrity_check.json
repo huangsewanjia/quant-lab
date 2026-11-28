@@ -1,0 +1,236 @@
+{
+ "experiment": "WORK-557",
+ "calendar_days": 3157,
+ "calendar_start": "2012-01-04",
+ "calendar_end": "2024-12-31",
+ "I1_alignment": {
+  "stocks_checked": 20,
+  "quotes_checked": 50795,
+  "max_rel_err": 5.88131974805161e-08,
+  "tolerance": 1e-06,
+  "mismatches": 0,
+  "first_mismatches": [],
+  "passed": true,
+  "per_stock": [
+   {
+    "code": "sh.600977",
+    "quotes": 2040,
+    "max_rel_err": 5.789040023402551e-08,
+    "mismatches": 0,
+    "rows": 2040,
+    "nan_rows": 0
+   },
+   {
+    "code": "sh.600403",
+    "quotes": 3136,
+    "max_rel_err": 5.834174407739439e-08,
+    "mismatches": 0,
+    "rows": 3157,
+    "nan_rows": 0
+   },
+   {
+    "code": "sh.601566",
+    "quotes": 3141,
+    "max_rel_err": 5.870791425414013e-08,
+    "mismatches": 0,
+    "rows": 3157,
+    "nan_rows": 0
+   },
+   {
+    "code": "sz.000860",
+    "quotes": 3119,
+    "max_rel_err": 5.88131974805161e-08,
+    "mismatches": 0,
+    "rows": 3157,
+    "nan_rows": 0
+   },
+   {
+    "code": "sh.600087",
+    "quotes": 340,
+    "max_rel_err": 3.974080028740705e-08,
+    "mismatches": 0,
+    "rows": 582,
+    "nan_rows": 0
+   },
+   {
+    "code": "sh.600151",
+    "quotes": 2957,
+    "max_rel_err": 5.8112652146837735e-08,
+    "mismatches": 0,
+    "rows": 3157,
+    "nan_rows": 0
+   },
+   {
+    "code": "sz.002939",
+    "quotes": 1502,
+    "max_rel_err": 5.615043991065658e-08,
+    "mismatches": 0,
+    "rows": 1502,
+    "nan_rows": 0
+   },
+   {
+    "code": "sz.000069",
+    "quotes": 3112,
+    "max_rel_err": 5.7988869891318614e-08,
+    "mismatches": 0,
+    "rows": 3157,
+    "nan_rows": 0
+   },
+   {
+    "code": "sh.600215",
+    "quotes": 3044,
+    "max_rel_err": 5.874104462739767e-08,
+    "mismatches": 0,
+    "rows": 3157,
+    "nan_rows": 0
+   },
+   {
+    "code": "sh.601198",
+    "quotes": 2390,
+    "max_rel_err": 5.6687055951235494e-08,
+    "mismatches": 0,
+    "rows": 2398,
+    "nan_rows": 0
+   },
+   {
+    "code": "sz.000596",
+    "quotes": 3155,
+    "max_rel_err": 5.746329857453598e-08,
+    "mismatches": 0,
+    "rows": 3157,
+    "nan_rows": 0
+   },
+   {
+    "code": "sh.600108",
+    "quotes": 3151,
+    "max_rel_err": 5.6764834529016637e-08,
+    "mismatches": 0,
+    "rows": 3157,
+    "nan_rows": 0
+   },
+   {
+    "code": "sh.688271",
+    "quotes": 573,
+    "max_rel_err": 5.57904039640535e-08,
+    "mismatches": 0,
+    "rows": 573,
+    "nan_rows": 0
+   },
+   {
+    "code": "sh.600633",
+    "quotes": 3002,
+    "max_rel_err": 5.8716701656803737e-08,
+    "mismatches": 0,
+    "rows": 3157,
+    "nan_rows": 0
+   },
+   {
+    "code": "sh.600058",
+    "quotes": 2968,
+    "max_rel_err": 5.526989602129954e-08,
+    "mismatches": 0,
+    "rows": 3157,
+    "nan_rows": 0
+   },
+   {
+    "code": "sh.600190",
+    "quotes": 3108,
+    "max_rel_err": 5.665505796713461e-08,
+    "mismatches": 0,
+    "rows": 3157,
+    "nan_rows": 0
+   },
+   {
+    "code": "sh.601872",
+    "quotes": 3046,
+    "max_rel_err": 5.7666951132687755e-08,
+    "mismatches": 0,
+    "rows": 3157,
+    "nan_rows": 0
+   },
+   {
+    "code": "sh.601728",
+    "quotes": 815,
+    "max_rel_err": 5.707776462610046e-08,
+    "mismatches": 0,
+    "rows": 815,
+    "nan_rows": 0
+   },
+   {
+    "code": "sh.600138",
+    "quotes": 3145,
+    "max_rel_err": 5.7799329108783716e-08,
+    "mismatches": 0,
+    "rows": 3157,
+    "nan_rows": 0
+   },
+   {
+    "code": "sh.600704",
+    "quotes": 3051,
+    "max_rel_err": 5.7078056239620295e-08,
+    "mismatches": 0,
+    "rows": 3157,
+    "nan_rows": 0
+   }
+  ]
+ },
+ "I2_no_date_shift": {
+  "nan_rows_inside_range": 0,
+  "passed": true,
+  "note": "suspended days are forward-filled (mask_contract.md §2.2), so the series must be dense between first and last quote"
+ },
+ "I3_calendar_identity": {
+  "ds_calendar": "C:\\Users\\MO_Yongkai\\multica_workspaces_cloud\\workspace-c8faa36a018a\\work-557-a221b7629a32\\workdir\\quant-lab\\data\\WORK-557\\ds\\calendar.txt",
+  "qlib_calendar": "C:\\Users\\MO_Yongkai\\multica_workspaces_cloud\\workspace-c8faa36a018a\\work-557-a221b7629a32\\workdir\\quant-lab\\data\\WORK-557\\qlib_cn\\calendars\\day.txt",
+  "n_ds": 4616,
+  "n_qlib": 4616,
+  "identical": false,
+  "passed": false
+ },
+ "I4_new_listing_rule": {
+  "samples_checked": 947054,
+  "violations": 5798,
+  "first_violations": [
+   {
+    "instrument": "sh600000",
+    "datetime": "2012-01-04",
+    "first_quoted": "2012-01-04"
+   },
+   {
+    "instrument": "sh600000",
+    "datetime": "2012-01-05",
+    "first_quoted": "2012-01-04"
+   },
+   {
+    "instrument": "sh600000",
+    "datetime": "2012-01-06",
+    "first_quoted": "2012-01-04"
+   },
+   {
+    "instrument": "sh600000",
+    "datetime": "2012-01-09",
+    "first_quoted": "2012-01-04"
+   },
+   {
+    "instrument": "sh600000",
+    "datetime": "2012-01-10",
+    "first_quoted": "2012-01-04"
+   }
+  ],
+  "rule": "t - first_quoted_day + 1 >= 20 AND cum_traded_days(t) >= 20",
+  "passed": false
+ },
+ "I5_test_coverage": {
+  "test_days": 726,
+  "pit_pairs": 217800,
+  "pit_pairs_covered": 217660,
+  "rows_with_bar": 0.9993572084481175,
+  "tradable_share": 0.9507529843893481,
+  "pit_coverage": 0.9993572084481175,
+  "pit_coverage_threshold": 0.9,
+  "threshold": 0.85,
+  "pit_coverage_definition": "测试段内 PIT (交易日, 股票) 对中，同时存在于样本索引与行情快照的比例（分母 = PIT 对总数，预注册 v1.3 §6）",
+  "passed": true
+ },
+ "all_passed": false
+}

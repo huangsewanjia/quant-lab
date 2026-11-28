@@ -1,0 +1,10 @@
+source,system,seed,rankic,rankicir,ar,mdd,sr,turnover,paper_ref,diff_reason
+WORK-557,full,42.0,0.07155735541735327,0.49563070600979403,-0.03760962586782879,0.32806574564184443,-0.19354938572581523,0.3337510706621431,paper Table 2 (ablation),训练段 2009-2019、每阶段 ≤50 轮（已对齐论文口径）；剩余差异来源：先验为自建 6 个 A 股因子（论文为 JKP 13 因子）；逐日施加涨跌停/停牌掩码；数据底座为 quantdb（tushare 系）重建而非 Qlib cn_data
+WORK-557,no_vq,42.0,0.06166114728031629,0.4168098504338388,-0.05013329165252378,0.39123560368621924,-0.2681089061267043,0.33347461239608167,paper Table 2 (ablation),同上（仅去掉 VQ 码本，H1 的分母档）
+paper Table 1,PRISM-VQ,,0.0646,0.4224,0.3077,0.1924,1.5694,0.3259,paper Table 1,论文原值
+paper Table 1,GRU,,0.059,0.3756,0.2347,0.2288,1.2221,,paper Table 1,论文原值
+paper Table 1,DTML,,0.0625,0.4076,0.2589,0.2069,1.1228,,paper Table 1,论文原值
+paper Table 2,full,,0.0646,,,,,,paper Table 2,论文原值
+paper Table 2,no_prior,,0.0548,,,,,,paper Table 2,论文原值
+paper Table 2,no_moe,,0.0586,,,,,,paper Table 2,论文原值
+paper Table 2,no_vq,,0.0472,,,,,,paper Table 2,论文原值

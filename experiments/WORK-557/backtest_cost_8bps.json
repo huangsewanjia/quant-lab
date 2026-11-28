@@ -1,0 +1,125 @@
+{
+ "full_s42": {
+  "rankic": 0.07155735541735327,
+  "rankicir": 0.49563070600979403,
+  "ar": -0.021332693998611596,
+  "mdd": 0.304898340633169,
+  "sr": -0.10889298279544074,
+  "turnover": 0.1668183878713184,
+  "turnover_both_sides": 0.3336367757426368,
+  "days": 725,
+  "mean_holdings": 29.78896551724138,
+  "mean_cash_weight": 0.03174969770110532,
+  "n_trades": 11078,
+  "violation": "",
+  "alpha_equal_weight": {
+   "n_days": 725,
+   "excess_annualized": 0.06939448756473937,
+   "information_ratio": 0.041147073079500676,
+   "tracking_error": 0.006692455381253314,
+   "bench_annualized": -0.0713371359550329,
+   "port_annualized": -0.0019426483902935103,
+   "benchmark": "PIT 名单等权（自建）"
+  },
+  "alpha_cap_weighted": {
+   "n_days": 725,
+   "excess_annualized": -0.04881351478933272,
+   "information_ratio": -0.0272107659041091,
+   "tracking_error": 0.007118668561179382,
+   "bench_annualized": 0.0468708663990392,
+   "port_annualized": -0.0019426483902935103,
+   "benchmark": "PIT 名单总市值加权（自建；非指数口径，指数为自由流通市值加权）"
+  },
+  "alpha_index": {
+   "n_days": 725,
+   "excess_annualized": 0.05801239556966064,
+   "information_ratio": 0.03357142786202122,
+   "tracking_error": 0.0068572573044369985,
+   "bench_annualized": -0.05995504395995416,
+   "port_annualized": -0.0019426483902935103,
+   "benchmark": "CSI300 指数（000300.SH，价格指数）"
+  }
+ },
+ "no_vq_s42": {
+  "rankic": 0.06166114728031629,
+  "rankicir": 0.4168098504338388,
+  "ar": -0.034068914774953774,
+  "mdd": 0.3702548457615502,
+  "sr": -0.18071643475082408,
+  "turnover": 0.1666801274294084,
+  "turnover_both_sides": 0.3333602548588168,
+  "days": 725,
+  "mean_holdings": 29.817931034482758,
+  "mean_cash_weight": 0.028241072773391617,
+  "n_trades": 11347,
+  "violation": "",
+  "alpha_equal_weight": {
+   "n_days": 725,
+   "excess_annualized": 0.0551062002981469,
+   "information_ratio": 0.03809812642539123,
+   "tracking_error": 0.0057397940141953804,
+   "bench_annualized": -0.0713371359550329,
+   "port_annualized": -0.016230935656885957,
+   "benchmark": "PIT 名单等权（自建）"
+  },
+  "alpha_cap_weighted": {
+   "n_days": 725,
+   "excess_annualized": -0.06310180205592517,
+   "information_ratio": -0.039139886777497614,
+   "tracking_error": 0.006397667367713599,
+   "bench_annualized": 0.0468708663990392,
+   "port_annualized": -0.016230935656885957,
+   "benchmark": "PIT 名单总市值加权（自建；非指数口径，指数为自由流通市值加权）"
+  },
+  "alpha_index": {
+   "n_days": 725,
+   "excess_annualized": 0.0437241083030682,
+   "information_ratio": 0.029802716162901546,
+   "tracking_error": 0.005821897753668508,
+   "bench_annualized": -0.05995504395995416,
+   "port_annualized": -0.016230935656885957,
+   "benchmark": "CSI300 指数（000300.SH，价格指数）"
+  }
+ },
+ "gru_s2024": {
+  "rankic": 0.05125543391204701,
+  "rankicir": 0.33846093103289027,
+  "ar": -0.10840254244548897,
+  "mdd": 0.4456196485418432,
+  "sr": -0.5566870341380715,
+  "turnover": 0.16672374312453547,
+  "turnover_both_sides": 0.33344748624907095,
+  "days": 725,
+  "mean_holdings": 29.784827586206898,
+  "mean_cash_weight": 0.03535485439236792,
+  "n_trades": 10997,
+  "violation": "",
+  "alpha_equal_weight": {
+   "n_days": 725,
+   "excess_annualized": -0.02211731627757538,
+   "information_ratio": -0.014443470216418192,
+   "tracking_error": 0.006076595635988495,
+   "bench_annualized": -0.0713371359550329,
+   "port_annualized": -0.09345445223260826,
+   "benchmark": "PIT 名单等权（自建）"
+  },
+  "alpha_cap_weighted": {
+   "n_days": 725,
+   "excess_annualized": -0.1403253186316475,
+   "information_ratio": -0.08110766012007019,
+   "tracking_error": 0.006865522956551736,
+   "bench_annualized": 0.0468708663990392,
+   "port_annualized": -0.09345445223260826,
+   "benchmark": "PIT 名单总市值加权（自建；非指数口径，指数为自由流通市值加权）"
+  },
+  "alpha_index": {
+   "n_days": 725,
+   "excess_annualized": -0.033499408272654095,
+   "information_ratio": -0.02124790293621936,
+   "tracking_error": 0.006256342577013504,
+   "bench_annualized": -0.05995504395995416,
+   "port_annualized": -0.09345445223260826,
+   "benchmark": "CSI300 指数（000300.SH，价格指数）"
+  }
+ }
+}
