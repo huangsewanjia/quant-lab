@@ -1147,18 +1147,23 @@ print(con.execute('select * from v_industry_load_changes_recent limit 20').df().
 
 ### 14.7 回滚
 
-**回滚对象是提交，不是某一个文件。** 功能实现是 **`1df4704`**（`fix(WORK-585): WORK-647 三项不达标返工`），
-它之后只有 docs 提交（交付页/图注），回退区间固定写 `59e5682..1df4704`，**不要用 `..HEAD`**——HEAD 会继续前进，
-照着 `..HEAD` 回退会把后续别的单的提交一起卷进来。
+**回滚对象是提交，不是某一个文件。** 功能实现收口在 **`9078525`**
+（`fix(WORK-585): 独立审查 1 blocking + 2 suggestion + 3 nit 处置`），同轮更早的 `1df4704` 是它的前一版
+（`git log --oneline 59e5682..9078525` 可见）。回退区间固定写 `59e5682..9078525`。
+
+**必须先 `git switch --detach 9078525`**：区间回退要在「与该区间末端一致的树」上跑，否则分支上后续的
+docs 提交会让 `docs/…`、`DELIVERY.html` 之类文件冲突（实测：直接在交付 HEAD 上跑 `59e5682..9078525`
+会因 `docs/DELIVERY-WORK-585.html` 一行冲突而失败）。不要用 `..HEAD`——HEAD 会继续前进。
 
 ```bash
 # ⓪ 先看要回退的是什么（应看到 db/etl/industry.py、db/checks/industry.py、
 #    db/schema_industry.sql、db/tests/test_industry_diff.py 等代码文件，不是只有 docs）
-git -C /srv/share/quantdb/code/work-585 show --stat 1df4704e7b74965601fbcefc468d132515d60095
+git -C /srv/share/quantdb/code/work-585 show --stat 90785255bb1462a26674fe4ffa66277e5a41a988
 
-# ① 在 git worktree 里整段回退（--no-commit 便于先看 diff 再提交）
+# ① 先切到功能提交再整段回退（不切会与后续 docs 提交冲突）
 cd /srv/share/quantdb/code/work-585
-git revert --no-commit 59e5682..1df4704
+git switch --detach 90785255bb1462a26674fe4ffa66277e5a41a988
+git revert --no-commit 59e5682..9078525
 git diff --cached --stat
 
 # ② 同步到线上跑的那棵树（live 树在另一个分支，这些文件在那边未追踪，revert 不会自动生效）。

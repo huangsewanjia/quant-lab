@@ -513,8 +513,9 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 <pre class="term"># ⓪ 先看要回退的是什么（应看到 db/etl/industry.py 等代码文件，不是只有 docs）
 git -C /srv/share/quantdb/code/work-585 show --stat {func_sha}
 
-# ① 在 git worktree 里整段回退（区间固定写功能提交，不要用 ..HEAD）
+# ① 先切到功能提交再整段回退（不切会与后续 docs 提交冲突；不要用 ..HEAD）
 cd /srv/share/quantdb/code/work-585
+git switch --detach {func_sha}
 git revert --no-commit 59e5682..{head_sha}
 git diff --cached --stat
 
