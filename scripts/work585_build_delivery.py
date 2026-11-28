@@ -163,6 +163,10 @@ def main() -> None:
 
     sha_file = META / "work585-code-sha256.txt"
     sha_block = sha_file.read_text().strip() if sha_file.exists() else "（缺：meta/industry/work585-code-sha256.txt）"
+    # 页面自身的提交会改变 HEAD，写进页面必然过期；判据是 func_sha 与 8 个文件 sha256
+    sha_block = "\n".join(
+        line for line in sha_block.splitlines() if not line.startswith("head_sha:")
+    ) + "\nhead_sha: 见 git log（交付页自身的提交会推进 HEAD；判据是上面的 func_sha 与 8 个文件 sha256）"
 
     con = duckdb.connect(str(DB), read_only=True)
     run_id = dbinfo["run_id"] if dbinfo else None
