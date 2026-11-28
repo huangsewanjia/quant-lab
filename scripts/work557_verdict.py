@@ -347,7 +347,8 @@ def main():
     out["H2"] = {
         "baseline": BASELINE, "per_seed": h2,
         "note": "10,000 次 block bootstrap（block=5 日）逐 seed 结果 —— " + "；".join(_ci_bits)
-                + "。论文自曝对 DTML/GRU 未达显著；CI 含 0 只说明本 seed 上增量不可证，不算失败。",
+                + "。论文自曝对 DTML/GRU 未达显著；若某个 seed 的 CI 含 0，则说明该 seed 上增量不可证（不算失败）；"
+                  "本 note 按每个 seed 的实测 CI 逐条给出，不再使用「一律含 0」的模板措辞。",
         "join": "按日期 inner join 两档的逐日 RankIC 序列后再做 block bootstrap",
     }
 

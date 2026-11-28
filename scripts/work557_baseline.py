@@ -226,6 +226,23 @@ def main():
     if best_state is not None:
         core.load_state_dict(best_state)
 
+    # 2026-11-29 加：训练一结束就先落 checkpoint + 半成品 json。
+    # 背景：2026-11-28 23:40 那次跑满 ~1h49m 后在**收尾**退出（preds 没落、pythonw 吞了 traceback），
+    # 训练全白费。有了这一步，即使尾部再挂，也能用 checkpoint 单独补推理。
+    _ck = os.path.join(out_dir, f"{args.kind}_s{args.seed}{args.out_suffix}_state.pt")
+    try:
+        torch.save({"state_dict": best_state, "valid_loss": best_val,
+                    "epoch_seconds": epoch_seconds}, _ck)
+        json.dump({"kind": args.kind, "seed": args.seed, "epochs_ran": len(epoch_seconds),
+                   "epoch_seconds": epoch_seconds, "valid_loss": best_val,
+                   "checkpoint": _ck, "stage": "trained_not_inferred"},
+                  open(os.path.join(out_dir,
+                                    f"{args.kind}_s{args.seed}{args.out_suffix}_train.json"),
+                       "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+        print(f"[checkpoint] saved {_ck}", flush=True)
+    except Exception as exc:  # pragma: no cover
+        print(f"[checkpoint] FAILED: {exc}", flush=True)
+
     # ---- inference on the test set --------------------------------------
     core.eval()
     rows, scores = [], []

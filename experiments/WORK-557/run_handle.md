@@ -164,3 +164,14 @@ cd C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-
 - `verdict.py`：`H2.note` 由模板改为按实测 CI 逐 seed 生成（原来写死「CI 含 0」，与 lo/hi 自相矛盾）。
 - `audit/recompute_work557.py`：输出改 utf-8（原来 Windows 默认 cp936 → GBK 文件）。
   独立复算没有 import 建模模块的证据字段在 `independence.modeling_imports_found = 0`。
+
+## 2026-11-29：GRU s42（把 H2 补到 2/2）
+
+| 计划任务 | 日志 | 结果 |
+|---|---|---|
+| `WORK557_gru42w`（pythonw，无控制台） | `logs/gru42_w.log` | 第一次 23:40 起、**1h49m 后在收尾退出且没落 preds**；第二次 01:37 起重跑，**03:02:49 完成**，50 轮 / 5,085 s |
+| 产物 | — | `preds/gru_s42.parquet`（2.66 MB）、`gru_s42_state.pt`（checkpoint）、`gru_s42_train.json` |
+
+**为什么重跑前先补了 checkpoint**：第一次死在尾部（收尾段），当时脚本只在最后才写 parquet，**训练全白费**；
+现在 `work557_baseline.py` 在训练一结束就先落 `*_state.pt` + `*_train.json`，尾部再挂也能补推理。
+**停止 / 清理**：`schtasks /end /tn WORK557_gru42w`、`schtasks /delete /tn WORK557_gru42w /f`

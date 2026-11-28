@@ -1,10 +1,10 @@
 {
- "started_at": "2026-11-28T13:04:25+0800",
+ "started_at": "2026-11-28T23:59:01+0800",
  "phases": [
   {
    "phase": "early",
-   "rc": 0,
-   "seconds": 3883.6,
+   "rc": -9,
+   "seconds": 5400.1,
    "result": {
     "phase": "early",
     "arm": "full",
@@ -91,7 +91,7 @@
   }
  ],
  "full50_skipped_reason": "早停未在 25 轮内触发（实际 28 轮），50 轮口径由本次同一 run 直接给出",
- "total_seconds": 3883.6,
- "nvidia_after": "2099 MiB, 0 %",
- "finished_at": "2026-11-28T14:09:08+0800"
+ "total_seconds": 5400.3,
+ "nvidia_after": "4222 MiB, 94 %",
+ "finished_at": "2026-11-29T01:29:01+0800"
 }

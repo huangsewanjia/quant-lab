@@ -66,7 +66,9 @@ def main():
     del fb, Xfit
 
     out = {"fit_skipped_symbols": skipped, "n_fit_mean_nan": int(np.isnan(f_mean).sum()),
-           "probes": [], "verdict": "仍不能判定", "why": ""}
+           "probes": [],
+           "verdict": "",
+           "why": ""}
 
     for sym in SYMS:
         raw = D.features([sym], expr_list, start_time="2006-01-01", end_time="2024-12-31")
@@ -104,6 +106,29 @@ def main():
                 "n_rebuilt_at_clip": int((np.abs(b) >= 2.9999).sum()),
             }
             out["probes"].append(rec)
+
+    # ---- 结论按实测填写（2026-11-29 修：原来硬编码 "仍不能判定"，与 lookahead_check.json 的
+    # passed=true 自相矛盾；任何人打开都会读成"还没定"）----
+    _n_bad = sum(p["n_diff_gt_1e-4"] for p in out["probes"])
+    _maxd = max((p["max_abs_diff"] for p in out["probes"]), default=None)
+    _shift = min([v for p in out["probes"]
+                  for v in (p["shift_minus1_max_abs_diff"], p["shift_plus1_max_abs_diff"])
+                  if v is not None], default=None)
+    out["n_probes"] = len(out["probes"])
+    out["n_cols_per_probe"] = out["probes"][0]["n_cols"] if out["probes"] else None
+    out["total_bad_cells"] = _n_bad
+    out["max_abs_diff_over_probes"] = _maxd
+    if _n_bad == 0:
+        out["verdict"] = "无前视"
+        out["why"] = (f"{len(out['probes'])} 个探针 × {out['probes'][0]['n_cols']} 列全部 0 格差异 >1e-4"
+                      f"（最大 {_maxd:.2e}，float32 量级）；拟合窗 2009–2019 与检查器 TRAIN 一致；"
+                      f"把 qlib 侧整体前后移一天后差值升到 {_shift:.2f} → 也排除日期错位。")
+    elif _shift is not None and _maxd is not None and _shift < _maxd:
+        out["verdict"] = "有前视（疑似日期错位，需人工确认）"
+        out["why"] = f"平移一天后差异反而变小（{_shift:.2e} < {_maxd:.2e}）"
+    else:
+        out["verdict"] = "仍不能判定"
+        out["why"] = f"{_n_bad} 格差异 >1e-4（最大 {_maxd:.2e}），且平移不变小"
 
     with open(OUT, "w", encoding="utf-8") as fh:
         json.dump(out, fh, ensure_ascii=False, indent=1)

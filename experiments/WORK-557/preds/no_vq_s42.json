@@ -1,15 +1,158 @@
 {
  "arm": "no_vq",
  "seed": 42,
- "mode": "infer_only",
- "preds": "C:\\Users\\MO_Yongkai\\multica_workspaces_cloud\\workspace-c8faa36a018a\\work-557-a221b7629a32\\workdir\\quant-lab\\experiments\\WORK-557\\preds\\no_vq_s42.parquet",
- "n_rows": 217800,
- "stage2_ckpt": "C:\\Users\\MO_Yongkai\\multica_workspaces_cloud\\workspace-c8faa36a018a\\work-557-a221b7629a32\\workdir\\quant-lab\\vendor\\PRISM-VQ\\checkpoints\\stage2_no_vq_s42.ckpt",
+ "epochs": 50,
+ "n_train": 738721,
+ "n_valid": 145287,
+ "n_test": 217800,
+ "batches": 2675,
+ "stage2_seconds": 4091.2,
+ "epoch_history": [
+  {
+   "epoch": 0,
+   "seconds": 164.93,
+   "train_loss": 1.0966323614120483,
+   "val_loss": 1.0686907768249512,
+   "peak_vram_gb": 0.066
+  },
+  {
+   "epoch": 1,
+   "seconds": 169.38,
+   "train_loss": 1.0337817668914795,
+   "val_loss": 1.0369017124176025,
+   "peak_vram_gb": 0.066
+  },
+  {
+   "epoch": 2,
+   "seconds": 258.48,
+   "train_loss": 1.0065613985061646,
+   "val_loss": 1.0277221202850342,
+   "peak_vram_gb": 0.066
+  },
+  {
+   "epoch": 3,
+   "seconds": 234.12,
+   "train_loss": 0.9961900115013123,
+   "val_loss": 1.0234180688858032,
+   "peak_vram_gb": 0.066
+  },
+  {
+   "epoch": 4,
+   "seconds": 234.35,
+   "train_loss": 0.9900197386741638,
+   "val_loss": 1.0285468101501465,
+   "peak_vram_gb": 0.066
+  },
+  {
+   "epoch": 5,
+   "seconds": 239.59,
+   "train_loss": 0.9838827848434448,
+   "val_loss": 1.035049319267273,
+   "peak_vram_gb": 0.066
+  },
+  {
+   "epoch": 6,
+   "seconds": 223.8,
+   "train_loss": 0.9772678017616272,
+   "val_loss": 1.03131103515625,
+   "peak_vram_gb": 0.066
+  },
+  {
+   "epoch": 7,
+   "seconds": 228.18,
+   "train_loss": 0.9701374173164368,
+   "val_loss": 1.0360429286956787,
+   "peak_vram_gb": 0.066
+  },
+  {
+   "epoch": 8,
+   "seconds": 220.92,
+   "train_loss": 0.9613788723945618,
+   "val_loss": 1.0560579299926758,
+   "peak_vram_gb": 0.066
+  },
+  {
+   "epoch": 9,
+   "seconds": 218.77,
+   "train_loss": 0.9528618454933167,
+   "val_loss": 1.0591661930084229,
+   "peak_vram_gb": 0.066
+  },
+  {
+   "epoch": 10,
+   "seconds": 230.36,
+   "train_loss": 0.9440937638282776,
+   "val_loss": 1.0665854215621948,
+   "peak_vram_gb": 0.066
+  },
+  {
+   "epoch": 11,
+   "seconds": 219.37,
+   "train_loss": 0.9344685673713684,
+   "val_loss": 1.0839694738388062,
+   "peak_vram_gb": 0.066
+  },
+  {
+   "epoch": 12,
+   "seconds": 237.02,
+   "train_loss": 0.9253180623054504,
+   "val_loss": 1.0884839296340942,
+   "peak_vram_gb": 0.066
+  },
+  {
+   "epoch": 13,
+   "seconds": 238.91,
+   "train_loss": 0.9154848456382751,
+   "val_loss": 1.098618507385254,
+   "peak_vram_gb": 0.066
+  },
+  {
+   "epoch": 14,
+   "seconds": 227.42,
+   "train_loss": 0.9054305553436279,
+   "val_loss": 1.1136975288391113,
+   "peak_vram_gb": 0.066
+  },
+  {
+   "epoch": 15,
+   "seconds": 202.15,
+   "train_loss": 0.8961401581764221,
+   "val_loss": 1.1227397918701172,
+   "peak_vram_gb": 0.066
+  },
+  {
+   "epoch": 16,
+   "seconds": 167.91,
+   "train_loss": 0.8866863250732422,
+   "val_loss": 1.1377390623092651,
+   "peak_vram_gb": 0.066
+  },
+  {
+   "epoch": 17,
+   "seconds": 171.19,
+   "train_loss": 0.8771699666976929,
+   "val_loss": 1.1463879346847534,
+   "peak_vram_gb": 0.066
+  },
+  {
+   "epoch": 18,
+   "seconds": 167.09,
+   "train_loss": 0.8680834174156189,
+   "val_loss": 1.173667311668396,
+   "peak_vram_gb": 0.066
+  }
+ ],
+ "epochs_ran": 19,
+ "early_stopped_epoch": 19,
+ "peak_vram_gb": 0.066,
+ "device": "cuda:NVIDIA GeForce RTX 3060",
  "metrics": {
   "IC": 0.04782254502691729,
   "ICIR": 0.3165952223390165,
   "RankIC": 0.06166114728031629,
   "RankICIR": 0.4168098504338388
  },
- "seconds": 32.3
+ "preds": "C:\\Users\\MO_Yongkai\\multica_workspaces_cloud\\workspace-c8faa36a018a\\work-557-a221b7629a32\\workdir\\quant-lab\\experiments\\WORK-557\\preds\\no_vq_s42.parquet",
+ "out_suffix": "",
+ "total_seconds": 4139.5
 }

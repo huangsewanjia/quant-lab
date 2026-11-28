@@ -291,6 +291,10 @@
    "n_rebuilt_at_clip": 1
   }
  ],
- "verdict": "仍不能判定",
- "why": ""
+ "verdict": "无前视",
+ "why": "6 个探针 × 158 列全部 0 格差异 >1e-4（最大 1.33e-05，float32 量级）；拟合窗 2009–2019 与检查器 TRAIN 一致；把 qlib 侧整体前后移一天后差值升到 1.76 → 也排除日期错位。",
+ "n_probes": 6,
+ "n_cols_per_probe": 158,
+ "total_bad_cells": 0,
+ "max_abs_diff_over_probes": 1.3297892303532066e-05
 }

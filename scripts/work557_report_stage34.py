@@ -277,6 +277,24 @@ f3 = grouped_bar(["数据加载(8 workers) 微基准", "模型前向+反向 微�
                  ylab="ms / batch", h=300)
 
 # 2026-11-28 seed42 结果（现读产物，不手抄）
+def _h2_rows(verdict):
+    """H2 逐 seed 渲染：ΔRankIC + 95% CI + 是否含 0。"""
+    per = ((verdict.get("H2") or {}).get("per_seed") or {})
+    out = []
+    for sdd in sorted(per):
+        v = per[sdd]
+        lo, hi, pt = float(v["lo"]), float(v["hi"]), float(v["point"])
+        verdict_txt = "不含 0 → 增量可证" if not (lo <= 0.0 <= hi) else "含 0 → 增量不可证"
+        out.append(f'<tr><td>H2 vs GRU（s{sdd}）</td>'
+                   f'<td class="num">{pt:+.4f}</td>'
+                   f'<td class="num" colspan="6">95% CI [{lo:+.4f}, {hi:+.4f}]（{verdict_txt}）'
+                   f'；10,000 次 block bootstrap，block=5 日，n={int(v.get("n_joined_days") or 0)} 天</td></tr>')
+    if not out:
+        out.append('<tr><td>H2 vs GRU</td><td class="num">未取到</td>'
+                   '<td class="num" colspan="6">缺 <code>gru_s*</code> 基线与 <code>full_s*</code> 预测</td></tr>')
+    return "\n".join(out)
+
+
 def _rows_by_seed(runs):
     """按 verdict.runs 里实际存在的 seed 逐行渲染（full / no_vq 成对）。"""
     out = []
@@ -303,6 +321,8 @@ DD = float(_H1.get("delta_drop") or 0)
 GAP = abs(float(_H1.get("paper_delta_formula") or 0.2693) * 100 - abs(DD) * 100)
 _runs = (VD.get("runs") or {})
 SEED_ROWS = _rows_by_seed(_runs)
+H2_ROWS = _h2_rows(VD)
+H2_NSEEDS = len(((VD.get("H2") or {}).get("per_seed") or {}))
 F = _runs.get("full_s42", {})
 N = _runs.get("no_vq_s42", {})
 F_IC, F_IR, F_SR = float(F.get("rankic") or 0), float(F.get("rankicir") or 0), float(F.get("sr") or 0)
@@ -322,7 +342,13 @@ _H2 = ((VD.get("H2") or {}).get("per_seed") or {}).get("2024") or {}
 H2P = float(_H2.get("point") or 0)
 H2LO = float(_H2.get("lo") or 0)
 H2HI = float(_H2.get("hi") or 0)
+_H2_42 = ((VD.get("H2") or {}).get("per_seed") or {}).get("42") or {}
+H2P42 = float(_H2_42.get("point") or 0)
+H2LO42 = float(_H2_42.get("lo") or 0)
+H2HI42 = float(_H2_42.get("hi") or 0)
 _la = bool((LA or {}).get("passed"))
+_h2per = ((VD.get("H2") or {}).get("per_seed") or {})
+H2_SEEDS_TXT = " / ".join(f"s{k}" for k in sorted(_h2per)) if _h2per else "—"
 LA_NOTE = ("本 seed CI 不含 0" if H2LO > 0 else "本 seed CI 含 0")
 def _cs(tag, key):
     return float(((CS.get(tag) or {}).get(key) or {}).get("sr") or 0)
@@ -532,6 +558,7 @@ seed 42 缺 GRU 基线（<code>gru_s42</code> 从未成功），故 H2 只有 1/
 <th class="num">年化 AR</th><th class="num">MDD</th><th class="num">日均单边换手</th><th class="num">实际轮次</th></tr></thead>
 <tbody>
 {SEED_ROWS}
+{H2_ROWS}
 <tr><td><b>Δ_drop</b>（H1）</td><td class="num" colspan="7"><b>{DD:.2%}</b> —— 预注册带：进 [−40%,−15%] / 退 [−10%,+10%]，
 其余判「部分复现」→ <b>部分复现</b>（论文 Table 2 的 Δ_formula = 26.93%，即 Δ_drop = −26.93%，本单弱了 {GAP:.1f} 个百分点）</td></tr>
 </tbody></table>
@@ -661,10 +688,8 @@ NVIDIA GeForce RTX 3060, 1818 MiB, 12288 MiB, 11 %</pre>
 <td><code>full_{{s42,s2024}}</code>、<code>no_vq_{{s42,s2024}}</code> 四份预测</td>
 <td class="st teal">2/4 → <b>seed 42 可判：{DD:.2%}（部分复现）</b>；缺 s2024，未达 ≥2 seed</td></tr>
 <tr><td>H2</td><td>vs GRU 基线的 RankIC 差，10,000 次 block bootstrap（block=5 日）95% CI</td>
-<td><code>full_*</code> 两份 + <code>gru_*</code> 两份（后者本单有 1 份）</td>
-<td class="st teal">1/2 → <b>seed 2024 可判</b>：ΔRankIC {H2P:+.4f}，95% CI [{H2LO:+.4f}, {H2HI:+.4f}]（<b>不含 0</b>）；
-seed 42 缺 gru_s42。<code>H2.note</code> 里原来那句「CI 含 0 判与论文自曝弱点一致」是模板残留，
-已改为按实测逐 seed 生成（{LA_NOTE}）</td></tr>
+<td><code>full_*</code> 两份 + <code>gru_*</code> 两份（<b>本单 2/2 齐</b>）</td>
+<td class="st teal">{H2_NSEEDS}/2 → <b>{H2_SEEDS_TXT} 可判</b>：ΔRankIC {H2P:+.4f}，95% CI [{H2LO:+.4f}, {H2HI:+.4f}]（<b>不含 0</b>）。两 seed 逐条：s42 <b>{H2P42:+.4f}</b> CI [{H2LO42:+.4f}, {H2HI42:+.4f}]、s2024 <b>{H2P:+.4f}</b> CI [{H2LO:+.4f}, {H2HI:+.4f}]。<code>H2.note</code> 原来是「CI 含 0」的模板措辞，已改为按每个 seed 的实测 CI 逐条生成</td></tr>
 <tr><td>H3</td><td>净 SR（8 / 30 bps 两档）、AR、MDD、换手；净 SR &lt; 0 直接判退</td>
 <td>四档 × 成本档回测产物</td>
 <td class="st teal">4/8 → 两 seed 的 full/no_vq 可判：净 SR 中位 {SR50:.4f}，<b>判退</b>；
@@ -836,8 +861,10 @@ seed 42 缺 gru_s42。<code>H2.note</code> 里原来那句「CI 含 0 判与论�
 </tbody></table>
 
 <li><b>lookahead 检查：已通过（2026-11-29 定位到根因在检查脚本自己身上）</b>——
-<code>feature_date_mismatches = 0 / 2,327,786</code>、<code>prior_mismatches = 0 / 2,731,806</code>、
-<code>label_mismatches = 0</code>，最大残差 2.8e-05 / 2.2e-06 / 7.4e-09（float32 量级）。
+<code>feature_date_mismatches = {LA.get('feature_date_mismatches')} / {(LA.get('features_checked') or 0):,}</code>、
+<code>prior_mismatches = {LA.get('prior_mismatches')} / {(LA.get('prior_checked') or 0):,}</code>、
+<code>label_mismatches = {LA.get('label_mismatches')}</code>，最大残差
+{LA.get('max_feat_abs_diff'):.2e} / {LA.get('prior_max_abs_diff'):.2e} / {LA.get('label_max_abs_diff'):.2e}（float32 量级）。
 根因：检查脚本的 <code>TRAIN</code> 常量写成了 <b>2015–2019</b>（WORK-503 的缩窗），
 而 <code>work557_build_dataset.py</code> 的 <code>fit_stats</code> 是按本单预注册 C1 的
 <b>2009–2019</b> 拟合的 —— 拟合窗口不同 → <code>f_mean/f_std</code> 不同 → 逐列**全都**对不上，

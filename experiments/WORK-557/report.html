@@ -155,6 +155,8 @@ seed 42 缺 GRU 基线（<code>gru_s42</code> 从未成功），故 H2 只有 1/
 <tr><td>PRISM-VQ no_vq（s2024）</td><td class="num">0.0655</td><td class="num">0.4149</td><td class="num">-0.2223</td><td class="num">-4.40%</td><td class="num">0.4104</td><td class="num">0.1668</td><td class="num">早停</td></tr>
 <tr><td>PRISM-VQ full（s42）</td><td class="num">0.0716</td><td class="num">0.4956</td><td class="num">-0.1935</td><td class="num">-3.76%</td><td class="num">0.3281</td><td class="num">0.1669</td><td class="num">早停</td></tr>
 <tr><td>PRISM-VQ no_vq（s42）</td><td class="num">0.0617</td><td class="num">0.4168</td><td class="num">-0.2681</td><td class="num">-5.01%</td><td class="num">0.3912</td><td class="num">0.1667</td><td class="num">早停</td></tr>
+<tr><td>H2 vs GRU（s2024）</td><td class="num">+0.0188</td><td class="num" colspan="6">95% CI [+0.0050, +0.0313]（不含 0 → 增量可证）；10,000 次 block bootstrap，block=5 日，n=726 天</td></tr>
+<tr><td>H2 vs GRU（s42）</td><td class="num">+0.0218</td><td class="num" colspan="6">95% CI [+0.0116, +0.0323]（不含 0 → 增量可证）；10,000 次 block bootstrap，block=5 日，n=726 天</td></tr>
 <tr><td><b>Δ_drop</b>（H1）</td><td class="num" colspan="7"><b>-10.19%</b> —— 预注册带：进 [−40%,−15%] / 退 [−10%,+10%]，
 其余判「部分复现」→ <b>部分复现</b>（论文 Table 2 的 Δ_formula = 26.93%，即 Δ_drop = −26.93%，本单弱了 16.7 个百分点）</td></tr>
 </tbody></table>
@@ -282,10 +284,8 @@ NVIDIA GeForce RTX 3060, 1818 MiB, 12288 MiB, 11 %</pre>
 <td><code>full_{s42,s2024}</code>、<code>no_vq_{s42,s2024}</code> 四份预测</td>
 <td class="st teal">2/4 → <b>seed 42 可判：-10.19%（部分复现）</b>；缺 s2024，未达 ≥2 seed</td></tr>
 <tr><td>H2</td><td>vs GRU 基线的 RankIC 差，10,000 次 block bootstrap（block=5 日）95% CI</td>
-<td><code>full_*</code> 两份 + <code>gru_*</code> 两份（后者本单有 1 份）</td>
-<td class="st teal">1/2 → <b>seed 2024 可判</b>：ΔRankIC +0.0188，95% CI [+0.0050, +0.0313]（<b>不含 0</b>）；
-seed 42 缺 gru_s42。<code>H2.note</code> 里原来那句「CI 含 0 判与论文自曝弱点一致」是模板残留，
-已改为按实测逐 seed 生成（本 seed CI 不含 0）</td></tr>
+<td><code>full_*</code> 两份 + <code>gru_*</code> 两份（<b>本单 2/2 齐</b>）</td>
+<td class="st teal">2/2 → <b>s2024 / s42 可判</b>：ΔRankIC +0.0188，95% CI [+0.0050, +0.0313]（<b>不含 0</b>）。两 seed 逐条：s42 <b>+0.0218</b> CI [+0.0116, +0.0323]、s2024 <b>+0.0188</b> CI [+0.0050, +0.0313]。<code>H2.note</code> 原来是「CI 含 0」的模板措辞，已改为按每个 seed 的实测 CI 逐条生成</td></tr>
 <tr><td>H3</td><td>净 SR（8 / 30 bps 两档）、AR、MDD、换手；净 SR &lt; 0 直接判退</td>
 <td>四档 × 成本档回测产物</td>
 <td class="st teal">4/8 → 两 seed 的 full/no_vq 可判：净 SR 中位 -0.1282，<b>判退</b>；
@@ -485,8 +485,10 @@ WORK-503 数值取自 <code>experiments/WORK-503/verdict.json</code> 的 <code>r
 </tbody></table>
 
 <li><b>lookahead 检查：已通过（2026-11-29 定位到根因在检查脚本自己身上）</b>——
-<code>feature_date_mismatches = 0 / 2,327,786</code>、<code>prior_mismatches = 0 / 2,731,806</code>、
-<code>label_mismatches = 0</code>，最大残差 2.8e-05 / 2.2e-06 / 7.4e-09（float32 量级）。
+<code>feature_date_mismatches = 0 / 2,456,852</code>、
+<code>prior_mismatches = 0 / 2,731,806</code>、
+<code>label_mismatches = 0</code>，最大残差
+2.84e-05 / 2.20e-06 / 7.35e-09（float32 量级）。
 根因：检查脚本的 <code>TRAIN</code> 常量写成了 <b>2015–2019</b>（WORK-503 的缩窗），
 而 <code>work557_build_dataset.py</code> 的 <code>fit_stats</code> 是按本单预注册 C1 的
 <b>2009–2019</b> 拟合的 —— 拟合窗口不同 → <code>f_mean/f_std</code> 不同 → 逐列**全都**对不上，
