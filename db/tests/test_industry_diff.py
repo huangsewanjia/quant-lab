@@ -463,3 +463,105 @@ def test_legacy_table_migration_backfills_only_old_rows(qdb):
     assert "reason" in columns and "source_doc" in columns and len(columns) == 12
     assert legacy_reason.startswith("WORK-585 首版上线前写入"), legacy_reason
     assert still_null == 1
+
+
+def _write_no_url_source(qdb, rows):
+    """造一个「表里没有 URL 列」的源：exchange_daily_quotes 的真实列结构。"""
+    path = ind.raw_dir("csv") / "exchange_daily_quotes"
+    path.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(rows).to_csv(path / "data.csv", index=False)
+    (path / "manifest.json").write_text(json.dumps({
+        "fetched_at": "2026-11-28T06:00:00+0800",
+        "sources": [
+            "http://www.gfex.com.cn/u/interfacesWebTiDayQuotes/loadList",
+            "https://www.shfe.com.cn/data/tradedata/future/dailydata/kx{YYYYMMDD}.dat",
+        ],
+    }, ensure_ascii=False), encoding="utf-8")
+
+
+def _exchange_rows(exchange: str, day: str = "20261127"):
+    return [{
+        "exchange": exchange, "contract": "碳酸锂" if exchange == "GFEX" else "AL",
+        "month": "2601", "trade_date": day, "close": "80000", "settle": "80100",
+        "volume": "10", "oi": "20", "status": "OK",
+    }]
+
+
+def test_source_doc_falls_back_to_manifest_when_no_url_column(qdb):
+    """WORK-647 验收 #2：exchange / trendforce / benchmark 没有 URL 列，出处页取 manifest。"""
+    _prepare_db(qdb)
+    source = ind.SOURCE_BY_NAME["exchange_daily_quotes"]
+    _write_no_url_source(qdb, _exchange_rows("GFEX") + _exchange_rows("SHFE"))
+    with qdb.duckdb_connect() as con:
+        ind.load_source(con, source, "run-1")
+        rows = con.execute(
+            "SELECT indicator, source_doc, reason FROM industry_load_diff "
+            "WHERE run_id = 'run-1' ORDER BY indicator"
+        ).fetchall()
+
+    assert len(rows) == 2, rows
+    docs = {r[0].split("|")[0]: r[1] for r in rows}
+    # 行内特征命中：GFEX -> gfex 接口页，SHFE -> shfe kx 文件
+    assert "gfex" in docs["exchange=GFEX"], docs
+    assert "shfe" in docs["exchange=SHFE"], docs
+    assert all("页级出处（manifest 登记）" in r[2] for r in rows), rows
+    # 这两张表没有正文，reason 如实写「原句：无」，不许拿链接冒充原句
+    assert all("原句：无（结构化接口数据" in r[2] for r in rows), rows
+
+
+def test_manifest_reads_both_url_keys(qdb):
+    """raw/industry/* 用 source_urls、raw/industry_alt/* 用 sources，两个键都要读。"""
+    assert ind.manifest_doc_urls(
+        {"source_urls": ["https://a.example/1"], "sources": ["https://b.example/2"]}
+    ) == ["https://a.example/1", "https://b.example/2"]
+    assert ind.manifest_doc_urls({"sources": "https://c.example/3"}) == ["https://c.example/3"]
+    assert ind.manifest_doc_urls({"dataset": "x"}) == []
+
+
+def test_value_changed_reason_carries_upstream_sentence(qdb):
+    """WORK-647 验收 #1：value_changed 的 reason 要能看到上游原句，不是同义反复。"""
+    _prepare_db(qdb)
+    source = ind.SOURCE_BY_NAME["cnesa_storage"]
+    sentence = "截至2025年12月底，中国新型储能累计装机规模达到 144.7GW，同比+85% 。"
+    _write_cnesa([_row("2026-01", "新型储能累计装机规模", "144.7",
+                       caliber=f"口径说明｜原句：{sentence}")])
+    with qdb.duckdb_connect() as con:
+        ind.load_source(con, source, "run-1")
+        _write_cnesa([_row("2026-01", "新型储能累计装机规模", "150.9",
+                           caliber=f"口径说明｜原句：{sentence}")])
+        ind.load_source(con, source, "run-2")
+        reason = con.execute(
+            "SELECT reason FROM industry_load_diff WHERE run_id = 'run-2' "
+            "AND change_type = 'value_changed'"
+        ).fetchone()[0]
+
+    assert "value 由 144.7 改为 150.9" in reason, reason
+    assert "；原句：" in reason and "累计装机规模达到 144.7GW" in reason, reason
+    assert len(reason) <= ind.REASON_LIMIT
+
+
+def test_backfill_fills_legacy_rows_without_touching_loaded_rows(qdb):
+    """早期变更行（无 source_doc / 无原句）由 backfill 补齐，已有内容不覆盖。"""
+    _prepare_db(qdb)
+    source = ind.SOURCE_BY_NAME["exchange_daily_quotes"]
+    _write_no_url_source(qdb, _exchange_rows("GFEX"))
+    with qdb.duckdb_connect() as con:
+        con.execute(
+            "INSERT INTO industry_load_diff (run_id, source, table_name, period, indicator, "
+            "change_type, column_name, old_value, new_value, source_doc, reason, changed_at) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            ["LEGACY", "exchange_daily_quotes", "industry_exchange_daily_quotes", None,
+             "exchange=GFEX|contract=碳酸锂", "row_added", None, None,
+             "exchange=GFEX|trade_date=2026-11-27", None,
+             "按期替换：本次快照（旧）新增该行", dt.datetime(2026, 11, 26, 6, 0)],
+        )
+        repaired = ind.backfill_diff_provenance(con)
+        row = con.execute(
+            "SELECT source_doc, reason FROM industry_load_diff WHERE run_id = 'LEGACY'"
+        ).fetchone()
+        again = ind.backfill_diff_provenance(con)
+
+    assert repaired == 1 and again == 0
+    assert row[0].startswith("http://www.gfex.com.cn"), row
+    assert "；原句：无（结构化接口数据" in row[1], row
+    assert "页级出处（manifest 登记）" in row[1], row

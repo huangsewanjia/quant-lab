@@ -617,6 +617,16 @@ DIFF_EMPTY_CELL = "∅"
 RAW_HISTORY_DIR = "history"
 MODE_LABEL = {"partition": "按期替换", "source": "整源替换", "full": "清表重装"}
 DOC_COLUMNS = ("source_url", "url", "adjunct_url", "source_doc")
+# raw manifest 的出处页键名两套并存：raw/industry/* 用 source_urls，raw/industry_alt/* 用
+# sources。只读一个会在这几个源上静默拿到 None（WORK-647 验收 §4）。
+MANIFEST_DOC_KEYS = ("source_urls", "sources")
+# 一个源登记多条出处页时，按行内特征挑「命中条」；挑不到取首条并在 reason 里标页级。
+DOC_MATCH_RULES = (
+    ("exchange", (("gfex", "gfex"), ("shfe", "shfe"))),
+    ("series", (("dram", "dram"), ("nand", "flash"), ("flash", "flash"))),
+)
+REASON_LIMIT = 500
+NO_SENTENCE = "无（结构化接口数据，来源见 source_doc）"
 
 
 def _cell_text(value: Any) -> str:
@@ -655,26 +665,103 @@ def _row_text(row: dict[str, Any], columns: list[str]) -> str:
     return text
 
 
-def change_reason(manifest: dict[str, Any], mode: str, change: str) -> str:
-    """人读一句话：哪个模式、哪次快照、什么性质的变化。"""
-    stamp = _text(manifest.get("fetched_at")) or "抓取时间未记录"
-    label = MODE_LABEL.get(mode, mode)
-    if change == "no_change":
-        return f"{label}：源快照（{stamp}）与库内逐行一致，无变化"
-    if change == "row_added":
-        return f"{label}：本次快照（{stamp}）新增该行"
-    if change == "row_dropped":
-        return f"{label}：本次快照（{stamp}）不再包含该行"
-    return f"{label}：本次快照（{stamp}）中该字段取值变化"
+def manifest_doc_urls(manifest: dict[str, Any]) -> list[str]:
+    """manifest 里登记的出处页。两个键名都要读（见 MANIFEST_DOC_KEYS 注释）。"""
+    urls: list[str] = []
+    for key in MANIFEST_DOC_KEYS:
+        value = manifest.get(key)
+        if isinstance(value, str):
+            urls.extend(u for u in [value.strip()] if u)
+        elif isinstance(value, list):
+            urls.extend(str(u).strip() for u in value if str(u).strip())
+    return urls
 
 
-def row_source_doc(row: dict[str, Any]) -> str | None:
-    """被改动行自己的原文 URL；没有 URL 列的表返回 None。"""
+def match_doc_url(row: dict[str, Any], urls: list[str]) -> str | None:
+    """按行内特征在 manifest 出处页里挑命中条（GFEX/SHFE、DRAM/Flash 这类）。"""
+    for column, rules in DOC_MATCH_RULES:
+        value = _text(row.get(column)).lower()
+        if not value:
+            continue
+        for token, needle in rules:
+            if token in value:
+                for url in urls:
+                    if needle in url.lower():
+                        return url
+    return None
+
+
+def row_source_doc(row: dict[str, Any], urls: list[str]) -> tuple[str | None, bool]:
+    """被改动行的出处 URL。
+
+    返回值 (url, page_level)：先取行内 URL 列；行内没有（exchange / trendforce /
+    benchmark 三张表压根没有 URL 列）则按行特征在 manifest 登记的出处页里挑，挑不到
+    取首条并标 page_level=True —— 调用方会在 reason 里注明「页级」。
+    """
     for column in DOC_COLUMNS:
+        value = _text(row.get(column))
+        if value and value != DIFF_EMPTY_CELL:
+            return value, False
+    matched = match_doc_url(row, urls)
+    if matched:
+        return matched, True
+    return (urls[0], True) if urls else (None, False)
+
+
+def sentence_of(row: dict[str, Any]) -> str | None:
+    """行内携带的上游原文句：context 优先，其次 caliber 的「｜原句：」段，再次标题类列。"""
+    context = _text(row.get("context"))
+    if context:
+        return context
+    caliber = _text(row.get("caliber"))
+    if "｜原句：" in caliber:
+        quoted = caliber.split("｜原句：", 1)[1].strip()
+        if quoted:
+            return quoted
+    for column in ("article_title", "title", "key_figure"):
         value = _text(row.get(column))
         if value and value != DIFF_EMPTY_CELL:
             return value
     return None
+
+
+def change_reason(
+    manifest: dict[str, Any],
+    mode: str,
+    change: str,
+    row: dict[str, Any] | None = None,
+    column: str | None = None,
+    before: str | None = None,
+    after: str | None = None,
+    page_level: bool = False,
+) -> str:
+    """人读一句话：哪个模式、哪次快照、什么性质的变化 + 上游原文句（WORK-647 验收 #1）。
+
+    `value_changed` 不再写「该字段取值变化」这种同义反复，而是写「哪列、从什么改成什么」，
+    再接「；原句：…」。没有正文的源（exchange / trendforce / benchmark 等结构化接口）
+    如实写「原句：无（结构化接口数据）」——不许拿标题或链接冒充原句。
+    """
+    stamp = _text(manifest.get("fetched_at")) or "抓取时间未记录"
+    label = MODE_LABEL.get(mode, mode)
+    if change == "no_change":
+        return f"{label}：源快照（{stamp}）与库内逐行一致，无变化"
+
+    if change == "value_changed":
+        head = f"{label}：本次快照（{stamp}）{column} 由 {before} 改为 {after}"
+    elif change == "row_added":
+        head = f"{label}：本次快照（{stamp}）新增该行"
+    else:
+        head = f"{label}：本次快照（{stamp}）不再包含该行"
+
+    sentence = sentence_of(row or {}) or NO_SENTENCE
+    tail = "；页级出处（manifest 登记）" if page_level else ""
+    # 原句排在最后，超 500 字时只截原句，不截「怎么变的」
+    room = REASON_LIMIT - len(head) - len("；原句：") - len(tail)
+    if room <= 0:
+        return (head + "；原句：" + sentence)[:REASON_LIMIT]
+    if len(sentence) > room:
+        sentence = sentence[: max(room - 1, 0)] + "…"
+    return f"{head}；原句：{sentence}{tail}"
 
 
 def archive_raw_snapshot(source: Source) -> Path | None:
@@ -765,16 +852,20 @@ def compute_load_diff(
 
     old = {key_of(r): r for r in existing.to_dict("records")}
     new = {key_of(r): r for r in staged.to_dict("records")}
+    doc_urls = manifest_doc_urls(manifest)
     now = dt.datetime.now()
 
     def record(row, change, column, old_value, new_value):
         indicator = "|".join(
             f"{c}={_cell_text(row.get(c))}" for c in indicator_columns
         )
+        doc, page_level = row_source_doc(row, doc_urls)
         return [
             source.name, source.table, _diff_period(source, row), indicator,
-            change, column, old_value, new_value, row_source_doc(row),
-            change_reason(manifest, mode, change), now,
+            change, column, old_value, new_value, doc,
+            change_reason(manifest, mode, change, row, column, old_value, new_value,
+                          page_level),
+            now,
         ]
 
     rows: list[list[Any]] = []
@@ -800,6 +891,79 @@ def compute_load_diff(
         ])
     rows.sort(key=lambda r: (r[4], r[3], r[5] or ""))
     return rows
+
+
+def _sentence_from_row_text(blob: str) -> str | None:
+    """从已存的整行文本里抠「｜原句：…」段（早期行只有文本，没有原始字典）。"""
+    match = re.search(r"原句：([^|]*)", blob or "")
+    if match and match.group(1).strip():
+        return match.group(1).strip()
+    return None
+
+
+def _match_doc_url_in_text(blob: str, urls: list[str]) -> str | None:
+    text = (blob or "").lower()
+    for _column, rules in DOC_MATCH_RULES:
+        for token, needle in rules:
+            if token in text:
+                for url in urls:
+                    if needle in url.lower():
+                        return url
+    return None
+
+
+def backfill_diff_provenance(con: duckdb.DuckDBPyConnection) -> int:
+    """补齐早期变更行的出处页与原文句（幂等；无缺口时 0 行）。
+
+    「manifest 兜底 + 原句进 reason」是 WORK-647 验收后补的，此前写入的变更行里，
+    exchange / trendforce / benchmark 三张没有 URL 列的表 source_doc 全为 NULL，
+    所有 change 行 reason 也没有原句。这里按各源**当前** manifest 的出处页与已存行文本
+    补齐，不覆盖已有内容；补出来的页级出处会在 reason 里注明，不假装是行级出处。
+    """
+    rows = con.execute(
+        "SELECT run_id, source, table_name, change_type, coalesce(column_name, ''), "
+        "coalesce(indicator, ''), coalesce(old_value, ''), coalesce(new_value, ''), "
+        "coalesce(source_doc, ''), coalesce(reason, '') "
+        "FROM industry_load_diff "
+        "WHERE change_type IN ('value_changed', 'row_added', 'row_dropped') "
+        "  AND (source_doc IS NULL OR trim(source_doc) = '' "
+        "       OR (reason NOT LIKE '%原句：%' AND reason NOT LIKE 'WORK-585 首版%'))"
+    ).fetchall()
+    if not rows:
+        return 0
+    urls_by_source: dict[str, list[str]] = {}
+    updated = 0
+    for run_id, source, table, change, column, indicator, old_value, new_value, doc, reason in rows:
+        if source not in urls_by_source:
+            src = SOURCE_BY_NAME.get(source)
+            urls_by_source[source] = (
+                manifest_doc_urls(read_manifest(src.root)) if src else []
+            )
+        urls = urls_by_source[source]
+        blob = old_value if change == "row_dropped" else new_value
+        page_level = False
+        if not doc.strip():
+            doc = _match_doc_url_in_text(blob, urls) or (urls[0] if urls else "")
+            page_level = bool(doc)
+        new_reason = reason
+        if "原句：" not in new_reason and not new_reason.startswith("WORK-585 首版"):
+            sentence = _sentence_from_row_text(blob) or NO_SENTENCE
+            new_reason = f"{new_reason}；原句：{sentence}"
+        if page_level and "页级出处" not in new_reason:
+            new_reason = f"{new_reason}；页级出处（manifest 登记）"
+        new_reason = new_reason[:REASON_LIMIT]
+        if doc == doc and new_reason == reason:
+            continue
+        con.execute(
+            "UPDATE industry_load_diff SET source_doc = ?, reason = ? "
+            "WHERE run_id = ? AND source = ? AND table_name = ? AND change_type = ? "
+            "  AND coalesce(column_name, '') = ? AND coalesce(indicator, '') = ? "
+            "  AND coalesce(old_value, '') = ? AND coalesce(new_value, '') = ?",
+            [doc, new_reason, run_id, source, table, change, column, indicator,
+             old_value, new_value],
+        )
+        updated += 1
+    return updated
 
 
 def write_load_diff(
@@ -959,6 +1123,9 @@ def run_load(
     forecast_results: list[dict[str, Any]] = []
     with common.duckdb_connect() as con:
         apply_schema(con)
+        repaired = backfill_diff_provenance(con)
+        if repaired:
+            print(f"[industry] 补齐早期变更行的出处页/原句：{repaired} 行", flush=True)
         if observation:
             results = _load_group(con, observation, run_id, full)
         if forecast:

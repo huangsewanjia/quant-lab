@@ -150,6 +150,13 @@ def term(text: str, limit: int = 2600) -> str:
 def main() -> None:
     demo = json.loads((META / "work585-demo.json").read_text()) if (META / "work585-demo.json").exists() else None
     dbinfo = json.loads((META / "work585-db.json").read_text()) if (META / "work585-db.json").exists() else None
+    head_sha = "HEAD"
+    if (META / "work585-code-sha256.txt").exists():
+        for line in (META / "work585-code-sha256.txt").read_text(encoding="utf-8").splitlines():
+            if line.startswith("head_sha:"):
+                head_sha = line.split(":", 1)[1].split("#")[0].strip()[:7]
+                break
+
     sha_file = META / "work585-code-sha256.txt"
     sha_block = sha_file.read_text().strip() if sha_file.exists() else "（缺：meta/industry/work585-code-sha256.txt）"
 
@@ -180,6 +187,17 @@ def main() -> None:
         "ESCAPE '\\' AND table_type='BASE TABLE'"
     ).fetchone()[0])
     view_n = int(con.execute("SELECT count(*) FROM v_industry_load_changes_recent").fetchone()[0])
+    cov = con.execute(
+        "SELECT source, count(*) AS total, "
+        "count(nullif(trim(source_doc), '')) AS with_doc, "
+        "round(100.0 * count(nullif(trim(source_doc), '')) / count(*), 1) AS pct, "
+        "count(*) FILTER (WHERE reason LIKE '%原句：无（结构化接口数据%') AS structured "
+        "FROM industry_load_diff "
+        "WHERE change_type IN ('value_changed','row_added','row_dropped') "
+        "GROUP BY 1 ORDER BY 1"
+    ).fetchall()
+    cov_total = sum(r[1] for r in cov)
+    cov_doc = sum(r[2] for r in cov)
     con.close()
 
     raw_sizes = [p.stat().st_size for p in
@@ -211,6 +229,20 @@ def main() -> None:
     )
     gate_ok = sum(1 for d in gate.get("gates", {}).values() if d.get("pass"))
     gate_total = len(gate.get("gates", {}))
+
+    cov_rows = "".join(
+        f"<tr><td>{esc(r[0])}</td><td class='num'>{r[1]:,}</td><td class='num'>{r[2]:,}</td>"
+        f"<td class='num'>{r[3]}%</td><td class='num'>{r[4]:,}</td></tr>"
+        for r in cov
+    )
+    cov_pct = round(100.0 * cov_doc / cov_total, 1) if cov_total else 0.0
+    samples = (demo.get("changed") or [])[:5]
+    sample_rows = "".join(
+        f"<tr><td>{esc(r.get('indicator',''))}</td>"
+        f"<td>{esc(r.get('old_value',''))} → <b>{esc(r.get('new_value',''))}</b></td>"
+        f"<td>{esc(r.get('reason',''))}</td></tr>"
+        for r in samples
+    )
 
     rows_html = "".join(
         f"<tr><td>{esc(t)}</td><td>{esc(k)}</td><td class='num'>{n:,}</td></tr>"
@@ -412,11 +444,35 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 <p class="muted">自检：各 <code>change_type</code> 分项相加 = {diff_total}；
 各表相加 = {diff_total}。统计时点 {dt.datetime.now():%Y-%m-%d %H:%M} CST。</p>
 
-<h3>6.5 质量闸</h3>
+<h3>6.5 四要素实证：出处覆盖率与上游原句</h3>
+<p>变更行（<code>value_changed</code> / <code>row_added</code> / <code>row_dropped</code>）
+按源统计出处 URL 覆盖率。缺口 0 行；<code>trendforce</code> / <code>exchange</code> /
+<code>benchmark</code> 三张表没有 URL 列，出处页取自各自 manifest（<code>sources</code> 键），
+行内特征能命中的取命中条（GFEX/SHFE、DRAM/NAND），reason 里标「页级出处」。</p>
+<table>
+<tr><th>source</th><th class="num">变更行</th><th class="num">有 source_doc</th>
+<th class="num">覆盖率</th><th class="num">其中「原句：无」</th></tr>
+{cov_rows}
+<tr><td><b>合计</b></td><td class="num"><b>{cov_total}</b></td>
+<td class="num"><b>{cov_doc}</b></td>
+<td class="num"><b>{cov_pct}%</b></td><td class="num">—</td></tr>
+</table>
+<p class="muted">自检：各源变更行相加 = {cov_total}；有 source_doc 相加 = {cov_doc}；
+缺口 = {cov_total - cov_doc}。统计时点 {dt.datetime.now():%Y-%m-%d %H:%M} CST。</p>
+
+<h3>6.6 value_changed 的 reason 长什么样（取 5 行）</h3>
+<p class="muted">生产 raw 这两天没有值变化（<code>value_changed</code> 现读 0 行），下面 5 行取自
+<code>$QUANTDB_HOME/staging/work585-demo</code> 的离线演示库，走的是同一份 <code>change_reason()</code>。</p>
+<table>
+<tr><th>indicator</th><th>old → new</th><th>reason</th></tr>
+{sample_rows}
+</table>
+
+<h3>6.7 质量闸</h3>
 <table><tr><th>闸</th><th>结果</th></tr>{gate_rows}</table>
 <p>{gate_ok}/{gate_total} PASS（报告文件 <code>{esc(check_file.name if check_file else "—")}</code>）。</p>
 
-<h3>6.6 离线测试</h3>
+<h3>6.8 离线测试</h3>
 <p><code>pytest db/tests/</code> 全绿，其中 <code>db/tests/test_industry_diff.py</code>
 <b>{n_tests}</b> 项为本单新增：值修改 + 新增行、快照源撤期（F3 回归）、幂等 0 差异、
 分区源只碰本期、空快照拒绝清表（含 <code>--full</code>）、整数与浮点同值不误报、
@@ -444,23 +500,44 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 </ul>
 
 <h2>8. 回滚</h2>
-<pre class="term"># ① 代码：git revert（.bak 机制已退役，改前版本就是基线 59e5682）
-git -C /srv/share/quantdb/code/quant-lab revert &lt;交付 SHA&gt;
+<p class="muted">回滚对象是<b>提交</b>，不是单个文件：功能实现分布在 <code>59e5682..{head_sha}</code>
+这一串提交里（<code>git log --oneline 59e5682..{head_sha}</code>）。live 树在另一个分支、这些文件在
+那边是未追踪的，所以 revert 后必须<b>显式同步</b>过去。</p>
+<pre class="term"># ① 在 git worktree 里整段回退到基线（先看 diff 再提交）
+cd /srv/share/quantdb/code/work-585
+git revert --no-commit 59e5682..{head_sha}
+git diff --cached --stat
 
-# ② 库对象（只删留痕对象，不动任何观测表数据）
-flock /srv/share/quantdb/logs/.quantdb-db.lock \
+# ② 同步到线上跑的那棵树（live 树里这些文件 git 未追踪，revert 不会自动生效）
+cd /srv/share/quantdb/code/quant-lab
+for f in db/etl/industry.py db/checks/industry.py db/schema_industry.sql \
+         db/tests/test_industry_diff.py scripts/work585_verify.py \
+         scripts/work585_build_delivery.py; do
+  git -C /srv/share/quantdb/code/work-585 show 59e5682:$f > $f
+done
+
+# ③ 库对象（只删留痕对象，不动 17 张观测表）
+flock -w 1800 /srv/share/quantdb/logs/.quantdb-db.lock \
   /home/moyongkai/.venvs/quantdb/bin/python - &lt;&lt;'SQL'
 import duckdb
 con = duckdb.connect("/srv/share/quantdb/db/quantdb.duckdb")
 con.execute("DROP VIEW IF EXISTS v_industry_load_changes_recent")
 con.execute("DROP TABLE IF EXISTS industry_load_diff")
 con.execute("CHECKPOINT"); con.close()
-SQL
+SQL</pre>
 
-# ③ 数据：整源替换已经清掉的残留行不会因回滚代码复活；
-#    需要恢复就按 raw 重新装载（raw 未改动）。</pre>
-<p class="muted"><code>industry.sh</code> 调用方式未改，回滚代码即恢复原行为；
-C9 随 <code>industry_load_diff</code> 一起消失，C1–C8 不受影响。</p>
+<h3>8.1 PG / 大屏侧受影响面（不处理会留孤儿）</h3>
+<table>
+<tr><th>位置</th><th>内容</th><th>回滚后症状</th><th>处理</th></tr>
+<tr><td><code>metabase/schema_pg.sql:134</code></td><td>PG 侧 <code>industry_load_diff</code> 表</td>
+<td>DuckDB 删表后 PG 表仍在、数据停止更新</td><td>手工 <code>DROP TABLE industry_load_diff;</code></td></tr>
+<tr><td><code>metabase/schema_pg.sql:152</code></td><td><code>industry_load_diff_changed_at_idx</code></td>
+<td>随表成孤儿</td><td>随表 DROP</td></tr>
+<tr><td><code>metabase/sync_to_pg.py:432</code></td><td><code>OPTIONAL_TABLES</code> 含该表</td>
+<td>sync 发现源表不存在会<b>静默跳过</b>，不报错</td><td>无需改代码，但别把「不报错」当正常</td></tr>
+<tr><td><code>metabase/dashboard/lib.py</code>（WORK-586 大屏「数据变更」区块）</td><td>直读该表</td>
+<td>区块无数据</td><td>同步下线或改占位</td></tr>
+</table>
 
 <h2>9. 附录</h2>
 <h3>9.1 表结构</h3>

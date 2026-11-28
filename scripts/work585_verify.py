@@ -99,11 +99,13 @@ def cmd_demo() -> dict:
     write_demo_raw(base)
     run_loader(DEMO, "--sources", "cnesa_storage")
 
-    # 第 2 轮：改一个值（累计装机 144.7 -> 150.9）+ 上游撤掉一期（2022-01 平均时长）
+    # 第 2 轮：改 5 个值（覆盖不同指标，带上游原句）+ 上游撤掉一期（2022-01 平均时长）
     v2 = base.copy()
-    mask = v2["indicator"] == "新型储能累计装机规模"
-    before = float(v2.loc[mask, "value"].iloc[0]) if mask.any() else None
-    v2.loc[mask, "value"] = 150.9
+    current = v2[v2["period"].astype(str) == "2026-01"].head(5)
+    targets = list(current.index)
+    before = [float(v2.loc[i, "value"]) for i in targets]
+    for i in targets:
+        v2.loc[i, "value"] = round(float(v2.loc[i, "value"]) * 1.1, 2)
     dropped_period = "2022-01"
     v2 = v2[v2["period"].astype(str) != dropped_period].reset_index(drop=True)
     write_demo_raw(v2)
@@ -136,10 +138,14 @@ def cmd_demo() -> dict:
           f"第 3 轮无变化只写 1 行 no_change（实际 {diff3.shape[0]} 行）")
     changed = diff2[diff2["change_type"] == "value_changed"].reset_index(drop=True)
     dropped = diff2[diff2["change_type"] == "row_dropped"].reset_index(drop=True)
-    check(changed.shape[0] == 1 and changed.loc[0, "column_name"] == "value",
-          f"值修改落 value_changed 1 行（实际 {changed.shape[0]} 行）")
-    check(changed.shape[0] == 1 and float(changed.loc[0, "new_value"]) == 150.9,
-          "value_changed 的 new_value = 150.9")
+    check(changed.shape[0] == 5 and set(changed["column_name"]) == {"value"},
+          f"值修改落 value_changed 5 行（实际 {changed.shape[0]} 行）")
+    check(all("；原句：" in r and "｜原句" not in r for r in changed["reason"]),
+          "value_changed 的 reason 都带「；原句：」段")
+    check(all(len(r) <= 500 for r in changed["reason"]),
+          f"reason 长度均 ≤ 500（最长 {int(max((len(r) for r in changed['reason']), default=0))}）")
+    check(all(bool(d) for d in changed["source_doc"]),
+          "value_changed 的 source_doc 均非空")
     check(dropped.shape[0] == 1, f"期消失落 row_dropped 1 行（实际 {dropped.shape[0]} 行）")
     periods_after = sorted({str(p)[:7] for p in after["period"]})
     check("2022-01" not in periods_after and "2026-01" in periods_after,

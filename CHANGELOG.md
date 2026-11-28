@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-11-29 · WORK-585 返工（WORK-647 验收 3 项不达标）
+
+修复：
+
+- **`reason` 带上游原句**（`db/etl/industry.py::change_reason` / `sentence_of`）：`value_changed`
+  不再写「该字段取值变化」，改为「哪列由什么改成什么；原句：…」。原句取法：行内 `context` →
+  `caliber` 的「｜原句：」段 → `article_title`/`title`；没有正文的结构化源如实写
+  「原句：无（结构化接口数据，来源见 source_doc）」，不拿标题冒充。reason 上限 500 字符。
+- **`source_doc` 覆盖率 40.8% → 100%**（`row_source_doc` / `manifest_doc_urls` / `match_doc_url`）：
+  行内 URL 列优先；exchange / trendforce / benchmark 没有 URL 列时读 manifest 登记的出处页——
+  `raw/industry/*` 的 `source_urls` 与 `raw/industry_alt/*` 的 `sources` **两个键都读**；多条出处页
+  按 `exchange=GFEX/SHFE`、`series` 含 DRAM/NAND 挑命中条，挑不到取首条并在 reason 标「页级出处」。
+- **存量行回填**（`backfill_diff_provenance`，每次装载前幂等跑）：先前 229 行无 URL、全部变更行无原句，
+  按各源当前 manifest 与已存行文本补齐；回填前整表快照留在
+  `staging/industry_load_diff-before-work585-rework-20261129.parquet`。
+- **回滚说明改为指向真实提交**：`git revert --no-commit 59e5682..HEAD` + 逐文件同步到 live 树，
+  并补 PG / 大屏受影响面（`metabase/schema_pg.sql:134/152`、`sync_to_pg.py:432`、586 大屏区块）；
+  见 `docs/industry-ingest-2026.md` §14.7。
+- 测试 15 项（新增：manifest 兜底与多出处页选择、双键读取、value_changed 带原句、存量行回填幂等）。
+
+实测（2026-11-29 00:01 CST）：变更行 706 行 source_doc 覆盖 **706/706 = 100%**（缺口 0）、
+706 行 reason 全部含「原句：」；生产 `value_changed` 仍为 0（raw 无变化），5 个样例取自离线演示库；
+9 闸 PASS；`pytest db/tests/` 266 项全过。
+
 ## 2026-11-25 · WORK-585 行业装载变更留痕（diff 日志 + 快照源整源替换）
 
 新增：

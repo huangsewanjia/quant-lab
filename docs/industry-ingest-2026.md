@@ -981,8 +981,8 @@ raw 摘要（2026-11-25 22:55 最终版）：`part.parquet` 12,237 B，sha256
 | `column_name` | VARCHAR | `value_changed` 时变化的列名 |
 | `old_value` | VARCHAR | 变化前列值 / 被删行整行文本；源侧为空记 `∅` |
 | `new_value` | VARCHAR | 变化后列值 / 新增行整行文本；`no_change` 存汇总文本 |
-| `source_doc` | VARCHAR | 被改动行自己的原文 URL（取 `source_url` / `url` / `adjunct_url` 列）；无 URL 列的表为 NULL |
-| `reason` | VARCHAR | 改动原因（人读一句话）：装载模式 + 本次快照抓取时间 + 变更性质；**不允许为 NULL** |
+| `source_doc` | VARCHAR | 被改动行的出处 URL：**行内 URL 列优先**（`source_url` / `url` / `adjunct_url`），行内没有则取 manifest 登记的出处页；都没有才为 NULL |
+| `reason` | VARCHAR | 改动原因（人读一句话）：装载模式 + 本次快照抓取时间 + **具体改了什么** + `；原句：…`（上游原文那句）；**不允许为 NULL**，长度 ≤ 500 |
 | `changed_at` | TIMESTAMP | 写入时刻（本地墙钟） |
 
 `reason` 的取值形态（由 `db/etl/industry.py::change_reason` 生成，不手填）：
@@ -993,6 +993,33 @@ raw 摘要（2026-11-25 22:55 最终版）：`part.parquet` 12,237 B，sha256
 | `row_added` | `按期替换：本次快照（…）新增该行` |
 | `row_dropped` | `整源替换：本次快照（…）不再包含该行` |
 | `no_change` | `按期替换：源快照（…）与库内逐行一致，无变化` |
+
+`value_changed` 不再写「该字段取值变化」这种同义反复，而是**写明哪列、从什么改成什么，再接原句**：
+
+```
+整源替换：本次快照（2026-11-25T22:00:00+0800）value 由 144.7 改为 159.17；
+原句：截至2025年12月底，中国新型储能累计装机规模达到 144.7GW，同比+85% 。
+```
+
+原句的取法（`sentence_of()`，按优先级）：行内 `context` → `caliber` 里「｜原句：」之后那段 →
+`article_title` / `title` / `key_figure`。**都没有就如实写「原句：无（结构化接口数据，来源见
+source_doc）」**，不拿标题或链接冒充原句。exchange / trendforce / benchmark / gfex / ppi 这几个源
+本来就是结构化接口（列里没有正文），生产库里它们的 reason 会带这句「无」。
+
+**`source_doc` 的 manifest 兜底与多出处页的选择规则**（WORK-647 验收 #2）：
+
+1. 先看行内 URL 列（8 个源有：gfex / lpr / cnesa / cninfo / caam / cpca / mof / nea / stats / pbc /
+   sne / ppi 等，取 `source_url` / `url` / `adjunct_url`）；
+2. 行内没有（exchange / trendforce / benchmark 三张表没有 URL 列）→ 读 manifest：
+   `raw/industry/<源>/manifest.json` 的 **`source_urls`**、`raw/industry_alt/<源>/manifest.json` 的
+   **`sources`**，两个键都读（只读一个会在这几个源上静默拿到 None）；
+3. 一个源登记多条出处页时，**按行内特征挑命中条**：`exchange=GFEX/SHFE` → gfex/shfe 那条，
+   `series` 含 DRAM/NAND/Flash → dram/flash 那条；挑不到取首条；
+4. 用 manifest 兜底的行会在 `reason` 末尾标 `；页级出处（manifest 登记）`，不假装是行级出处。
+
+**存量行回填**（`backfill_diff_provenance()`，每次装载前跑一次、幂等）：实现兜底之前写入的变更行
+（上一次验收时 229 行无 URL、全部无原句）按各源**当前** manifest 与已存行文本补齐，已有内容不覆盖。
+回填前的整表快照留在 `/srv/share/quantdb/staging/industry_load_diff-before-work585-rework-20261129.parquet`。
 | 历史行（首版上线前写入） | `WORK-585 首版上线前写入，无原因字段（历史行）` |
 
 **存量表兼容**：生产库在本单首版落地时已有同表（75 行 10 列）。`apply_schema` 每次装载执行
@@ -1120,13 +1147,48 @@ print(con.execute('select * from v_industry_load_changes_recent limit 20').df().
 
 ### 14.7 回滚
 
-1. 代码：`git revert <交付 SHA>`（分支 `agent/work-585-diff-log`）。本单不再保留 `.bak` 副本
-   ——`.bak` 机制已退役，回滚一律走 git（改前版本是基线 `59e5682`）。
-2. 库：`DROP VIEW v_industry_load_changes_recent; DROP TABLE industry_load_diff;`
-   —— 两对象只被留痕逻辑与 C9 使用，删掉后 C9 自然消失，C1–C8 与 17 张观测表数据零改动。
-3. raw：`history/` 里的快照是只增不删的留档，回滚代码不需要动它。要回到某个历史快照，
-   **数据文件与同前缀的 `manifest.json`（预测源还有 `article.txt`）一起复制回去**：
-   `cp history/<sha12>-<mtime>.parquet part.parquet && cp history/<sha12>-<mtime>.json manifest.json`
-   ——只恢复数据文件不恢复 manifest，`snapshot_date` 与 `reason` 里的快照时间会变成当前值。
-4. 数据：整源替换已经清掉的残留行不会因回滚代码而复活；需要恢复时按 raw（或 `history/` 里的旧快照）
-   重新装载。
+**回滚对象是提交，不是某一个文件。** 本单代码在分支 `agent/work-585-diff-log` 上，功能实现是
+`59e5682..` 之后的一串提交（`git log --oneline 59e5682..HEAD`）；本文档版本与代码同源。
+
+```bash
+# ① 代码：整段回退到基线（--no-commit 便于先看 diff 再提交）
+cd /srv/share/quantdb/code/work-585          # 本单 worktree（git 里就有这些文件）
+git revert --no-commit 59e5682..HEAD         # 或：git checkout 59e5682 -- db/ docs/ CHANGELOG.md
+git diff --cached --stat                     # 复核要回退的文件
+
+# ② 把 worktree 里的回退结果同步到**线上跑的那棵树**（live 树在另一个分支，
+#    这些文件在那边是未追踪的，revert 不会自动生效）：
+cd /srv/share/quantdb/code/quant-lab
+for f in db/etl/industry.py db/checks/industry.py db/schema_industry.sql \
+         db/tests/test_industry_diff.py scripts/work585_verify.py \
+         scripts/work585_build_delivery.py; do
+  git -C /srv/share/quantdb/code/work-585 show 59e5682:$f > $f
+done
+
+# ③ 库对象：只删留痕对象，不动任何观测表数据（C9 随表消失）
+flock -w 1800 /srv/share/quantdb/logs/.quantdb-db.lock \
+  /home/moyongkai/.venvs/quantdb/bin/python - <<'SQL'
+import duckdb
+con = duckdb.connect("/srv/share/quantdb/db/quantdb.duckdb")
+con.execute("DROP VIEW IF EXISTS v_industry_load_changes_recent")
+con.execute("DROP TABLE IF EXISTS industry_load_diff")
+con.execute("CHECKPOINT"); con.close()
+SQL
+```
+
+**PG / 大屏侧受影响面（回滚时必须一起处理，否则成孤儿）**：
+
+| 位置 | 内容 | 回滚后症状 | 处理 |
+|---|---|---|---|
+| `code/metabase/schema_pg.sql:134` | `CREATE TABLE IF NOT EXISTS industry_load_diff` | DuckDB 侧删表后 PG 表仍在，数据停止更新 | 手工 `DROP TABLE industry_load_diff;`（PG） |
+| `code/metabase/schema_pg.sql:152` | `industry_load_diff_changed_at_idx` 索引 | 随表一起成孤儿 | 随表 DROP |
+| `code/metabase/sync_to_pg.py:432` | `OPTIONAL_TABLES = {"industry_load_diff"}` | sync 发现源表不存在会**静默跳过**，不报错 | 无需改代码，但要知道「不报错≠正常」 |
+| `code/metabase/dashboard/lib.py`（WORK-586 大屏「数据变更」区块） | 直读该表 | 区块无数据（空表/查询失败） | 同步下线或改为占位 |
+
+**数据侧**：`history/` 里的 raw 快照只增不删，回滚代码不用动它；回到某个历史快照要**数据文件与同前缀
+`manifest.json`（预测源还有 `article.txt`）一起复制回去**——只还原数据文件会让 `snapshot_date` 与
+reason 里的快照时间变成当前值。整源替换已经清掉的残留行不会因回滚代码复活，要恢复按 raw 或历史快照重装。
+
+**回填可逆**：`backfill_diff_provenance()` 只改 `source_doc` 与 `reason` 两列，回填前整表快照在
+`/srv/share/quantdb/staging/industry_load_diff-before-work585-rework-20261129.parquet`（`COPY ... TO` 导出，
+`read_parquet()` 可直接比对）。
