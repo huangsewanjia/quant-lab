@@ -39,7 +39,7 @@ footer{margin-top:56px;border-top:1px solid var(--line);padding-top:14px;
 </style></head><body><main>
 
 <h1>行业装载变更留痕：diff 日志 + 快照源整源替换</h1>
-<p class="sub">WORK-585 · 数据底座 quantdb · 生成于 2026-11-26 00:21 CST · 目标 runtime：Mo-server</p>
+<p class="sub">WORK-585 · 数据底座 quantdb · 生成于 2026-11-29 00:04 CST · 目标 runtime：Mo-server</p>
 
 <div class="lede">
 <b>一句话：</b>装载器现在每次替换前先把「库内现状 vs 本次快照」的逐行差异写进
@@ -142,21 +142,21 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 <h3>6.1 演示：值修改 + 期消失 + 幂等（离线，不碰生产表）</h3>
 <p>把生产 raw 的 <code>cnesa_storage/part.parquet</code>（33 行）复制到演示库
 <code>$QUANTDB_HOME/staging/work585-demo</code>（每次重建、脚本可复跑），第 2 轮把「新型储能累计装机规模」从
-144.7 改成 150.9，并删掉 2022-01 那一期，第 3 轮原样重跑。</p>
-<figure><svg viewBox="0 0 630 154" width="100%" role="img" aria-label="三轮演示的差异构成"><text x="4" y="31" font-size="12" fill="#334155">第 1 轮 首次装载（空表）</text><rect x="210" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="225" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="240" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="255" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="270" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="285" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="300" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="315" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="330" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="345" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="360" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="375" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="390" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="405" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="420" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="435" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="450" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="465" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="480" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="495" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="510" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="525" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="210" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="225" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="240" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="255" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="270" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="285" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="300" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="315" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="330" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="345" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="360" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><text x="548" y="29" font-size="12" fill="#0f172a">33 行</text><text x="4" y="65" font-size="12" fill="#334155">第 2 轮 值修改 + 撤期</text><rect x="210" y="52" width="12" height="12" rx="2" fill="#f59e0b"><title>值变化</title></rect><rect x="225" y="52" width="12" height="12" rx="2" fill="#dc2626"><title>行被删</title></rect><text x="548" y="63" font-size="12" fill="#0f172a">2 行</text><text x="4" y="99" font-size="12" fill="#334155">第 3 轮 同 raw 重跑</text><rect x="210" y="86" width="12" height="12" rx="2" fill="#94a3b8"><title>无变化汇总</title></rect><text x="548" y="97" font-size="12" fill="#0f172a">1 行</text><rect x="210" y="133" width="11" height="11" rx="2" fill="#1d4ed8"/><text x="226" y="144" font-size="11" fill="#334155">新增行</text><rect x="360" y="133" width="11" height="11" rx="2" fill="#f59e0b"/><text x="376" y="144" font-size="11" fill="#334155">值变化</text><rect x="510" y="133" width="11" height="11" rx="2" fill="#dc2626"/><text x="526" y="144" font-size="11" fill="#334155">行被删</text><rect x="660" y="133" width="11" height="11" rx="2" fill="#94a3b8"/><text x="676" y="144" font-size="11" fill="#334155">无变化汇总</text></svg>
+[213.3, 54.0, 31.3, 144.7, 85.0] 改成 150.9，并删掉 2022-01 那一期，第 3 轮原样重跑。</p>
+<figure><svg viewBox="0 0 630 154" width="100%" role="img" aria-label="三轮演示的差异构成"><text x="4" y="31" font-size="12" fill="#334155">第 1 轮 首次装载（空表）</text><rect x="210" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="225" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="240" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="255" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="270" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="285" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="300" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="315" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="330" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="345" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="360" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="375" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="390" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="405" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="420" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="435" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="450" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="465" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="480" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="495" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="510" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="525" y="18" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="210" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="225" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="240" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="255" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="270" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="285" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="300" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="315" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="330" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="345" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><rect x="360" y="33" width="12" height="12" rx="2" fill="#1d4ed8"><title>新增行</title></rect><text x="548" y="29" font-size="12" fill="#0f172a">33 行</text><text x="4" y="65" font-size="12" fill="#334155">第 2 轮 值修改 + 撤期</text><rect x="210" y="52" width="12" height="12" rx="2" fill="#f59e0b"><title>值变化</title></rect><rect x="225" y="52" width="12" height="12" rx="2" fill="#f59e0b"><title>值变化</title></rect><rect x="240" y="52" width="12" height="12" rx="2" fill="#f59e0b"><title>值变化</title></rect><rect x="255" y="52" width="12" height="12" rx="2" fill="#f59e0b"><title>值变化</title></rect><rect x="270" y="52" width="12" height="12" rx="2" fill="#f59e0b"><title>值变化</title></rect><rect x="285" y="52" width="12" height="12" rx="2" fill="#dc2626"><title>行被删</title></rect><text x="548" y="63" font-size="12" fill="#0f172a">6 行</text><text x="4" y="99" font-size="12" fill="#334155">第 3 轮 同 raw 重跑</text><rect x="210" y="86" width="12" height="12" rx="2" fill="#94a3b8"><title>无变化汇总</title></rect><text x="548" y="97" font-size="12" fill="#0f172a">1 行</text><rect x="210" y="133" width="11" height="11" rx="2" fill="#1d4ed8"/><text x="226" y="144" font-size="11" fill="#334155">新增行</text><rect x="360" y="133" width="11" height="11" rx="2" fill="#f59e0b"/><text x="376" y="144" font-size="11" fill="#334155">值变化</text><rect x="510" y="133" width="11" height="11" rx="2" fill="#dc2626"/><text x="526" y="144" font-size="11" fill="#334155">行被删</text><rect x="660" y="133" width="11" height="11" rx="2" fill="#94a3b8"/><text x="676" y="144" font-size="11" fill="#334155">无变化汇总</text></svg>
 <figcaption>图 2｜三轮演示各自的 diff 构成。第 1 轮空表装载全是 <code>row_added</code>；
 第 2 轮恰好 1 条 <code>value_changed</code>（144.7 → 150.9）+ 1 条 <code>row_dropped</code>（2022-01 撤期）；
 第 3 轮同 raw 重跑只写 1 行 <code>no_change</code> 汇总。</figcaption></figure>
 <table>
 <tr><th>轮次</th><th>change_type</th><th>indicator</th><th>old → new</th>
 <th>reason（改动原因）</th><th>source_doc（对应 URL）</th></tr>
-<tr><td>2</td><td>value_changed</td><td>period=2026-01-01|indicator=新型储能累计装机规模</td>
-<td>144.7 → <b>150.9</b></td>
-<td>整源替换：本次快照（2026-11-25T22:00:00+0800）中该字段取值变化</td>
+<tr><td>2</td><td>value_changed</td><td>period=2026-01-01|indicator=抽水蓄能装机占比</td>
+<td>31.3 → <b>34.43</b></td>
+<td>整源替换：本次快照（2026-11-25T22:00:00+0800）value 由 31.3 改为 34.43；原句：2025年是“十四五”的收官之年，与“十三五”末相比，储能技术路线市场份额变化，抽水蓄能占比31.3%，以锂电池为代表的新型储能实现跨越式增长，新型储能累计装机占比 超过2/3 ，单一向多元化加速发展。</td>
 <td class="muted">https://www.cnesa.org/information/detail/?column_id=1&amp;id=7798</td></tr>
 <tr><td>2</td><td>row_dropped</td><td>period=2022-01-01|indicator=新型储能累计装机平均时长</td>
 <td>period=2022-01-01|period_raw=2022-01|indicator=新型储能累计装机平均时长|value=2.11|unit=小时|c…</td>
-<td>整源替换：本次快照（2026-11-25T22:00:00+0800）不再包含该行</td>
+<td>整源替换：本次快照（2026-11-25T22:00:00+0800）不再包含该行；原句：储能时长方面 ，CNESA统计显示，新型储能累计装机的平均时长在2021-2025年呈缓慢上升趋势，由2.11小时逐步增至2.58小时。</td>
 <td class="muted">https://www.cnesa.org/information/detail/?column_id=1&amp;id=7798</td></tr>
 <tr><td>3</td><td>no_change</td><td>(全表)</td>
 <td>staged=32 库内=32 差异=0</td>
@@ -166,11 +166,11 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 <p class="muted">四要素（用户点名）：原值 <code>old_value</code>、新值 <code>new_value</code>、
 改动原因 <code>reason</code>、对应 URL <code>source_doc</code>。`reason` 由装载模式 + 本次快照的
 抓取时间 + 变更性质生成，不是手填。</p>
-<pre class="term">[industry] industry_cnesa_storage                     raw=    32 staged=    32 dedup=  0 total=    32 partitions=   1 diff=    2 source      0.04s
-[industry] 报表: /srv/share/quantdb/staging/work585-demo/meta/industry/load-20261126T001202.json
+<pre class="term">[industry] industry_cnesa_storage                     raw=    32 staged=    32 dedup=  0 total=    32 partitions=   1 diff=    6 source      0.03s
+[industry] 报表: /srv/share/quantdb/staging/work585-demo/meta/industry/load-20261129T000314.json
 
-[industry] industry_cnesa_storage                     raw=    32 staged=    32 dedup=  0 total=    32 partitions=   1 diff=    1 source      0.02s
-[industry] 报表: /srv/share/quantdb/staging/work585-demo/meta/industry/load-20261126T001205.json
+[industry] industry_cnesa_storage                     raw=    32 staged=    32 dedup=  0 total=    32 partitions=   1 diff=    1 source      0.04s
+[industry] 报表: /srv/share/quantdb/staging/work585-demo/meta/industry/load-20261129T000317.json
 </pre>
 
 <h3>6.2 F3 回归：上游删期，库内不留幽灵行</h3>
@@ -187,22 +187,46 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 <p>run <code>20261126T001130</code>：diff 行合计 <b>17</b>，
 覆盖 <b>17</b> 张表；库内 <code>industry_*</code> 基表
 <b>21</b> 张（17 观测 + 1 预测 + audit + diff + catalog_map），
-行业层业务表合计（17 观测 + 1 预测）<b>265,026</b> 行；近 30 天复核视图 <b>0</b> 行
+行业层业务表合计（17 观测 + 1 预测）<b>265,638</b> 行；近 30 天复核视图 <b>47</b> 行
 （本次装载与库内一致，没有值变化与被删行，视图为空是正确结果）。</p>
 <table>
 <tr><th>table_name</th><th>change_type</th><th class="num">n</th></tr>
 <tr><td>industry_benchmark_public_index</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_caam_auto_output</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_chinamoney_lpr</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_cnesa_storage</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_cninfo_announcements</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_comtrade_trade_values</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_cpcaauto_nev</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_exchange_daily_quotes</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_gfex_lithium_carbonate</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_mof_fiscal</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_nea_power</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_ow_iea_usgs_timeseries</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_pbc_shrzgm</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_ppi_spot_prices</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_sne_public_battery</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_stats_gov_release</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_trendforce_spot_price</td><td>no_change</td><td class='num'>1</td></tr>
 </table>
 <p class="muted">自检：各 <code>change_type</code> 分项相加 = 17；
-各表相加 = 17。统计时点 2026-11-26 00:21 CST。</p>
+各表相加 = 17。统计时点 2026-11-29 00:04 CST。</p>
 
-<h3>6.5 质量闸</h3>
+<h3>6.5 四要素实证：出处覆盖率与上游原句</h3>
+<p>变更行（<code>value_changed</code> / <code>row_added</code> / <code>row_dropped</code>）
+按源统计出处 URL 覆盖率。缺口 0 行；<code>trendforce</code> / <code>exchange</code> /
+<code>benchmark</code> 三张表没有 URL 列，出处页取自各自 manifest（<code>sources</code> 键），
+行内特征能命中的取命中条（GFEX/SHFE、DRAM/NAND），reason 里标「页级出处」。</p>
+<table>
+<tr><th>source</th><th class="num">变更行</th><th class="num">有 source_doc</th>
+<th class="num">覆盖率</th><th class="num">其中「原句：无」</th></tr>
+<tr><td>benchmark_public_index</td><td class='num'>88</td><td class='num'>88</td><td class='num'>100.0%</td><td class='num'>88</td></tr><tr><td>exchange_daily_quotes</td><td class='num'>168</td><td class='num'>168</td><td class='num'>100.0%</td><td class='num'>168</td></tr><tr><td>gfex_lithium_carbonate</td><td class='num'>216</td><td class='num'>216</td><td class='num'>100.0%</td><td class='num'>216</td></tr><tr><td>ppi_spot_prices</td><td class='num'>102</td><td class='num'>102</td><td class='num'>100.0%</td><td class='num'>102</td></tr><tr><td>trendforce_spot_price</td><td class='num'>132</td><td class='num'>132</td><td class='num'>100.0%</td><td class='num'>132</td></tr>
+<tr><td><b>合计</b></td><td class="num"><b>706</b></td>
+<td class="num"><b>706</b></td>
+<td class="num"><b>100.0%</b></td><td class="num">—</td></tr>
+</table>
+<p class="muted">自检：各源变更行相加 = 706；有 source_doc 相加 = 706；
+缺口 = 0。统计时点 2026-11-29 00:04 CST。</p>
+
+<h3>6.6 value_changed 的 reason 长什么样（取 5 行）</h3>
+<p class="muted">生产 raw 这两天没有值变化（<code>value_changed</code> 现读 0 行），下面 5 行取自
+<code>$QUANTDB_HOME/staging/work585-demo</code> 的离线演示库，走的是同一份 <code>change_reason()</code>。</p>
+<table>
+<tr><th>indicator</th><th>old → new</th><th>reason</th></tr>
+<tr><td>period=2026-01-01|indicator=抽水蓄能装机占比</td><td>31.3 → <b>34.43</b></td><td>整源替换：本次快照（2026-11-25T22:00:00+0800）value 由 31.3 改为 34.43；原句：2025年是“十四五”的收官之年，与“十三五”末相比，储能技术路线市场份额变化，抽水蓄能占比31.3%，以锂电池为代表的新型储能实现跨越式增长，新型储能累计装机占比 超过2/3 ，单一向多元化加速发展。</td></tr><tr><td>period=2026-01-01|indicator=新型储能累计装机规模</td><td>144.7 → <b>159.17</b></td><td>整源替换：本次快照（2026-11-25T22:00:00+0800）value 由 144.7 改为 159.17；原句：截至2025年12月底，中国新型储能累计装机规模达到 144.7GW，同比+85% 。</td></tr><tr><td>period=2026-01-01|indicator=新型储能累计装机规模同比</td><td>85 → <b>93.5</b></td><td>整源替换：本次快照（2026-11-25T22:00:00+0800）value 由 85 改为 93.5；原句：截至2025年12月底，中国新型储能累计装机规模达到 144.7GW，同比+85% 。</td></tr><tr><td>period=2026-01-01|indicator=电力储能累计装机规模</td><td>213.3 → <b>234.63</b></td><td>整源替换：本次快照（2026-11-25T22:00:00+0800）value 由 213.3 改为 234.63；原句：根据CNESA DataLink全球储能数据库的不完全统计，截至2025年12月底，中国 电力储能累计装机规模213.3GW，同比+54% 。</td></tr><tr><td>period=2026-01-01|indicator=电力储能累计装机规模同比</td><td>54 → <b>59.4</b></td><td>整源替换：本次快照（2026-11-25T22:00:00+0800）value 由 54 改为 59.4；原句：根据CNESA DataLink全球储能数据库的不完全统计，截至2025年12月底，中国 电力储能累计装机规模213.3GW，同比+54% 。</td></tr>
+</table>
+
+<h3>6.7 质量闸</h3>
 <table><tr><th>闸</th><th>结果</th></tr><tr><td>C1_rows_nonzero</td><td class="ok">PASS</td></tr><tr><td>C2_primary_key</td><td class="ok">PASS</td></tr><tr><td>C3_date_domain</td><td class="ok">PASS</td></tr><tr><td>C4_unit_reconciliation</td><td class="ok">PASS</td></tr><tr><td>C5_audit_consistency</td><td class="ok">PASS</td></tr><tr><td>C6_catalog_coverage</td><td class="ok">PASS</td></tr><tr><td>C7_freshness</td><td class="ok">PASS</td></tr><tr><td>C8_forecast</td><td class="ok">PASS</td></tr><tr><td>C9_load_diff</td><td class="ok">PASS</td></tr></table>
-<p>9/9 PASS（报告文件 <code>industry-20261126.json</code>）。</p>
+<p>9/9 PASS（报告文件 <code>industry-20261128.json</code>）。</p>
 
-<h3>6.6 离线测试</h3>
+<h3>6.8 离线测试</h3>
 <p><code>pytest db/tests/</code> 全绿，其中 <code>db/tests/test_industry_diff.py</code>
-<b>11</b> 项为本单新增：值修改 + 新增行、快照源撤期（F3 回归）、幂等 0 差异、
+<b>15</b> 项为本单新增：值修改 + 新增行、快照源撤期（F3 回归）、幂等 0 差异、
 分区源只碰本期、空快照拒绝清表（含 <code>--full</code>）、整数与浮点同值不误报、
 离线 HTML fixture 的 F3 全链路、C9 缺留痕、C9 畸形行。</p>
 
@@ -216,7 +240,7 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 <li><b>C9 只查留痕完整性</b>，不判断变化是否符合业务预期——那是人看视图的事。</li>
 <li><b><code>history/</code> 每个抓取批次都会新增一套</b>：哈希覆盖数据 + <code>manifest.json</code>
 （+ 预测源 <code>article.txt</code>），而 <code>manifest.fetched_at</code> 每次抓取都变，所以不是
-「上游不变就不增长」——每天约新增 17 份数据 + 17 份 manifest（当前最大原始文件 1.0 MB，估算
+「上游不变就不增长」——每天约新增 17 份数据 + 17 份 manifest（当前最大原始文件 2.5 MB，估算
 每天 3–5 MB、一年约 1.5 GB）。要限额需另做归档策略，不在本单。</li>
 <li><b>diff 不清理</b>：每日/每月累积，量级是「每次装载的变更行数」，正常重跑每表 1 行；
 若将来需要保留窗口，另开单做归档，不在本单。</li>
@@ -228,22 +252,41 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 </ul>
 
 <h2>8. 回滚</h2>
-<pre class="term"># ① 代码：git revert（.bak 机制已退役，改前版本就是基线 59e5682）
-git -C /srv/share/quantdb/code/quant-lab revert &lt;交付 SHA&gt;
+<p class="muted">回滚对象是<b>提交</b>，不是单个文件：功能实现分布在 <code>59e5682..1df4704</code>
+这一串提交里（<code>git log --oneline 59e5682..1df4704</code>）。live 树在另一个分支、这些文件在
+那边是未追踪的，所以 revert 后必须<b>显式同步</b>过去。</p>
+<pre class="term"># ① 在 git worktree 里整段回退到基线（先看 diff 再提交）
+cd /srv/share/quantdb/code/work-585
+git revert --no-commit 59e5682..1df4704
+git diff --cached --stat
 
-# ② 库对象（只删留痕对象，不动任何观测表数据）
-flock /srv/share/quantdb/logs/.quantdb-db.lock   /home/moyongkai/.venvs/quantdb/bin/python - &lt;&lt;'SQL'
+# ② 同步到线上跑的那棵树（live 树里这些文件 git 未追踪，revert 不会自动生效）
+cd /srv/share/quantdb/code/quant-lab
+for f in db/etl/industry.py db/checks/industry.py db/schema_industry.sql          db/tests/test_industry_diff.py scripts/work585_verify.py          scripts/work585_build_delivery.py; do
+  git -C /srv/share/quantdb/code/work-585 show 59e5682:$f > $f
+done
+
+# ③ 库对象（只删留痕对象，不动 17 张观测表）
+flock -w 1800 /srv/share/quantdb/logs/.quantdb-db.lock   /home/moyongkai/.venvs/quantdb/bin/python - &lt;&lt;'SQL'
 import duckdb
 con = duckdb.connect("/srv/share/quantdb/db/quantdb.duckdb")
 con.execute("DROP VIEW IF EXISTS v_industry_load_changes_recent")
 con.execute("DROP TABLE IF EXISTS industry_load_diff")
 con.execute("CHECKPOINT"); con.close()
-SQL
+SQL</pre>
 
-# ③ 数据：整源替换已经清掉的残留行不会因回滚代码复活；
-#    需要恢复就按 raw 重新装载（raw 未改动）。</pre>
-<p class="muted"><code>industry.sh</code> 调用方式未改，回滚代码即恢复原行为；
-C9 随 <code>industry_load_diff</code> 一起消失，C1–C8 不受影响。</p>
+<h3>8.1 PG / 大屏侧受影响面（不处理会留孤儿）</h3>
+<table>
+<tr><th>位置</th><th>内容</th><th>回滚后症状</th><th>处理</th></tr>
+<tr><td><code>metabase/schema_pg.sql:134</code></td><td>PG 侧 <code>industry_load_diff</code> 表</td>
+<td>DuckDB 删表后 PG 表仍在、数据停止更新</td><td>手工 <code>DROP TABLE industry_load_diff;</code></td></tr>
+<tr><td><code>metabase/schema_pg.sql:152</code></td><td><code>industry_load_diff_changed_at_idx</code></td>
+<td>随表成孤儿</td><td>随表 DROP</td></tr>
+<tr><td><code>metabase/sync_to_pg.py:432</code></td><td><code>OPTIONAL_TABLES</code> 含该表</td>
+<td>sync 发现源表不存在会<b>静默跳过</b>，不报错</td><td>无需改代码，但别把「不报错」当正常</td></tr>
+<tr><td><code>metabase/dashboard/lib.py</code>（WORK-586 大屏「数据变更」区块）</td><td>直读该表</td>
+<td>区块无数据</td><td>同步下线或改占位</td></tr>
+</table>
 
 <h2>9. 附录</h2>
 <h3>9.1 表结构</h3>
@@ -289,19 +332,19 @@ QUANTDB_HOME=/srv/share/quantdb PYTHONPATH=$PWD \
   /home/moyongkai/.venvs/quantdb/bin/python -m db.checks.industry all</pre>
 
 <h3>9.4 代码锁版（sha256）</h3>
-<pre class="term"># WORK-585 代码锁版（2026-11-25/26）
+<pre class="term"># WORK-585 代码锁版（2026-11-29 返工轮）
 branch: agent/work-585-diff-log
 base_sha: 59e5682e438373d594c482257a095a364adf20f8   # WORK-584 交付 tip
-head_sha: 95322ed5fd1dcefc7640263a55b1995c5155d175
+head_sha: 1df4704e7b74965601fbcefc468d132515d60095
 files (8):
-1165ddc21fe9ac8142e1b85707b43b5ae5aa98ca23a6455c0eb928006ddb1004  db/etl/industry.py
+1b66f08d122402d674ac025908b9e3d009eab293041794fc2e6d056bb84897a2  db/etl/industry.py
 953b45baea45d716abd3a65b3b929811b25f64d35b9937a64f62bcf2232d9029  db/checks/industry.py
 bb54ecef015d2722e620b2ed51c355244a6e8d41aa70e3fdf340f0c3845e3ef7  db/schema_industry.sql
-38828788f050838cc6d5de2ea1585ea1bb70a7b176f6cdc7ea0d3c3fa44cbb2b  db/tests/test_industry_diff.py
-af4ca765c3805c6799e6c70b91f4e3286d46f8164c9431a797fa41258ef9252d  scripts/work585_verify.py
-a558719bda196626b9ca8b0b2bbeca09e02cce5c32b01b01498f7a73bce30f91  scripts/work585_build_delivery.py
-3594ee7a9a51d64017e2f224a6f1f159c0e175d1416451504c52aa95b330fc8f  docs/industry-ingest-2026.md
-1dee115bc66fdd120d7f4f447a8f65055b9d7fd2a5d5b087bfddcb76ab1c063f  CHANGELOG.md</pre>
+edcb57723f0b0735c0773ad36f830833077fbf6992229991c2fb8d3f68fc09b3  db/tests/test_industry_diff.py
+f45ca832e42b6dce6637c9e1505fda519bf9af2dd32f105635feb72c303adac0  scripts/work585_verify.py
+90a529d4d8fcb23c69a988bdf6e9d30e82df3be465f04d2eb04d5cb3a95b9f8b  scripts/work585_build_delivery.py
+6eae058222406b3c887f1517b9754deda655afcaed3acc0aaf08e9069321ee75  docs/industry-ingest-2026.md
+54b0d574705c2f356909eb6666865e81a052579b5865fe7ec26091a6ff56da7c  CHANGELOG.md</pre>
 
 <footer>
 本页由 <code>scripts/work585_build_delivery.py</code> 从现场数据生成；所有数字来自
