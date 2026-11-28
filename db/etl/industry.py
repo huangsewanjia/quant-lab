@@ -747,7 +747,14 @@ def change_reason(
         return f"{label}：源快照（{stamp}）与库内逐行一致，无变化"
 
     if change == "value_changed":
-        head = f"{label}：本次快照（{stamp}）{column} 由 {before} 改为 {after}"
+        # 变的是长文本列（caliber / context / article_title）时，值本身就能吃掉 500 字，
+        # 原句会被挤掉——截值到 80 字符，保证「；原句：」永远有位置。
+        def clip(value: str | None, limit: int = 80) -> str:
+            text = "" if value is None else str(value)
+            return text if len(text) <= limit else text[: limit - 1] + "…"
+
+        head = (f"{label}：本次快照（{stamp}）{column} "
+                f"由 {clip(before)} 改为 {clip(after)}")
     elif change == "row_added":
         head = f"{label}：本次快照（{stamp}）新增该行"
     else:

@@ -555,13 +555,52 @@ def test_backfill_fills_legacy_rows_without_touching_loaded_rows(qdb):
              "exchange=GFEX|trade_date=2026-11-27", None,
              "按期替换：本次快照（旧）新增该行", dt.datetime(2026, 11, 26, 6, 0)],
         )
+        con.execute(
+            "INSERT INTO industry_load_diff (run_id, source, table_name, period, indicator, "
+            "change_type, column_name, old_value, new_value, source_doc, reason, changed_at) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            ["LEGACY", "exchange_daily_quotes", "industry_exchange_daily_quotes", None,
+             "exchange=SHFE|contract=AL", "row_added", None, None, "x",
+             "https://example.invalid/already-filled", "按期替换：已带出处与原句；原句：原样保留",
+             dt.datetime(2026, 11, 26, 6, 0)],
+        )
         repaired = ind.backfill_diff_provenance(con)
         row = con.execute(
-            "SELECT source_doc, reason FROM industry_load_diff WHERE run_id = 'LEGACY'"
+            "SELECT source_doc, reason FROM industry_load_diff "
+            "WHERE run_id = 'LEGACY' AND indicator LIKE 'exchange=GFEX%'"
+        ).fetchone()
+        kept = con.execute(
+            "SELECT source_doc, reason FROM industry_load_diff "
+            "WHERE run_id = 'LEGACY' AND indicator LIKE 'exchange=SHFE%'"
         ).fetchone()
         again = ind.backfill_diff_provenance(con)
 
     assert repaired == 1 and again == 0
+    # 已有 source_doc 与原句的行必须逐字节不动（否则「不覆盖已有内容」只是文档承诺）
+    assert kept == ("https://example.invalid/already-filled",
+                    "按期替换：已带出处与原句；原句：原样保留"), kept
     assert row[0].startswith("http://www.gfex.com.cn"), row
     assert "；原句：无（结构化接口数据" in row[1], row
     assert "页级出处（manifest 登记）" in row[1], row
+
+
+def test_value_changed_reason_keeps_sentence_when_column_is_long_text(qdb):
+    """变的是长文本列（caliber）时，reason 仍要保住「；原句：」且 ≤500。"""
+    _prepare_db(qdb)
+    source = ind.SOURCE_BY_NAME["cnesa_storage"]
+    sentence = "截至2025年12月底，中国新型储能累计装机规模达到 144.7GW，同比+85% 。"
+    long_a = "口径A" * 400 + "｜原句：" + sentence
+    long_b = "口径B" * 400 + "｜原句：" + sentence
+    _write_cnesa([_row("2026-01", "新型储能累计装机规模", "144.7", caliber=long_a)])
+    with qdb.duckdb_connect() as con:
+        ind.load_source(con, source, "run-1")
+        _write_cnesa([_row("2026-01", "新型储能累计装机规模", "144.7", caliber=long_b)])
+        ind.load_source(con, source, "run-2")
+        reason = con.execute(
+            "SELECT reason FROM industry_load_diff WHERE run_id = 'run-2' "
+            "AND change_type = 'value_changed' AND column_name = 'caliber'"
+        ).fetchone()[0]
+
+    assert len(reason) <= ind.REASON_LIMIT, len(reason)
+    assert "；原句：" in reason, reason
+    assert "累计装机规模达到 144.7GW" in reason, reason

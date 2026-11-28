@@ -151,10 +151,12 @@ def main() -> None:
     demo = json.loads((META / "work585-demo.json").read_text()) if (META / "work585-demo.json").exists() else None
     dbinfo = json.loads((META / "work585-db.json").read_text()) if (META / "work585-db.json").exists() else None
     head_sha = "HEAD"
+    func_sha = "1df4704e7b74965601fbcefc468d132515d60095"
     if (META / "work585-code-sha256.txt").exists():
         for line in (META / "work585-code-sha256.txt").read_text(encoding="utf-8").splitlines():
             if line.startswith("func_sha:"):
-                head_sha = line.split(":", 1)[1].split("#")[0].strip()[:7]
+                func_sha = line.split(":", 1)[1].split("#")[0].strip()
+                head_sha = func_sha[:7]
                 break
             if line.startswith("head_sha:") and head_sha == "HEAD":
                 head_sha = line.split(":", 1)[1].split("#")[0].strip()[:7]
@@ -508,17 +510,26 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 <p class="muted">回滚对象是<b>提交</b>，不是单个文件：功能实现分布在 <code>59e5682..{head_sha}</code>
 这一串提交里（<code>git log --oneline 59e5682..{head_sha}</code>）。live 树在另一个分支、这些文件在
 那边是未追踪的，所以 revert 后必须<b>显式同步</b>过去。</p>
-<pre class="term"># ① 在 git worktree 里整段回退到基线（先看 diff 再提交）
+<pre class="term"># ⓪ 先看要回退的是什么（应看到 db/etl/industry.py 等代码文件，不是只有 docs）
+git -C /srv/share/quantdb/code/work-585 show --stat {func_sha}
+
+# ① 在 git worktree 里整段回退（区间固定写功能提交，不要用 ..HEAD）
 cd /srv/share/quantdb/code/work-585
 git revert --no-commit 59e5682..{head_sha}
 git diff --cached --stat
 
-# ② 同步到线上跑的那棵树（live 树里这些文件 git 未追踪，revert 不会自动生效）
+# ② 同步到线上跑的那棵树（live 树里这些文件 git 未追踪，revert 不会自动生效）。
+#    基线里不存在的 3 个文件（本单新增）不能 `show > f`——会先截断再失败、留下 0 字节，
+#    必须先判存在，不存在就删除。
 cd /srv/share/quantdb/code/quant-lab
 for f in db/etl/industry.py db/checks/industry.py db/schema_industry.sql \
          db/tests/test_industry_diff.py scripts/work585_verify.py \
          scripts/work585_build_delivery.py; do
-  git -C /srv/share/quantdb/code/work-585 show 59e5682:$f > $f
+  if git -C /srv/share/quantdb/code/work-585 cat-file -e 59e5682:$f 2>/dev/null; then
+    git -C /srv/share/quantdb/code/work-585 show 59e5682:$f > $f
+  else
+    rm -f $f
+  fi
 done
 
 # ③ 库对象（只删留痕对象，不动 17 张观测表）

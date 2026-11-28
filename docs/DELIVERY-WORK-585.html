@@ -39,7 +39,7 @@ footer{margin-top:56px;border-top:1px solid var(--line);padding-top:14px;
 </style></head><body><main>
 
 <h1>行业装载变更留痕：diff 日志 + 快照源整源替换</h1>
-<p class="sub">WORK-585 · 数据底座 quantdb · 生成于 2026-11-29 00:07 CST · 目标 runtime：Mo-server</p>
+<p class="sub">WORK-585 · 数据底座 quantdb · 生成于 2026-11-29 00:17 CST · 目标 runtime：Mo-server</p>
 
 <div class="lede">
 <b>一句话：</b>装载器现在每次替换前先把「库内现状 vs 本次快照」的逐行差异写进
@@ -193,7 +193,7 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 <tr><td>industry_benchmark_public_index</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_caam_auto_output</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_chinamoney_lpr</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_cnesa_storage</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_cninfo_announcements</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_comtrade_trade_values</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_cpcaauto_nev</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_exchange_daily_quotes</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_gfex_lithium_carbonate</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_mof_fiscal</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_nea_power</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_ow_iea_usgs_timeseries</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_pbc_shrzgm</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_ppi_spot_prices</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_sne_public_battery</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_stats_gov_release</td><td>no_change</td><td class='num'>1</td></tr><tr><td>industry_trendforce_spot_price</td><td>no_change</td><td class='num'>1</td></tr>
 </table>
 <p class="muted">自检：各 <code>change_type</code> 分项相加 = 17；
-各表相加 = 17。统计时点 2026-11-29 00:07 CST。</p>
+各表相加 = 17。统计时点 2026-11-29 00:17 CST。</p>
 
 <h3>6.5 四要素实证：出处覆盖率与上游原句</h3>
 <p>变更行（<code>value_changed</code> / <code>row_added</code> / <code>row_dropped</code>）
@@ -209,7 +209,7 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 <td class="num"><b>100.0%</b></td><td class="num">—</td></tr>
 </table>
 <p class="muted">自检：各源变更行相加 = 706；有 source_doc 相加 = 706；
-缺口 = 0。统计时点 2026-11-29 00:07 CST。</p>
+缺口 = 0。统计时点 2026-11-29 00:17 CST。</p>
 
 <h3>6.6 value_changed 的 reason 长什么样（取 5 行）</h3>
 <p class="muted">生产 raw 这两天没有值变化（<code>value_changed</code> 现读 0 行），下面 5 行取自
@@ -225,7 +225,7 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 
 <h3>6.8 离线测试</h3>
 <p><code>pytest db/tests/</code> 全绿，其中 <code>db/tests/test_industry_diff.py</code>
-<b>15</b> 项为本单新增：值修改 + 新增行、快照源撤期（F3 回归）、幂等 0 差异、
+<b>16</b> 项为本单新增：值修改 + 新增行、快照源撤期（F3 回归）、幂等 0 差异、
 分区源只碰本期、空快照拒绝清表（含 <code>--full</code>）、整数与浮点同值不误报、
 离线 HTML fixture 的 F3 全链路、C9 缺留痕、C9 畸形行。</p>
 
@@ -254,15 +254,24 @@ old_value / new_value / changed_at），同事务先记账后替换，0 差异�
 <p class="muted">回滚对象是<b>提交</b>，不是单个文件：功能实现分布在 <code>59e5682..1df4704</code>
 这一串提交里（<code>git log --oneline 59e5682..1df4704</code>）。live 树在另一个分支、这些文件在
 那边是未追踪的，所以 revert 后必须<b>显式同步</b>过去。</p>
-<pre class="term"># ① 在 git worktree 里整段回退到基线（先看 diff 再提交）
+<pre class="term"># ⓪ 先看要回退的是什么（应看到 db/etl/industry.py 等代码文件，不是只有 docs）
+git -C /srv/share/quantdb/code/work-585 show --stat 1df4704e7b74965601fbcefc468d132515d60095
+
+# ① 在 git worktree 里整段回退（区间固定写功能提交，不要用 ..HEAD）
 cd /srv/share/quantdb/code/work-585
 git revert --no-commit 59e5682..1df4704
 git diff --cached --stat
 
-# ② 同步到线上跑的那棵树（live 树里这些文件 git 未追踪，revert 不会自动生效）
+# ② 同步到线上跑的那棵树（live 树里这些文件 git 未追踪，revert 不会自动生效）。
+#    基线里不存在的 3 个文件（本单新增）不能 `show > f`——会先截断再失败、留下 0 字节，
+#    必须先判存在，不存在就删除。
 cd /srv/share/quantdb/code/quant-lab
 for f in db/etl/industry.py db/checks/industry.py db/schema_industry.sql          db/tests/test_industry_diff.py scripts/work585_verify.py          scripts/work585_build_delivery.py; do
-  git -C /srv/share/quantdb/code/work-585 show 59e5682:$f > $f
+  if git -C /srv/share/quantdb/code/work-585 cat-file -e 59e5682:$f 2>/dev/null; then
+    git -C /srv/share/quantdb/code/work-585 show 59e5682:$f > $f
+  else
+    rm -f $f
+  fi
 done
 
 # ③ 库对象（只删留痕对象，不动 17 张观测表）

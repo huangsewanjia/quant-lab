@@ -989,12 +989,13 @@ raw 摘要（2026-11-25 22:55 最终版）：`part.parquet` 12,237 B，sha256
 
 | change_type | reason 示例 |
 |---|---|
-| `value_changed` | `整源替换：本次快照（2026-11-25T00:00:00+0800）中该字段取值变化` |
-| `row_added` | `按期替换：本次快照（…）新增该行` |
-| `row_dropped` | `整源替换：本次快照（…）不再包含该行` |
+| `value_changed` | `整源替换：本次快照（2026-11-25T22:00:00+0800）value 由 144.7 改为 159.17；原句：截至2025年12月底，中国新型储能累计装机规模达到 144.7GW，同比+85% 。` |
+| `row_added` | `按期替换：本次快照（…）新增该行；原句：…` |
+| `row_dropped` | `整源替换：本次快照（…）不再包含该行；原句：…` |
 | `no_change` | `按期替换：源快照（…）与库内逐行一致，无变化` |
+| 历史行（首版上线前写入） | `WORK-585 首版上线前写入，无原因字段（历史行）` |
 
-`value_changed` 不再写「该字段取值变化」这种同义反复，而是**写明哪列、从什么改成什么，再接原句**：
+`value_changed` 不再写「该字段取值变化」这种同义反复，而是**写明哪列、从什么改成什么，再接原句**（长文本列的变化值会截到 80 字符，保证原句不被挤掉）：
 
 ```
 整源替换：本次快照（2026-11-25T22:00:00+0800）value 由 144.7 改为 159.17；
@@ -1020,7 +1021,6 @@ source_doc）」**，不拿标题或链接冒充原句。exchange / trendforce /
 **存量行回填**（`backfill_diff_provenance()`，每次装载前跑一次、幂等）：实现兜底之前写入的变更行
 （上一次验收时 229 行无 URL、全部无原句）按各源**当前** manifest 与已存行文本补齐，已有内容不覆盖。
 回填前的整表快照留在 `/srv/share/quantdb/staging/industry_load_diff-before-work585-rework-20261129.parquet`。
-| 历史行（首版上线前写入） | `WORK-585 首版上线前写入，无原因字段（历史行）` |
 
 **存量表兼容**：生产库在本单首版落地时已有同表（75 行 10 列）。`apply_schema` 每次装载执行
 `ALTER TABLE … ADD COLUMN IF NOT EXISTS` 补 `source_doc` / `reason`（追加在物理末尾），并把
@@ -1147,25 +1147,36 @@ print(con.execute('select * from v_industry_load_changes_recent limit 20').df().
 
 ### 14.7 回滚
 
-**回滚对象是提交，不是某一个文件。** 本单代码在分支 `agent/work-585-diff-log` 上，功能实现是
-`59e5682..` 之后的一串提交（`git log --oneline 59e5682..HEAD`）；本文档版本与代码同源。
+**回滚对象是提交，不是某一个文件。** 功能实现是 **`1df4704`**（`fix(WORK-585): WORK-647 三项不达标返工`），
+它之后只有 docs 提交（交付页/图注），回退区间固定写 `59e5682..1df4704`，**不要用 `..HEAD`**——HEAD 会继续前进，
+照着 `..HEAD` 回退会把后续别的单的提交一起卷进来。
 
 ```bash
-# ① 代码：整段回退到基线（--no-commit 便于先看 diff 再提交）
-cd /srv/share/quantdb/code/work-585          # 本单 worktree（git 里就有这些文件）
-git revert --no-commit 59e5682..HEAD         # 或：git checkout 59e5682 -- db/ docs/ CHANGELOG.md
-git diff --cached --stat                     # 复核要回退的文件
+# ⓪ 先看要回退的是什么（应看到 db/etl/industry.py、db/checks/industry.py、
+#    db/schema_industry.sql、db/tests/test_industry_diff.py 等代码文件，不是只有 docs）
+git -C /srv/share/quantdb/code/work-585 show --stat 1df4704e7b74965601fbcefc468d132515d60095
 
-# ② 把 worktree 里的回退结果同步到**线上跑的那棵树**（live 树在另一个分支，
-#    这些文件在那边是未追踪的，revert 不会自动生效）：
+# ① 在 git worktree 里整段回退（--no-commit 便于先看 diff 再提交）
+cd /srv/share/quantdb/code/work-585
+git revert --no-commit 59e5682..1df4704
+git diff --cached --stat
+
+# ② 同步到线上跑的那棵树（live 树在另一个分支，这些文件在那边未追踪，revert 不会自动生效）。
+#    注意：db/tests/test_industry_diff.py、scripts/work585_verify.py、scripts/work585_build_delivery.py
+#    在基线 59e5682 里【不存在】，`show … > $f` 会先截断再失败、留下 0 字节空文件，
+#    所以必须先判存在：不存在就删除。
 cd /srv/share/quantdb/code/quant-lab
 for f in db/etl/industry.py db/checks/industry.py db/schema_industry.sql \
          db/tests/test_industry_diff.py scripts/work585_verify.py \
          scripts/work585_build_delivery.py; do
-  git -C /srv/share/quantdb/code/work-585 show 59e5682:$f > $f
+  if git -C /srv/share/quantdb/code/work-585 cat-file -e 59e5682:$f 2>/dev/null; then
+    git -C /srv/share/quantdb/code/work-585 show 59e5682:$f > $f
+  else
+    rm -f $f          # 基线里没有 = 本单新增，回滚就是删掉它
+  fi
 done
 
-# ③ 库对象：只删留痕对象，不动任何观测表数据（C9 随表消失）
+# ③ 库对象（只删留痕对象，不动 17 张观测表）
 flock -w 1800 /srv/share/quantdb/logs/.quantdb-db.lock \
   /home/moyongkai/.venvs/quantdb/bin/python - <<'SQL'
 import duckdb
@@ -1183,7 +1194,7 @@ SQL
 | `code/metabase/schema_pg.sql:134` | `CREATE TABLE IF NOT EXISTS industry_load_diff` | DuckDB 侧删表后 PG 表仍在，数据停止更新 | 手工 `DROP TABLE industry_load_diff;`（PG） |
 | `code/metabase/schema_pg.sql:152` | `industry_load_diff_changed_at_idx` 索引 | 随表一起成孤儿 | 随表 DROP |
 | `code/metabase/sync_to_pg.py:432` | `OPTIONAL_TABLES = {"industry_load_diff"}` | sync 发现源表不存在会**静默跳过**，不报错 | 无需改代码，但要知道「不报错≠正常」 |
-| `code/metabase/dashboard/lib.py`（WORK-586 大屏「数据变更」区块） | 直读该表 | 区块无数据（空表/查询失败） | 同步下线或改为占位 |
+| `code/metabase/dashboard/lib.py:40`（WORK-586 大屏「数据变更」区块） | 直读该表 | 区块无数据（空表/查询失败） | 同步下线或改为占位 |
 
 **数据侧**：`history/` 里的 raw 快照只增不删，回滚代码不用动它；回到某个历史快照要**数据文件与同前缀
 `manifest.json`（预测源还有 `article.txt`）一起复制回去**——只还原数据文件会让 `snapshot_date` 与
