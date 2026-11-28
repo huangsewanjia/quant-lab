@@ -127,10 +127,26 @@ def main():
     p_qlib = os.path.join(DATA, "qlib_cn", "calendars", "day.txt")
     a = [l.strip() for l in open(p_cal, encoding="utf-8") if l.strip()]
     b = [l.strip() for l in open(p_qlib, encoding="utf-8") if l.strip()]
+    # 2026-11-28 修：两份日历**日期完全相同、只是字符串格式不同**
+    # （ds 写 '2006-01-04'，qlib 写 '20060104'），逐字面比较会得到 identical=False
+    # 这种假阴性。这里按解析后的日期比较，同时把两种原始格式都记进产物。
+    _da = pd.to_datetime(pd.Series(a), errors="coerce")
+    _db = pd.to_datetime(pd.Series(b), errors="coerce")
+    _identical_parsed = bool(len(_da) == len(_db) and (_da.values == _db.values).all())
+    _identical_literal = a == b
     out["I3_calendar_identity"] = {
         "ds_calendar": p_cal, "qlib_calendar": p_qlib,
-        "n_ds": len(a), "n_qlib": len(b), "identical": a == b,
-        "passed": a == b and len(a) == len(cal),
+        "n_ds": len(a), "n_qlib": len(b),
+        "identical": _identical_parsed,
+        "identical_literal": _identical_literal,
+        "format_ds": a[0] if a else None, "format_qlib": b[0] if b else None,
+        "note": "按解析后的日期比较；两种文件只是格式不同（YYYY-MM-DD vs YYYYMMDD）",
+        # 2026-11-28 修：日历文件覆盖 2006–2024（4616 天），而本检查的窗口 cal 是
+        # 2012-01-04 起的 3157 天，拿 len(a)==len(cal) 判必然为假。改为「窗口内每一天
+        # 都在两份日历里」。
+        "n_window_days": len(cal),
+        "window_covered": bool(set(pd.DatetimeIndex(cal)).issubset(set(_da))),
+        "passed": _identical_parsed and bool(set(pd.DatetimeIndex(cal)).issubset(set(_da))),
     }
 
     # ---- I4 ------------------------------------------------------------

@@ -1,0 +1,15 @@
+{
+ "arm": "no_vq",
+ "seed": 2024,
+ "mode": "infer_only",
+ "preds": "C:\\Users\\MO_Yongkai\\multica_workspaces_cloud\\workspace-c8faa36a018a\\work-557-a221b7629a32\\workdir\\quant-lab\\experiments\\WORK-557\\preds\\no_vq_s2024.parquet",
+ "n_rows": 217800,
+ "stage2_ckpt": "C:\\Users\\MO_Yongkai\\multica_workspaces_cloud\\workspace-c8faa36a018a\\work-557-a221b7629a32\\workdir\\quant-lab\\vendor\\PRISM-VQ\\checkpoints\\stage2_no_vq_s2024.ckpt",
+ "metrics": {
+  "IC": 0.05166478097569214,
+  "ICIR": 0.3122614446918757,
+  "RankIC": 0.0654979381174343,
+  "RankICIR": 0.41486287916247766
+ },
+ "seconds": 31.5
+}

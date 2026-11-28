@@ -276,10 +276,32 @@ f3 = grouped_bar(["数据加载(8 workers) 微基准", "模型前向+反向 微�
                  ylab="ms / batch", h=300)
 
 # 2026-11-28 seed42 结果（现读产物，不手抄）
+def _rows_by_seed(runs):
+    """按 verdict.runs 里实际存在的 seed 逐行渲染（full / no_vq 成对）。"""
+    out = []
+    seeds = sorted({k.rsplit("_s", 1)[-1] for k in runs if "_s" in k})
+    for sdd in seeds:
+        for arm in ("full", "no_vq"):
+            r = runs.get(f"{arm}_s{sdd}")
+            if not r:
+                continue
+            out.append(
+                f'<tr><td>PRISM-VQ {arm}（s{sdd}）</td>'
+                f'<td class="num">{float(r.get("rankic") or 0):.4f}</td>'
+                f'<td class="num">{float(r.get("rankicir") or 0):.4f}</td>'
+                f'<td class="num">{float(r.get("sr") or 0):.4f}</td>'
+                f'<td class="num">{float(r.get("ar") or 0):.2%}</td>'
+                f'<td class="num">{float(r.get("mdd") or 0):.4f}</td>'
+                f'<td class="num">{float(r.get("turnover") or 0):.4f}</td>'
+                f'<td class="num">早停</td></tr>')
+    return "\n".join(out)
+
+
 _H1 = (VD.get("H1") or {})
 DD = float(_H1.get("delta_drop") or 0)
 GAP = abs(float(_H1.get("paper_delta_formula") or 0.2693) * 100 - abs(DD) * 100)
 _runs = (VD.get("runs") or {})
+SEED_ROWS = _rows_by_seed(_runs)
 F = _runs.get("full_s42", {})
 N = _runs.get("no_vq_s42", {})
 F_IC, F_IR, F_SR = float(F.get("rankic") or 0), float(F.get("rankicir") or 0), float(F.get("sr") or 0)
@@ -287,6 +309,14 @@ F_AR, F_MDD, F_TO = float(F.get("ar") or 0), float(F.get("mdd") or 0), float(F.g
 N_IC, N_IR, N_SR = float(N.get("rankic") or 0), float(N.get("rankicir") or 0), float(N.get("sr") or 0)
 N_AR, N_MDD, N_TO = float(N.get("ar") or 0), float(N.get("mdd") or 0), float(N.get("turnover") or 0)
 SR50 = float((VD.get("H3") or {}).get("sr_median") or F_SR)
+_ps = (_H1.get("delta_ic_per_seed") or {})
+PS42 = float(_ps.get("42") or DD)
+PS24 = float(_ps.get("2024") or DD)
+MARGIN = abs(abs(DD) * 100 - 10.0)
+_H2 = ((VD.get("H2") or {}).get("per_seed") or {}).get("2024") or {}
+H2P = float(_H2.get("point") or 0)
+H2LO = float(_H2.get("lo") or 0)
+H2HI = float(_H2.get("hi") or 0)
 def _cs(tag, key):
     return float(((CS.get(tag) or {}).get(key) or {}).get("sr") or 0)
 def _car(tag, key):
@@ -402,12 +432,16 @@ WORK-503 数值取自 <code>experiments/WORK-503/verdict.json</code> 的 <code>r
 <td class="num">{dabs(g57.get('sr',0), g503['sr'])}</td><td>可判</td></tr>
 <tr><td>GRU 日均单边换手</td><td class="num">{fmt(g503['turnover'])}</td><td class="num">{fmt(g57.get('turnover',0))}</td>
 <td class="num">{dabs(g57.get('turnover',0), g503['turnover'])}</td><td>可判</td></tr>
-<tr><td><b>H1 Δ_drop</b></td><td class="num">−21.64%</td><td class="num">未取到</td><td class="num">—</td>
-<td><b>不可判</b>：full 与 no_vq 一个都没出</td></tr>
-<tr><td>H2 vs GRU 增量 CI</td><td class="num">见 503 §H2</td><td class="num">未取到</td><td class="num">—</td>
-<td><b>不可判</b>：缺 full 档</td></tr>
-<tr><td>H3 净 SR（8/30 bps）</td><td class="num">见 503</td><td class="num">未取到</td><td class="num">—</td>
-<td><b>不可判</b>：缺四档预测</td></tr>
+<tr><td><b>H1 Δ_drop（同 seed 42）</b></td><td class="num">−17.59%</td><td class="num">{PS42:.2%}</td>
+<td class="num">{PS42 + 0.17585:+.2%}</td>
+<td><b>方向一致、幅度变弱</b>。<b>注意基准口径</b>：503 的<b>两 seed 合并中位数</b>是 −21.64%，
+本行用的是 503 的 <b>s42 单 seed 值 −17.59%</b>（<code>H1.delta_ic_per_seed["42"]</code>）；
+拿中位数跟本单单 seed 比会把幅度虚高近一倍（本报告 v1 版即此错，已更正）。</td></tr>
+<tr><td>H2 vs GRU 增量 CI</td><td class="num">见 503 §H2</td>
+<td class="num">{H2P:+.4f} [{H2LO:+.4f}, {H2HI:+.4f}]</td><td class="num">—</td>
+<td><b>可判（s2024）</b>：10,000 次 block bootstrap（block=5）95% CI <b>不含 0</b>；s42 缺 <code>gru_s42</code></td></tr>
+<tr><td>H3 净 SR（8/30 bps）</td><td class="num">见 503</td><td class="num">{SR50:.4f}（两 seed 中位）</td>
+<td class="num">—</td><td><b>可判</b>：判退（&lt;0）；<b>已独立复算 0 mismatch @1e-6</b></td></tr>
 </tbody></table>
 <p class="note"><b>必须回答的那一句</b>：训练窗从 2015 扩到 2009、轮数从 6 放到 50，
 <b>Δ_drop 变没变、往哪边变？—— 无法回答</b>。Δ_drop 的两端（PRISM-VQ full 与 no_vq）
@@ -460,7 +494,7 @@ code{{font-family:var(--mono);font-size:12.5px;background:#f4f4f2;padding:1px 4p
 
 <div class="verdict negative">
 <h3>结论</h3>
-<div class="word">seed 42 两档已跑出：Δ_drop = <b>−13.83%</b>（部分复现），净 SR &lt; 0 判退；其余三档仍未跑</div>
+<div class="word">两 seed 跑完：Δ_drop = <b>{DD:.2%}</b>（部分复现，离 −10% 边界仅 {MARGIN:.2f}pp），净 SR &lt; 0 判退；无 MoE / 无先验两档仍未跑</div>
 <div class="caveat">
 ① 8 次尝试全部在 15–30 s 内崩溃，根因是两处<b>适配层</b>不兼容（torch≥2 的 <code>Sampler</code> 签名、
 Windows spawn 下闭包 <code>collate_fn</code> 不可 pickle），已在适配层修好，未改 vendor；
@@ -473,9 +507,11 @@ stage-2（MoE + Transformer 预测器，VQ-VAE 冻结）也已完成实测：<b>
 （上一版写的「单档 3.4 h &gt; 3 h 闸、全量 62 h」是 50 步外推，<b>已被实测推翻并作废</b>，
 差异来自冷启动被摊进前 50 步；三档口径并列在表 5 / 表 5b。）
 ③ 2026-11-28 晚补跑 <code>full / seed 42</code> 与 <code>no_vq / seed 42</code>（各含 stage-1 + stage-2），
-预测与回测已出，<b>H1 可判</b>：Δ_drop = <b>{DD:.2%}</b>，落在「部分复现」带（不进 [−40%,−15%] 也不退 [−10%,+10%]）；
-H3 仍判<b>退</b>（净 SR {SR50:.3f} &lt; 0，与 H1 无关）。<b>H2 仍不可判</b>（缺 gru_s42 与其余两档），
-且本结果<b>只有 1 个 seed（n_seeds=1），不满足预注册的 ≥2 seed</b>。
+两个 seed（42 / 2024）都跑完并出预测、回测、判词：<b>H1 可判</b>——逐 seed Δ_drop = {PS42:.2%} / {PS24:.2%}，
+<b>两 seed 中位数口径 {DD:.2%}</b>，落在「部分复现」带（不进 [−40%,−15%]、不退 [−10%,+10%]，但离 −10% 只差 {MARGIN:.2f}pp）；
+H3 判<b>退</b>（两 seed 净 SR 中位数 {SR50:.4f} &lt; 0，与 H1 无关）；
+<b>H2 在 seed 2024 上可判</b>：ΔRankIC {H2P:+.4f}，95% CI [{H2LO:+.4f}, {H2HI:+.4f}]，<b>不含 0</b>。
+seed 42 缺 GRU 基线（<code>gru_s42</code> 从未成功），故 H2 只有 1/2 seed。
 </div>
 </div>
 
@@ -486,10 +522,7 @@ H3 仍判<b>退</b>（净 SR {SR50:.3f} &lt; 0，与 H1 无关）。<b>H2 仍不
 <thead><tr><th>档</th><th class="num">RankIC</th><th class="num">RankICIR</th><th class="num">净 SR</th>
 <th class="num">年化 AR</th><th class="num">MDD</th><th class="num">日均单边换手</th><th class="num">实际轮次</th></tr></thead>
 <tbody>
-<tr><td>PRISM-VQ full</td><td class="num">{F_IC:.4f}</td><td class="num">{F_IR:.4f}</td><td class="num">{F_SR:.4f}</td>
-<td class="num">{F_AR:.2%}</td><td class="num">{F_MDD:.4f}</td><td class="num">{F_TO:.4f}</td><td class="num">28（早停）</td></tr>
-<tr><td>PRISM-VQ no_vq</td><td class="num">{N_IC:.4f}</td><td class="num">{N_IR:.4f}</td><td class="num">{N_SR:.4f}</td>
-<td class="num">{N_AR:.2%}</td><td class="num">{N_MDD:.4f}</td><td class="num">{N_TO:.4f}</td><td class="num">早停</td></tr>
+{SEED_ROWS}
 <tr><td><b>Δ_drop</b>（H1）</td><td class="num" colspan="7"><b>{DD:.2%}</b> —— 预注册带：进 [−40%,−15%] / 退 [−10%,+10%]，
 其余判「部分复现」→ <b>部分复现</b>（论文 Table 2 的 Δ_formula = 26.93%，即 Δ_drop = −26.93%，本单弱了 {GAP:.1f} 个百分点）</td></tr>
 </tbody></table>
@@ -601,10 +634,12 @@ NVIDIA GeForce RTX 3060, 1818 MiB, 12288 MiB, 11 %</pre>
 <td><code>full_{{s42,s2024}}</code>、<code>no_vq_{{s42,s2024}}</code> 四份预测</td>
 <td class="st teal">2/4 → <b>seed 42 可判：{DD:.2%}（部分复现）</b>；缺 s2024，未达 ≥2 seed</td></tr>
 <tr><td>H2</td><td>vs GRU 基线的 RankIC 差，10,000 次 block bootstrap（block=5 日）95% CI</td>
-<td><code>full_*</code> 两份 + <code>gru_*</code> 两份（后者本单有 1 份）</td><td class="st red">0/2 → 不可判</td></tr>
+<td><code>full_*</code> 两份 + <code>gru_*</code> 两份（后者本单有 1 份）</td>
+<td class="st teal">1/2 → <b>seed 2024 可判</b>：ΔRankIC {H2P:+.4f}，95% CI [{H2LO:+.4f}, {H2HI:+.4f}]（不含 0）；seed 42 缺 gru_s42</td></tr>
 <tr><td>H3</td><td>净 SR（8 / 30 bps 两档）、AR、MDD、换手；净 SR &lt; 0 直接判退</td>
 <td>四档 × 成本档回测产物</td>
-<td class="st red">2/8 → seed 42 两档可判：净 SR {F_SR:.3f} / {N_SR:.3f}，<b>判退</b></td></tr>
+<td class="st teal">4/8 → 两 seed 的 full/no_vq 可判：净 SR 中位 {SR50:.4f}，<b>判退</b>；
+<b>已独立复算 0 mismatch @1e-6</b></td></tr>
 </tbody></table>
 
 {tA}
@@ -771,8 +806,20 @@ NVIDIA GeForce RTX 3060, 1818 MiB, 12288 MiB, 11 %</pre>
 <tr><td>8</td><td>两份沉淀</td><td class="st teal">已交付</td><td><code>data_health_checklist.md</code>、<code>window_cost_note.md</code></td></tr>
 </tbody></table>
 
+<li><b>lookahead 检查仍不可用（已修到能跑完，但未通过）</b>：修掉 <code>KeyError: sh600001</code>
+（qlib 二进制缺票 → 现按候选序跳过并记 <code>skipped_symbols</code>）后能完整跑完，结果是
+标签轴 <code>label_max_abs_diff = 7.4e-9</code>（通过），但 <code>feature_date_mismatches = 1,997,525 / 2,327,786</code>、
+<code>prior_mismatches = 2,617,126 / 2,625,423</code>，最大绝对差 1.35–4.81 且呈<b>常量偏移</b> ——
+更像两套归一化口径不一致而非日期错位。<b>所以不能据此声称「无前视」</b>；影响范围：H1/H3 建在同一批特征上，
+若特征侧真有前视则所有档同受影响，本检查既不能证实也不能证伪。</li>
+<li><b>integrity I4 仍未通过（不影响测试段）</b>：5,798 条 violations 全部落在
+2012-01-04 起的头 20 个交易日（≈300 只 × 20 日），根因是该检查读的是 WORK-503 时代的新浪快照
+（起点 2012），与 quantdb 面板（2006 起点）不一致；2022–2024 测试段<b>零条</b>。
+I3 已修：两份日历日期完全相同，只是 <code>2006-01-04</code> vs <code>20060104</code> 的格式差异，
+按日期比较后 <code>identical=true</code>。</li>
 <h3>8.1 不确定项</h3>
 <ul>
+<li><b>实测只覆盖 stage-1、前 10 轮</b>
 <li><b>stage-2 已是实测，但只有 3 轮、1 个 seed</b>：112.9 s/轮中位（0.89× stage-1，不是原假设的 2×），
 整队满 50 轮口径因此从 35.6 h 降到 {tot_meas:.1f} h。它的 <b>早停轮次未测</b>（3 轮里 val_loss 还在降），
 早停口径 {tot_early:.1f} h 用的是「28 轮」假设，属上界侧估计。</li>

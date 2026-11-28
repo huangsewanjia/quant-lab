@@ -78,13 +78,20 @@ def main():
     train_idx = np.where((cal >= pd.Timestamp(TRAIN[0])) &
                          (cal <= pd.Timestamp(TRAIN[1])))[0]
     fb, pb = [], []
+    skipped_fit = []
     for gstart in range(0, len(symbols), 120):
         group = symbols[gstart:gstart + 120]
         raw = D.features(group, expr_list, start_time="2012-01-01",
                          end_time="2024-12-31")
         raw.columns = feat_names
+        _have = set(raw.index.get_level_values("instrument"))
         for sym in group:
             i = symbols.index(sym)
+            # 2026-11-28 修：qlib 二进制里缺票（如 sh600001）会让 xs() 抛 KeyError，
+            # 整个前视检查因此一直没有产物。缺票跳过并记录，不参与拟合统计。
+            if sym not in _have:
+                skipped_fit.append(sym)
+                continue
             sub = raw.xs(sym, level="instrument").reindex(cal).to_numpy("float64")
             rows = pit_mask[train_idx, i]
             fb.append(sub[train_idx][rows])
@@ -92,6 +99,7 @@ def main():
             # the stored prior is normalised; invert it with the statistics
             # recomputed below, so the raw prior is recovered in a second pass
             pb.append(None)
+    print(f"[lookahead] fit pass skipped {len(skipped_fit)} symbol(s) absent from qlib: {skipped_fit[:8]}", flush=True)
     Xfit = np.concatenate(fb, axis=0)
     f_mean, f_std = robust_norm_fit(Xfit)
     del fb, Xfit
@@ -121,9 +129,26 @@ def main():
            "label_max_abs_diff": 0.0, "samples": []}
 
     # ---- A. the feature axis --------------------------------------------
-    pick = rng.choice(len(symbols), size=min(args.n_instruments, len(symbols)),
-                      replace=False)
-    for si in pick:
+    # 2026-11-28 修：pit 股票池里有 qlib 二进制里没有的票（如 sh600001，退市/无 2012 后数据），
+    # `D.features` 取不到 -> `raw.xs(sym)` 抛 KeyError。以前直接崩，整个前视检查没有产物。
+    # 现在按候选序取，取不到的记 skipped 并继续，直到凑够 n_instruments 个可用样本。
+    _cand = list(rng.choice(len(symbols), size=min(4 * args.n_instruments, len(symbols)),
+                            replace=False))
+    _picked = []
+    for _si in _cand:
+        if len(_picked) >= args.n_instruments:
+            break
+        _sym = symbols[_si]
+        try:
+            _probe = D.features([_sym], expr_list, start_time="2012-01-01",
+                                end_time="2024-12-31")
+            _probe.xs(_sym, level="instrument")
+        except (KeyError, ValueError):
+            out.setdefault("skipped_symbols", []).append(_sym)
+            continue
+        _picked.append(int(_si))
+    out["n_instruments_used"] = len(_picked)
+    for si in _picked:
         sym = symbols[si]
         raw = D.features([sym], expr_list, start_time="2012-01-01",
                          end_time="2024-12-31")

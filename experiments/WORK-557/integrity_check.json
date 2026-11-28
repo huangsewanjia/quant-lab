@@ -184,8 +184,14 @@
   "qlib_calendar": "C:\\Users\\MO_Yongkai\\multica_workspaces_cloud\\workspace-c8faa36a018a\\work-557-a221b7629a32\\workdir\\quant-lab\\data\\WORK-557\\qlib_cn\\calendars\\day.txt",
   "n_ds": 4616,
   "n_qlib": 4616,
-  "identical": false,
-  "passed": false
+  "identical": true,
+  "identical_literal": false,
+  "format_ds": "2006-01-04",
+  "format_qlib": "20060104",
+  "note": "按解析后的日期比较；两种文件只是格式不同（YYYY-MM-DD vs YYYYMMDD）",
+  "n_window_days": 3157,
+  "window_covered": true,
+  "passed": true
  },
  "I4_new_listing_rule": {
   "samples_checked": 947054,

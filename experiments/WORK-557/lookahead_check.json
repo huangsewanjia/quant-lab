@@ -1,0 +1,54 @@
+{
+ "features_checked": 2327786,
+ "max_feat_abs_diff": 4.8147386139428265,
+ "feature_date_mismatches": 1997525,
+ "prior_max_abs_diff": 1.1053533991323152,
+ "label_max_abs_diff": 7.352726982823299e-09,
+ "samples": [
+  {
+   "instrument": "sz002424",
+   "rows": 4616,
+   "max_abs_diff": 1.3489814187255784,
+   "n_clipped": 247203
+  },
+  {
+   "instrument": "sz300529",
+   "rows": 4616,
+   "max_abs_diff": 1.3489814187255784,
+   "n_clipped": 417543
+  },
+  {
+   "instrument": "sz300999",
+   "rows": 4616,
+   "max_abs_diff": 1.4613962029092276,
+   "n_clipped": 572731
+  },
+  {
+   "instrument": "sh600332",
+   "rows": 4616,
+   "max_abs_diff": 4.8147386139428265,
+   "n_clipped": 245880
+  },
+  {
+   "instrument": "sh600271",
+   "rows": 4616,
+   "max_abs_diff": 1.3489814187255784,
+   "n_clipped": 246051
+  },
+  {
+   "instrument": "sh603699",
+   "rows": 4616,
+   "max_abs_diff": 1.4613962029092276,
+   "n_clipped": 318774
+  }
+ ],
+ "skipped_symbols": [
+  "sh600296"
+ ],
+ "n_instruments_used": 6,
+ "prior_checked": 2625423,
+ "prior_mismatches": 2617126,
+ "label_checked": 125,
+ "label_mismatches": 0,
+ "passed": false
+}

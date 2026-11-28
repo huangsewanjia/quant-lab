@@ -135,3 +135,20 @@ cd C:\Users\MO_Yongkai\multica_workspaces_cloud\workspace-c8faa36a018a\work-557-
 
 **停止 / 清理**：`schtasks /end /tn WORK557_seed42w`、`schtasks /delete /tn WORK557_seed42w /f`
 （`WORK557_seed42` 那次的句柄同样可 /end /delete）
+
+## 2026-11-28 深夜：seed 2024 两档（full / no_vq）
+
+| 计划任务 | 日志 | 结果 |
+|---|---|---|
+| `WORK557_seed2024w`（pythonw，无控制台） | `logs/seed2024_arms_w.log` | full：20:07 起 → 21:02 stage-1 完 → 21:40 退出；no_vq：21:40 → 22:15 退出 |
+| 补推理 `work557_infer_only.py --seed 2024` | 同上 | full RankIC .0700 / no_vq .0655 |
+
+**停止 / 清理**：`schtasks /end /tn WORK557_seed2024w`、`schtasks /delete /tn WORK557_seed2024w /f`
+
+**链修复（2026-11-28 深夜）**
+- `audit/recompute_work557.py`：`PriceBook` 的键是 `YYYYMMDD`、recompute 传的是 `YYYY-MM-DD` → 全部取价 miss（`n_pos=0`）。
+  加 `_k()` 归一 + `_get()` 双写法回退后，**5 个 run × 6 个字段全部 0 mismatch @1e-6**。
+- `scripts/work557_check_integrity.py`：I3 改为按**解析后的日期**比较（两份日历只是 `2006-01-04` vs `20060104` 格式差异），
+  I3 从 false → **true**；I4 仍是 5,798 条，全部落在 2012-01-04 起头 20 个交易日（检查读的是 503 时代新浪快照，起点 2012）。
+- `scripts/work557_check_lookahead.py`：qlib 缺票导致 `KeyError: sh600001` → 改为按候选序跳过并记录；
+  现在能跑完，但 **feature/prior 两轴仍未通过**（标签轴 0 差）。

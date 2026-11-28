@@ -15,6 +15,20 @@
    "alpha_totalcap_annualized": -0.06557673608529607
   },
   {
+   "cost_point": "main_5_15bps",
+   "description": "Ô¤×¢²áÖ÷¿Ú¾¶£¨Âò 5 / Âô 15 bps£©",
+   "pre_registered": true,
+   "run": "full_s2024",
+   "rankic": 0.07002227077527669,
+   "sr_net": -0.06283895298218477,
+   "ar_net": -0.011631001261973362,
+   "mdd": 0.2792178178073579,
+   "turnover_1side": 0.16686578386841577,
+   "alpha_index_annualized": 0.06560094981202813,
+   "alpha_ew_annualized": 0.07698304180710686,
+   "alpha_totalcap_annualized": -0.04122496054696524
+  },
+  {
    "cost_point": "single_8bps",
    "description": "Ô¤×¢²áÃô¸ÐÐÔ£¨µ¥±ß 8 bps£©",
    "pre_registered": true,
@@ -27,6 +41,20 @@
    "alpha_index_annualized": 0.05801239556966064,
    "alpha_ew_annualized": 0.06939448756473937,
    "alpha_totalcap_annualized": -0.04881351478933272
+  },
+  {
+   "cost_point": "single_8bps",
+   "description": "Ô¤×¢²áÃô¸ÐÐÔ£¨µ¥±ß 8 bps£©",
+   "pre_registered": true,
+   "run": "full_s2024",
+   "rankic": 0.07002227077527669,
+   "sr_net": 0.02726233652497766,
+   "ar_net": 0.0050874275777190725,
+   "mdd": 0.27331664437986825,
+   "turnover_1side": 0.16680850930014787,
+   "alpha_index_annualized": 0.08236817954813948,
+   "alpha_ew_annualized": 0.0937502715432182,
+   "alpha_totalcap_annualized": -0.0244577308108539
   },
   {
    "cost_point": "roundtrip_30bps",
@@ -43,6 +71,20 @@
    "alpha_totalcap_annualized": -0.10769886478598581
   },
   {
+   "cost_point": "roundtrip_30bps",
+   "description": "Ô¤×¢²áÃô¸ÐÐÔ£¨Ë«±ß 30 bps£©",
+   "pre_registered": true,
+   "run": "full_s2024",
+   "rankic": 0.07002227077527669,
+   "sr_net": -0.2892638940920997,
+   "ar_net": -0.052488849519365166,
+   "mdd": 0.33819752377865375,
+   "turnover_1side": 0.16686352602575164,
+   "alpha_index_annualized": 0.02342644456647326,
+   "alpha_ew_annualized": 0.03480853656155198,
+   "alpha_totalcap_annualized": -0.08339946579252011
+  },
+  {
    "cost_point": "gross_0bps",
    "description": "**Ô¤×¢²áÍâÕï¶Ï**£¨Áã³É±¾£©",
    "pre_registered": false,
@@ -55,6 +97,20 @@
    "alpha_index_annualized": 0.12531303610656425,
    "alpha_ew_annualized": 0.13669512810164297,
    "alpha_totalcap_annualized": 0.018487125747570873
+  },
+  {
+   "cost_point": "gross_0bps",
+   "description": "**Ô¤×¢²áÍâÕï¶Ï**£¨Áã³É±¾£©",
+   "pre_registered": false,
+   "run": "full_s2024",
+   "rankic": 0.07002227077527669,
+   "sr_net": 0.389962581040211,
+   "ar_net": 0.0751628137513074,
+   "mdd": 0.2583837009759248,
+   "turnover_1side": 0.16674589490508943,
+   "alpha_index_annualized": 0.1497260066642839,
+   "alpha_ew_annualized": 0.16110809865936263,
+   "alpha_totalcap_annualized": 0.042900096305290535
   }
  ]
 }

@@ -85,18 +85,32 @@ class PriceBook:
             self.prev_ff[sym] = prev
             self.last_close[sym] = last
 
+    # 2026-11-28 修：PriceBook 的键是 CSV / day.txt 的 **YYYYMMDD**（'20060104'），
+    # 而 recompute() 传进来的是 pred['datetime'].strftime('%Y-%m-%d')（'2022-01-04'）。
+    # 以前所有取价都 miss -> open 价全是 nan -> 每天都建不了仓（n_pos=0），
+    # 于是 SR/AR/MDD/换手 复算退化成 0/NaN。这里统一做键归一（两种写法都认）。
+    @staticmethod
+    def _k(d: str) -> str:
+        return str(d).replace("-", "")[:8]
+
+    def _get(self, table: dict, sym: str, d: str) -> float:
+        row = table.get(sym, {})
+        v = row.get(self._k(d))
+        if v is None:
+            v = row.get(str(d))
+        return np.nan if v is None else v
+
     def close_on(self, sym: str, d: str) -> float:
-        ff = self.close_ff.get(sym, {})
-        return ff.get(d, np.nan)
+        return self._get(self.close_ff, sym, d)
 
     def open_on(self, sym: str, d: str) -> float:
-        return self.opens.get(sym, {}).get(d, np.nan)
+        return self._get(self.opens, sym, d)
 
     def close_exact(self, sym: str, d: str) -> float:
-        return self.closes.get(sym, {}).get(d, np.nan)
+        return self._get(self.closes, sym, d)
 
     def prev_close(self, sym: str, d: str) -> float:
-        return self.prev_ff.get(sym, {}).get(d, np.nan)
+        return self._get(self.prev_ff, sym, d)
 
     def locked_limit_up_at_open(self, sym: str, d: str) -> bool:
         """The name opens locked at the upper limit -> it cannot be bought.

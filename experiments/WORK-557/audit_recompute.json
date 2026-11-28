@@ -4,97 +4,51 @@
   "full_s42": {
    "rankic": 0.07155735541735327,
    "rankicir": 0.49563070600979403,
-   "ar": 0.0,
-   "mdd": 0.0,
-   "sr": NaN,
-   "turnover": 0.0,
+   "ar": -0.03760962586782679,
+   "mdd": 0.32806574564183943,
+   "sr": -0.19354938572580424,
+   "turnover": 0.16687553533107152,
+   "days": 725
+  },
+  "full_s2024": {
+   "rankic": 0.07002227077527669,
+   "rankicir": 0.46118723028211517,
+   "ar": -0.011631001261974028,
+   "mdd": 0.27921781780735677,
+   "sr": -0.0628389529821884,
+   "turnover": 0.16686578386841577,
    "days": 725
   },
   "no_vq_s42": {
    "rankic": 0.06166114728031629,
    "rankicir": 0.4168098504338388,
-   "ar": 0.0,
-   "mdd": 0.0,
-   "sr": NaN,
-   "turnover": 0.0,
+   "ar": -0.05013329165252256,
+   "mdd": 0.39123560368621746,
+   "sr": -0.2681089061266972,
+   "turnover": 0.16673730619804084,
+   "days": 725
+  },
+  "no_vq_s2024": {
+   "rankic": 0.0654979381174343,
+   "rankicir": 0.41486287916247766,
+   "ar": -0.043989110219507244,
+   "mdd": 0.41041572204506527,
+   "sr": -0.2222624278959457,
+   "turnover": 0.16682197266411644,
    "days": 725
   },
   "gru_s2024": {
    "rankic": 0.05125543391204701,
    "rankicir": 0.33846093103289027,
-   "ar": 0.0,
-   "mdd": 0.0,
-   "sr": NaN,
-   "turnover": 0.0,
+   "ar": -0.12327831742123008,
+   "mdd": 0.46416049227944167,
+   "sr": -0.638165433745071,
+   "turnover": 0.1667807867183932,
    "days": 725
   }
  },
- "mismatches": [
-  {
-   "key": "full_s42",
-   "field": "ar",
-   "model_side": -0.03760962586782879,
-   "recompute": 0.0,
-   "rel_diff": 1.0
-  },
-  {
-   "key": "full_s42",
-   "field": "mdd",
-   "model_side": 0.32806574564184443,
-   "recompute": 0.0,
-   "rel_diff": 1.0
-  },
-  {
-   "key": "full_s42",
-   "field": "turnover",
-   "model_side": 0.16687553533107155,
-   "recompute": 0.0,
-   "rel_diff": 1.0
-  },
-  {
-   "key": "no_vq_s42",
-   "field": "ar",
-   "model_side": -0.05013329165252378,
-   "recompute": 0.0,
-   "rel_diff": 1.0
-  },
-  {
-   "key": "no_vq_s42",
-   "field": "mdd",
-   "model_side": 0.39123560368621924,
-   "recompute": 0.0,
-   "rel_diff": 1.0
-  },
-  {
-   "key": "no_vq_s42",
-   "field": "turnover",
-   "model_side": 0.16673730619804084,
-   "recompute": 0.0,
-   "rel_diff": 1.0
-  },
-  {
-   "key": "gru_s2024",
-   "field": "ar",
-   "model_side": -0.12327831742123008,
-   "recompute": 0.0,
-   "rel_diff": 1.0
-  },
-  {
-   "key": "gru_s2024",
-   "field": "mdd",
-   "model_side": 0.464160492279439,
-   "recompute": 0.0,
-   "rel_diff": 1.0
-  },
-  {
-   "key": "gru_s2024",
-   "field": "turnover",
-   "model_side": 0.1667807867183932,
-   "recompute": 0.0,
-   "rel_diff": 1.0
-  }
- ],
- "n_mismatches": 9,
+ "mismatches": [],
+ "n_mismatches": 0,
  "independence": {
   "imported_modules": [
    "__future__",
