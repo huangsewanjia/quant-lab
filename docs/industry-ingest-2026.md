@@ -1158,8 +1158,8 @@ docs 提交会让 `docs/…`、`DELIVERY.html` 之类文件冲突（实测：直
 ```bash
 # ⓪ 先看要回退的是什么：该提交实测 6 文件 = CHANGELOG.md / db/etl/industry.py /
 #    db/tests/test_industry_diff.py / docs/DELIVERY-WORK-585.html / docs/industry-ingest-2026.md /
-#    scripts/work585_build_delivery.py；db/checks/industry.py 与 db/schema_industry.sql
-#    不在这个单提交里，用 git diff --stat 59e5682 9078525 才看得到
+#    scripts/work585_build_delivery.py；db/checks/industry.py、db/schema_industry.sql、
+#    scripts/work585_verify.py 不在这个单提交里，用 git diff --stat 59e5682 9078525 才看得到
 git -C /srv/share/quantdb/code/work-585 show --stat 90785255bb1462a26674fe4ffa66277e5a41a988
 
 # ① 先切到功能提交再整段回退（不切会与后续 docs 提交冲突）
